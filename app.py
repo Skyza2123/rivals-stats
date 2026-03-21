@@ -386,6 +386,8 @@ def build_default_comp_sections(map_name: str) -> list[dict]:
 
 def build_scrim_analytics(scrims: list[dict]) -> dict:
     ban_slot_keys = ("ban1", "ban2", "ban3", "ban4")
+    phase_ban_to_ban_slots = ("ban1", "ban2", "ban3", "ban4")
+    phase_ban_to_protect_slots = (("ban1", "protect1"), ("ban3", "protect2"))
     ban_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     enemy_ban_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     ban_position_stats = {slot: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for slot in ban_slot_keys}
@@ -409,6 +411,10 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
     comp_mirror_total = 0
     comp_soft_mirror_count = 0
     comp_hard_mirror_count = 0
+    ban_response_matrix = defaultdict(lambda: defaultdict(int))
+    enemy_ban_response_matrix = defaultdict(lambda: defaultdict(int))
+    ban_to_protect_matrix = defaultdict(lambda: defaultdict(int))
+    enemy_ban_to_protect_matrix = defaultdict(lambda: defaultdict(int))
 
     total_maps = 0
     total_wins = 0
@@ -418,6 +424,12 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
     ban_position_totals = defaultdict(int)
     enemy_ban_position_totals = defaultdict(int)
     total_filled_protects = 0
+
+    def canonical_hero(hero_name: str) -> str:
+        raw = (hero_name or "").strip()
+        if not raw:
+            return ""
+        return _resolve_hero_transform_key(raw) or raw
 
     def classify_comp_profile(heroes: list[str]) -> str:
         role_counts = defaultdict(int)
@@ -460,6 +472,24 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             draft = map_entry.get("draft", {})
             our_draft = draft.get(our_team_slot, {})
             enemy_draft = draft.get(opposite_team_slot(our_team_slot), {})
+
+            for slot_key in phase_ban_to_ban_slots:
+                our_ban = canonical_hero(our_draft.get(slot_key, ""))
+                enemy_ban = canonical_hero(enemy_draft.get(slot_key, ""))
+                if our_ban and enemy_ban:
+                    ban_response_matrix[our_ban][enemy_ban] += 1
+                    enemy_ban_response_matrix[enemy_ban][our_ban] += 1
+
+            for ban_slot, protect_slot in phase_ban_to_protect_slots:
+                our_ban = canonical_hero(our_draft.get(ban_slot, ""))
+                our_protect = canonical_hero(our_draft.get(protect_slot, ""))
+                if our_ban and our_protect:
+                    ban_to_protect_matrix[our_ban][our_protect] += 1
+
+                enemy_ban = canonical_hero(enemy_draft.get(ban_slot, ""))
+                enemy_protect = canonical_hero(enemy_draft.get(protect_slot, ""))
+                if enemy_ban and enemy_protect:
+                    enemy_ban_to_protect_matrix[enemy_ban][enemy_protect] += 1
 
             our_draft_heroes = [
                 (_resolve_hero_transform_key((hero or "").strip()) or (hero or "").strip())
@@ -611,6 +641,32 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             }
         )
     enemy_ban_rows.sort(key=lambda r: (r["count"], r["win_rate"]), reverse=True)
+
+    def build_transition_rows(transition_matrix: dict) -> list[dict]:
+        rows = []
+        for source_hero, target_counts in transition_matrix.items():
+            total_source = sum(target_counts.values())
+            if total_source <= 0:
+                continue
+
+            for target_hero, count in target_counts.items():
+                rows.append(
+                    {
+                        "source_hero": source_hero,
+                        "target_hero": target_hero,
+                        "count": count,
+                        "source_total": total_source,
+                        "rate": pct(count, total_source),
+                    }
+                )
+
+        rows.sort(key=lambda r: (r["count"], r["rate"], r["source_total"]), reverse=True)
+        return rows
+
+    ban_response_rows = build_transition_rows(ban_response_matrix)
+    enemy_ban_response_rows = build_transition_rows(enemy_ban_response_matrix)
+    ban_to_protect_rows = build_transition_rows(ban_to_protect_matrix)
+    enemy_ban_to_protect_rows = build_transition_rows(enemy_ban_to_protect_matrix)
 
     overall_win_rate = pct(total_wins, total_maps)
 
@@ -993,6 +1049,10 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         },
         "ban_rows": ban_rows[:12],
         "enemy_ban_rows": enemy_ban_rows[:12],
+        "ban_response_rows": ban_response_rows[:12],
+        "enemy_ban_response_rows": enemy_ban_response_rows[:12],
+        "ban_to_protect_rows": ban_to_protect_rows[:12],
+        "enemy_ban_to_protect_rows": enemy_ban_to_protect_rows[:12],
         "ban_position_rows": ban_position_rows,
         "enemy_ban_position_rows": enemy_ban_position_rows,
         "ban_phase_variation": {

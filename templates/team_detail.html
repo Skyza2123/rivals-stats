@@ -90,9 +90,15 @@
                 </article>
             </div>
 
+            <div class="panel top-gap">
+                <div class="section-kicker">Draft Phases</div>
+                <h3>Phase Structure</h3>
+                <p class="panel-intro">Phase 1: each team bans once and protects once. Phase 2: each team takes two uninterrupted bans. Phase 3: each team protects, then takes one final ban.</p>
+            </div>
+
             <div class="ban-visual-grid">
                 <div class="panel ban-chart-panel">
-                    <h3>Ban Distribution</h3>
+                    <h3>Ban Distribution (With Ban Win Rate)</h3>
                     {% if team_analytics.ban_rows %}
                         {% set ban_max = team_analytics.ban_rows[0].count %}
                         <div class="vbar-chart">
@@ -105,12 +111,12 @@
                                              onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                     </div>
                                     <div class="vbar-bar-wrapper">
-                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%)">
+                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%) • {{ row.win_rate }}% win rate when banned">
                                             <span class="vbar-label-top">{{ row.count }}</span>
                                         </div>
                                     </div>
                                     <div class="vbar-label">
-                                        <span class="vbar-rate">{{ row.ban_rate }}%</span>
+                                        <span class="vbar-rate">{{ row.ban_rate }}% • {{ row.win_rate }}% WR</span>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -119,33 +125,132 @@
                         <p class="empty-text">No ban data yet.</p>
                     {% endif %}
                 </div>
+            </div>
 
-                <div class="panel ban-chart-panel">
-                    <h3>Protect Distribution</h3>
-                    {% if team_analytics.protect_rows %}
-                        {% set protect_max = team_analytics.protect_rows[0].count %}
-                        <div class="vbar-chart">
-                            {% for row in team_analytics.protect_rows[:12] %}
-                                {% set height = ((row.count / protect_max) * 100) if protect_max else 0 %}
-                                <div class="vbar-container">
-                                    <div class="vbar-hero-image">
-                                        <img src="{{ hero_image_url(row.hero) }}" 
-                                             alt="{{ row.hero }}"
-                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    </div>
-                                    <div class="vbar-bar-wrapper">
-                                        <div class="vbar-bar vbar-bar-protect" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} protects ({{ row.protect_rate }}%)">
-                                            <span class="vbar-label-top">{{ row.count }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="vbar-label">
-                                        <span class="vbar-rate">{{ row.protect_rate }}%</span>
-                                    </div>
-                                </div>
-                            {% endfor %}
+            <div class="form-grid top-gap">
+                <div class="panel panel-soft-blue">
+                    <div class="section-kicker">Ban Responses</div>
+                    <h3>Main Ban → Enemy Next Ban</h3>
+                    {% if team_analytics.ban_response_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-compare">
+                                <thead>
+                                    <tr>
+                                        <th>Main Ban</th>
+                                        <th>Enemy Next Ban</th>
+                                        <th>Count</th>
+                                        <th>Likelihood</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.ban_response_rows %}
+                                        <tr>
+                                            <td>{{ row.source_hero }}</td>
+                                            <td>{{ row.target_hero }}</td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     {% else %}
-                        <p class="empty-text">No protect data yet.</p>
+                        <p class="empty-text">No ban-response data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel panel-soft-gold">
+                    <div class="section-kicker">Ban Responses</div>
+                    <h3>Enemy Ban → Main Next Ban</h3>
+                    {% if team_analytics.enemy_ban_response_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-compare">
+                                <thead>
+                                    <tr>
+                                        <th>Enemy Ban</th>
+                                        <th>Main Next Ban</th>
+                                        <th>Count</th>
+                                        <th>Likelihood</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.enemy_ban_response_rows %}
+                                        <tr>
+                                            <td>{{ row.source_hero }}</td>
+                                            <td>{{ row.target_hero }}</td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban-response data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-grid top-gap">
+                <div class="panel panel-soft-green">
+                    <div class="section-kicker">Ban To Protect</div>
+                    <h3>Main Ban → Main Protect</h3>
+                    {% if team_analytics.ban_to_protect_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-protect">
+                                <thead>
+                                    <tr>
+                                        <th>Main Ban</th>
+                                        <th>Main Protect</th>
+                                        <th>Count</th>
+                                        <th>Likelihood</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.ban_to_protect_rows %}
+                                        <tr>
+                                            <td>{{ row.source_hero }}</td>
+                                            <td>{{ row.target_hero }}</td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban-to-protect data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel panel-soft-blue">
+                    <div class="section-kicker">Ban To Protect</div>
+                    <h3>Enemy Ban → Enemy Protect</h3>
+                    {% if team_analytics.enemy_ban_to_protect_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-protect">
+                                <thead>
+                                    <tr>
+                                        <th>Enemy Ban</th>
+                                        <th>Enemy Protect</th>
+                                        <th>Count</th>
+                                        <th>Likelihood</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.enemy_ban_to_protect_rows %}
+                                        <tr>
+                                            <td>{{ row.source_hero }}</td>
+                                            <td>{{ row.target_hero }}</td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban-to-protect data yet.</p>
                     {% endif %}
                 </div>
             </div>
