@@ -4,6 +4,7 @@ import os
 import json
 import re
 import sqlite3
+import importlib
 from difflib import SequenceMatcher
 from collections import defaultdict
 from datetime import date
@@ -20,6 +21,13 @@ from data import (
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
+
+# Serve static assets reliably behind WSGI hosts (Render/Gunicorn) when available.
+_whitenoise_module = importlib.util.find_spec("whitenoise")
+if _whitenoise_module is not None:
+    from whitenoise import WhiteNoise
+
+    app.wsgi_app = WhiteNoise(app.wsgi_app, root=str(Path(app.root_path) / "static"), prefix="static/")
 
 DB_PATH = Path(
     os.environ.get(
