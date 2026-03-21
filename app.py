@@ -167,6 +167,12 @@ def load_app_state() -> None:
         conn.close()
 
 
+@app.before_request
+def refresh_app_state_from_db() -> None:
+    # Keep in-memory state in sync across hosted worker processes.
+    load_app_state()
+
+
 def save_app_state() -> None:
     ensure_state_defaults()
     db = get_db()
