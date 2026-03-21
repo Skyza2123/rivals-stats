@@ -1,0 +1,512 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Map Detail{% endblock %}
+
+{% block content %}
+<!-- Header with map image banner -->
+<div class="map-banner" {% if map_entry.map_name in map_images %}style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"{% endif %}>
+    <div class="map-banner-overlay">
+        <div class="main-header">
+            <div>
+                <h2>{{ map_entry.map_name }}</h2>
+                <p>vs {{ scrim.opponent }}{% if map_entry.side %} &bull; {{ map_entry.side }}{% endif %}</p>
+            </div>
+            <div class="header-actions">
+                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else 'pill-loss' }}">{{ map_entry.result }}{% if map_entry.score %} &bull; {{ map_entry.score }}{% endif %}</div>
+                <button type="button" class="button-small" onclick="openEditInfoModal()">Edit Info</button>
+                <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card">
+        <strong>Score</strong>
+        <span>{{ map_entry.score or "---" }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Result</strong>
+        <span>{{ map_entry.result }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Side</strong>
+        <span>{{ map_entry.side or "---" }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Events</strong>
+        <span>{{ map_entry.events|length }}</span>
+    </section>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+    <button class="tab-btn tab-active" data-tab="comp" onclick="switchTab('comp')">Comp</button>
+    <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Timeline</button>
+    <button class="tab-btn" data-tab="vods" onclick="switchTab('vods')">VODs</button>
+    <button class="tab-btn" data-tab="notes" onclick="switchTab('notes')">Notes</button>
+</div>
+
+<!-- COMP TAB -->
+<div class="tab-content" id="tab-comp">
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Draft</h3>
+        <button type="button" class="button-small" onclick="openDraftModal()">Edit Draft</button>
+    </div>
+    <div class="draft-grid">
+        <div class="draft-column draft-display">
+            <h4>Team 1</h4>
+            <div class="draft-slots">
+                {% for slot in [('ban1', 'Ban 1'), ('protect1', 'Protect 1'), ('ban2', 'Ban 2'), ('ban3', 'Ban 3'), ('ban4', 'Ban 4'), ('protect2', 'Protect 2')] %}
+                {% set hero = map_entry.draft.team1[slot[0]] %}
+                <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
+                    <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
+                    {% if hero and hero in hero_transformations %}
+                    <div class="slot-img-wrap">
+                        <img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}">
+                    </div>
+                    {% endif %}
+                    <span class="slot-hero-name">{{ hero or '---' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="draft-column draft-display">
+            <h4>Team 2</h4>
+            <div class="draft-slots">
+                {% for slot in [('ban1', 'Ban 1'), ('ban2', 'Ban 2'), ('protect1', 'Protect 1'), ('ban3', 'Ban 3'), ('protect2', 'Protect 2'), ('ban4', 'Ban 4')] %}
+                {% set hero = map_entry.draft.team2[slot[0]] %}
+                <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
+                    <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
+                    {% if hero and hero in hero_transformations %}
+                    <div class="slot-img-wrap">
+                        <img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}">
+                    </div>
+                    {% endif %}
+                    <span class="slot-hero-name">{{ hero or '---' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Team Comp</h3>
+        <button type="button" class="button-small" onclick="openCompModal()">Edit Comp</button>
+    </div>
+    <div class="comp-grid">
+        <div class="comp-team">
+            <h4 class="comp-team-label team1-label">Team 1</h4>
+            <div class="comp-slots">
+                {% for entry in map_entry.comp.team1 %}
+                <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
+                    {% if entry.hero and entry.hero in hero_transformations %}
+                    <div class="comp-hero-img">
+                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}">
+                    </div>
+                    {% else %}
+                    <div class="comp-hero-img comp-empty"></div>
+                    {% endif %}
+                    <div class="comp-info">
+                        <span class="comp-hero-name">{{ entry.hero or 'Empty' }}</span>
+                        <span class="comp-player-name">{{ entry.player or '---' }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="comp-team">
+            <h4 class="comp-team-label team2-label">Team 2</h4>
+            <div class="comp-slots">
+                {% for entry in map_entry.comp.team2 %}
+                <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
+                    {% if entry.hero and entry.hero in hero_transformations %}
+                    <div class="comp-hero-img">
+                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}">
+                    </div>
+                    {% else %}
+                    <div class="comp-hero-img comp-empty"></div>
+                    {% endif %}
+                    <div class="comp-info">
+                        <span class="comp-hero-name">{{ entry.hero or 'Empty' }}</span>
+                        <span class="comp-player-name">{{ entry.player or '---' }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+</div>
+
+<!-- TIMELINE TAB -->
+<div class="tab-content tab-hidden" id="tab-timeline">
+<section class="panel">
+    <h3>Event Log</h3>
+    {% if map_entry.events %}
+        <div class="list-stack">
+            {% for event in map_entry.events %}
+                <div class="list-card static-card">
+                    <div>
+                        <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
+                        <div class="list-subtitle">{{ event.description or "No description" }}</div>
+                    </div>
+                    <form action="{{ url_for('delete_event', scrim_id=scrim.id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No events added yet.</p>
+    {% endif %}
+</section>
+<form action="{{ url_for('add_event_to_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+    <section class="panel">
+        <h3>Add Event</h3>
+        <div class="form-grid">
+            <div class="field">
+                <label for="timestamp">Timestamp</label>
+                <input type="text" id="timestamp" name="timestamp" placeholder="e.g. 02:14">
+            </div>
+            <div class="field">
+                <label for="event_type">Event Type</label>
+                <select id="event_type" name="event_type" required>
+                    <option value="">Select event type</option>
+                    {% for event_type in event_types %}
+                        <option value="{{ event_type }}">{{ event_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="field top-gap">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4" placeholder="What happened in the fight or moment?"></textarea>
+        </div>
+        <div class="button-row">
+            <button type="submit">Add Event</button>
+        </div>
+    </section>
+</form>
+</div>
+
+<!-- VODS TAB -->
+<div class="tab-content tab-hidden" id="tab-vods">
+<section class="panel">
+    <h3>VOD Link</h3>
+    <form action="{{ url_for('update_vod', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+        <div class="field">
+            <label for="vod_url">YouTube / Twitch URL</label>
+            <input type="url" id="vod_url" name="vod_url" value="{{ map_entry.get('vod_url', '') }}" placeholder="https://youtube.com/watch?v=...">
+        </div>
+        <div class="button-row">
+            <button type="submit" class="button-small">Save VOD</button>
+        </div>
+    </form>
+    {% if map_entry.get('vod_url') %}
+    <div class="vod-embed-wrap">
+        <iframe id="vodEmbed" class="vod-embed" allowfullscreen></iframe>
+    </div>
+    {% endif %}
+</section>
+</div>
+
+<!-- NOTES TAB -->
+<div class="tab-content tab-hidden" id="tab-notes">
+<section class="panel">
+    <h3>Map Notes</h3>
+    <form action="{{ url_for('update_notes', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+        <div class="field">
+            <textarea id="map_notes" name="notes" rows="8" placeholder="Game strategy, what went wrong, what to improve...">{{ map_entry.notes }}</textarea>
+        </div>
+        <div class="button-row">
+            <button type="submit" class="button-small">Save Notes</button>
+        </div>
+    </form>
+</section>
+</div>
+
+<!-- Hidden delete form -->
+<form id="deleteMapForm" action="{{ url_for('delete_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- EDIT INFO MODAL -->
+<div class="modal-backdrop" id="editInfoModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Edit Map Info</h2>
+            <button class="modal-close" onclick="closeModal('editInfoModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_map_info', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="edit_result">Result</label>
+                    <select id="edit_result" name="result">
+                        {% for r in results %}
+                            <option value="{{ r }}" {% if map_entry.result == r %}selected{% endif %}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_score">Score</label>
+                    <input type="text" id="edit_score" name="score" value="{{ map_entry.get('score', '') }}" placeholder="e.g. 3-2">
+                </div>
+                <div class="field">
+                    <label for="edit_side">Side</label>
+                    <select id="edit_side" name="side">
+                        {% for s in sides %}
+                            <option value="{{ s }}" {% if map_entry.side == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="button-row">
+                <button type="submit">Save Changes</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editInfoModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT COMP MODAL -->
+<div class="modal-backdrop" id="editCompModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h2>Edit Team Comp</h2>
+            <button class="modal-close" onclick="closeModal('editCompModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_comp', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" id="compForm">
+            <div class="comp-edit-grid">
+                {% for team_key, team_label in [("team1", "Team 1"), ("team2", "Team 2")] %}
+                <div class="comp-edit-team">
+                    <h3 class="comp-team-label {{ team_key }}-label">{{ team_label }}</h3>
+                    {% for i in range(6) %}
+                        {% set slot = map_entry.comp[team_key][i] %}
+                        <div class="comp-edit-slot">
+                            <input type="hidden" name="{{ team_key }}_hero_{{ i }}" id="{{ team_key }}_hero_{{ i }}" value="{{ slot.hero }}">
+                            <div class="comp-picker-btn" onclick="openCompPicker('{{ team_key }}', {{ i }})">
+                                {% if slot.hero %}
+                                    <img src="https://marvelrivalsapi.com/rivals/heroes/transformations/{{ hero_transformations.get(slot.hero, '') }}" class="comp-pick-img" alt="{{ slot.hero }}">
+                                    <span>{{ slot.hero }}</span>
+                                {% else %}
+                                    <span class="comp-pick-empty">Select Hero</span>
+                                {% endif %}
+                            </div>
+                            <input type="text" name="{{ team_key }}_player_{{ i }}" value="{{ slot.player }}" placeholder="Player name" class="comp-player-input">
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="button-row">
+                <button type="submit">Save Comp</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editCompModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- COMP HERO PICKER (nested) -->
+<div class="modal-backdrop" id="compPickerModal" style="z-index:1100;">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h2>Select Hero</h2>
+            <button class="modal-close" onclick="closeCompPicker()">&times;</button>
+        </div>
+        <input type="text" id="compPickerSearch" class="hero-search" placeholder="Search heroes..." oninput="filterCompPicker()">
+        <div class="hero-grid" id="compPickerGrid">
+            {% for hero in heroes %}
+                <div class="hero-card" data-hero="{{ hero }}" onclick="pickCompHero('{{ hero }}')">
+                    <img src="https://marvelrivalsapi.com/rivals/heroes/transformations/{{ hero_transformations.get(hero, '') }}" alt="{{ hero }}">
+                    <span>{{ hero }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="button-row">
+            <button type="button" class="btn-secondary" onclick="clearCompSlot()">Clear Slot</button>
+            <button type="button" class="btn-secondary" onclick="closeCompPicker()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT DRAFT MODAL -->
+<div class="modal-backdrop" id="draftModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h2>Edit Draft</h2>
+            <button class="modal-close" onclick="closeModal('draftModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_draft', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" id="draftForm">
+            {% for team_key, team_label in [("team1", "Team 1"), ("team2", "Team 2")] %}
+            <h3 class="comp-team-label {{ team_key }}-label" style="margin-top:1rem;">{{ team_label }}</h3>
+            <div class="draft-slots-row">
+                {% set draft_team = map_entry.draft[team_key] %}
+                {% for slot_key, slot_label in [("ban1","Ban 1"),("protect1","Protect 1"),("ban2","Ban 2"),("ban3","Ban 3"),("ban4","Ban 4"),("protect2","Protect 2")] %}
+                <div class="draft-slot-wrapper">
+                    <label class="draft-slot-label {% if 'ban' in slot_key %}ban-label{% else %}protect-label{% endif %}">{{ slot_label }}</label>
+                    <input type="hidden" name="{{ team_key }}_{{ slot_key }}" id="{{ team_key }}_{{ slot_key }}" value="{{ draft_team.get(slot_key, '') }}">
+                    <div class="draft-pick-btn" onclick="openDraftPicker('{{ team_key }}', '{{ slot_key }}')">
+                        {% set hero_val = draft_team.get(slot_key, '') %}
+                        {% if hero_val %}
+                            <img src="https://marvelrivalsapi.com/rivals/heroes/transformations/{{ hero_transformations.get(hero_val, '') }}" alt="{{ hero_val }}" class="draft-pick-img">
+                            <span>{{ hero_val }}</span>
+                        {% else %}
+                            <span class="draft-pick-empty">Select</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            <div class="button-row" style="margin-top:1.5rem;">
+                <button type="submit">Save Draft</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('draftModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- DRAFT HERO PICKER -->
+<div class="modal-backdrop" id="draftPickerModal" style="z-index:1100;">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h2>Select Hero</h2>
+            <button class="modal-close" onclick="closeDraftPicker()">&times;</button>
+        </div>
+        <input type="text" id="draftPickerSearch" class="hero-search" placeholder="Search heroes..." oninput="filterDraftPicker()">
+        <div class="hero-grid" id="draftPickerGrid">
+            {% for hero in heroes %}
+                <div class="hero-card" data-hero="{{ hero }}" onclick="pickDraftHero('{{ hero }}')">
+                    <img src="https://marvelrivalsapi.com/rivals/heroes/transformations/{{ hero_transformations.get(hero, '') }}" alt="{{ hero }}">
+                    <span>{{ hero }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="button-row">
+            <button type="button" class="btn-secondary" onclick="clearDraftSlot()">Clear Slot</button>
+            <button type="button" class="btn-secondary" onclick="closeDraftPicker()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ===== TABS ===== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('tab-hidden'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.remove('tab-hidden');
+    });
+});
+
+/* ===== MODAL HELPERS ===== */
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop.active').forEach(m => m.classList.remove('active'));
+    }
+});
+
+/* ===== DELETE MAP ===== */
+function confirmDeleteMap() {
+    if (confirm('Delete this map? This cannot be undone.')) {
+        document.getElementById('deleteMapForm').submit();
+    }
+}
+
+/* ===== VOD EMBED ===== */
+(function() {
+    var vodUrl = "{{ map_entry.get('vod_url', '') }}";
+    var iframe = document.getElementById('vodEmbed');
+    if (iframe && vodUrl) {
+        var m;
+        if ((m = vodUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/))) {
+            iframe.src = 'https://www.youtube.com/embed/' + m[1];
+        } else if ((m = vodUrl.match(/twitch\.tv\/videos\/(\d+)/))) {
+            iframe.src = 'https://player.twitch.tv/?video=' + m[1] + '&parent=' + location.hostname;
+        }
+    }
+})();
+
+/* ===== COMP HERO PICKER ===== */
+var compPickerTeam = null, compPickerIndex = null;
+
+function openCompPicker(team, index) {
+    compPickerTeam = team;
+    compPickerIndex = index;
+    document.getElementById('compPickerSearch').value = '';
+    filterCompPicker();
+    document.getElementById('compPickerModal').classList.add('active');
+}
+function closeCompPicker() {
+    document.getElementById('compPickerModal').classList.remove('active');
+}
+function filterCompPicker() {
+    var q = document.getElementById('compPickerSearch').value.toLowerCase();
+    document.querySelectorAll('#compPickerGrid .hero-card').forEach(function(card) {
+        card.style.display = card.dataset.hero.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+function pickCompHero(hero) {
+    var hiddenInput = document.getElementById(compPickerTeam + '_hero_' + compPickerIndex);
+    hiddenInput.value = hero;
+    // Update the picker button display
+    var btn = hiddenInput.nextElementSibling;
+    var transformations = {{ hero_transformations | tojson }};
+    var imgUrl = 'https://marvelrivalsapi.com/rivals/heroes/transformations/' + (transformations[hero] || '');
+    btn.innerHTML = '<img src="' + imgUrl + '" class="comp-pick-img" alt="' + hero + '"><span>' + hero + '</span>';
+    closeCompPicker();
+}
+function clearCompSlot() {
+    var hiddenInput = document.getElementById(compPickerTeam + '_hero_' + compPickerIndex);
+    hiddenInput.value = '';
+    var btn = hiddenInput.nextElementSibling;
+    btn.innerHTML = '<span class="comp-pick-empty">Select Hero</span>';
+    closeCompPicker();
+}
+
+/* ===== DRAFT HERO PICKER ===== */
+var draftPickerTeam = null, draftPickerSlot = null;
+
+function openDraftPicker(team, slot) {
+    draftPickerTeam = team;
+    draftPickerSlot = slot;
+    document.getElementById('draftPickerSearch').value = '';
+    filterDraftPicker();
+    document.getElementById('draftPickerModal').classList.add('active');
+}
+function closeDraftPicker() {
+    document.getElementById('draftPickerModal').classList.remove('active');
+}
+function filterDraftPicker() {
+    var q = document.getElementById('draftPickerSearch').value.toLowerCase();
+    document.querySelectorAll('#draftPickerGrid .hero-card').forEach(function(card) {
+        card.style.display = card.dataset.hero.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+function pickDraftHero(hero) {
+    var hiddenInput = document.getElementById(draftPickerTeam + '_' + draftPickerSlot);
+    hiddenInput.value = hero;
+    var btn = hiddenInput.nextElementSibling;
+    var transformations = {{ hero_transformations | tojson }};
+    var imgUrl = 'https://marvelrivalsapi.com/rivals/heroes/transformations/' + (transformations[hero] || '');
+    btn.innerHTML = '<img src="' + imgUrl + '" class="draft-pick-img" alt="' + hero + '"><span>' + hero + '</span>';
+    closeDraftPicker();
+}
+function clearDraftSlot() {
+    var hiddenInput = document.getElementById(draftPickerTeam + '_' + draftPickerSlot);
+    hiddenInput.value = '';
+    var btn = hiddenInput.nextElementSibling;
+    btn.innerHTML = '<span class="draft-pick-empty">Select</span>';
+    closeDraftPicker();
+}
+</script>
+{% endblock %}

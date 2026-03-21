@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="app-shell">
+            <div class="app-header">
+                <div class="brand">
+                    <h1>Analysis Results</h1>
+                    <p>Match summary in the same dashboard style.</p>
+                </div>
+                <div class="brand-badge">{{ result }}</div>
+            </div>
+
+            <div class="app-content">
+                <div class="result-grid">
+                    <div class="result-card">
+                        <strong>Player</strong>
+                        <span>{{ player_name }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Hero</strong>
+                        <span>{{ hero }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Map</strong>
+                        <span>{{ map_name }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Side</strong>
+                        <span>{{ side }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Kills</strong>
+                        <span>{{ kills }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Deaths</strong>
+                        <span>{{ deaths }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>Assists</strong>
+                        <span>{{ assists }}</span>
+                    </div>
+
+                    <div class="result-card">
+                        <strong>KDA</strong>
+                        <span>{{ kda }}</span>
+                    </div>
+                </div>
+
+                <div class="summary-box">
+                    Clean dark dashboard styling inspired by the look you pasted, but built for your own Flask tool.
+                </div>
+
+                <p style="margin-top: 18px;">
+                    <a href="/">← Back to entry form</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

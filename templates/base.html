@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Scrim Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>Scrim Dashboard</h1>
+                <p>Manual analyst workflow</p>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('scrims') }}" class="nav-link {% if request.path.startswith('/scrims') and request.path != '/scrims/new' %}active{% endif %}">Scrims</a>
+                <a href="{{ url_for('new_scrim') }}" class="nav-link {% if request.path == '/scrims/new' %}active{% endif %}">New Scrim</a>
+                <a href="{{ url_for('draft_simulator') }}" class="nav-link {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Simulator</a>
+                <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams & Players</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

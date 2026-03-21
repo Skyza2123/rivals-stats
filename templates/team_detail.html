@@ -1,0 +1,1905 @@
+{% extends "base.html" %}
+
+{% block title %}{{ team.name }}{% endblock %}
+
+{% block content %}
+<div class="team-hero">
+    <div class="team-hero-left">
+        <img class="team-avatar" src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
+        <div>
+            <h2>{{ team.name }}</h2>
+            <p class="team-record-line">
+                Overall Record: {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L
+                &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
+            </p>
+            <p>{{ team.notes or 'No team notes yet.' }} &bull; {{ team_scrim_count }} scrims</p>
+        </div>
+    </div>
+    <div class="header-actions team-hero-actions">
+        <select id="teamTimeRange" aria-label="Time range" class="team-range-select">
+            <option value="all" selected>All Time</option>
+            <option value="month">Last Month</option>
+            <option value="week">Last Week</option>
+        </select>
+        <a href="{{ url_for('teams') }}" class="button-secondary">Back to Teams</a>
+        <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
+            <button type="submit" class="button-secondary">Delete Team</button>
+        </form>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <button class="tab-btn tab-active" data-tab="bans" type="button">Bans</button>
+    <button class="tab-btn" data-tab="comps" type="button">Comps</button>
+    <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
+    <button class="tab-btn" data-tab="matchups" type="button">Matchups</button>
+    <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+</div>
+
+<div class="tab-content" id="tab-bans">
+    <section class="panel">
+        <div class="section-kicker">Draft Overview</div>
+        <h3>{{ team.name }} Ban & Protect Stats</h3>
+        <p class="panel-intro">Draft flow, target priorities, and where your team differs from the enemy in ban behavior.</p>
+        <div class="summary-grid">
+            <section class="stat-card">
+                <strong>Total Maps</strong>
+                <span>{{ team_analytics.summary.total_maps }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Overall Win Rate</strong>
+                <span>{{ team_analytics.summary.overall_win_rate }}%</span>
+            </section>
+            <section class="stat-card">
+                <strong>Unique Bans</strong>
+                <span>{{ team_analytics.summary.unique_bans }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Unique Protects</strong>
+                <span>{{ team_analytics.summary.unique_protects }}</span>
+            </section>
+        </div>
+
+        {% if team_analytics.summary.total_maps > 0 %}
+            {% set top_ban = team_analytics.ban_rows[0] if team_analytics.ban_rows else None %}
+            {% set top_protect = team_analytics.protect_rows[0] if team_analytics.protect_rows else None %}
+
+            <div class="ban-kpi-grid">
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Top Banned Hero</span>
+                    <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else '—' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_ban.count if top_ban else 0 }} bans • {{ top_ban.ban_rate if top_ban else 0 }}%</span>
+                </article>
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Top Protected Hero</span>
+                    <strong class="ban-kpi-value">{{ top_protect.hero if top_protect else '—' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects • {{ top_protect.protect_rate if top_protect else 0 }}%</span>
+                </article>
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Ban/Protect Events</span>
+                    <strong class="ban-kpi-value">{{ team_analytics.summary.unique_bans + team_analytics.summary.unique_protects }}</strong>
+                    <span class="ban-kpi-sub">Unique heroes touched in draft</span>
+                </article>
+            </div>
+
+            <div class="ban-visual-grid">
+                <div class="panel ban-chart-panel">
+                    <h3>Ban Distribution</h3>
+                    {% if team_analytics.ban_rows %}
+                        {% set ban_max = team_analytics.ban_rows[0].count %}
+                        <div class="vbar-chart">
+                            {% for row in team_analytics.ban_rows[:12] %}
+                                {% set height = ((row.count / ban_max) * 100) if ban_max else 0 %}
+                                <div class="vbar-container">
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    </div>
+                                    <div class="vbar-bar-wrapper">
+                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%)">
+                                            <span class="vbar-label-top">{{ row.count }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="vbar-label">
+                                        <span class="vbar-rate">{{ row.ban_rate }}%</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel ban-chart-panel">
+                    <h3>Protect Distribution</h3>
+                    {% if team_analytics.protect_rows %}
+                        {% set protect_max = team_analytics.protect_rows[0].count %}
+                        <div class="vbar-chart">
+                            {% for row in team_analytics.protect_rows[:12] %}
+                                {% set height = ((row.count / protect_max) * 100) if protect_max else 0 %}
+                                <div class="vbar-container">
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    </div>
+                                    <div class="vbar-bar-wrapper">
+                                        <div class="vbar-bar vbar-bar-protect" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} protects ({{ row.protect_rate }}%)">
+                                            <span class="vbar-label-top">{{ row.count }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="vbar-label">
+                                        <span class="vbar-rate">{{ row.protect_rate }}%</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="panel panel-soft-red">
+                    <div class="section-kicker">Ban Table</div>
+                    <h3>Ban Rates / Ban Win Rate</h3>
+                    {% if team_analytics.ban_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-bans">
+                                <thead>
+                                    <tr>
+                                        <th>Hero</th>
+                                        <th>Bans</th>
+                                        <th>Ban Rate</th>
+                                        <th>Win Rate When Banned</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.ban_rows %}
+                                        <tr>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                    <span>{{ row.hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.ban_rate }}%</td>
+                                            <td>{{ row.win_rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel panel-soft-green">
+                    <div class="section-kicker">Protect Table</div>
+                    <h3>Protect Rates / Protect Win Rate</h3>
+                    {% if team_analytics.protect_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-protect">
+                                <thead>
+                                    <tr>
+                                        <th>Hero</th>
+                                        <th>Protects</th>
+                                        <th>Protect Rate</th>
+                                        <th>Win Rate When Protected</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.protect_rows %}
+                                        <tr>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                    <span>{{ row.hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.protect_rate }}%</td>
+                                            <td>{{ row.win_rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-grid top-gap">
+                <div class="panel panel-soft-blue">
+                    <div class="section-kicker">Split View</div>
+                    <h3>Main Team Bans</h3>
+                    {% if team_analytics.ban_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-compare">
+                                <thead>
+                                    <tr>
+                                        <th>Hero</th>
+                                        <th>Bans</th>
+                                        <th>Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.ban_rows[:8] %}
+                                        <tr>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                    <span>{{ row.hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.ban_rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No team ban data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel panel-soft-gold">
+                    <div class="section-kicker">Split View</div>
+                    <h3>Enemy Team Bans</h3>
+                    {% if team_analytics.enemy_ban_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-compare">
+                                <thead>
+                                    <tr>
+                                        <th>Hero</th>
+                                        <th>Bans</th>
+                                        <th>Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in team_analytics.enemy_ban_rows[:8] %}
+                                        <tr>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                    <span>{{ row.hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>{{ row.count }}</td>
+                                            <td>{{ row.ban_rate }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No opponent ban data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-grid top-gap">
+                <div class="panel panel-soft-red">
+                    <div class="section-kicker">Ban Phase</div>
+                    <h3>Main Team Ban Positions</h3>
+                    <p class="panel-intro">See which heroes are most common in each ban slot from Ban 1 through Ban 4.</p>
+                    <p class="panel-intro">
+                        {{ team_analytics.ban_phase_variation.main.message }}
+                        <span class="insight-tags">
+                            <span class="compare-tag compare-tag-neutral">Ban 1-2 top rate: {{ team_analytics.ban_phase_variation.main.early_top_rate_avg }}%</span>
+                            <span class="compare-tag compare-tag-neutral">Ban 3-4 top rate: {{ team_analytics.ban_phase_variation.main.late_top_rate_avg }}%</span>
+                            {% if team_analytics.ban_phase_variation.main.signal == 'strong' %}
+                                <span class="compare-tag compare-tag-positive">Strong variation</span>
+                            {% elif team_analytics.ban_phase_variation.main.signal == 'moderate' %}
+                                <span class="compare-tag compare-tag-neutral">Moderate variation</span>
+                            {% elif team_analytics.ban_phase_variation.main.signal == 'low' %}
+                                <span class="compare-tag compare-tag-negative">Low variation</span>
+                            {% endif %}
+                        </span>
+                    </p>
+                    <div class="ban-position-grid">
+                        {% for slot in team_analytics.ban_position_rows %}
+                            <article class="ban-position-card">
+                                <div class="ban-position-head">
+                                    <div>
+                                        <h4>{{ slot.slot_label }}</h4>
+                                        <div class="ban-position-total">{{ slot.total }} total picks</div>
+                                    </div>
+                                </div>
+                                <div class="ban-position-top">
+                                    <strong class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
+                                        <span>{{ slot.top_hero }}</span>
+                                    </strong>
+                                    <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
+                                </div>
+                                <div class="ban-position-analysis">
+                                    {% if slot.insight_hero %}
+                                        {% if slot.insight_state == 'more' %}
+                                            Main team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the enemy team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                        {% elif slot.insight_state == 'less' %}
+                                            Main team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the enemy team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                        {% else %}
+                                            Main team and enemy team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
+                                        {% endif %}
+                                    {% else %}
+                                        No comparison insight yet for this slot.
+                                    {% endif %}
+                                </div>
+                                <div class="ban-position-list">
+                                    {% if slot.hero_rows %}
+                                        {% for row in slot.hero_rows %}
+                                            <div class="ban-position-row">
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                    <span>{{ row.hero }}</span>
+                                                </span>
+                                                <span>{{ row.count }} • {{ row.rate }}%</span>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="empty-text">No data for this slot yet.</p>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="panel panel-soft-gold">
+                    <div class="section-kicker">Ban Phase</div>
+                    <h3>Enemy Team Ban Positions</h3>
+                    <p class="panel-intro">Compare the enemy side's preferred heroes at each point in the ban phase.</p>
+                    <p class="panel-intro">
+                        {{ team_analytics.ban_phase_variation.enemy.message }}
+                        <span class="insight-tags">
+                            <span class="compare-tag compare-tag-neutral">Ban 1-2 top rate: {{ team_analytics.ban_phase_variation.enemy.early_top_rate_avg }}%</span>
+                            <span class="compare-tag compare-tag-neutral">Ban 3-4 top rate: {{ team_analytics.ban_phase_variation.enemy.late_top_rate_avg }}%</span>
+                            {% if team_analytics.ban_phase_variation.enemy.signal == 'strong' %}
+                                <span class="compare-tag compare-tag-positive">Strong variation</span>
+                            {% elif team_analytics.ban_phase_variation.enemy.signal == 'moderate' %}
+                                <span class="compare-tag compare-tag-neutral">Moderate variation</span>
+                            {% elif team_analytics.ban_phase_variation.enemy.signal == 'low' %}
+                                <span class="compare-tag compare-tag-negative">Low variation</span>
+                            {% endif %}
+                        </span>
+                    </p>
+                    <div class="ban-position-grid">
+                        {% for slot in team_analytics.enemy_ban_position_rows %}
+                            <article class="ban-position-card">
+                                <div class="ban-position-head">
+                                    <div>
+                                        <h4>{{ slot.slot_label }}</h4>
+                                        <div class="ban-position-total">{{ slot.total }} total picks</div>
+                                    </div>
+                                </div>
+                                <div class="ban-position-top">
+                                    <strong class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
+                                        <span>{{ slot.top_hero }}</span>
+                                    </strong>
+                                    <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
+                                </div>
+                                <div class="ban-position-analysis">
+                                    {% if slot.insight_hero %}
+                                        {% if slot.insight_state == 'more' %}
+                                            Enemy team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the main team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                        {% elif slot.insight_state == 'less' %}
+                                            Enemy team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the main team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                        {% else %}
+                                            Enemy team and main team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
+                                        {% endif %}
+                                    {% else %}
+                                        No comparison insight yet for this slot.
+                                    {% endif %}
+                                </div>
+                                <div class="ban-position-list">
+                                    {% if slot.hero_rows %}
+                                        {% for row in slot.hero_rows %}
+                                            <div class="ban-position-row">
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                    <span>{{ row.hero }}</span>
+                                                </span>
+                                                <span>{{ row.count }} • {{ row.rate }}%</span>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="empty-text">No data for this slot yet.</p>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-soft-green top-gap">
+                <div class="section-kicker">Draft Tendency</div>
+                <h3>Ban Rate In Relation To Protects</h3>
+                <p class="panel-intro">
+                    {% if team_analytics.ban_protect_summary.correlation is not none %}
+                        Correlation between bans and protects is {{ team_analytics.ban_protect_summary.correlation }}, with {{ team_analytics.ban_protect_summary.top_hero }} showing the highest combined draft presence.
+                    {% else %}
+                        Review how often each hero is banned versus protected to spot draft priorities.
+                    {% endif %}
+                </p>
+                {% if team_analytics.ban_protect_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-compare">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Ban Rate</th>
+                                    <th>Protect Rate</th>
+                                    <th>Win Rate (Banned)</th>
+                                    <th>Win Rate (Protected)</th>
+                                    <th>Win Rate Gap</th>
+                                    <th>Impact (Delta)</th>
+                                    <th>Protected Delta</th>
+                                    <th>Gap</th>
+                                    <th>Tendency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in team_analytics.ban_protect_rows %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.ban_rate }}%</td>
+                                        <td>{{ row.protect_rate }}%</td>
+                                        <td>{% if row.ban_count %}{{ row.ban_win_rate }}%{% else %}--{% endif %}</td>
+                                        <td>{% if row.protect_count %}{{ row.protect_win_rate }}%{% else %}--{% endif %}</td>
+                                        <td>{% if row.winrate_gap is not none %}{% if row.winrate_gap > 0 %}+{% endif %}{{ row.winrate_gap }}%{% else %}--{% endif %}</td>
+                                        <td>
+                                            {% if row.ban_count %}
+                                                {% if row.ban_delta > 0 %}
+                                                    <span class="compare-tag compare-tag-positive">+{{ row.ban_delta }}%</span>
+                                                {% elif row.ban_delta < 0 %}
+                                                    <span class="compare-tag compare-tag-negative">{{ row.ban_delta }}%</span>
+                                                {% else %}
+                                                    <span class="compare-tag compare-tag-neutral">{{ row.ban_delta }}%</span>
+                                                {% endif %}
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if row.protect_count %}
+                                                {% if row.protect_delta > 0 %}
+                                                    <span class="compare-tag compare-tag-positive">+{{ row.protect_delta }}%</span>
+                                                {% elif row.protect_delta < 0 %}
+                                                    <span class="compare-tag compare-tag-negative">{{ row.protect_delta }}%</span>
+                                                {% else %}
+                                                    <span class="compare-tag compare-tag-neutral">{{ row.protect_delta }}%</span>
+                                                {% endif %}
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>{% if row.rate_gap > 0 %}+{% endif %}{{ row.rate_gap }}%</td>
+                                        <td>
+                                            {% if row.leaning == 'Ban leaning' %}
+                                                <span class="compare-tag compare-tag-negative">Ban leaning</span>
+                                            {% elif row.leaning == 'Protect leaning' %}
+                                                <span class="compare-tag compare-tag-positive">Protect leaning</span>
+                                            {% else %}
+                                                <span class="compare-tag compare-tag-neutral">Balanced</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No ban/protect tendency data yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="panel panel-soft-violet top-gap">
+                <div class="section-kicker">Comparison</div>
+                <h3>Ban Difference</h3>
+                <p class="panel-intro">Quickly spot which heroes the main team targets more often versus which ones the enemy team removes first.</p>
+                {% if team_analytics.ban_diff_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-compare">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Main Team Ban</th>
+                                    <th>Enemy Team Ban</th>
+                                    <th>Diff</th>
+                                    <th>Edge</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in team_analytics.ban_diff_rows %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.our_rate }}%</td>
+                                        <td>{{ row.enemy_rate }}%</td>
+                                        <td>{% if row.rate_diff > 0 %}+{% endif %}{{ row.rate_diff }}%</td>
+                                        <td>
+                                            {% if row.rate_diff > 0 %}
+                                                <span class="compare-tag compare-tag-positive">Main team bans more</span>
+                                            {% elif row.rate_diff < 0 %}
+                                                <span class="compare-tag compare-tag-negative">Enemy team bans more</span>
+                                            {% else %}
+                                                <span class="compare-tag compare-tag-neutral">Even</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No ban comparison data yet.</p>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="empty-text">No scrim maps recorded for this team yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-comps">
+    <section class="panel">
+        <div class="section-kicker">Mirror Rates</div>
+        <h3>Mirror Drafts and Comps</h3>
+        <p class="panel-intro">Soft mirror = 3-5 shared heroes. Hard mirror = all 6 heroes match.</p>
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Samples</th>
+                        <th>Soft Mirror</th>
+                        <th>Hard Mirror</th>
+                        <th>Any Mirror</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Draft (6 picks)</td>
+                        <td>{{ team_analytics.mirror_rates.draft.samples }}</td>
+                        <td>{{ team_analytics.mirror_rates.draft.soft_count }} ({{ team_analytics.mirror_rates.draft.soft_rate }}%)</td>
+                        <td>{{ team_analytics.mirror_rates.draft.hard_count }} ({{ team_analytics.mirror_rates.draft.hard_rate }}%)</td>
+                        <td>{{ team_analytics.mirror_rates.draft.any_mirror_rate }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Comp (6 heroes)</td>
+                        <td>{{ team_analytics.mirror_rates.comp.samples }}</td>
+                        <td>{{ team_analytics.mirror_rates.comp.soft_count }} ({{ team_analytics.mirror_rates.comp.soft_rate }}%)</td>
+                        <td>{{ team_analytics.mirror_rates.comp.hard_count }} ({{ team_analytics.mirror_rates.comp.hard_rate }}%)</td>
+                        <td>{{ team_analytics.mirror_rates.comp.any_mirror_rate }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-kicker">Comp Difference</div>
+        <h3>Triple Support vs 2-2-2</h3>
+        <p class="panel-intro">Compare how often each comp type appears and the rate gap between them.</p>
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Comp Type</th>
+                        <th>Maps Seen</th>
+                        <th>Usage Rate</th>
+                        <th>Win Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Triple Support</td>
+                        <td>{{ team_analytics.comp_difference.triple_support_count }}</td>
+                        <td>{{ team_analytics.comp_difference.triple_support_rate }}%</td>
+                        <td>{% if team_analytics.comp_difference.triple_support_count %}{{ team_analytics.comp_difference.triple_support_win_rate }}%{% else %}--{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>2-2-2</td>
+                        <td>{{ team_analytics.comp_difference.two_two_two_count }}</td>
+                        <td>{{ team_analytics.comp_difference.two_two_two_rate }}%</td>
+                        <td>{% if team_analytics.comp_difference.two_two_two_count %}{{ team_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="panel-intro top-gap">
+            Difference Rate (Triple Support - 2-2-2):
+            <span class="comp-diff-tags">
+            {% if team_analytics.comp_difference.difference_rate > 0 %}
+                <span class="compare-tag compare-tag-positive">+{{ team_analytics.comp_difference.difference_rate }}%</span>
+            {% elif team_analytics.comp_difference.difference_rate < 0 %}
+                <span class="compare-tag compare-tag-negative">{{ team_analytics.comp_difference.difference_rate }}%</span>
+            {% else %}
+                <span class="compare-tag compare-tag-neutral">{{ team_analytics.comp_difference.difference_rate }}%</span>
+            {% endif %}
+            {% if team_analytics.comp_difference.winrate_difference is not none %}
+                <span class="compare-tag {% if team_analytics.comp_difference.winrate_difference > 0 %}compare-tag-positive{% elif team_analytics.comp_difference.winrate_difference < 0 %}compare-tag-negative{% else %}compare-tag-neutral{% endif %}">
+                    Win Rate Gap: {% if team_analytics.comp_difference.winrate_difference > 0 %}+{% endif %}{{ team_analytics.comp_difference.winrate_difference }}%
+                </span>
+            {% endif %}
+            </span>
+        </p>
+        <p class="panel-intro top-gap">
+            Triple Support Prevalence: Main Team {{ team_analytics.comp_difference.triple_support_rate }}% ({{ team_analytics.comp_difference.triple_support_count }} maps) vs Enemy Team {{ team_analytics.comp_difference.enemy_triple_support_rate }}% ({{ team_analytics.comp_difference.enemy_triple_support_count }} maps)
+            <span class="comp-diff-tags">
+            {% if team_analytics.comp_difference.triple_support_prevalence_diff > 0 %}
+                <span class="compare-tag compare-tag-positive">Main +{{ team_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
+            {% elif team_analytics.comp_difference.triple_support_prevalence_diff < 0 %}
+                <span class="compare-tag compare-tag-negative">Enemy {{ team_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
+            {% else %}
+                <span class="compare-tag compare-tag-neutral">Even</span>
+            {% endif %}
+            </span>
+        </p>
+    </section>
+
+    <section class="panel">
+        <h3>Hero Usage Graph</h3>
+        {% if hero_graph_rows %}
+            {% set usage_max = hero_graph_rows[0].maps %}
+            <div class="hero-usage-list top-gap">
+                {% for row in hero_graph_rows %}
+                    {% set width = ((row.maps / usage_max) * 100) if usage_max else 0 %}
+                    <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero) }}">
+                        <span class="hero-usage-name">
+                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                            {{ row.hero }}
+                        </span>
+                        <span class="hero-usage-bar-wrap">
+                            <span class="hero-usage-bar" data-width="{{ width }}"></span>
+                        </span>
+                        <span class="hero-usage-meta">{{ row.maps }} maps • {{ row.win_rate }}%</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No hero usage data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h3>Hero Usage Over Time</h3>
+        {% if hero_usage_timeline.labels and hero_usage_timeline.series %}
+            <div class="chart-legend hero-usage-legend top-gap">
+                {% for line in hero_usage_timeline.series %}
+                    <span class="chart-legend-item">
+                        <img src="{{ hero_image_url(line.hero) }}" alt="{{ line.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ line.hero | urlencode }}'">
+                        <span>{{ line.hero }}</span>
+                    </span>
+                {% endfor %}
+            </div>
+            <div class="enemy-trend-chart-wrap top-gap" style="position:relative;">
+                <canvas id="heroUsageTimelineChart" width="980" height="320"></canvas>
+                <div id="heroUsageTimelineTooltip" class="chart-tooltip" hidden></div>
+            </div>
+            <script id="heroUsageTimelineData" type="application/json">{{ hero_usage_timeline | tojson }}</script>
+        {% else %}
+            <p class="empty-text">No hero usage timeline data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-maps">
+    <section class="panel panel-soft-violet">
+        <div class="section-kicker">Map Draft Correlation</div>
+        <h3>Draft Correlation To Map (Skip Flags)</h3>
+        <p class="panel-intro">If a hero is banned overwhelmingly often on a map, mark it as a skip target in draft planning.</p>
+        {% if team_analytics.map_draft_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Map</th>
+                            <th>Most Banned</th>
+                            <th>Most Protected</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in team_analytics.map_draft_rows %}
+                            <tr>
+                                <td>{{ row.map_name }}</td>
+                                <td>
+                                    {% if row.top_ban_hero %}
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.top_ban_hero) }}" alt="{{ row.top_ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_ban_hero | urlencode }}'">
+                                            <span>{{ row.top_ban_hero }} ({{ row.top_ban_rate }}%)</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="empty-text">No ban data</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.top_protect_hero %}
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.top_protect_hero) }}" alt="{{ row.top_protect_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect_hero | urlencode }}'">
+                                            <span>{{ row.top_protect_hero }} ({{ row.top_protect_rate }}%)</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="empty-text">No protect data</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.skip_flag %}
+                                        <span class="compare-tag compare-tag-negative">{{ row.recommendation }}</span>
+                                    {% else %}
+                                        <span class="compare-tag compare-tag-positive">{{ row.recommendation }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No map draft correlation data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Map Mode Performance</h3>
+            {% if best_mode %}<span class="pill pill-win">Best: {{ best_mode.mode }}</span>{% endif %}
+        </div>
+
+        {% if team_map_mode_rows %}
+            <div class="mode-performance-grid">
+                {% for mode_row in team_map_mode_rows %}
+                    <article class="mode-card {% if best_mode and mode_row.mode == best_mode.mode %}mode-card-best{% elif worst_mode and mode_row.mode == worst_mode.mode %}mode-card-worst{% endif %} {% if mode_row.win_rate >= 70 %}mode-tier-high{% elif mode_row.win_rate >= 50 %}mode-tier-mid{% else %}mode-tier-low{% endif %}">
+                        <div class="mode-card-head">
+                            <h4>{{ mode_row.mode }}</h4>
+                            <span class="mode-badge">{{ mode_row.win_rate }}%</span>
+                        </div>
+                        <div class="mode-progress"><span data-progress="{{ mode_row.win_rate }}"></span></div>
+                        <div class="mode-meta">
+                            <span>{{ mode_row.wins }}W - {{ mode_row.losses }}L</span>
+                            <span>{{ mode_row.maps }} games</span>
+                        </div>
+                        {% if mode_row.best_map %}
+                            <div class="mode-note">Best map: {{ mode_row.best_map.map_name }} ({{ mode_row.best_map.win_rate }}%)</div>
+                        {% endif %}
+                        {% if mode_row.worst_map and mode_row.worst_map.map_name != mode_row.best_map.map_name %}
+                            <div class="mode-note mode-note-negative">Worst map: {{ mode_row.worst_map.map_name }} ({{ mode_row.worst_map.win_rate }}%)</div>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="map-filter-bar">
+                <input id="mapSearch" type="text" placeholder="Search maps...">
+                <select id="mapTypeFilter">
+                    <option value="all">All Types</option>
+                    {% for mode_row in team_map_mode_rows %}
+                        <option value="{{ mode_row.mode|lower }}">{{ mode_row.mode }}</option>
+                    {% endfor %}
+                </select>
+                <select id="mapSort">
+                    <option value="winrate">Highest Win Rate</option>
+                    <option value="games">Most Played</option>
+                    <option value="name">Map Name</option>
+                </select>
+            </div>
+
+            <div class="team-map-grid" id="teamMapGrid">
+                {% for map_row in team_map_cards %}
+                    {% set rate_tier = 'map-rate-mid' %}
+                    {% if map_row.win_rate >= 70 %}
+                        {% set rate_tier = 'map-rate-high' %}
+                    {% elif map_row.win_rate < 50 %}
+                        {% set rate_tier = 'map-rate-low' %}
+                    {% endif %}
+                    <article
+                        class="team-map-card {{ rate_tier }}"
+                        data-map-name="{{ map_row.map_name|lower }}"
+                        data-map-mode="{{ map_row.mode|lower }}"
+                        data-map-win-rate="{{ map_row.win_rate }}"
+                        data-map-games="{{ map_row.maps }}"
+                        title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
+                    >
+                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ map_row.image }}')"{% endif %}></div>
+                        <div class="team-map-overlay"></div>
+                        <div class="team-map-top">
+                            <span class="team-map-mode">{{ map_row.mode }}</span>
+                            <span class="team-map-rate">{{ map_row.win_rate }}%</span>
+                        </div>
+                        <div class="team-map-bottom">
+                            <h4>{{ map_row.map_name }}</h4>
+                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ map_row.maps }} games</p>
+                            <div class="team-map-footer-meta">
+                                <span class="team-map-chip">Winrate</span>
+                                <span class="team-map-chip">{{ map_row.win_rate }}%</span>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <p class="empty-text map-empty" id="mapEmptyState" hidden>No maps match this filter.</p>
+        {% else %}
+            <p class="empty-text">No map data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-matchups">
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Enemy Teams & Matchups</h3>
+            <button id="openEnemyTeamModal" type="button" class="button-small">Add Enemy Team</button>
+        </div>
+        {% if enemy_teams %}
+            <div class="enemy-teams-grid">
+                {% for enemy in enemy_teams %}
+                    <article class="team-dash-card enemy-dash-card">
+                        <a class="team-dash-main" href="{{ url_for('enemy_team_detail', enemy_team_id=enemy.id) }}">
+                            <img
+                                class="team-dash-logo"
+                                src="{{ url_for('static', filename=enemy.logo_path) if enemy.logo_path else 'https://avatar.vercel.sh/' ~ (enemy.name | urlencode) ~ '.png?size=140' }}"
+                                alt="{{ enemy.name }} logo"
+                            >
+                            <div class="team-dash-title">{{ enemy.name }}</div>
+                            <div class="team-dash-note">{{ enemy.notes or 'No notes yet.' }}</div>
+                            <div class="team-dash-stats">
+                                <span>{{ enemy.players|length }} players</span>
+                                <span>Enemy roster</span>
+                            </div>
+                        </a>
+
+                        <a class="team-dash-stats-link" href="{{ url_for('enemy_team_detail', enemy_team_id=enemy.id) }}">View matchup →</a>
+
+                        {% if enemy.players %}
+                            <div class="enemy-dash-roster">
+                                {% for player in enemy.players[:3] %}
+                                    <span class="enemy-dash-player-pill">
+                                        {{ player.name }}
+                                    </span>
+                                {% endfor %}
+                                {% if enemy.players|length > 3 %}
+                                    <span class="enemy-dash-more">+{{ enemy.players|length - 3 }} more</span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="team-dash-players">{{ enemy.players|length }} players</div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No enemy teams added yet. Add enemy rosters to track matchup stats and compare performance.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-roster">
+    <section class="panel">
+        <h3>Edit Team</h3>
+        <form method="post" action="{{ url_for('edit_team', team_id=team.id) }}" class="form-grid" enctype="multipart/form-data">
+            <div class="field">
+                <label for="team_name">Team Name</label>
+                <input id="team_name" name="name" type="text" value="{{ team.name }}" required>
+            </div>
+            <div class="field">
+                <label for="team_notes">Team Notes</label>
+                <input id="team_notes" name="notes" type="text" value="{{ team.notes }}">
+            </div>
+            <div class="field field-full">
+                <label for="team_logo">Team Logo</label>
+                <input id="team_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" hidden>
+                <input id="team_remove_logo" name="remove_logo" type="hidden" value="0">
+                <div class="team-logo-picker">
+                    <img
+                        id="teamLogoPreview"
+                        class="team-logo-thumb team-logo-thumb-lg"
+                        src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                        alt="Current team logo"
+                        data-fallback="https://avatar.vercel.sh/{{ team.name | urlencode }}.png?size=140"
+                    >
+                    <div class="team-logo-picker-actions">
+                        <button id="chooseTeamLogoBtn" type="button" class="button-secondary button-small">Add / Change</button>
+                        <button id="clearTeamLogoBtn" type="button" class="button-secondary button-small">Clear</button>
+                    </div>
+                </div>
+            </div>
+            <div class="button-row field-full">
+                <button type="submit">Save Team</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Roster & Stats</h3>
+            <button id="openPlayerModal" type="button" class="button-small">Add / Edit Player</button>
+        </div>
+        {% if players %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Role</th>
+                            <th>Main Hero</th>
+                            <th>Maps</th>
+                            <th>W</th>
+                            <th>L</th>
+                            <th>Win %</th>
+                            <th>Event Mentions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                            <tr>
+                                <td>{{ player.name }}</td>
+                                <td>{{ player.role or '-' }}</td>
+                                <td>{{ player.main_hero or '-' }}</td>
+                                <td>{{ player.stats.maps_played }}</td>
+                                <td>{{ player.stats.wins }}</td>
+                                <td>{{ player.stats.losses }}</td>
+                                <td>{{ player.stats.win_rate }}%</td>
+                                <td>{{ player.stats.events_mentioned }}</td>
+                                <td>
+                                    <div class="inline-actions">
+                                        <button
+                                            type="button"
+                                            class="button-secondary button-small open-edit-player"
+                                            data-player-id="{{ player.id }}"
+                                            data-player-name="{{ player.name }}"
+                                            data-player-role="{{ player.role }}"
+                                            data-player-hero="{{ player.main_hero }}"
+                                            data-player-notes="{{ player.notes }}"
+                                        >
+                                            Edit
+                                        </button>
+                                        <form method="post" action="{{ url_for('delete_player', player_id=player.id) }}" onsubmit="return confirm('Remove this player?');">
+                                            <button type="submit" class="button-secondary button-small">Remove</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% if player.notes %}
+                                <tr class="notes-row">
+                                    <td colspan="9"><strong>Notes:</strong> {{ player.notes }}</td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No players on this team yet.</p>
+        {% endif %}
+    </section>
+
+
+
+</div>
+
+<!-- PLAYER MANAGEMENT MODAL -->
+<div id="playerModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div>
+                <h3>Player Management</h3>
+                <p>Add a new player or edit an existing player.</p>
+            </div>
+            <button id="closePlayerModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="tab-row">
+            <button id="tabAdd" type="button" class="button-secondary button-small tab-button tab-active">Add Player</button>
+            <button id="tabEdit" type="button" class="button-secondary button-small tab-button">Edit Player</button>
+        </div>
+
+        <div id="tabAddPanel" class="tab-panel tab-panel-active top-gap">
+            <form method="post" action="{{ url_for('create_player', team_id=team.id) }}" class="form-grid">
+                <div class="field">
+                    <label for="add_player_name">Player Name</label>
+                    <input id="add_player_name" name="name" type="text" placeholder="Player name" required>
+                </div>
+                <div class="field">
+                    <label for="add_player_role">Role</label>
+                    <select id="add_player_role" name="role">
+                        <option value="">Select role</option>
+                        {% for role in player_roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="add_player_hero">Main Hero</label>
+                    <input id="add_player_hero" name="main_hero" type="text" placeholder="Optional main hero">
+                </div>
+                <div class="field">
+                    <label for="add_player_notes">Notes</label>
+                    <input id="add_player_notes" name="notes" type="text" placeholder="Optional notes">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Add Player</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tabEditPanel" class="tab-panel top-gap">
+            <form id="editPlayerForm" method="post" action="{{ url_for('edit_player', player_id=0) }}" class="form-grid">
+                <div class="field">
+                    <label for="edit_player_select">Select Player</label>
+                    <select id="edit_player_select">
+                        <option value="">Choose a player</option>
+                        {% for player in players %}
+                            <option
+                                value="{{ player.id }}"
+                                data-player-name="{{ player.name }}"
+                                data-player-role="{{ player.role }}"
+                                data-player-hero="{{ player.main_hero }}"
+                                data-player-notes="{{ player.notes }}"
+                            >
+                                {{ player.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field"></div>
+                <div class="field">
+                    <label for="edit_player_name">Player Name</label>
+                    <input id="edit_player_name" name="name" type="text" required>
+                </div>
+                <div class="field">
+                    <label for="edit_player_role">Role</label>
+                    <select id="edit_player_role" name="role">
+                        <option value="">Select role</option>
+                        {% for role in player_roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_player_hero">Main Hero</label>
+                    <input id="edit_player_hero" name="main_hero" type="text">
+                </div>
+                <div class="field">
+                    <label for="edit_player_notes">Notes</label>
+                    <input id="edit_player_notes" name="notes" type="text">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit" class="button-small">Save Player</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ENEMY TEAM MODAL -->
+<div id="enemyTeamModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div>
+                <h3>Enemy Team Management</h3>
+                <p>Add or edit an enemy team and their roster.</p>
+            </div>
+            <button id="closeEnemyTeamModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="tab-row">
+            <button id="tabEnemyAdd" type="button" class="button-secondary button-small tab-button tab-active">Add Enemy Team</button>
+            <button id="tabEnemyEdit" type="button" class="button-secondary button-small tab-button">Edit Team</button>
+        </div>
+
+        <div id="tabEnemyAddPanel" class="tab-panel tab-panel-active top-gap">
+            <form id="addEnemyTeamForm" method="post" action="{{ url_for('create_enemy_team', team_id=team.id) }}" class="form-grid" enctype="multipart/form-data">
+                <div class="field">
+                    <label for="add_enemy_name">Team Name</label>
+                    <input id="add_enemy_name" name="name" type="text" placeholder="Enemy team name" required>
+                </div>
+                <div class="field">
+                    <label for="add_enemy_notes">Notes</label>
+                    <input id="add_enemy_notes" name="notes" type="text" placeholder="Optional notes">
+                </div>
+                <div class="field">
+                    <label for="add_enemy_logo">Team Logo</label>
+                    <input id="add_enemy_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Add Enemy Team</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tabEnemyEditPanel" class="tab-panel top-gap">
+            <form id="editEnemyTeamForm" method="post" action="{{ url_for('edit_enemy_team', enemy_team_id=0) }}" class="form-grid" enctype="multipart/form-data">
+                <div class="field">
+                    <label for="edit_enemy_name">Team Name</label>
+                    <input id="edit_enemy_name" name="name" type="text" required>
+                </div>
+                <div class="field">
+                    <label for="edit_enemy_notes">Notes</label>
+                    <input id="edit_enemy_notes" name="notes" type="text">
+                </div>
+                <div class="field">
+                    <label for="edit_enemy_logo">Replace Team Logo</label>
+                    <input id="edit_enemy_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg">
+                </div>
+                <div class="field">
+                    <label class="checkbox-inline" for="edit_enemy_remove_logo">
+                        <input id="edit_enemy_remove_logo" name="remove_logo" type="checkbox" value="1">
+                        Remove current logo
+                    </label>
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Save Enemy Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ENEMY PLAYER MODAL -->
+<div id="enemyPlayerModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div>
+                <h3>Enemy Player Management</h3>
+                <p id="enemyPlayerModalTeamName">Add or edit an enemy player.</p>
+            </div>
+            <button id="closeEnemyPlayerModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="tab-row">
+            <button id="tabEnemyPlayerAdd" type="button" class="button-secondary button-small tab-button tab-active">Add Player</button>
+            <button id="tabEnemyPlayerEdit" type="button" class="button-secondary button-small tab-button">Edit Player</button>
+        </div>
+
+        <div id="tabEnemyPlayerAddPanel" class="tab-panel tab-panel-active top-gap">
+            <form id="addEnemyPlayerForm" method="post" action="{{ url_for('create_enemy_player', enemy_team_id=0) }}" class="form-grid">
+                <div class="field">
+                    <label for="add_enemy_player_name">Player Name</label>
+                    <input id="add_enemy_player_name" name="name" type="text" placeholder="Player name" required>
+                </div>
+                <div class="field">
+                    <label for="add_enemy_player_role">Role</label>
+                    <select id="add_enemy_player_role" name="role">
+                        <option value="">Select role</option>
+                        {% for role in player_roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="add_enemy_player_hero">Main Hero</label>
+                    <select id="add_enemy_player_hero" name="main_hero">
+                        <option value="">Select hero</option>
+                        {% for hero in heroes %}
+                            <option value="{{ hero }}">{{ hero }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="add_enemy_player_notes">Notes</label>
+                    <input id="add_enemy_player_notes" name="notes" type="text" placeholder="Optional notes">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Add Player</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tabEnemyPlayerEditPanel" class="tab-panel top-gap">
+            <form id="editEnemyPlayerForm" method="post" action="{{ url_for('edit_enemy_player', enemy_player_id=0) }}" class="form-grid">
+                <div class="field">
+                    <label for="edit_enemy_player_name">Player Name</label>
+                    <input id="edit_enemy_player_name" name="name" type="text" required>
+                </div>
+                <div class="field">
+                    <label for="edit_enemy_player_role">Role</label>
+                    <select id="edit_enemy_player_role" name="role">
+                        <option value="">Select role</option>
+                        {% for role in player_roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_enemy_player_hero">Main Hero</label>
+                    <select id="edit_enemy_player_hero" name="main_hero">
+                        <option value="">Select hero</option>
+                        {% for hero in heroes %}
+                            <option value="{{ hero }}">{{ hero }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_enemy_player_notes">Notes</label>
+                    <input id="edit_enemy_player_notes" name="notes" type="text">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Save Player</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabPanels = document.querySelectorAll(".tab-content");
+    const validTabs = new Set(["bans", "comps", "maps", "matchups", "roster"]);
+
+    const switchTeamTab = (tabName) => {
+        const nextTab = validTabs.has(tabName) ? tabName : "bans";
+        tabButtons.forEach((button) => {
+            button.classList.toggle("tab-active", button.dataset.tab === nextTab);
+        });
+
+        tabPanels.forEach((panel) => {
+            const isActive = panel.id === `tab-${nextTab}`;
+            panel.classList.toggle("tab-hidden", !isActive);
+        });
+
+        window.history.replaceState(null, "", `#${nextTab}`);
+    };
+
+    tabButtons.forEach((button) => {
+        button.addEventListener("click", () => switchTeamTab(button.dataset.tab));
+    });
+
+    const hashTab = (window.location.hash || "").replace("#", "").trim().toLowerCase();
+    if (validTabs.has(hashTab)) {
+        switchTeamTab(hashTab);
+    }
+
+    const modal = document.getElementById("playerModal");
+    const openBtn = document.getElementById("openPlayerModal");
+    const closeBtn = document.getElementById("closePlayerModal");
+    const tabAdd = document.getElementById("tabAdd");
+    const tabEdit = document.getElementById("tabEdit");
+    const panelAdd = document.getElementById("tabAddPanel");
+    const panelEdit = document.getElementById("tabEditPanel");
+    const editSelect = document.getElementById("edit_player_select");
+    const editForm = document.getElementById("editPlayerForm");
+    const editName = document.getElementById("edit_player_name");
+    const editRole = document.getElementById("edit_player_role");
+    const editHero = document.getElementById("edit_player_hero");
+    const editNotes = document.getElementById("edit_player_notes");
+    const quickEditButtons = document.querySelectorAll(".open-edit-player");
+    const teamLogoInput = document.getElementById("team_logo");
+    const teamLogoPreview = document.getElementById("teamLogoPreview");
+    const chooseTeamLogoBtn = document.getElementById("chooseTeamLogoBtn");
+    const clearTeamLogoBtn = document.getElementById("clearTeamLogoBtn");
+    const removeTeamLogoInput = document.getElementById("team_remove_logo");
+
+    const setTab = (tabName) => {
+        const isAdd = tabName === "add";
+        tabAdd.classList.toggle("tab-active", isAdd);
+        tabEdit.classList.toggle("tab-active", !isAdd);
+        panelAdd.classList.toggle("tab-panel-active", isAdd);
+        panelEdit.classList.toggle("tab-panel-active", !isAdd);
+    };
+
+    const openModal = () => {
+        switchTeamTab("roster");
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeModal = () => {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    };
+
+    const loadPlayerIntoEditForm = (player) => {
+        if (!player || !player.id) {
+            return;
+        }
+        editForm.action = "{{ url_for('edit_player', player_id=0) }}".replace("/0/edit", `/${player.id}/edit`);
+        editName.value = player.name || "";
+        editRole.value = player.role || "";
+        editHero.value = player.hero || "";
+        editNotes.value = player.notes || "";
+        editSelect.value = String(player.id);
+    };
+
+    openBtn.addEventListener("click", () => {
+        setTab("add");
+        openModal();
+    });
+
+    closeBtn.addEventListener("click", closeModal);
+
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    tabAdd.addEventListener("click", () => setTab("add"));
+    tabEdit.addEventListener("click", () => setTab("edit"));
+
+    editSelect.addEventListener("change", () => {
+        const option = editSelect.selectedOptions[0];
+        if (!option || !option.value) {
+            return;
+        }
+        loadPlayerIntoEditForm({
+            id: option.value,
+            name: option.dataset.playerName,
+            role: option.dataset.playerRole,
+            hero: option.dataset.playerHero,
+            notes: option.dataset.playerNotes,
+        });
+    });
+
+    quickEditButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            setTab("edit");
+            loadPlayerIntoEditForm({
+                id: button.dataset.playerId,
+                name: button.dataset.playerName,
+                role: button.dataset.playerRole,
+                hero: button.dataset.playerHero,
+                notes: button.dataset.playerNotes,
+            });
+            openModal();
+        });
+    });
+
+    if (teamLogoInput && teamLogoPreview && removeTeamLogoInput) {
+        const fallbackLogo = teamLogoPreview.dataset.fallback || teamLogoPreview.src;
+        const setLogoPreview = () => {
+            const file = teamLogoInput.files?.[0];
+            if (file) {
+                teamLogoPreview.src = URL.createObjectURL(file);
+                removeTeamLogoInput.value = "0";
+                return;
+            }
+            if (removeTeamLogoInput.value === "1") {
+                teamLogoPreview.src = fallbackLogo;
+            }
+        };
+
+        chooseTeamLogoBtn?.addEventListener("click", () => teamLogoInput.click());
+        teamLogoPreview.addEventListener("click", () => teamLogoInput.click());
+        teamLogoInput.addEventListener("change", setLogoPreview);
+        clearTeamLogoBtn?.addEventListener("click", () => {
+            teamLogoInput.value = "";
+            removeTeamLogoInput.value = "1";
+            teamLogoPreview.src = fallbackLogo;
+        });
+    }
+
+    document.querySelectorAll(".mode-progress span[data-progress]").forEach((bar) => {
+        const value = Number(bar.dataset.progress || 0);
+        const clamped = Math.max(0, Math.min(100, value));
+        bar.style.width = `${clamped}%`;
+    });
+
+    document.querySelectorAll(".hbar-fill[data-width]").forEach((bar) => {
+        const value = Number(bar.dataset.width || 0);
+        const clamped = Math.max(0, Math.min(100, value));
+        bar.style.width = `${clamped}%`;
+    });
+
+    const mapSearch = document.getElementById("mapSearch");
+    const mapTypeFilter = document.getElementById("mapTypeFilter");
+    const mapSort = document.getElementById("mapSort");
+    const mapGrid = document.getElementById("teamMapGrid");
+    const mapEmptyState = document.getElementById("mapEmptyState");
+
+    const updateMapCards = () => {
+        if (!mapGrid) {
+            return;
+        }
+
+        const query = (mapSearch?.value || "").trim().toLowerCase();
+        const mode = (mapTypeFilter?.value || "all").toLowerCase();
+        const sortBy = mapSort?.value || "winrate";
+
+        const cards = Array.from(mapGrid.querySelectorAll(".team-map-card"));
+
+        cards.sort((a, b) => {
+            const aName = a.dataset.mapName || "";
+            const bName = b.dataset.mapName || "";
+            const aRate = Number(a.dataset.mapWinRate || 0);
+            const bRate = Number(b.dataset.mapWinRate || 0);
+            const aGames = Number(a.dataset.mapGames || 0);
+            const bGames = Number(b.dataset.mapGames || 0);
+
+            if (sortBy === "name") {
+                return aName.localeCompare(bName);
+            }
+            if (sortBy === "games") {
+                return bGames - aGames || bRate - aRate;
+            }
+            return bRate - aRate || bGames - aGames;
+        });
+
+        cards.forEach((card) => mapGrid.appendChild(card));
+
+        let visibleCount = 0;
+        cards.forEach((card) => {
+            const cardName = card.dataset.mapName || "";
+            const cardMode = card.dataset.mapMode || "";
+            const matchQuery = !query || cardName.includes(query);
+            const matchMode = mode === "all" || cardMode === mode;
+            const visible = matchQuery && matchMode;
+            card.hidden = !visible;
+            if (visible) {
+                visibleCount += 1;
+            }
+        });
+
+        if (mapEmptyState) {
+            mapEmptyState.hidden = visibleCount > 0;
+        }
+    };
+
+    [mapSearch, mapTypeFilter, mapSort].forEach((el) => {
+        if (el) {
+            el.addEventListener("input", updateMapCards);
+            el.addEventListener("change", updateMapCards);
+        }
+    });
+
+    updateMapCards();
+})();
+
+// Initialize vertical bar heights
+document.querySelectorAll('.vbar-bar[data-height]').forEach(bar => {
+    const height = parseFloat(bar.getAttribute('data-height'));
+    bar.style.height = height + '%';
+});
+
+document.querySelectorAll('.hero-usage-bar[data-width]').forEach(bar => {
+    const width = Number(bar.dataset.width || 0);
+    const clamped = Math.max(0, Math.min(100, width));
+    bar.style.width = clamped + '%';
+});
+
+(() => {
+    const usagePayload = document.getElementById('heroUsageTimelineData')?.textContent || '';
+    const usageTimeline = usagePayload ? JSON.parse(usagePayload) : null;
+    const usageCanvas = document.getElementById('heroUsageTimelineChart');
+    const usageTooltip = document.getElementById('heroUsageTimelineTooltip');
+    if (!usageCanvas || !usageTimeline?.labels?.length || !usageTimeline?.series?.length) {
+        return;
+    }
+
+    const ctx = usageCanvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = usageCanvas.clientWidth || 980;
+    const cssHeight = 320;
+    usageCanvas.width = Math.floor(cssWidth * dpr);
+    usageCanvas.height = Math.floor(cssHeight * dpr);
+    ctx.scale(dpr, dpr);
+
+    const pad = { top: 20, right: 20, bottom: 50, left: 42 };
+    const innerW = cssWidth - pad.left - pad.right;
+    const innerH = cssHeight - pad.top - pad.bottom;
+    const colors = ['#60a5fa', '#f97316', '#34d399', '#facc15', '#f472b6', '#a78bfa'];
+
+    const xAt = (i) => pad.left + (usageTimeline.labels.length === 1 ? innerW / 2 : (innerW * i) / (usageTimeline.labels.length - 1));
+    const yAt = (value) => pad.top + innerH - (Math.max(0, Math.min(100, value)) / 100) * innerH;
+
+    const drawChart = (hoverIndex = null) => {
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        ctx.fillStyle = 'rgba(13,17,23,0.9)';
+        ctx.fillRect(0, 0, cssWidth, cssHeight);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        [0, 25, 50, 75, 100].forEach((tick) => {
+            const y = yAt(tick);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(cssWidth - pad.right, y);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(148,163,184,0.9)';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(`${tick}%`, 4, y + 4);
+        });
+
+        usageTimeline.series.forEach((line, index) => {
+            const color = colors[index % colors.length];
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            line.values.forEach((value, pointIndex) => {
+                const x = xAt(pointIndex);
+                const y = yAt(value);
+                if (pointIndex === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+
+            line.values.forEach((value, pointIndex) => {
+                const x = xAt(pointIndex);
+                const y = yAt(value);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, hoverIndex === pointIndex ? 4.5 : 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        });
+
+        if (hoverIndex !== null) {
+            const x = xAt(hoverIndex);
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, pad.top);
+            ctx.lineTo(x, cssHeight - pad.bottom);
+            ctx.stroke();
+        }
+    };
+
+    const pointIndexFromEvent = (event) => {
+        const rect = usageCanvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        let nearestIndex = 0;
+        let nearestDistance = Infinity;
+        usageTimeline.labels.forEach((_, index) => {
+            const distance = Math.abs(xAt(index) - x);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestIndex = index;
+            }
+        });
+        return nearestIndex;
+    };
+
+    usageCanvas.addEventListener('mousemove', (event) => {
+        const index = pointIndexFromEvent(event);
+        drawChart(index);
+        if (!usageTooltip) {
+            return;
+        }
+        const rows = usageTimeline.series.map((line, lineIndex) => (
+            `<div class="tt-row"><span>${line.hero}</span><strong style="color:${colors[lineIndex % colors.length]}">${line.values[index]}%</strong></div>`
+        )).join('');
+        usageTooltip.innerHTML = `<div class="tt-label">${usageTimeline.labels[index]}</div>${rows}`;
+        usageTooltip.hidden = false;
+        const rect = usageCanvas.getBoundingClientRect();
+        const tooltipX = Math.min(rect.width - 190, Math.max(12, event.clientX - rect.left + 14));
+        const tooltipY = Math.max(12, event.clientY - rect.top - 20);
+        usageTooltip.style.left = `${tooltipX}px`;
+        usageTooltip.style.top = `${tooltipY}px`;
+    });
+
+    usageCanvas.addEventListener('mouseleave', () => {
+        drawChart();
+        if (usageTooltip) {
+            usageTooltip.hidden = true;
+        }
+    });
+
+    drawChart();
+})();
+
+// Enemy Team Modal Management
+(() => {
+    const enemyTeamModal = document.getElementById("enemyTeamModal");
+    const enemyPlayerModal = document.getElementById("enemyPlayerModal");
+    const openEnemyTeamBtn = document.getElementById("openEnemyTeamModal");
+    const closeEnemyTeamBtn = document.getElementById("closeEnemyTeamModal");
+    const closeEnemyPlayerBtn = document.getElementById("closeEnemyPlayerModal");
+
+    const tabEnemyAdd = document.getElementById("tabEnemyAdd");
+    const tabEnemyEdit = document.getElementById("tabEnemyEdit");
+    const panelEnemyAdd = document.getElementById("tabEnemyAddPanel");
+    const panelEnemyEdit = document.getElementById("tabEnemyEditPanel");
+    const editEnemyTeamForm = document.getElementById("editEnemyTeamForm");
+    const editEnemyName = document.getElementById("edit_enemy_name");
+    const editEnemyNotes = document.getElementById("edit_enemy_notes");
+    const editEnemyRemoveLogo = document.getElementById("edit_enemy_remove_logo");
+
+    const tabEnemyPlayerAdd = document.getElementById("tabEnemyPlayerAdd");
+    const tabEnemyPlayerEdit = document.getElementById("tabEnemyPlayerEdit");
+    const panelEnemyPlayerAdd = document.getElementById("tabEnemyPlayerAddPanel");
+    const panelEnemyPlayerEdit = document.getElementById("tabEnemyPlayerEditPanel");
+    const addEnemyPlayerForm = document.getElementById("addEnemyPlayerForm");
+    const editEnemyPlayerForm = document.getElementById("editEnemyPlayerForm");
+    const editEnemyPlayerName = document.getElementById("edit_enemy_player_name");
+    const editEnemyPlayerRole = document.getElementById("edit_enemy_player_role");
+    const editEnemyPlayerHero = document.getElementById("edit_enemy_player_hero");
+    const editEnemyPlayerNotes = document.getElementById("edit_enemy_player_notes");
+    const enemyPlayerModalTeamName = document.getElementById("enemyPlayerModalTeamName");
+
+    const setEnemyTeamTab = (tabName) => {
+        const isAdd = tabName === "add";
+        tabEnemyAdd.classList.toggle("tab-active", isAdd);
+        tabEnemyEdit.classList.toggle("tab-active", !isAdd);
+        panelEnemyAdd.classList.toggle("tab-panel-active", isAdd);
+        panelEnemyEdit.classList.toggle("tab-panel-active", !isAdd);
+    };
+
+    const setEnemyPlayerTab = (tabName) => {
+        const isAdd = tabName === "add";
+        tabEnemyPlayerAdd.classList.toggle("tab-active", isAdd);
+        tabEnemyPlayerEdit.classList.toggle("tab-active", !isAdd);
+        panelEnemyPlayerAdd.classList.toggle("tab-panel-active", isAdd);
+        panelEnemyPlayerEdit.classList.toggle("tab-panel-active", !isAdd);
+    };
+
+    const openEnemyTeamModal = () => {
+        enemyTeamModal.classList.add("show");
+        enemyTeamModal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeEnemyTeamModal = () => {
+        enemyTeamModal.classList.remove("show");
+        enemyTeamModal.setAttribute("aria-hidden", "true");
+    };
+
+    const openEnemyPlayerModal = () => {
+        enemyPlayerModal.classList.add("show");
+        enemyPlayerModal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeEnemyPlayerModal = () => {
+        enemyPlayerModal.classList.remove("show");
+        enemyPlayerModal.setAttribute("aria-hidden", "true");
+    };
+
+    openEnemyTeamBtn.addEventListener("click", () => {
+        setEnemyTeamTab("add");
+        openEnemyTeamModal();
+    });
+
+    closeEnemyTeamBtn.addEventListener("click", closeEnemyTeamModal);
+    closeEnemyPlayerBtn.addEventListener("click", closeEnemyPlayerModal);
+
+    enemyTeamModal.addEventListener("click", (event) => {
+        if (event.target === enemyTeamModal) {
+            closeEnemyTeamModal();
+        }
+    });
+
+    enemyPlayerModal.addEventListener("click", (event) => {
+        if (event.target === enemyPlayerModal) {
+            closeEnemyPlayerModal();
+        }
+    });
+
+    tabEnemyAdd.addEventListener("click", () => setEnemyTeamTab("add"));
+    tabEnemyEdit.addEventListener("click", () => setEnemyTeamTab("edit"));
+    tabEnemyPlayerAdd.addEventListener("click", () => setEnemyPlayerTab("add"));
+    tabEnemyPlayerEdit.addEventListener("click", () => setEnemyPlayerTab("edit"));
+
+    // Handle add enemy team form submission via AJAX
+    const addEnemyTeamForm = document.getElementById("addEnemyTeamForm");
+    if (addEnemyTeamForm) {
+        addEnemyTeamForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('add_enemy_name').value.trim();
+            
+            if (!name) {
+                alert('Please enter a team name.');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            formData.set('name', name);
+            const action = this.action;
+            
+            try {
+                const response = await fetch(action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Clear form and close modal
+                    addEnemyTeamForm.reset();
+                    closeEnemyTeamModal();
+                    // Reload the page to show new team
+                    setTimeout(() => window.location.reload(), 300);
+                } else {
+                    alert('Failed to create enemy team. Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error creating enemy team:', error);
+                alert('An error occurred while creating the enemy team: ' + error.message);
+            }
+        });
+    } else {
+        console.error('addEnemyTeamForm not found in DOM');
+    }
+
+    // Handle add enemy player form submission via AJAX
+    if (addEnemyPlayerForm) {
+        addEnemyPlayerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('add_enemy_player_name').value.trim();
+            
+            if (!name) {
+                alert('Please enter a player name.');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            const action = this.action;
+            
+            try {
+                const response = await fetch(action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.ok) {
+                    this.reset();
+                    closeEnemyPlayerModal();
+                    setTimeout(() => window.location.reload(), 300);
+                } else {
+                    alert('Failed to add player. Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error adding enemy player:', error);
+                alert('An error occurred while adding the player: ' + error.message);
+            }
+        });
+    }
+
+    // Handle edit enemy player form submission via AJAX
+    if (editEnemyPlayerForm) {
+        editEnemyPlayerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('edit_enemy_player_name').value.trim();
+            
+            if (!name) {
+                alert('Please enter a player name.');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            const action = this.action;
+            
+            try {
+                const response = await fetch(action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.ok) {
+                    this.reset();
+                    closeEnemyPlayerModal();
+                    setTimeout(() => window.location.reload(), 300);
+                } else {
+                    alert('Failed to save player. Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error editing enemy player:', error);
+                alert('An error occurred while saving the player: ' + error.message);
+            }
+        });
+    }
+
+    // Handle edit enemy team form submission via AJAX
+    if (editEnemyTeamForm) {
+        editEnemyTeamForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('edit_enemy_name').value.trim();
+            
+            if (!name) {
+                alert('Please enter a team name.');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            formData.set('name', name);
+            if (!editEnemyRemoveLogo.checked) {
+                formData.delete('remove_logo');
+            }
+            const action = this.action;
+            
+            try {
+                const response = await fetch(action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.ok) {
+                    this.reset();
+                    editEnemyRemoveLogo.checked = false;
+                    closeEnemyTeamModal();
+                    setTimeout(() => window.location.reload(), 300);
+                } else {
+                    alert('Failed to update team. Status: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error editing enemy team:', error);
+                alert('An error occurred while updating the team: ' + error.message);
+            }
+        });
+    }
+
+    // Edit enemy team button
+    document.querySelectorAll(".open-edit-enemy-team").forEach((button) => {
+        button.addEventListener("click", () => {
+            setEnemyTeamTab("edit");
+            const enemyId = button.dataset.enemyId;
+            const enemyName = button.dataset.enemyName;
+            const enemyNotes = button.dataset.enemyNotes;
+            editEnemyTeamForm.action = "{{ url_for('edit_enemy_team', enemy_team_id=0) }}".replace("/0/edit", `/${enemyId}/edit`);
+            editEnemyName.value = enemyName;
+            editEnemyNotes.value = enemyNotes;
+            editEnemyRemoveLogo.checked = false;
+            openEnemyTeamModal();
+        });
+    });
+
+    // Add enemy player button
+    document.querySelectorAll(".open-add-enemy-player").forEach((button) => {
+        button.addEventListener("click", () => {
+            setEnemyPlayerTab("add");
+            const enemyTeamId = button.dataset.enemyId;
+            const enemyTeamName = button.dataset.enemyName;
+            addEnemyPlayerForm.action = "{{ url_for('create_enemy_player', enemy_team_id=0) }}".replace("/0/players", `/${enemyTeamId}/players`);
+            enemyPlayerModalTeamName.textContent = `Add a player to "${enemyTeamName}"`;
+            document.getElementById("add_enemy_player_name").value = "";
+            document.getElementById("add_enemy_player_role").value = "";
+            document.getElementById("add_enemy_player_hero").value = "";
+            document.getElementById("add_enemy_player_notes").value = "";
+            openEnemyPlayerModal();
+        });
+    });
+
+    // Edit enemy player button
+    document.querySelectorAll(".open-edit-enemy-player").forEach((button) => {
+        button.addEventListener("click", () => {
+            setEnemyPlayerTab("edit");
+            const enemyPlayerId = button.dataset.enemyPlayerId;
+            const playerName = button.dataset.playerName;
+            const playerRole = button.dataset.playerRole;
+            const playerHero = button.dataset.playerHero;
+            const playerNotes = button.dataset.playerNotes;
+            editEnemyPlayerForm.action = "{{ url_for('edit_enemy_player', enemy_player_id=0) }}".replace("/0/edit", `/${enemyPlayerId}/edit`);
+            editEnemyPlayerName.value = playerName;
+            editEnemyPlayerRole.value = playerRole;
+            editEnemyPlayerHero.value = playerHero;
+            editEnemyPlayerNotes.value = playerNotes;
+            enemyPlayerModalTeamName.textContent = `Edit "${playerName}"`;
+            openEnemyPlayerModal();
+        });
+    });
+})();
+
+</script>
+{% endblock %}

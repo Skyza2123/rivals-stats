@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>Dashboard</h2>
+        <p>Overview of scrims, maps, player entries, and events.</p>
+    </div>
+    <a class="button-link" href="{{ url_for('new_scrim') }}">+ New Scrim</a>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card">
+        <strong>Total Scrims</strong>
+        <span>{{ total_scrims }}</span>
+    </section>
+
+    <section class="stat-card">
+        <strong>Total Maps</strong>
+        <span>{{ total_maps }}</span>
+    </section>
+
+    <section class="stat-card">
+        <strong>Events</strong>
+        <span>{{ total_events }}</span>
+    </section>
+
+    <section class="stat-card">
+        <strong>Teams</strong>
+        <span>{{ total_teams }}</span>
+    </section>
+
+    <section class="stat-card">
+        <strong>Players</strong>
+        <span>{{ total_players }}</span>
+    </section>
+</div>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Recent Scrims</h3>
+        <a href="{{ url_for('scrims') }}">View all</a>
+    </div>
+
+    {% if recent_scrims %}
+        <div class="list-stack">
+            {% for scrim in recent_scrims %}
+                <a class="list-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
+                    <div>
+                        <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
+                        <div class="list-subtitle">
+                            {{ scrim.scrim_date }}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="list-meta">
+                        <small>{{ scrim.maps|length }} maps</small>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No scrims yet. Create your first scrim.</p>
+    {% endif %}
+</section>
+{% endblock %}

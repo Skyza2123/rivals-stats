@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Scrims{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>Scrims</h2>
+        <p>Browse all scrims.</p>
+    </div>
+    <div class="header-actions">
+        <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
+        <a class="button-link" href="{{ url_for('new_scrim') }}">+ New Scrim</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
+
+<section class="panel">
+    {% if scrims %}
+        <div class="scrim-box-grid">
+            {% for scrim in scrims %}
+                <a class="scrim-box-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
+                    <div class="scrim-box-head">
+                        <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
+                        <span class="scrim-box-maps">{{ scrim.maps|length }} maps</span>
+                    </div>
+                    <div class="list-subtitle">
+                        {{ scrim.scrim_date }}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
+                    </div>
+                    <div class="scrim-box-cta">Open Scrim →</div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No scrims created yet.</p>
+    {% endif %}
+</section>
+
+{# ── CSV Import Modal ─────────────────────────────────────────────────── #}
+<div id="importModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="importModalTitle">
+    <div class="modal-card import-modal-card">
+        <div class="modal-header">
+            <div>
+                <h3 id="importModalTitle">Import Scrims from CSV</h3>
+                <p>Upload an analyst CSV to bulk-import scrim data.</p>
+            </div>
+            <button id="closeImportModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <form id="importCsvForm" method="post" action="{{ url_for('import_csv_scrims') }}" enctype="multipart/form-data">
+            <div class="field top-gap">
+                <label for="import_team_id">Your Team <span class="required-mark">*</span></label>
+                <select id="import_team_id" name="team_id" required>
+                    <option value="">Select your team…</option>
+                    {% for team in teams %}
+                        <option value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="import_csv_file">CSV File <span class="required-mark">*</span></label>
+                <div class="csv-file-picker">
+                    <button type="button" id="csvPickBtn" class="button-secondary">Choose File</button>
+                    <span id="csvFileName" class="csv-file-name">No file chosen</span>
+                    <input id="import_csv_file" name="csv_file" type="file" accept=".csv,.txt" required style="display:none;">
+                </div>
+            </div>
+
+            <div class="csv-format-hint panel">
+                <strong>Expected CSV columns (in order):</strong>
+                <div class="csv-col-grid">
+                    <div><span class="csv-col-num">0</span> Date</div>
+                    <div><span class="csv-col-num">1</span> Enemy Team</div>
+                    <div><span class="csv-col-num">2</span> Map Name</div>
+                    <div><span class="csv-col-num">3</span> Our Score</div>
+                    <div><span class="csv-col-num">4</span> Their Score</div>
+                    <div><span class="csv-col-num">5</span> Result (Won/Lost)</div>
+                    <div><span class="csv-col-num">6–13</span> Ban Us1…Ban Them4</div>
+                    <div><span class="csv-col-num">14–17</span> Protect Us1…Protect Them2</div>
+                    <div><span class="csv-col-num">23</span> Us Result (right)</div>
+                    <div><span class="csv-col-num">24–29</span> Our heroes (T,T,D,D,S,S)</div>
+                    <div><span class="csv-col-num">31</span> Them Result (right)</div>
+                    <div><span class="csv-col-num">32–37</span> Their heroes (T,T,D,D,S,S)</div>
+                </div>
+                <p class="csv-hint-note">Parent map rows (with bans) set result &amp; draft. Sub-rows (map name = parent + side/submap) provide comp data.</p>
+            </div>
+
+            <div class="button-row top-gap">
+                <button type="submit" id="importSubmitBtn">Import</button>
+                <button type="button" id="cancelImportBtn" class="button-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const modal    = document.getElementById("importModal");
+    const openBtn  = document.getElementById("openImportModal");
+    const closeBtn = document.getElementById("closeImportModal");
+    const cancelBtn = document.getElementById("cancelImportBtn");
+    const fileInput = document.getElementById("import_csv_file");
+    const pickBtn  = document.getElementById("csvPickBtn");
+    const fileName = document.getElementById("csvFileName");
+
+    const openModal  = () => { modal.classList.add("show"); modal.setAttribute("aria-hidden","false"); };
+    const closeModal = () => { modal.classList.remove("show"); modal.setAttribute("aria-hidden","true"); };
+
+    openBtn?.addEventListener("click", openModal);
+    closeBtn?.addEventListener("click", closeModal);
+    cancelBtn?.addEventListener("click", closeModal);
+    modal?.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+    pickBtn?.addEventListener("click", () => fileInput.click());
+    fileInput?.addEventListener("change", () => {
+        fileName.textContent = fileInput.files[0]?.name || "No file chosen";
+    });
+})();
+</script>
+{% endblock %}

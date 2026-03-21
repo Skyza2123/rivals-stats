@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scrim Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>Scrim Dashboard</h1>
+                <p>Manual analyst entry</p>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-link active">Scrim Entry</a>
+                <a href="#" class="nav-link">Players</a>
+                <a href="#" class="nav-link">Team Stats</a>
+                <a href="#" class="nav-link">Maps</a>
+                <a href="#" class="nav-link">Notes</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="main-header">
+                <div>
+                    <h2>Scrim Entry</h2>
+                    <p>Enter one player’s scrim stats and match context.</p>
+                </div>
+                <div class="header-badge">Live Build</div>
+            </div>
+
+            <form action="/analyze" method="post">
+                <section class="panel">
+                    <h3>Player Info</h3>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="player_name">Player Name</label>
+                            <input type="text" id="player_name" name="player_name" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="hero">Hero</label>
+                            <select id="hero" name="hero" required>
+                                <option value="">Select a hero</option>
+                                {% for hero in heroes %}
+                                    <option value="{{ hero }}">{{ hero }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h3>Match Context</h3>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="map">Map</label>
+                            <select id="map" name="map" required>
+                                <option value="">Select a map</option>
+                                {% for map_name in maps %}
+                                    <option value="{{ map_name }}">{{ map_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="side">Side</label>
+                            <select id="side" name="side">
+                                <option value="">Select side</option>
+                                {% for side in sides %}
+                                    <option value="{{ side }}">{{ side }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="result">Result</label>
+                            <select id="result" name="result" required>
+                                <option value="">Select result</option>
+                                <option value="Win">Win</option>
+                                <option value="Loss">Loss</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="opponent">Opponent</label>
+                            <input type="text" id="opponent" name="opponent" placeholder="Team name">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h3>Player Stats</h3>
+                    <div class="stats-grid">
+                        <div class="field">
+                            <label for="kills">Kills</label>
+                            <input type="number" id="kills" name="kills" min="0" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="deaths">Deaths</label>
+                            <input type="number" id="deaths" name="deaths" min="0" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="assists">Assists</label>
+                            <input type="number" id="assists" name="assists" min="0" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="damage">Damage</label>
+                            <input type="number" id="damage" name="damage" min="0">
+                        </div>
+
+                        <div class="field">
+                            <label for="healing">Healing</label>
+                            <input type="number" id="healing" name="healing" min="0">
+                        </div>
+
+                        <div class="field">
+                            <label for="first_event">First Event</label>
+                            <select id="first_event" name="first_event">
+                                <option value="">None</option>
+                                <option value="First Kill">First Kill</option>
+                                <option value="First Death">First Death</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h3>Notes</h3>
+                    <div class="field">
+                        <label for="notes">Quick Notes</label>
+                        <textarea id="notes" name="notes" rows="5" placeholder="Fight notes, positioning issues, ult usage, etc."></textarea>
+                    </div>
+                </section>
+
+                <div class="button-row">
+                    <button type="submit">Analyze Entry</button>
+                </div>
+            </form>
+        </main>
+    </div>
+</body>
+</html>

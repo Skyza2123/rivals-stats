@@ -1,0 +1,553 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Simulator{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>Draft Simulator</h2>
+        <p>Simulate a full ban/protect draft phase.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
+        <button type="button" id="rt-toggle" class="button-secondary rt-toggle" onclick="toggleRealTime()">Real-Time: OFF</button>
+        <button type="button" class="button-secondary" onclick="resetDraft()">Reset Draft</button>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="draft-grid">
+        <div class="draft-column">
+            <h4>Team 1</h4>
+            <div class="draft-slots">
+                <div class="draft-slot" data-slot="team1_ban1" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_ban2" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban2" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_protect1" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_protect1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_ban3" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban3" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_protect2" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_protect2" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_ban4" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban4" value="">
+                </div>
+            </div>
+        </div>
+
+        <div class="draft-column">
+            <h4>Team 2</h4>
+            <div class="draft-slots">
+                <div class="draft-slot" data-slot="team2_ban1" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_protect1" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_protect1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_ban2" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban2" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_ban3" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban3" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_ban4" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban4" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_protect2" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_protect2" value="">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
+
+    <!-- Draft order guide -->
+    <div class="draft-order-bar">
+        <span class="draft-step" data-step="0">T1 Ban</span>
+        <span class="draft-step" data-step="1">T2 Ban</span>
+        <span class="draft-step" data-step="2">T1 Ban</span>
+        <span class="draft-step" data-step="3">T2 Protect</span>
+        <span class="draft-step" data-step="4">T2 Ban</span>
+        <span class="draft-step" data-step="5">T1 Protect</span>
+        <span class="draft-step" data-step="6">T1 Ban</span>
+        <span class="draft-step" data-step="7">T2 Ban</span>
+        <span class="draft-step" data-step="8">T1 Protect</span>
+        <span class="draft-step" data-step="9">T2 Ban</span>
+        <span class="draft-step" data-step="10">T1 Ban</span>
+        <span class="draft-step" data-step="11">T2 Protect</span>
+    </div>
+
+    <div class="rt-timer-bar">
+        <div class="rt-timer-fill"></div>
+    </div>
+    <div class="rt-countdown" id="rt-countdown"></div>
+    <div class="rt-start-wrap" id="rt-start-wrap">
+        <button type="button" class="button-primary rt-start-btn" id="rt-start-btn" onclick="startDraft()">Start Draft</button>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="hero-picker">
+        {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+        <div class="hero-role-section">
+            <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+            <div class="hero-icon-grid">
+                {% for hero in hero_roles[role] %}
+                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}"
+                        onclick="pickHero(this)"
+                        title="{{ hero }}">
+                    <div class="hero-img-wrap">
+                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                             alt="{{ hero }}" loading="lazy">
+                        {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
+                        {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
+                        {% if hero == 'SupportPool' %}<span class="pool-tag tag-sup">SUP</span>{% endif %}
+                    </div>
+                    <span class="hero-pick-name">{{ hero }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<script>
+/* Draft order: the sequence of slots to fill in a real draft */
+const DRAFT_ORDER = [
+    'team1_ban1',
+    'team2_ban1',
+    'team1_ban2',
+    'team2_protect1',
+    'team2_ban2',
+    'team1_protect1',
+    'team1_ban3',
+    'team2_ban3',
+    'team1_protect2',
+    'team2_ban4',
+    'team1_ban4',
+    'team2_protect2',
+];
+
+const SIMULTANEOUS_PAIRS = [[0, 1], [6, 7]];
+const PICK_TIME = 15;
+const TRANSITION_TIME = 5;
+
+let activeSlot = null;
+let currentStep = 0;
+let realTimeMode = false;
+let draftStarted = false;
+let delayActive = false;
+let delayTimer = null;
+let pickTimer = null;
+let countdownInterval = null;
+let countdownSeconds = 0;
+
+function getSlotByName(name) {
+    return document.querySelector('.draft-slot[data-slot="' + name + '"]');
+}
+
+function getTeamHeroes(team, type) {
+    const heroes = [];
+    document.querySelectorAll('.draft-slot').forEach(slot => {
+        const name = slot.dataset.slot;
+        if (name.startsWith(team + '_' + type)) {
+            const val = slot.querySelector('input').value;
+            if (val) heroes.push(val);
+        }
+    });
+    return heroes;
+}
+
+function updateHeroAvailability() {
+    if (!activeSlot) {
+        document.querySelectorAll('.hero-pick-btn').forEach(b => {
+            b.disabled = false;
+            b.classList.remove('hero-disabled');
+        });
+        return;
+    }
+    const slotName = activeSlot.dataset.slot;
+    const slotTeam = slotName.startsWith('team1') ? 'team1' : 'team2';
+    const slotType = slotName.includes('ban') ? 'ban' : 'protect';
+    const otherTeam = slotTeam === 'team1' ? 'team2' : 'team1';
+
+    const otherProtects = getTeamHeroes(otherTeam, 'protect');
+    const teamBans = getTeamHeroes(slotTeam, 'ban');
+
+    const otherBans = getTeamHeroes(otherTeam, 'ban');
+
+    document.querySelectorAll('.hero-pick-btn').forEach(btn => {
+        const hero = btn.dataset.hero;
+        let blocked = false;
+        if (slotType === 'ban') {
+            if (otherProtects.includes(hero)) blocked = true;
+            if (teamBans.includes(hero)) blocked = true;
+        } else if (slotType === 'protect') {
+            if (otherBans.includes(hero)) blocked = true;
+        }
+        btn.disabled = blocked;
+        btn.classList.toggle('hero-disabled', blocked);
+    });
+}
+
+function updateStepHighlight() {
+    document.querySelectorAll('.draft-step').forEach(s => s.classList.remove('step-active', 'step-done'));
+    for (let i = 0; i < currentStep && i < DRAFT_ORDER.length; i++) {
+        const stepEl = document.querySelector('.draft-step[data-step="' + i + '"]');
+        if (stepEl) stepEl.classList.add('step-done');
+    }
+    if (currentStep < DRAFT_ORDER.length) {
+        const stepEl = document.querySelector('.draft-step[data-step="' + currentStep + '"]');
+        if (stepEl) stepEl.classList.add('step-active');
+        if (realTimeMode) {
+            const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(currentStep));
+            if (pair) {
+                pair.forEach(idx => {
+                    const pEl = document.querySelector('.draft-step[data-step="' + idx + '"]');
+                    if (pEl && !pEl.classList.contains('step-done')) pEl.classList.add('step-active');
+                });
+            }
+        }
+    }
+}
+
+function activateSlot(el) {
+    if (delayActive) return;
+    if (realTimeMode && !draftStarted) return;
+    document.querySelectorAll('.draft-slot').forEach(s => s.classList.remove('slot-active'));
+    el.classList.add('slot-active');
+    activeSlot = el;
+    updateHeroAvailability();
+}
+
+function clearSlot(el) {
+    if (delayActive) return;
+    if (realTimeMode && draftStarted) return;
+    el.querySelector('.slot-hero').textContent = '';
+    el.querySelector('input').value = '';
+    const slotWrap = el.querySelector('.slot-img-wrap');
+    if (slotWrap) slotWrap.remove();
+    el.classList.remove('slot-filled', 'slot-active');
+    if (activeSlot === el) activeSlot = null;
+    clearSimultaneousHighlight();
+    recalcStep();
+    updateHeroAvailability();
+}
+
+function recalcStep() {
+    for (let i = 0; i < DRAFT_ORDER.length; i++) {
+        const slot = getSlotByName(DRAFT_ORDER[i]);
+        if (!slot.querySelector('input').value) {
+            currentStep = i;
+            updateStepHighlight();
+            return;
+        }
+    }
+    currentStep = DRAFT_ORDER.length;
+    updateStepHighlight();
+}
+
+document.addEventListener('contextmenu', function(e) {
+    const slot = e.target.closest('.draft-slot');
+    if (slot) {
+        e.preventDefault();
+        clearSlot(slot);
+    }
+});
+
+/* ── Countdown display ── */
+function showCountdown(seconds, label) {
+    const el = document.getElementById('rt-countdown');
+    countdownSeconds = seconds;
+    el.textContent = label + ' ' + countdownSeconds + 's';
+    el.classList.add('rt-countdown-visible');
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+        countdownSeconds--;
+        if (countdownSeconds <= 0) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            el.textContent = '';
+            el.classList.remove('rt-countdown-visible');
+        } else {
+            el.textContent = label + ' ' + countdownSeconds + 's';
+        }
+    }, 1000);
+}
+
+function hideCountdown() {
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+    const el = document.getElementById('rt-countdown');
+    el.textContent = '';
+    el.classList.remove('rt-countdown-visible');
+}
+
+/* ── Timer bar animation ── */
+function animateTimerBar(durationMs) {
+    const fill = document.querySelector('.rt-timer-fill');
+    const bar = document.querySelector('.rt-timer-bar');
+    bar.classList.add('rt-timer-active');
+    fill.style.transition = 'none';
+    fill.style.width = '100%';
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            fill.style.transition = 'width ' + durationMs + 'ms linear';
+            fill.style.width = '0%';
+        });
+    });
+}
+
+function hideTimerBar() {
+    const bar = document.querySelector('.rt-timer-bar');
+    bar.classList.remove('rt-timer-active');
+}
+
+/* ── Pick timer (15s countdown to pick) ── */
+function startPickTimer() {
+    clearPickTimer();
+    animateTimerBar(PICK_TIME * 1000);
+    showCountdown(PICK_TIME, 'Pick in');
+    pickTimer = setTimeout(() => {
+        pickTimer = null;
+        onPickTimerExpired();
+    }, PICK_TIME * 1000);
+}
+
+function clearPickTimer() {
+    if (pickTimer) { clearTimeout(pickTimer); pickTimer = null; }
+    hideCountdown();
+    hideTimerBar();
+}
+
+function onPickTimerExpired() {
+    hideCountdown();
+    hideTimerBar();
+    if (activeSlot) {
+        activeSlot.classList.remove('slot-active');
+        activeSlot = null;
+    }
+    const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(currentStep));
+    if (pair) {
+        pair.forEach(idx => {
+            const slot = getSlotByName(DRAFT_ORDER[idx]);
+            if (!slot.querySelector('input').value) {
+                slot.querySelector('.slot-hero').textContent = 'Skipped';
+                slot.classList.add('slot-filled');
+            }
+        });
+        clearSimultaneousHighlight();
+    } else {
+        const slot = getSlotByName(DRAFT_ORDER[currentStep]);
+        if (!slot.querySelector('input').value) {
+            slot.querySelector('.slot-hero').textContent = 'Skipped';
+            slot.classList.add('slot-filled');
+        }
+    }
+    recalcStep();
+    if (currentStep < DRAFT_ORDER.length) {
+        startTransition();
+    } else {
+        draftFinished();
+    }
+}
+
+/* ── Transition delay (5s between picks) ── */
+function startTransition() {
+    delayActive = true;
+    document.querySelector('.hero-picker').classList.add('picker-locked');
+    animateTimerBar(TRANSITION_TIME * 1000);
+    showCountdown(TRANSITION_TIME, 'Next in');
+    delayTimer = setTimeout(() => {
+        delayTimer = null;
+        delayActive = false;
+        document.querySelector('.hero-picker').classList.remove('picker-locked');
+        hideTimerBar();
+        hideCountdown();
+        if (currentStep < DRAFT_ORDER.length) {
+            beginStep();
+        }
+    }, TRANSITION_TIME * 1000);
+}
+
+/* ── Begin a step (activate slot + start timer) ── */
+function beginStep() {
+    const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(currentStep));
+    if (pair) highlightSimultaneousPair(pair);
+    activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
+    startPickTimer();
+}
+
+function draftFinished() {
+    draftStarted = false;
+    hideCountdown();
+    hideTimerBar();
+    clearSimultaneousHighlight();
+    document.querySelector('.hero-picker').classList.remove('picker-locked');
+    document.getElementById('rt-start-wrap').style.display = '';
+    document.getElementById('rt-start-btn').textContent = 'Restart Draft';
+    updateHeroAvailability();
+}
+
+/* ── Hero pick ── */
+function pickHero(btn) {
+    if (delayActive) return;
+    if (realTimeMode && !draftStarted) return;
+
+    if (!activeSlot) {
+        if (currentStep < DRAFT_ORDER.length) {
+            activeSlot = getSlotByName(DRAFT_ORDER[currentStep]);
+            activeSlot.classList.add('slot-active');
+        } else {
+            return;
+        }
+    }
+
+    const hero = btn.dataset.hero;
+    const img = btn.querySelector('img').src;
+    const filledSlotName = activeSlot.dataset.slot;
+
+    activeSlot.querySelector('.slot-hero').textContent = hero;
+    activeSlot.querySelector('input').value = hero;
+
+    let slotWrap = activeSlot.querySelector('.slot-img-wrap');
+    if (!slotWrap) {
+        slotWrap = document.createElement('div');
+        slotWrap.className = 'slot-img-wrap';
+        const slotImg = document.createElement('img');
+        slotImg.className = 'slot-img';
+        slotWrap.appendChild(slotImg);
+        activeSlot.insertBefore(slotWrap, activeSlot.querySelector('.slot-hero'));
+    }
+    slotWrap.querySelector('.slot-img').src = img;
+    slotWrap.querySelector('.slot-img').alt = hero;
+
+    const oldTag = slotWrap.querySelector('.pool-tag');
+    if (oldTag) oldTag.remove();
+    const poolTag = btn.querySelector('.pool-tag');
+    if (poolTag) {
+        slotWrap.appendChild(poolTag.cloneNode(true));
+    }
+
+    activeSlot.classList.remove('slot-active');
+    activeSlot.classList.add('slot-filled');
+    activeSlot = null;
+
+    recalcStep();
+
+    if (realTimeMode) {
+        const filledIdx = DRAFT_ORDER.indexOf(filledSlotName);
+        const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(filledIdx));
+        if (pair) {
+            const partnerIdx = pair[0] === filledIdx ? pair[1] : pair[0];
+            const partnerSlot = getSlotByName(DRAFT_ORDER[partnerIdx]);
+            if (!partnerSlot.querySelector('input').value) {
+                activateSlot(partnerSlot);
+                return;
+            }
+            clearSimultaneousHighlight();
+        }
+        clearPickTimer();
+        if (currentStep < DRAFT_ORDER.length) {
+            startTransition();
+        } else {
+            draftFinished();
+        }
+    } else {
+        if (currentStep < DRAFT_ORDER.length) {
+            activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
+        } else {
+            updateHeroAvailability();
+        }
+    }
+}
+
+/* ── Toggle & Start ── */
+function toggleRealTime() {
+    realTimeMode = !realTimeMode;
+    const btn = document.getElementById('rt-toggle');
+    btn.classList.toggle('rt-active', realTimeMode);
+    btn.textContent = realTimeMode ? 'Real-Time: ON' : 'Real-Time: OFF';
+    document.getElementById('rt-start-wrap').style.display = realTimeMode ? '' : 'none';
+    document.getElementById('rt-start-btn').textContent = 'Start Draft';
+    resetDraft();
+}
+
+function startDraft() {
+    resetDraft();
+    draftStarted = true;
+    document.getElementById('rt-start-wrap').style.display = 'none';
+    beginStep();
+}
+
+function highlightSimultaneousPair(pair) {
+    pair.forEach(idx => {
+        getSlotByName(DRAFT_ORDER[idx]).classList.add('slot-simultaneous');
+    });
+}
+
+function clearSimultaneousHighlight() {
+    document.querySelectorAll('.slot-simultaneous').forEach(s => s.classList.remove('slot-simultaneous'));
+}
+
+function resetDraft() {
+    clearPickTimer();
+    if (delayTimer) { clearTimeout(delayTimer); delayTimer = null; }
+    delayActive = false;
+    draftStarted = false;
+    document.querySelector('.hero-picker').classList.remove('picker-locked');
+    hideTimerBar();
+    hideCountdown();
+    clearSimultaneousHighlight();
+    document.querySelectorAll('.draft-slot').forEach(slot => {
+        slot.querySelector('.slot-hero').textContent = '';
+        slot.querySelector('input').value = '';
+        const wrap = slot.querySelector('.slot-img-wrap');
+        if (wrap) wrap.remove();
+        slot.classList.remove('slot-filled', 'slot-active');
+    });
+    activeSlot = null;
+    currentStep = 0;
+    updateStepHighlight();
+    if (!realTimeMode) {
+        activateSlot(getSlotByName(DRAFT_ORDER[0]));
+    }
+}
+
+// Initialize
+document.getElementById('rt-start-wrap').style.display = 'none';
+updateStepHighlight();
+activateSlot(getSlotByName(DRAFT_ORDER[0]));
+</script>
+{% endblock %}

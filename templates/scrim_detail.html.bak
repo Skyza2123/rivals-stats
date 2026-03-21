@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+
+{% block title %}Scrim Detail{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>vs {{ scrim.opponent }}</h2>
+        <p>{{ scrim.scrim_date }}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}</p>
+    </div>
+    <button type="button" class="button-link" onclick="openMapModal()">+ Add Map</button>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card">
+        <strong>Maps</strong>
+        <span>{{ scrim.maps|length }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Wins</strong>
+        <span>{{ wins }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Losses</strong>
+        <span>{{ losses }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Team</strong>
+        <span>{{ scrim.team_name or "—" }}</span>
+    </section>
+</div>
+
+{% if scrim.notes %}
+<section class="panel">
+    <h3>Scrim Notes</h3>
+    <div class="summary-box">{{ scrim.notes }}</div>
+</section>
+{% endif %}
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Maps</h3>
+        <button type="button" class="button-small" onclick="openMapModal()">Add Map</button>
+    </div>
+
+    {% if scrim.maps %}
+        <div class="list-stack">
+            {% for map_entry in scrim.maps %}
+                <a class="list-card" href="{{ url_for('map_detail', scrim_id=scrim.id, map_id=map_entry.id) }}">
+                    <div>
+                        <div class="list-title">{{ map_entry.map_name }}</div>
+                        <div class="list-subtitle">
+                            {% if map_entry.side %}{{ map_entry.side }} • {% endif %}
+                            {{ map_entry.result }}
+                            {% if map_entry.draft %}
+                                • Draft saved
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="list-meta">
+                        <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else 'pill-loss' }}">
+                            {{ map_entry.result }}
+                        </div>
+                        <small>{{ map_entry.players|length }} players • {{ map_entry.events|length }} events</small>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No maps added yet.</p>
+    {% endif %}
+</section>
+
+<!-- Map Modal -->
+<div id="mapModal" class="modal-overlay" onclick="closeMapModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Add Map</h3>
+                <p>Enter map result, side, bans, and notes.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeMapModal()">&times;</button>
+        </div>
+
+        <form action="{{ url_for('add_map', scrim_id=scrim.id) }}" method="post">
+            <div class="compact-grid">
+                <div class="field">
+                    <label for="map_name">Map</label>
+                    <select id="map_name" name="map_name" required>
+                        <option value="">Select a map</option>
+                        {% for map_name in maps %}
+                            <option value="{{ map_name }}">{{ map_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="result">Result</label>
+                    <select id="result" name="result" required>
+                        <option value="">Select result</option>
+                        {% for result in results %}
+                            <option value="{{ result }}">{{ result }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field field-full">
+    <label>Draft Phase</label>
+
+    <!-- Draft slots display -->
+    <div class="draft-grid">
+        <div class="draft-column">
+            <h4>Team 1</h4>
+            <div class="draft-slots">
+                <div class="draft-slot" data-slot="team1_ban1" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team1_ban1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_protect1" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team1_protect1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_ban2" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team1_ban2" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_ban3" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team1_ban3" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_ban4" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team1_ban4" value="">
+                </div>
+                <div class="draft-slot" data-slot="team1_protect2" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team1_protect2" value="">
+                </div>
+            </div>
+        </div>
+
+        <div class="draft-column">
+            <h4>Team 2</h4>
+            <div class="draft-slots">
+                <div class="draft-slot" data-slot="team2_ban1" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team2_ban1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_ban2" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team2_ban2" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_protect1" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team2_protect1" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_ban3" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team2_ban3" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_protect2" onclick="activateSlot(this)">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team2_protect2" value="">
+                </div>
+                <div class="draft-slot" data-slot="team2_ban4" onclick="activateSlot(this)">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero">—</span>
+                    <input type="hidden" name="team2_ban4" value="">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
+
+    <!-- Hero picker by role -->
+    <div class="hero-picker">
+        {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+        <div class="hero-role-section">
+            <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+            <div class="hero-icon-grid">
+                {% for hero in hero_roles[role] %}
+                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}"
+                        onclick="pickHero(this)"
+                        title="{{ hero }}">
+                    <div class="hero-img-wrap">
+                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                             alt="{{ hero }}" loading="lazy">
+                        {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
+                        {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
+                        {% if hero == 'SupportPool' %}<span class="pool-tag tag-sup">SUP</span>{% endif %}
+                    </div>
+                    <span class="hero-pick-name">{{ hero }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+<div class="field field-full">
+    <label for="notes">Map Notes</label>
+    <textarea id="notes" name="notes" rows="3" placeholder="Optional short note"></textarea>
+</div>
+
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeMapModal()">Cancel</button>
+                <button type="submit" class="button-small">Add Map</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openMapModal() {
+    document.getElementById("mapModal").classList.add("show");
+}
+
+function closeMapModal(event) {
+    if (!event || event.target.id === "mapModal") {
+        document.getElementById("mapModal").classList.remove("show");
+    }
+}
+
+document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+        document.getElementById("mapModal").classList.remove("show");
+    }
+});
+
+/* ── Draft hero picker ── */
+let activeSlot = null;
+
+function getSlotValue(slotName) {
+    const el = document.querySelector('.draft-slot[data-slot="' + slotName + '"] input');
+    return el ? el.value : '';
+}
+
+function getTeamHeroes(team, type) {
+    const heroes = [];
+    document.querySelectorAll('.draft-slot').forEach(slot => {
+        const name = slot.dataset.slot;
+        if (name.startsWith(team + '_' + type)) {
+            const val = slot.querySelector('input').value;
+            if (val) heroes.push(val);
+        }
+    });
+    return heroes;
+}
+
+function updateHeroAvailability() {
+    if (!activeSlot) {
+        document.querySelectorAll('.hero-pick-btn').forEach(b => {
+            b.disabled = false;
+            b.classList.remove('hero-disabled');
+        });
+        return;
+    }
+    const slotName = activeSlot.dataset.slot;
+    const slotTeam = slotName.startsWith('team1') ? 'team1' : 'team2';
+    const slotType = slotName.includes('ban') ? 'ban' : 'protect';
+    const otherTeam = slotTeam === 'team1' ? 'team2' : 'team1';
+
+    // Heroes protected by the other team can't be banned
+    const otherProtects = getTeamHeroes(otherTeam, 'protect');
+    // Heroes already banned by this team
+    const teamBans = getTeamHeroes(slotTeam, 'ban');
+
+    const otherBans = getTeamHeroes(otherTeam, 'ban');
+
+    document.querySelectorAll('.hero-pick-btn').forEach(btn => {
+        const hero = btn.dataset.hero;
+        let blocked = false;
+        if (slotType === 'ban') {
+            if (otherProtects.includes(hero)) blocked = true;
+            if (teamBans.includes(hero)) blocked = true;
+        } else if (slotType === 'protect') {
+            if (otherBans.includes(hero)) blocked = true;
+        }
+        btn.disabled = blocked;
+        btn.classList.toggle('hero-disabled', blocked);
+    });
+}
+
+function activateSlot(el) {
+    document.querySelectorAll('.draft-slot').forEach(s => s.classList.remove('slot-active'));
+    el.classList.add('slot-active');
+    activeSlot = el;
+    updateHeroAvailability();
+}
+
+function clearSlot(el) {
+    el.querySelector('.slot-hero').textContent = '—';
+    el.querySelector('input').value = '';
+    const slotWrap = el.querySelector('.slot-img-wrap');
+    if (slotWrap) slotWrap.remove();
+    el.classList.remove('slot-filled', 'slot-active');
+    if (activeSlot === el) activeSlot = null;
+    updateHeroAvailability();
+}
+
+// Right-click to clear a slot
+document.addEventListener('contextmenu', function(e) {
+    const slot = e.target.closest('.draft-slot');
+    if (slot) {
+        e.preventDefault();
+        clearSlot(slot);
+    }
+});
+
+function pickHero(btn) {
+    if (!activeSlot) return;
+
+    const hero = btn.dataset.hero;
+    const img = btn.querySelector('img').src;
+
+    activeSlot.querySelector('.slot-hero').textContent = hero;
+    activeSlot.querySelector('input').value = hero;
+
+    // Show icon in slot
+    let slotWrap = activeSlot.querySelector('.slot-img-wrap');
+    if (!slotWrap) {
+        slotWrap = document.createElement('div');
+        slotWrap.className = 'slot-img-wrap';
+        const slotImg = document.createElement('img');
+        slotImg.className = 'slot-img';
+        slotWrap.appendChild(slotImg);
+        activeSlot.insertBefore(slotWrap, activeSlot.querySelector('.slot-hero'));
+    }
+    slotWrap.querySelector('.slot-img').src = img;
+    slotWrap.querySelector('.slot-img').alt = hero;
+
+    // Add pool tag if applicable
+    const oldTag = slotWrap.querySelector('.pool-tag');
+    if (oldTag) oldTag.remove();
+    const poolTag = btn.querySelector('.pool-tag');
+    if (poolTag) {
+        slotWrap.appendChild(poolTag.cloneNode(true));
+    }
+
+    activeSlot.classList.remove('slot-active');
+    activeSlot.classList.add('slot-filled');
+
+    // Auto-advance to next empty slot
+    const allSlots = Array.from(document.querySelectorAll('.draft-slot'));
+    const currentIdx = allSlots.indexOf(activeSlot);
+    activeSlot = null;
+    for (let i = currentIdx + 1; i < allSlots.length; i++) {
+        if (!allSlots[i].querySelector('input').value) {
+            activateSlot(allSlots[i]);
+            break;
+        }
+    }
+    if (!activeSlot) updateHeroAvailability();
+}
+</script>
+{% endblock %}

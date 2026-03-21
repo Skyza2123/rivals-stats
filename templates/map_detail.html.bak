@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Map Detail{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>{{ map_entry.map_name }}</h2>
+        <p>
+            vs {{ scrim.opponent }}
+            {% if map_entry.side %} • {{ map_entry.side }}{% endif %}
+            • {{ map_entry.result }}
+        </p>
+    </div>
+    <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else 'pill-loss' }}">
+        {{ map_entry.result }}
+    </div>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card">
+        <strong>Players</strong>
+        <span>{{ map_entry.players|length }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Events</strong>
+        <span>{{ map_entry.events|length }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Total Kills</strong>
+        <span>{{ total_kills }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Total Assists</strong>
+        <span>{{ total_assists }}</span>
+    </section>
+</div>
+
+<section class="panel">
+    <h3>Map Info</h3>
+    <div class="result-grid">
+        <div class="result-card">
+            <strong>Map</strong>
+            <span>{{ map_entry.map_name }}</span>
+        </div>
+        <div class="result-card">
+            <strong>Side</strong>
+            <span>{{ map_entry.side or "—" }}</span>
+        </div>
+        <div class="result-card">
+            <strong>Result</strong>
+            <span>{{ map_entry.result or "—" }}</span>
+        </div>
+        <div class="result-card">
+            <strong>Scrim</strong>
+            <span>vs {{ scrim.opponent }}</span>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <h3>Draft</h3>
+
+    <div class="draft-grid">
+        <div class="draft-column draft-display">
+            <h4>Team 1</h4>
+            <div class="draft-slots">
+                {% for slot in [('ban1', 'Ban 1'), ('protect1', 'Protect 1'), ('ban2', 'Ban 2'), ('ban3', 'Ban 3'), ('ban4', 'Ban 4'), ('protect2', 'Protect 2')] %}
+                {% set hero = map_entry.draft.team1[slot[0]] %}
+                <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
+                    <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
+                    {% if hero and hero in hero_transformations %}
+                    <div class="slot-img-wrap">
+                        <img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}">
+                    </div>
+                    {% endif %}
+                    <span class="slot-hero-name">{{ hero or '—' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="draft-column draft-display">
+            <h4>Team 2</h4>
+            <div class="draft-slots">
+                {% for slot in [('ban1', 'Ban 1'), ('ban2', 'Ban 2'), ('protect1', 'Protect 1'), ('ban3', 'Ban 3'), ('protect2', 'Protect 2'), ('ban4', 'Ban 4')] %}
+                {% set hero = map_entry.draft.team2[slot[0]] %}
+                <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
+                    <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
+                    {% if hero and hero in hero_transformations %}
+                    <div class="slot-img-wrap">
+                        <img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}">
+                    </div>
+                    {% endif %}
+                    <span class="slot-hero-name">{{ hero or '—' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if map_entry.notes %}
+        <div class="summary-box">{{ map_entry.notes }}</div>
+    {% endif %}
+</section>
+
+<form action="{{ url_for('add_event_to_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+    <section class="panel">
+        <h3>Add Event</h3>
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="timestamp">Timestamp</label>
+                <input type="text" id="timestamp" name="timestamp" placeholder="e.g. 02:14">
+            </div>
+
+            <div class="field">
+                <label for="event_type">Event Type</label>
+                <select id="event_type" name="event_type" required>
+                    <option value="">Select event type</option>
+                    {% for event_type in event_types %}
+                        <option value="{{ event_type }}">{{ event_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="field top-gap">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4" placeholder="What happened in the fight or moment?"></textarea>
+        </div>
+
+        <div class="button-row">
+            <button type="submit">Add Event</button>
+        </div>
+    </section>
+</form>
+
+<form action="{{ url_for('add_player_to_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+    <section class="panel">
+        <h3>Add Player Entry</h3>
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="player_name">Player Name</label>
+                <input type="text" id="player_name" name="player_name" required>
+            </div>
+
+            <div class="field">
+                <label for="hero">Hero</label>
+                <select id="hero" name="hero" required>
+                    <option value="">Select a hero</option>
+                    {% for hero in heroes %}
+                        <option value="{{ hero }}">{{ hero }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h3>Stats</h3>
+        <div class="stats-grid">
+            <div class="field">
+                <label for="kills">Kills</label>
+                <input type="number" id="kills" name="kills" min="0" required>
+            </div>
+
+            <div class="field">
+                <label for="deaths">Deaths</label>
+                <input type="number" id="deaths" name="deaths" min="0" required>
+            </div>
+
+            <div class="field">
+                <label for="assists">Assists</label>
+                <input type="number" id="assists" name="assists" min="0" required>
+            </div>
+
+            <div class="field">
+                <label for="damage">Damage</label>
+                <input type="number" id="damage" name="damage" min="0">
+            </div>
+
+            <div class="field">
+                <label for="healing">Healing</label>
+                <input type="number" id="healing" name="healing" min="0">
+            </div>
+
+            <div class="field">
+                <label for="first_event">First Event</label>
+                <select id="first_event" name="first_event">
+                    {% for event in first_events %}
+                        <option value="{{ event }}">{{ event if event else "None" }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h3>Player Notes</h3>
+        <div class="field">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="4" placeholder="Positioning, ult usage, deaths, clutch moments..."></textarea>
+        </div>
+    </section>
+
+    <div class="button-row">
+        <button type="submit">Add Player</button>
+    </div>
+</form>
+
+<section class="panel">
+    <h3>Event Log</h3>
+
+    {% if map_entry.events %}
+        <div class="list-stack">
+            {% for event in map_entry.events %}
+                <div class="list-card static-card">
+                    <div>
+                        <div class="list-title">
+                            {{ event.timestamp or "—" }} • {{ event.event_type }}
+                        </div>
+                        <div class="list-subtitle">
+                            {{ event.description or "No description" }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No events added yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel">
+    <h3>Player Entries</h3>
+
+    {% if map_entry.players %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Hero</th>
+                        <th>K</th>
+                        <th>D</th>
+                        <th>A</th>
+                        <th>KDA</th>
+                        <th>Damage</th>
+                        <th>Healing</th>
+                        <th>First Event</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in map_entry.players %}
+                        <tr>
+                            <td>{{ player.player_name }}</td>
+                            <td>{{ player.hero }}</td>
+                            <td>{{ player.kills }}</td>
+                            <td>{{ player.deaths }}</td>
+                            <td>{{ player.assists }}</td>
+                            <td>{{ player.kda }}</td>
+                            <td>{{ player.damage }}</td>
+                            <td>{{ player.healing }}</td>
+                            <td>{{ player.first_event or "—" }}</td>
+                        </tr>
+                        {% if player.notes %}
+                            <tr class="notes-row">
+                                <td colspan="9"><strong>Notes:</strong> {{ player.notes }}</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No player entries yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

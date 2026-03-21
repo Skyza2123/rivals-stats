@@ -1,0 +1,1449 @@
+{% extends "base.html" %}
+
+{% block title %}{{ enemy_team.name }}{% endblock %}
+
+{% block content %}
+<div class="team-hero">
+    <div class="team-hero-left">
+        <img class="team-avatar" src="{{ url_for('static', filename=enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ enemy_team.name }}">
+        <div>
+            <h2>{{ enemy_team.name }}</h2>
+            <p class="team-record-line">
+                Record vs {{ main_team.name }}: {{ enemy_analytics.summary.total_wins }}W - {{ enemy_analytics.summary.total_losses }}L
+                &bull; {{ enemy_analytics.summary.overall_win_rate }}% Win Rate
+            </p>
+            <p>{{ enemy_team.notes or 'No team notes yet.' }} &bull; {{ enemy_scrim_count }} scrims</p>
+        </div>
+    </div>
+    <div class="header-actions team-hero-actions">
+        <a href="{{ url_for('team_detail', team_id=main_team.id) }}" class="button-secondary">Back to {{ main_team.name }}</a>
+        <form method="post" action="{{ url_for('delete_enemy_team', enemy_team_id=enemy_team.id) }}" onsubmit="return confirm('Delete this enemy team and all players?');">
+            <button type="submit" class="button-secondary">Delete Team</button>
+        </form>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <button class="tab-btn tab-active" data-tab="bans" type="button">Bans</button>
+    <button class="tab-btn" data-tab="comps" type="button">Comps</button>
+    <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
+    <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+</div>
+
+<div class="tab-content" id="tab-bans">
+    <section class="panel">
+        <div class="section-kicker">Matchup Draft</div>
+        <h3>{{ enemy_team.name }} Ban & Protect Stats</h3>
+        <p class="panel-intro">Compare how the enemy drafts against your main team, including ban splits and pressure points.</p>
+        <div class="summary-grid">
+            <section class="stat-card">
+                <strong>Total Maps</strong>
+                <span>{{ enemy_analytics.summary.total_maps }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Overall Win Rate</strong>
+                <span>{{ enemy_analytics.summary.overall_win_rate }}%</span>
+            </section>
+            <section class="stat-card">
+                <strong>Unique Bans</strong>
+                <span>{{ enemy_analytics.summary.unique_bans }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Unique Protects</strong>
+                <span>{{ enemy_analytics.summary.unique_protects }}</span>
+            </section>
+        </div>
+
+        {% if enemy_analytics.summary.total_maps > 0 %}
+            {% set top_ban = enemy_analytics.ban_rows[0] if enemy_analytics.ban_rows else None %}
+            {% set top_protect = enemy_analytics.protect_rows[0] if enemy_analytics.protect_rows else None %}
+
+            <div class="ban-kpi-grid">
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Top Banned Hero</span>
+                    <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else '—' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_ban.count if top_ban else 0 }} bans • {{ top_ban.ban_rate if top_ban else 0 }}%</span>
+                </article>
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Top Protected Hero</span>
+                    <strong class="ban-kpi-value">{{ top_protect.hero if top_protect else '—' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects • {{ top_protect.protect_rate if top_protect else 0 }}%</span>
+                </article>
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Draft Heroes Touched</span>
+                    <strong class="ban-kpi-value">{{ enemy_analytics.summary.unique_bans + enemy_analytics.summary.unique_protects }}</strong>
+                    <span class="ban-kpi-sub">Unique heroes in bans/protects</span>
+                </article>
+            </div>
+
+            <div class="ban-visual-grid">
+                <div class="panel ban-chart-panel">
+                    <h3>Ban Distribution</h3>
+                    {% if enemy_analytics.ban_rows %}
+                        {% set ban_max = enemy_analytics.ban_rows[0].count %}
+                        <div class="vbar-chart">
+                            {% for row in enemy_analytics.ban_rows[:12] %}
+                                {% set height = ((row.count / ban_max) * 100) if ban_max else 0 %}
+                                <div class="vbar-container">
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    </div>
+                                    <div class="vbar-bar-wrapper">
+                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%)">
+                                            <span class="vbar-label-top">{{ row.count }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="vbar-label">
+                                        <span class="vbar-rate">{{ row.ban_rate }}%</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel ban-chart-panel">
+                    <h3>Protect Distribution</h3>
+                    {% if enemy_analytics.protect_rows %}
+                        {% set protect_max = enemy_analytics.protect_rows[0].count %}
+                        <div class="vbar-chart">
+                            {% for row in enemy_analytics.protect_rows[:12] %}
+                                {% set height = ((row.count / protect_max) * 100) if protect_max else 0 %}
+                                <div class="vbar-container">
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    </div>
+                                    <div class="vbar-bar-wrapper">
+                                        <div class="vbar-bar vbar-bar-protect" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} protects ({{ row.protect_rate }}%)">
+                                            <span class="vbar-label-top">{{ row.count }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="vbar-label">
+                                        <span class="vbar-rate">{{ row.protect_rate }}%</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="form-grid">
+            <div class="panel panel-soft-red">
+                <div class="section-kicker">Ban Table</div>
+                <h3>Ban Rates / Ban Win Rate</h3>
+                {% if enemy_analytics.ban_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-bans">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Bans</th>
+                                    <th>Ban Rate</th>
+                                    <th>Win Rate When Banned</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in enemy_analytics.ban_rows %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.count }}</td>
+                                        <td>{{ row.ban_rate }}%</td>
+                                        <td>{{ row.win_rate }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No ban data yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="panel panel-soft-green">
+                <div class="section-kicker">Protect Table</div>
+                <h3>Protect Rates / Protect Win Rate</h3>
+                {% if enemy_analytics.protect_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-protect">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Protects</th>
+                                    <th>Protect Rate</th>
+                                    <th>Win Rate When Protected</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in enemy_analytics.protect_rows %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.count }}</td>
+                                        <td>{{ row.protect_rate }}%</td>
+                                        <td>{{ row.win_rate }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No protect data yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-grid top-gap">
+            <div class="panel panel-soft-gold">
+                <div class="section-kicker">Split View</div>
+                <h3>Enemy Team Bans</h3>
+                {% if enemy_analytics.ban_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-compare">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Bans</th>
+                                    <th>Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in enemy_analytics.ban_rows[:8] %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.count }}</td>
+                                        <td>{{ row.ban_rate }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No team ban data yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="panel panel-soft-blue">
+                <div class="section-kicker">Split View</div>
+                <h3>Main Team Bans</h3>
+                {% if enemy_analytics.enemy_ban_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-compare">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Bans</th>
+                                    <th>Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in enemy_analytics.enemy_ban_rows[:8] %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.count }}</td>
+                                        <td>{{ row.ban_rate }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No opponent ban data yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-grid top-gap">
+            <div class="panel panel-soft-gold">
+                <div class="section-kicker">Ban Phase</div>
+                <h3>Enemy Team Ban Positions</h3>
+                <p class="panel-intro">Track which heroes the enemy prefers at Ban 1, Ban 2, Ban 3, and Ban 4.</p>
+                <p class="panel-intro">
+                    {{ enemy_analytics.ban_phase_variation.main.message }}
+                    <span class="insight-tags">
+                        <span class="compare-tag compare-tag-neutral">Ban 1-2 top rate: {{ enemy_analytics.ban_phase_variation.main.early_top_rate_avg }}%</span>
+                        <span class="compare-tag compare-tag-neutral">Ban 3-4 top rate: {{ enemy_analytics.ban_phase_variation.main.late_top_rate_avg }}%</span>
+                        {% if enemy_analytics.ban_phase_variation.main.signal == 'strong' %}
+                            <span class="compare-tag compare-tag-positive">Strong variation</span>
+                        {% elif enemy_analytics.ban_phase_variation.main.signal == 'moderate' %}
+                            <span class="compare-tag compare-tag-neutral">Moderate variation</span>
+                        {% elif enemy_analytics.ban_phase_variation.main.signal == 'low' %}
+                            <span class="compare-tag compare-tag-negative">Low variation</span>
+                        {% endif %}
+                    </span>
+                </p>
+                <div class="ban-position-grid">
+                    {% for slot in enemy_analytics.ban_position_rows %}
+                        <article class="ban-position-card">
+                            <div class="ban-position-head">
+                                <div>
+                                    <h4>{{ slot.slot_label }}</h4>
+                                    <div class="ban-position-total">{{ slot.total }} total picks</div>
+                                </div>
+                            </div>
+                            <div class="ban-position-top">
+                                <strong class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
+                                    <span>{{ slot.top_hero }}</span>
+                                </strong>
+                                <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
+                            </div>
+                            <div class="ban-position-analysis">
+                                {% if slot.insight_hero %}
+                                    {% if slot.insight_state == 'more' %}
+                                        Enemy team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the main team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                    {% elif slot.insight_state == 'less' %}
+                                        Enemy team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the main team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                    {% else %}
+                                        Enemy team and main team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
+                                    {% endif %}
+                                {% else %}
+                                    No comparison insight yet for this slot.
+                                {% endif %}
+                            </div>
+                            <div class="ban-position-list">
+                                {% if slot.hero_rows %}
+                                    {% for row in slot.hero_rows %}
+                                        <div class="ban-position-row">
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                            <span>{{ row.count }} • {{ row.rate }}%</span>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="empty-text">No data for this slot yet.</p>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="panel panel-soft-blue">
+                <div class="section-kicker">Ban Phase</div>
+                <h3>Main Team Ban Positions</h3>
+                <p class="panel-intro">See how your main team uses each ban slot against this enemy team.</p>
+                <p class="panel-intro">
+                    {{ enemy_analytics.ban_phase_variation.enemy.message }}
+                    <span class="insight-tags">
+                        <span class="compare-tag compare-tag-neutral">Ban 1-2 top rate: {{ enemy_analytics.ban_phase_variation.enemy.early_top_rate_avg }}%</span>
+                        <span class="compare-tag compare-tag-neutral">Ban 3-4 top rate: {{ enemy_analytics.ban_phase_variation.enemy.late_top_rate_avg }}%</span>
+                        {% if enemy_analytics.ban_phase_variation.enemy.signal == 'strong' %}
+                            <span class="compare-tag compare-tag-positive">Strong variation</span>
+                        {% elif enemy_analytics.ban_phase_variation.enemy.signal == 'moderate' %}
+                            <span class="compare-tag compare-tag-neutral">Moderate variation</span>
+                        {% elif enemy_analytics.ban_phase_variation.enemy.signal == 'low' %}
+                            <span class="compare-tag compare-tag-negative">Low variation</span>
+                        {% endif %}
+                    </span>
+                </p>
+                <div class="ban-position-grid">
+                    {% for slot in enemy_analytics.enemy_ban_position_rows %}
+                        <article class="ban-position-card">
+                            <div class="ban-position-head">
+                                <div>
+                                    <h4>{{ slot.slot_label }}</h4>
+                                    <div class="ban-position-total">{{ slot.total }} total picks</div>
+                                </div>
+                            </div>
+                            <div class="ban-position-top">
+                                <strong class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
+                                    <span>{{ slot.top_hero }}</span>
+                                </strong>
+                                <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
+                            </div>
+                            <div class="ban-position-analysis">
+                                {% if slot.insight_hero %}
+                                    {% if slot.insight_state == 'more' %}
+                                        Main team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the enemy team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                    {% elif slot.insight_state == 'less' %}
+                                        Main team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the enemy team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                    {% else %}
+                                        Main team and enemy team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
+                                    {% endif %}
+                                {% else %}
+                                    No comparison insight yet for this slot.
+                                {% endif %}
+                            </div>
+                            <div class="ban-position-list">
+                                {% if slot.hero_rows %}
+                                    {% for row in slot.hero_rows %}
+                                        <div class="ban-position-row">
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                            <span>{{ row.count }} • {{ row.rate }}%</span>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="empty-text">No data for this slot yet.</p>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="panel panel-soft-green top-gap">
+            <div class="section-kicker">Draft Tendency</div>
+            <h3>Ban Rate In Relation To Protects</h3>
+            <p class="panel-intro">
+                {% if enemy_analytics.ban_protect_summary.correlation is not none %}
+                    Correlation between bans and protects is {{ enemy_analytics.ban_protect_summary.correlation }}, with {{ enemy_analytics.ban_protect_summary.top_hero }} showing the highest combined draft presence.
+                {% else %}
+                    Review how often each hero is banned versus protected to understand this matchup's draft priorities.
+                {% endif %}
+            </p>
+            {% if enemy_analytics.ban_protect_rows %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Ban Rate</th>
+                                <th>Protect Rate</th>
+                                <th>Win Rate (Banned)</th>
+                                <th>Win Rate (Protected)</th>
+                                <th>Win Rate Gap</th>
+                                <th>Impact (Delta)</th>
+                                <th>Protected Delta</th>
+                                <th>Gap</th>
+                                <th>Tendency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in enemy_analytics.ban_protect_rows %}
+                                <tr>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                            <span>{{ row.hero }}</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ row.ban_rate }}%</td>
+                                    <td>{{ row.protect_rate }}%</td>
+                                    <td>{% if row.ban_count %}{{ row.ban_win_rate }}%{% else %}--{% endif %}</td>
+                                    <td>{% if row.protect_count %}{{ row.protect_win_rate }}%{% else %}--{% endif %}</td>
+                                    <td>{% if row.winrate_gap is not none %}{% if row.winrate_gap > 0 %}+{% endif %}{{ row.winrate_gap }}%{% else %}--{% endif %}</td>
+                                    <td>
+                                        {% if row.ban_count %}
+                                            {% if row.ban_delta > 0 %}
+                                                <span class="compare-tag compare-tag-positive">+{{ row.ban_delta }}%</span>
+                                            {% elif row.ban_delta < 0 %}
+                                                <span class="compare-tag compare-tag-negative">{{ row.ban_delta }}%</span>
+                                            {% else %}
+                                                <span class="compare-tag compare-tag-neutral">{{ row.ban_delta }}%</span>
+                                            {% endif %}
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.protect_count %}
+                                            {% if row.protect_delta > 0 %}
+                                                <span class="compare-tag compare-tag-positive">+{{ row.protect_delta }}%</span>
+                                            {% elif row.protect_delta < 0 %}
+                                                <span class="compare-tag compare-tag-negative">{{ row.protect_delta }}%</span>
+                                            {% else %}
+                                                <span class="compare-tag compare-tag-neutral">{{ row.protect_delta }}%</span>
+                                            {% endif %}
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
+                                    <td>{% if row.rate_gap > 0 %}+{% endif %}{{ row.rate_gap }}%</td>
+                                    <td>
+                                        {% if row.leaning == 'Ban leaning' %}
+                                            <span class="compare-tag compare-tag-negative">Ban leaning</span>
+                                        {% elif row.leaning == 'Protect leaning' %}
+                                            <span class="compare-tag compare-tag-positive">Protect leaning</span>
+                                        {% else %}
+                                            <span class="compare-tag compare-tag-neutral">Balanced</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No ban/protect tendency data yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel panel-soft-violet top-gap">
+            <div class="section-kicker">Comparison</div>
+            <h3>Ban Difference</h3>
+            <p class="panel-intro">See whether the enemy team or main team is more likely to remove each hero in this matchup.</p>
+            {% if enemy_analytics.ban_diff_rows %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Enemy Team Ban</th>
+                                <th>Main Team Ban</th>
+                                <th>Diff</th>
+                                <th>Edge</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in enemy_analytics.ban_diff_rows %}
+                                <tr>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                            <span>{{ row.hero }}</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ row.our_rate }}%</td>
+                                    <td>{{ row.enemy_rate }}%</td>
+                                    <td>{% if row.rate_diff > 0 %}+{% endif %}{{ row.rate_diff }}%</td>
+                                    <td>
+                                        {% if row.rate_diff > 0 %}
+                                            <span class="compare-tag compare-tag-negative">Enemy team bans more</span>
+                                        {% elif row.rate_diff < 0 %}
+                                            <span class="compare-tag compare-tag-positive">Main team bans more</span>
+                                        {% else %}
+                                            <span class="compare-tag compare-tag-neutral">Even</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No ban comparison data yet.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-comps">
+    <section class="panel">
+        <div class="section-kicker">Mirror Rates</div>
+        <h3>Mirror Drafts and Comps</h3>
+        <p class="panel-intro">Soft mirror = 3-5 shared heroes. Hard mirror = all 6 heroes match.</p>
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Samples</th>
+                        <th>Soft Mirror</th>
+                        <th>Hard Mirror</th>
+                        <th>Any Mirror</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Draft (6 picks)</td>
+                        <td>{{ enemy_analytics.mirror_rates.draft.samples }}</td>
+                        <td>{{ enemy_analytics.mirror_rates.draft.soft_count }} ({{ enemy_analytics.mirror_rates.draft.soft_rate }}%)</td>
+                        <td>{{ enemy_analytics.mirror_rates.draft.hard_count }} ({{ enemy_analytics.mirror_rates.draft.hard_rate }}%)</td>
+                        <td>{{ enemy_analytics.mirror_rates.draft.any_mirror_rate }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Comp (6 heroes)</td>
+                        <td>{{ enemy_analytics.mirror_rates.comp.samples }}</td>
+                        <td>{{ enemy_analytics.mirror_rates.comp.soft_count }} ({{ enemy_analytics.mirror_rates.comp.soft_rate }}%)</td>
+                        <td>{{ enemy_analytics.mirror_rates.comp.hard_count }} ({{ enemy_analytics.mirror_rates.comp.hard_rate }}%)</td>
+                        <td>{{ enemy_analytics.mirror_rates.comp.any_mirror_rate }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-kicker">Comp Difference</div>
+        <h3>Triple Support vs 2-2-2</h3>
+        <p class="panel-intro">Compare how often each comp type appears and the rate gap between them.</p>
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Comp Type</th>
+                        <th>Maps Seen</th>
+                        <th>Usage Rate</th>
+                        <th>Win Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Triple Support</td>
+                        <td>{{ enemy_analytics.comp_difference.triple_support_count }}</td>
+                        <td>{{ enemy_analytics.comp_difference.triple_support_rate }}%</td>
+                        <td>{% if enemy_analytics.comp_difference.triple_support_count %}{{ enemy_analytics.comp_difference.triple_support_win_rate }}%{% else %}--{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>2-2-2</td>
+                        <td>{{ enemy_analytics.comp_difference.two_two_two_count }}</td>
+                        <td>{{ enemy_analytics.comp_difference.two_two_two_rate }}%</td>
+                        <td>{% if enemy_analytics.comp_difference.two_two_two_count %}{{ enemy_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="panel-intro top-gap">
+            Difference Rate (Triple Support - 2-2-2):
+            <span class="comp-diff-tags">
+            {% if enemy_analytics.comp_difference.difference_rate > 0 %}
+                <span class="compare-tag compare-tag-positive">+{{ enemy_analytics.comp_difference.difference_rate }}%</span>
+            {% elif enemy_analytics.comp_difference.difference_rate < 0 %}
+                <span class="compare-tag compare-tag-negative">{{ enemy_analytics.comp_difference.difference_rate }}%</span>
+            {% else %}
+                <span class="compare-tag compare-tag-neutral">{{ enemy_analytics.comp_difference.difference_rate }}%</span>
+            {% endif %}
+            {% if enemy_analytics.comp_difference.winrate_difference is not none %}
+                <span class="compare-tag {% if enemy_analytics.comp_difference.winrate_difference > 0 %}compare-tag-positive{% elif enemy_analytics.comp_difference.winrate_difference < 0 %}compare-tag-negative{% else %}compare-tag-neutral{% endif %}">
+                    Win Rate Gap: {% if enemy_analytics.comp_difference.winrate_difference > 0 %}+{% endif %}{{ enemy_analytics.comp_difference.winrate_difference }}%
+                </span>
+            {% endif %}
+            </span>
+        </p>
+        <p class="panel-intro top-gap">
+            Triple Support Prevalence: Enemy Team {{ enemy_analytics.comp_difference.triple_support_rate }}% ({{ enemy_analytics.comp_difference.triple_support_count }} maps) vs Main Team {{ enemy_analytics.comp_difference.enemy_triple_support_rate }}% ({{ enemy_analytics.comp_difference.enemy_triple_support_count }} maps)
+            <span class="comp-diff-tags">
+            {% if enemy_analytics.comp_difference.triple_support_prevalence_diff > 0 %}
+                <span class="compare-tag compare-tag-positive">Enemy +{{ enemy_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
+            {% elif enemy_analytics.comp_difference.triple_support_prevalence_diff < 0 %}
+                <span class="compare-tag compare-tag-negative">Main {{ enemy_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
+            {% else %}
+                <span class="compare-tag compare-tag-neutral">Even</span>
+            {% endif %}
+            </span>
+        </p>
+    </section>
+
+    <section class="panel">
+        <h3>Hero Win Rate</h3>
+        {% if enemy_analytics.hero_rows %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Hero</th>
+                            <th>Maps Seen</th>
+                            <th>Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in enemy_analytics.hero_rows %}
+                            <tr>
+                                <td>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ row.hero }}</span>
+                                    </span>
+                                </td>
+                                <td>{{ row.maps }}</td>
+                                <td>{{ row.win_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No comp data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-maps">
+    <section class="panel panel-soft-violet">
+        <div class="section-kicker">Map Draft Correlation</div>
+        <h3>Draft Correlation To Map (Skip Flags)</h3>
+        <p class="panel-intro">If a hero is banned overwhelmingly often on a map, treat it as a likely skip for this matchup.</p>
+        {% if enemy_analytics.map_draft_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Map</th>
+                            <th>Most Banned</th>
+                            <th>Most Protected</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in enemy_analytics.map_draft_rows %}
+                            <tr>
+                                <td>{{ row.map_name }}</td>
+                                <td>
+                                    {% if row.top_ban_hero %}
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.top_ban_hero) }}" alt="{{ row.top_ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_ban_hero | urlencode }}'">
+                                            <span>{{ row.top_ban_hero }} ({{ row.top_ban_rate }}%)</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="empty-text">No ban data</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.top_protect_hero %}
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.top_protect_hero) }}" alt="{{ row.top_protect_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect_hero | urlencode }}'">
+                                            <span>{{ row.top_protect_hero }} ({{ row.top_protect_rate }}%)</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="empty-text">No protect data</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.skip_flag %}
+                                        <span class="compare-tag compare-tag-negative">{{ row.recommendation }}</span>
+                                    {% else %}
+                                        <span class="compare-tag compare-tag-positive">{{ row.recommendation }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No map draft correlation data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h3>Head-to-Head Timeline</h3>
+        {% if enemy_timeline_points %}
+            <div class="enemy-trend-chart-wrap" style="position:relative;">
+                <canvas id="enemyTimelineChart" width="980" height="320"></canvas>
+                <div id="enemyChartTooltip" class="chart-tooltip" hidden></div>
+            </div>
+            <script id="enemyTimelineData" type="application/json">{{ enemy_timeline_points | tojson }}</script>
+            <div class="table-wrap top-gap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Scrim</th>
+                            <th>Maps</th>
+                            <th>W-L</th>
+                            <th>Scrim Win Rate</th>
+                            <th>Cumulative Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for point in enemy_timeline_points %}
+                            <tr>
+                                <td>{{ point.label }}</td>
+                                <td>{{ point.maps }}</td>
+                                <td>{{ point.wins }}-{{ point.losses }}</td>
+                                <td>{{ point.scrim_win_rate }}%</td>
+                                <td>{{ point.cumulative_win_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No timeline data yet. Add maps to scrims against this enemy team.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Map Mode Performance</h3>
+            {% if enemy_best_mode %}<span class="pill pill-win">Best: {{ enemy_best_mode.mode }}</span>{% endif %}
+        </div>
+        {% if enemy_map_mode_rows %}
+            <div class="mode-performance-grid">
+                {% for mode_row in enemy_map_mode_rows %}
+                    <article class="mode-card {% if enemy_best_mode and mode_row.mode == enemy_best_mode.mode %}mode-card-best{% elif enemy_worst_mode and mode_row.mode == enemy_worst_mode.mode %}mode-card-worst{% endif %} {% if mode_row.win_rate >= 70 %}mode-tier-high{% elif mode_row.win_rate >= 50 %}mode-tier-mid{% else %}mode-tier-low{% endif %}">
+                        <div class="mode-card-head">
+                            <h4>{{ mode_row.mode }}</h4>
+                            <span class="mode-badge">{{ mode_row.win_rate }}%</span>
+                        </div>
+                        <div class="mode-progress"><span data-progress="{{ mode_row.win_rate }}"></span></div>
+                        <div class="mode-meta">
+                            <span>{{ mode_row.wins }}W - {{ mode_row.losses }}L</span>
+                            <span>{{ mode_row.maps }} games</span>
+                        </div>
+                        {% if mode_row.best_map %}
+                            <div class="mode-note">Best map: {{ mode_row.best_map.map_name }} ({{ mode_row.best_map.win_rate }}%)</div>
+                        {% endif %}
+                        {% if mode_row.worst_map and mode_row.worst_map.map_name != mode_row.best_map.map_name %}
+                            <div class="mode-note mode-note-negative">Worst map: {{ mode_row.worst_map.map_name }} ({{ mode_row.worst_map.win_rate }}%)</div>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="map-filter-bar">
+                <input id="mapSearch" type="text" placeholder="Search maps...">
+                <select id="mapTypeFilter">
+                    <option value="all">All Types</option>
+                    {% for mode_row in enemy_map_mode_rows %}
+                        <option value="{{ mode_row.mode|lower }}">{{ mode_row.mode }}</option>
+                    {% endfor %}
+                </select>
+                <select id="mapSort">
+                    <option value="winrate">Highest Win Rate</option>
+                    <option value="games">Most Played</option>
+                    <option value="name">Map Name</option>
+                </select>
+            </div>
+
+            <div class="team-map-grid" id="teamMapGrid">
+                {% for map_row in enemy_map_cards %}
+                    {% set rate_tier = 'map-rate-mid' %}
+                    {% if map_row.win_rate >= 70 %}
+                        {% set rate_tier = 'map-rate-high' %}
+                    {% elif map_row.win_rate < 50 %}
+                        {% set rate_tier = 'map-rate-low' %}
+                    {% endif %}
+                    <article
+                        class="team-map-card {{ rate_tier }}"
+                        data-map-name="{{ map_row.map_name|lower }}"
+                        data-map-mode="{{ map_row.mode|lower }}"
+                        data-map-win-rate="{{ map_row.win_rate }}"
+                        data-map-games="{{ map_row.maps }}"
+                        title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
+                    >
+                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ map_row.image }}')"{% endif %}></div>
+                        <div class="team-map-overlay"></div>
+                        <div class="team-map-top">
+                            <span class="team-map-mode">{{ map_row.mode }}</span>
+                            <span class="team-map-rate">{{ map_row.win_rate }}%</span>
+                        </div>
+                        <div class="team-map-bottom">
+                            <h4>{{ map_row.map_name }}</h4>
+                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ map_row.maps }} games</p>
+                            <div class="team-map-footer-meta">
+                                <span class="team-map-chip">Winrate</span>
+                                <span class="team-map-chip">{{ map_row.win_rate }}%</span>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <p class="empty-text map-empty" id="mapEmptyState" hidden>No maps match this filter.</p>
+        {% else %}
+            <p class="empty-text">No map data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-roster">
+    <section class="panel">
+        <h3>Edit Team</h3>
+        <form id="editEnemyTeamForm" method="post" action="{{ url_for('edit_enemy_team', enemy_team_id=enemy_team.id) }}" class="form-grid" enctype="multipart/form-data">
+            <div class="field">
+                <label for="enemy_team_name">Team Name</label>
+                <input id="enemy_team_name" name="name" type="text" value="{{ enemy_team.name }}" required>
+            </div>
+            <div class="field">
+                <label for="enemy_team_notes">Team Notes</label>
+                <input id="enemy_team_notes" name="notes" type="text" value="{{ enemy_team.notes }}">
+            </div>
+            <div class="field field-full">
+                <label for="enemy_team_logo">Team Logo</label>
+                <input id="enemy_team_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" hidden>
+                <input id="enemy_team_remove_logo" name="remove_logo" type="hidden" value="0">
+                <div class="team-logo-picker">
+                    <img
+                        id="enemyTeamLogoPreview"
+                        class="team-logo-thumb team-logo-thumb-lg"
+                        src="{{ url_for('static', filename=enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}"
+                        alt="Current enemy team logo"
+                        data-fallback="https://avatar.vercel.sh/{{ enemy_team.name | urlencode }}.png?size=140"
+                    >
+                    <div class="team-logo-picker-actions">
+                        <button id="chooseEnemyTeamLogoBtn" type="button" class="button-secondary button-small">Add / Change</button>
+                        <button id="clearEnemyTeamLogoBtn" type="button" class="button-secondary button-small">Clear</button>
+                    </div>
+                </div>
+            </div>
+            <div class="button-row field-full">
+                <button type="submit">Save Team</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Roster</h3>
+            <button id="openPlayerModal" type="button" class="button-small">Add / Edit Player</button>
+        </div>
+        {% if players %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Role</th>
+                            <th>Main Hero</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                            <tr>
+                                <td>{{ player.name }}</td>
+                                <td>{{ player.role or '-' }}</td>
+                                <td>{{ player.main_hero or '-' }}</td>
+                                <td>{{ player.notes or '-' }}</td>
+                                <td>
+                                    <div class="inline-actions">
+                                        <button
+                                            type="button"
+                                            class="button-secondary button-small open-edit-enemy-player"
+                                            data-player-id="{{ player.id }}"
+                                            data-player-name="{{ player.name }}"
+                                            data-player-role="{{ player.role }}"
+                                            data-player-hero="{{ player.main_hero }}"
+                                            data-player-notes="{{ player.notes }}"
+                                        >
+                                            Edit
+                                        </button>
+                                        <form method="post" action="{{ url_for('delete_enemy_player', enemy_player_id=player.id) }}" onsubmit="return confirm('Remove this player?');">
+                                            <button type="submit" class="button-secondary button-small">Remove</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No players on this team yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div id="playerModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div>
+                <h3>Enemy Player Management</h3>
+                <p id="playerModalHint">Add a new player or edit an existing player.</p>
+            </div>
+            <button id="closePlayerModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <form id="enemyPlayerForm" method="post" action="{{ url_for('create_enemy_player', enemy_team_id=enemy_team.id) }}" class="form-grid top-gap">
+            <div class="field">
+                <label for="enemy_player_name">Player Name</label>
+                <input id="enemy_player_name" name="name" type="text" required>
+            </div>
+            <div class="field">
+                <label for="enemy_player_role">Role</label>
+                <select id="enemy_player_role" name="role">
+                    <option value="">Select role</option>
+                    {% for role in player_roles %}
+                        <option value="{{ role }}">{{ role }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="enemy_player_hero">Main Hero</label>
+                <select id="enemy_player_hero" name="main_hero">
+                    <option value="">Select hero</option>
+                    {% for hero in heroes %}
+                        <option value="{{ hero }}">{{ hero }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="enemy_player_notes">Notes</label>
+                <input id="enemy_player_notes" name="notes" type="text">
+            </div>
+            <div class="button-row field-full">
+                <button id="enemyPlayerSubmit" type="submit">Add Player</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabPanels = document.querySelectorAll(".tab-content");
+    const validTabs = new Set(["bans", "comps", "maps", "roster"]);
+
+    const switchTab = (tabName) => {
+        const nextTab = validTabs.has(tabName) ? tabName : "bans";
+        tabButtons.forEach((button) => {
+            button.classList.toggle("tab-active", button.dataset.tab === nextTab);
+        });
+
+        tabPanels.forEach((panel) => {
+            const isActive = panel.id === `tab-${nextTab}`;
+            panel.classList.toggle("tab-hidden", !isActive);
+        });
+
+        window.history.replaceState(null, "", `#${nextTab}`);
+
+        if (nextTab === "maps") {
+            setTimeout(() => renderTimelineChart(), 0);
+        }
+    };
+
+    tabButtons.forEach((button) => {
+        button.addEventListener("click", () => switchTab(button.dataset.tab));
+    });
+
+    document.querySelectorAll('.vbar-bar[data-height]').forEach((bar) => {
+        const height = parseFloat(bar.getAttribute('data-height'));
+        bar.style.height = height + '%';
+    });
+
+    document.querySelectorAll(".mode-progress span[data-progress]").forEach((bar) => {
+        const value = Number(bar.dataset.progress || 0);
+        const clamped = Math.max(0, Math.min(100, value));
+        bar.style.width = `${clamped}%`;
+    });
+
+    const mapSearch = document.getElementById("mapSearch");
+    const mapTypeFilter = document.getElementById("mapTypeFilter");
+    const mapSort = document.getElementById("mapSort");
+    const mapGrid = document.getElementById("teamMapGrid");
+    const mapEmptyState = document.getElementById("mapEmptyState");
+
+    const updateMapCards = () => {
+        if (!mapGrid) {
+            return;
+        }
+
+        const query = (mapSearch?.value || "").trim().toLowerCase();
+        const mode = (mapTypeFilter?.value || "all").toLowerCase();
+        const sort = (mapSort?.value || "winrate").toLowerCase();
+
+        const cards = Array.from(mapGrid.querySelectorAll(".team-map-card"));
+        cards.forEach((card) => {
+            const name = (card.dataset.mapName || "").toLowerCase();
+            const mapMode = (card.dataset.mapMode || "").toLowerCase();
+            const matchesQuery = !query || name.includes(query);
+            const matchesMode = mode === "all" || mapMode === mode;
+            card.hidden = !(matchesQuery && matchesMode);
+        });
+
+        cards.sort((a, b) => {
+            if (sort === "games") {
+                return Number(b.dataset.mapGames || 0) - Number(a.dataset.mapGames || 0);
+            }
+            if (sort === "name") {
+                return (a.dataset.mapName || "").localeCompare(b.dataset.mapName || "");
+            }
+            return Number(b.dataset.mapWinRate || 0) - Number(a.dataset.mapWinRate || 0);
+        });
+
+        cards.forEach((card) => mapGrid.appendChild(card));
+
+        const visibleCount = cards.filter((card) => !card.hidden).length;
+        if (mapEmptyState) {
+            mapEmptyState.hidden = visibleCount > 0;
+        }
+    };
+
+    [mapSearch, mapTypeFilter, mapSort].forEach((el) => {
+        if (el) {
+            el.addEventListener("input", updateMapCards);
+            el.addEventListener("change", updateMapCards);
+        }
+    });
+
+    updateMapCards();
+
+    const timelinePayload = document.getElementById("enemyTimelineData")?.textContent || "[]";
+    const timelinePoints = JSON.parse(timelinePayload);
+    const trendCanvas = document.getElementById("enemyTimelineChart");
+    let timelineRendered = false;
+
+    const renderTimelineChart = () => {
+        if (!trendCanvas || !timelinePoints.length) {
+            return;
+        }
+
+        const ctx = trendCanvas.getContext("2d");
+        const dpr = window.devicePixelRatio || 1;
+        const cssWidth = trendCanvas.clientWidth || 980;
+        const cssHeight = 320;
+        trendCanvas.width = Math.floor(cssWidth * dpr);
+        trendCanvas.height = Math.floor(cssHeight * dpr);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+
+        const w = cssWidth;
+        const h = cssHeight;
+        const pad = { top: 20, right: 20, bottom: 42, left: 42 };
+        const innerW = w - pad.left - pad.right;
+        const innerH = h - pad.top - pad.bottom;
+
+        const xAt = (i) => pad.left + (timelinePoints.length === 1 ? innerW / 2 : (innerW * i) / (timelinePoints.length - 1));
+        const yAt = (value) => pad.top + innerH - (Math.max(0, Math.min(100, value)) / 100) * innerH;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.fillStyle = "rgba(13, 17, 23, 0.9)";
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        [0, 25, 50, 75, 100].forEach((tick) => {
+            const y = yAt(tick);
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(w - pad.right, y);
+            ctx.stroke();
+
+            ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
+            ctx.font = "12px sans-serif";
+            ctx.fillText(`${tick}%`, 4, y + 4);
+        });
+
+        const drawSeries = (key, color) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            timelinePoints.forEach((pt, i) => {
+                const x = xAt(i);
+                const y = yAt(pt[key]);
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+
+            timelinePoints.forEach((pt, i) => {
+                const x = xAt(i);
+                const y = yAt(pt[key]);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        };
+
+        drawSeries("scrim_win_rate", "#60a5fa");
+        drawSeries("cumulative_win_rate", "#fa4454");
+
+        ctx.fillStyle = "rgba(230, 237, 243, 0.95)";
+        ctx.font = "12px sans-serif";
+        timelinePoints.forEach((_, i) => {
+            const x = xAt(i);
+            ctx.fillText(`${i + 1}`, x - 3, h - 16);
+        });
+
+        ctx.fillStyle = "#60a5fa";
+        ctx.fillRect(w - 210, 12, 10, 10);
+        ctx.fillStyle = "#e6edf3";
+        ctx.fillText("Scrim Win Rate", w - 194, 21);
+        ctx.fillStyle = "#fa4454";
+        ctx.fillRect(w - 210, 30, 10, 10);
+        ctx.fillStyle = "#e6edf3";
+        ctx.fillText("Cumulative Win Rate", w - 194, 39);
+
+        timelineRendered = true;
+        chartSnapshot = ctx.getImageData(0, 0, trendCanvas.width, trendCanvas.height);
+    };
+
+    let chartSnapshot = null;
+    const tooltip = document.getElementById("enemyChartTooltip");
+
+    trendCanvas?.addEventListener("mousemove", (e) => {
+        if (!timelineRendered || !chartSnapshot || !timelinePoints.length) {
+            return;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        const rect = trendCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+
+        const cssWidth = trendCanvas.clientWidth || 980;
+        const pad = { top: 20, right: 20, bottom: 42, left: 42 };
+        const innerW = cssWidth - pad.left - pad.right;
+        const xAt = (i) => pad.left + (timelinePoints.length === 1 ? innerW / 2 : (innerW * i) / (timelinePoints.length - 1));
+        const yAt = (value) => pad.top + (320 - pad.top - pad.bottom) - (Math.max(0, Math.min(100, value)) / 100) * (320 - pad.top - pad.bottom);
+
+        let closestIdx = 0;
+        let closestDist = Infinity;
+        timelinePoints.forEach((_, i) => {
+            const dist = Math.abs(mouseX - xAt(i));
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestIdx = i;
+            }
+        });
+
+        const snapThreshold = Math.max(24, innerW / (timelinePoints.length + 1));
+        if (closestDist > snapThreshold) {
+            tooltip.hidden = true;
+            const ctx = trendCanvas.getContext("2d");
+            ctx.putImageData(chartSnapshot, 0, 0);
+            return;
+        }
+
+        const pt = timelinePoints[closestIdx];
+        const hx = xAt(closestIdx);
+        const cssH = 320;
+
+        const ctx = trendCanvas.getContext("2d");
+        ctx.putImageData(chartSnapshot, 0, 0);
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(hx, pad.top);
+        ctx.lineTo(hx, cssH - pad.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        [["scrim_win_rate", "#60a5fa"], ["cumulative_win_rate", "#fa4454"]].forEach(([key, color]) => {
+            const cy = yAt(pt[key]);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(hx, cy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,0.6)";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+        ctx.restore();
+
+        const winClass = pt.wins > pt.losses ? "tt-win" : pt.wins < pt.losses ? "tt-loss" : "tt-draw";
+        tooltip.innerHTML = `
+            <div class="tt-label">${pt.label}</div>
+            <div class="tt-row"><span>Maps</span><span>${pt.maps}</span></div>
+            <div class="tt-row"><span>W–L</span><span class="${winClass}">${pt.wins}–${pt.losses}</span></div>
+            <div class="tt-row"><span>Scrim WR</span><span style="color:#60a5fa">${pt.scrim_win_rate}%</span></div>
+            <div class="tt-row"><span>Cumulative WR</span><span style="color:#fa4454">${pt.cumulative_win_rate}%</span></div>
+        `;
+
+        const wrapRect = trendCanvas.parentElement.getBoundingClientRect();
+        const canvasLeft = rect.left - wrapRect.left;
+        const canvasTop = rect.top - wrapRect.top;
+        const dotY = yAt(pt.scrim_win_rate);
+
+        tooltip.hidden = false;
+        const ttW = tooltip.offsetWidth;
+        const ttH = tooltip.offsetHeight;
+        let ttLeft = canvasLeft + hx + 14;
+        let ttTop = canvasTop + dotY - ttH / 2;
+
+        if (ttLeft + ttW > wrapRect.width - 6) {
+            ttLeft = canvasLeft + hx - ttW - 14;
+        }
+        ttTop = Math.max(canvasTop + 4, Math.min(ttTop, canvasTop + cssH - ttH - 4));
+
+        tooltip.style.left = `${ttLeft}px`;
+        tooltip.style.top = `${ttTop}px`;
+    });
+
+    trendCanvas?.addEventListener("mouseleave", () => {
+        tooltip.hidden = true;
+        if (chartSnapshot) {
+            trendCanvas.getContext("2d").putImageData(chartSnapshot, 0, 0);
+        }
+    });
+
+    const hashTab = (window.location.hash || "").replace("#", "").trim().toLowerCase();
+    if (validTabs.has(hashTab)) {
+        switchTab(hashTab);
+    }
+
+    window.addEventListener("resize", () => {
+        if (timelineRendered) {
+            renderTimelineChart();
+        }
+    });
+
+    const modal = document.getElementById("playerModal");
+    const openBtn = document.getElementById("openPlayerModal");
+    const closeBtn = document.getElementById("closePlayerModal");
+    const playerForm = document.getElementById("enemyPlayerForm");
+    const submitBtn = document.getElementById("enemyPlayerSubmit");
+    const hint = document.getElementById("playerModalHint");
+
+    const playerName = document.getElementById("enemy_player_name");
+    const playerRole = document.getElementById("enemy_player_role");
+    const playerHero = document.getElementById("enemy_player_hero");
+    const playerNotes = document.getElementById("enemy_player_notes");
+
+    const enemyLogoInput = document.getElementById("enemy_team_logo");
+    const enemyLogoPreview = document.getElementById("enemyTeamLogoPreview");
+    const chooseEnemyLogoBtn = document.getElementById("chooseEnemyTeamLogoBtn");
+    const clearEnemyLogoBtn = document.getElementById("clearEnemyTeamLogoBtn");
+    const removeEnemyLogoInput = document.getElementById("enemy_team_remove_logo");
+
+    const openModal = () => {
+        switchTab("roster");
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeModal = () => {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    };
+
+    const setAddMode = () => {
+        playerForm.action = "{{ url_for('create_enemy_player', enemy_team_id=enemy_team.id) }}";
+        submitBtn.textContent = "Add Player";
+        hint.textContent = "Add a new player to this enemy roster.";
+        playerName.value = "";
+        playerRole.value = "";
+        playerHero.value = "";
+        playerNotes.value = "";
+    };
+
+    const setEditMode = (button) => {
+        playerForm.action = "{{ url_for('edit_enemy_player', enemy_player_id=0) }}".replace("/0/edit", `/${button.dataset.playerId}/edit`);
+        submitBtn.textContent = "Save Player";
+        hint.textContent = `Editing ${button.dataset.playerName}`;
+        playerName.value = button.dataset.playerName || "";
+        playerRole.value = button.dataset.playerRole || "";
+        playerHero.value = button.dataset.playerHero || "";
+        playerNotes.value = button.dataset.playerNotes || "";
+    };
+
+    openBtn?.addEventListener("click", () => {
+        setAddMode();
+        openModal();
+    });
+
+    closeBtn?.addEventListener("click", closeModal);
+    modal?.addEventListener("click", (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll(".open-edit-enemy-player").forEach((button) => {
+        button.addEventListener("click", () => {
+            setEditMode(button);
+            openModal();
+        });
+    });
+
+    playerForm?.addEventListener("submit", async function(e) {
+        e.preventDefault();
+        const name = playerName.value.trim();
+        if (!name) {
+            alert("Please enter a player name.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("role", playerRole.value.trim());
+        formData.append("main_hero", playerHero.value.trim());
+        formData.append("notes", playerNotes.value.trim());
+
+        try {
+            const response = await fetch(this.action, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            });
+
+            if (response.ok) {
+                closeModal();
+                setTimeout(() => window.location.reload(), 300);
+            } else {
+                alert(`Failed to save player. Status: ${response.status}`);
+            }
+        } catch (error) {
+            alert(`An error occurred: ${error.message}`);
+        }
+    });
+
+    if (enemyLogoInput && enemyLogoPreview && removeEnemyLogoInput) {
+        const fallbackLogo = enemyLogoPreview.dataset.fallback || enemyLogoPreview.src;
+
+        const setLogoPreview = () => {
+            const file = enemyLogoInput.files?.[0];
+            if (file) {
+                enemyLogoPreview.src = URL.createObjectURL(file);
+                removeEnemyLogoInput.value = "0";
+                return;
+            }
+            if (removeEnemyLogoInput.value === "1") {
+                enemyLogoPreview.src = fallbackLogo;
+            }
+        };
+
+        chooseEnemyLogoBtn?.addEventListener("click", () => enemyLogoInput.click());
+        enemyLogoPreview.addEventListener("click", () => enemyLogoInput.click());
+        enemyLogoInput.addEventListener("change", setLogoPreview);
+        clearEnemyLogoBtn?.addEventListener("click", () => {
+            enemyLogoInput.value = "";
+            removeEnemyLogoInput.value = "1";
+            enemyLogoPreview.src = fallbackLogo;
+        });
+    }
+
+    const editEnemyTeamForm = document.getElementById("editEnemyTeamForm");
+    editEnemyTeamForm?.addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        try {
+            const response = await fetch(this.action, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            });
+
+            if (response.ok) {
+                setTimeout(() => window.location.reload(), 300);
+            } else {
+                alert(`Failed to update team. Status: ${response.status}`);
+            }
+        } catch (error) {
+            alert(`An error occurred: ${error.message}`);
+        }
+    });
+})();
+</script>
+{% endblock %}

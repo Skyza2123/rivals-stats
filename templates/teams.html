@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Teams{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>View Your Teams</h2>
+        <p>Create teams and jump into stats quickly.</p>
+    </div>
+    <div class="header-actions">
+        <button id="openAddTeamModal" type="button" class="button-small">+ Add Team</button>
+        <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
+<section class="panel">
+    <h3>All Teams</h3>
+    {% if teams %}
+        <div class="teams-card-grid">
+            {% for team in teams %}
+                <article class="team-dash-card">
+                    <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
+                        <img
+                            class="team-dash-logo"
+                            src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                            alt="{{ team.name }} logo"
+                        >
+                        <div class="team-dash-title">{{ team.name }}</div>
+                        <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
+                        <div class="team-dash-stats">
+                            <span>{{ team.scrim_count }} scrims</span>
+                            <span>{{ team.map_count }} maps</span>
+                            <span>{{ team.map_win_rate }}% WR</span>
+                        </div>
+                    </a>
+                    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id) }}#maps">View stats →</a>
+                    <div class="team-dash-players">{{ team.player_count }} players</div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No teams yet. Create your first team above.</p>
+    {% endif %}
+</section>
+
+<div id="addTeamModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card modal-card-sm">
+        <div class="modal-header">
+            <div>
+                <h3>Add Team</h3>
+                <p>Create a new team.</p>
+            </div>
+            <button id="closeAddTeamModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+        <form method="post" action="{{ url_for('create_team') }}" class="form-grid" enctype="multipart/form-data">
+            <div class="field">
+                <label for="modal_team_name">Team Name</label>
+                <input id="modal_team_name" name="name" type="text" placeholder="Enter team name" required>
+            </div>
+            <div class="field">
+                <label for="modal_team_notes">Notes</label>
+                <input id="modal_team_notes" name="notes" type="text" placeholder="Optional context">
+            </div>
+            <div class="field field-full">
+                <label for="modal_team_logo">Team Logo</label>
+                <input id="modal_team_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" hidden>
+                <div class="team-logo-picker">
+                    <img id="modalTeamLogoPreview" class="team-logo-thumb team-logo-thumb-lg" src="https://avatar.vercel.sh/Team.png?size=140" alt="Team logo preview">
+                    <div class="team-logo-picker-actions">
+                        <button id="modalChooseLogoBtn" type="button" class="button-secondary button-small">Add / Change</button>
+                        <button id="modalClearLogoBtn" type="button" class="button-secondary button-small">Clear</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions field-full">
+                <button type="button" class="button-secondary" id="cancelAddTeamModal">Cancel</button>
+                <button type="submit" class="button-small">Create Team</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const modal = document.getElementById("addTeamModal");
+    const openBtn = document.getElementById("openAddTeamModal");
+    const closeBtn = document.getElementById("closeAddTeamModal");
+    const cancelBtn = document.getElementById("cancelAddTeamModal");
+    const nameInput = document.getElementById("modal_team_name");
+    const logoInput = document.getElementById("modal_team_logo");
+    const logoPreview = document.getElementById("modalTeamLogoPreview");
+    const chooseLogoBtn = document.getElementById("modalChooseLogoBtn");
+    const clearLogoBtn = document.getElementById("modalClearLogoBtn");
+
+    const fallbackLogo = () => {
+        const baseName = (nameInput.value || "Team").trim() || "Team";
+        return `https://avatar.vercel.sh/${encodeURIComponent(baseName)}.png?size=140`;
+    };
+
+    const resetLogoPreview = () => {
+        if (logoInput) {
+            logoInput.value = "";
+        }
+        if (logoPreview) {
+            logoPreview.src = fallbackLogo();
+        }
+    };
+
+    const updateLogoPreview = () => {
+        const file = logoInput?.files?.[0];
+        if (file) {
+            logoPreview.src = URL.createObjectURL(file);
+            return;
+        }
+        logoPreview.src = fallbackLogo();
+    };
+
+    const openModal = () => {
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeModal = () => {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    };
+
+    openBtn.addEventListener("click", openModal);
+    closeBtn.addEventListener("click", closeModal);
+    cancelBtn.addEventListener("click", closeModal);
+
+    chooseLogoBtn.addEventListener("click", () => logoInput.click());
+    logoPreview.addEventListener("click", () => logoInput.click());
+    clearLogoBtn.addEventListener("click", resetLogoPreview);
+    logoInput.addEventListener("change", updateLogoPreview);
+    nameInput.addEventListener("input", updateLogoPreview);
+
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+
+    updateLogoPreview();
+})();
+</script>
+{% endblock %}

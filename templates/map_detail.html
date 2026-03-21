@@ -1,0 +1,798 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Map Detail{% endblock %}
+
+{% block content %}
+{% set our_slot = map_entry.our_team_slot if map_entry.our_team_slot in ['team1', 'team2'] else 'team1' %}
+{% set team1_draft_slots = [('ban1','Ban 1'),('ban2','Ban 2'),('protect1','Protect 1'),('ban3','Ban 3'),('protect2','Protect 2'),('ban4','Ban 4')] %}
+{% set team2_draft_slots = [('ban1','Ban 1'),('protect1','Protect 1'),('ban2','Ban 2'),('ban3','Ban 3'),('ban4','Ban 4'),('protect2','Protect 2')] %}
+{% set section_scores = [] %}
+{% for sec in map_entry.comp %}
+    {% if sec.score %}
+        {% if sec.submap %}
+            {% set _ = section_scores.append(sec.submap ~ ': ' ~ sec.score) %}
+        {% else %}
+            {% set _ = section_scores.append(sec.score) %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+{% set summary_score = map_entry.score if map_entry.score else (' | '.join(section_scores) if section_scores else '') %}
+<!-- Header with map image banner -->
+<div class="map-banner" {% if map_entry.map_name in map_images %}style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"{% endif %}>
+    <div class="map-banner-overlay">
+        <div class="main-header">
+            <div>
+                <h2>{{ map_entry.map_name }}</h2>
+                <p>vs {{ scrim.enemy_team or scrim.opponent }}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}" class="button-secondary">Back to Scrim</a>
+                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else 'pill-loss' }}">{{ map_entry.result }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}</div>
+                <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
+                <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card"><strong>Score</strong><span>{{ summary_score or "---" }}</span></section>
+    <section class="stat-card"><strong>Result</strong><span>{{ map_entry.result }}</span></section>
+    <section class="stat-card"><strong>Events</strong><span>{{ map_entry.events|length }}</span></section>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+    <button class="tab-btn tab-active" data-tab="comp" onclick="switchTab('comp')">Comp</button>
+    <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Timeline</button>
+    <button class="tab-btn" data-tab="vods" onclick="switchTab('vods')">VODs</button>
+    <button class="tab-btn" data-tab="notes" onclick="switchTab('notes')">Notes</button>
+</div>
+
+<!-- COMP TAB -->
+<div class="tab-content" id="tab-comp">
+
+<!-- Draft Section -->
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Draft</h3>
+        <button type="button" class="button-small" onclick="openModal('draftModal')">Edit Draft</button>
+    </div>
+    <div class="draft-grid">
+        <div class="draft-column draft-display">
+            <h4>Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+            <div class="draft-slots">
+                {% for slot in team1_draft_slots %}
+                {% set hero = map_entry.draft.team1[slot[0]] %}
+                <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
+                    <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
+                    {% if hero and hero in hero_transformations %}
+                    <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                    {% endif %}
+                    <span class="slot-hero-name">{{ hero or '---' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="draft-column draft-display">
+            <h4>Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+            <div class="draft-slots">
+                {% for slot in team2_draft_slots %}
+                {% set hero = map_entry.draft.team2[slot[0]] %}
+                <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
+                    <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
+                    {% if hero and hero in hero_transformations %}
+                    <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                    {% endif %}
+                    <span class="slot-hero-name">{{ hero or '---' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Team Comp Sections -->
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Team Comp</h3>
+    </div>
+    {% for sec in map_entry.comp %}
+    {% set s = loop.index0 %}
+    <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
+        <div class="comp-section-header">
+            <span class="comp-submap-name">{{ sec.submap or ('Round ' ~ (s + 1)) }}</span>
+            <button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ sec.submap or ('Round ' ~ (s + 1)) }}</button>
+        </div>
+        <div class="comp-grid">
+            <div class="comp-team">
+                <h4 class="comp-team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                <div class="comp-slots">
+                    {% for entry in sec.team1 %}
+                    <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
+                        {% if entry.hero and entry.hero in hero_transformations %}
+                        <div class="comp-hero-img"><img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}"></div>
+                        {% else %}
+                        <div class="comp-hero-img comp-empty"></div>
+                        {% endif %}
+                        <div class="comp-info">
+                            <span class="comp-hero-name">{{ entry.hero or 'Empty' }}</span>
+                            <span class="comp-player-name">{{ entry.player or '---' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="comp-team">
+                <h4 class="comp-team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                <div class="comp-slots">
+                    {% for entry in sec.team2 %}
+                    <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
+                        {% if entry.hero and entry.hero in hero_transformations %}
+                        <div class="comp-hero-img"><img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}"></div>
+                        {% else %}
+                        <div class="comp-hero-img comp-empty"></div>
+                        {% endif %}
+                        <div class="comp-info">
+                            <span class="comp-hero-name">{{ entry.hero or 'Empty' }}</span>
+                            <span class="comp-player-name">{{ entry.player or '---' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% if sec.score %}
+        <div class="summary-box top-gap">Score: {{ sec.score }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</section>
+</div>
+
+<!-- TIMELINE TAB -->
+<div class="tab-content tab-hidden" id="tab-timeline">
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Event Log</h3>
+        <button type="button" class="button-small" onclick="openModal('addEventModal')">Add Event</button>
+    </div>
+    {% if map_entry.events %}
+        <div class="list-stack">
+            {% for event in map_entry.events %}
+                <div class="list-card static-card">
+                    <div>
+                        <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
+                        <div class="list-subtitle">{{ event.description or "No description" }}</div>
+                    </div>
+                    <form action="{{ url_for('delete_event', scrim_id=scrim.id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No events added yet.</p>
+    {% endif %}
+</section>
+</div>
+
+<!-- VODS TAB -->
+<div class="tab-content tab-hidden" id="tab-vods">
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>VOD Link</h3>
+        <button type="button" class="button-small" onclick="openModal('editVodModal')">Edit VOD</button>
+    </div>
+    {% if map_entry.get('vod_url') %}
+        <div class="summary-box">{{ map_entry.get('vod_url') }}</div>
+    {% else %}
+        <p class="empty-text">No VOD URL saved yet.</p>
+    {% endif %}
+    {% if map_entry.get('vod_url') %}
+    <div class="vod-embed-wrap"><iframe id="vodEmbed" class="vod-embed" allowfullscreen></iframe></div>
+    {% endif %}
+</section>
+</div>
+
+<!-- NOTES TAB -->
+<div class="tab-content tab-hidden" id="tab-notes">
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Map Notes</h3>
+        <button type="button" class="button-small" onclick="openModal('editNotesModal')">Edit Notes</button>
+    </div>
+    {% if map_entry.notes %}
+        <div class="summary-box">{{ map_entry.notes }}</div>
+    {% else %}
+        <p class="empty-text">No map notes yet.</p>
+    {% endif %}
+</section>
+</div>
+
+<!-- Hidden delete form -->
+<form id="deleteMapForm" action="{{ url_for('delete_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- EDIT INFO MODAL -->
+<div class="modal-backdrop" id="editInfoModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Edit Map Info</h2>
+            <button class="modal-close" onclick="closeModal('editInfoModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_map_info', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="edit_result">Result</label>
+                    <select id="edit_result" name="result">
+                        {% for r in results %}<option value="{{ r }}" {% if map_entry.result == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_score">Score</label>
+                    <input type="text" id="edit_score" name="score" value="{{ map_entry.get('score', '') }}" placeholder="e.g. 3-2">
+                </div>
+                <div class="field">
+                    <label for="edit_our_team_slot">Your Team Slot</label>
+                    <select id="edit_our_team_slot" name="our_team_slot">
+                        <option value="team1" {% if our_slot == 'team1' %}selected{% endif %}>Team 1</option>
+                        <option value="team2" {% if our_slot == 'team2' %}selected{% endif %}>Team 2</option>
+                    </select>
+                </div>
+            </div>
+            <div class="button-row">
+                <button type="submit">Save Changes</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editInfoModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT COMP SECTION MODALS -->
+{% for sec in map_entry.comp %}
+{% set s = loop.index0 %}
+<div class="modal-backdrop" id="editCompSectionModal{{ s }}">
+    <div class="modal modal-wide">
+        <div class="modal-header">
+            <h2>Edit Team Comp - {{ sec.submap or ('Round ' ~ (s + 1)) }}</h2>
+            <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_comp_section', scrim_id=scrim.id, map_id=map_entry.id, section_index=s) }}" method="post">
+            <input type="hidden" name="submap" value="{{ sec.submap }}">
+            <div class="form-grid">
+                <div class="field">
+                    <label>Score</label>
+                    <input type="text" name="score" value="{{ sec.score or '' }}" placeholder="e.g. 2-1">
+                </div>
+            </div>
+
+            <div class="draft-grid">
+                <div class="draft-column">
+                    <h4 class="team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <div class="draft-slots comp-pick-slots">
+                        {% for i in range(6) %}
+                        <div class="comp-slot-wrap">
+                            <div class="field">
+                                <label>Hero {{ i + 1 }}</label>
+                                <select name="team1_hero_{{ i }}">
+                                    <option value="">Empty</option>
+                                    {% for hero in heroes %}
+                                    <option value="{{ hero }}" {% if sec.team1[i].hero == hero %}selected{% endif %}>{{ hero }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Player</label>
+                                <select class="comp-player-select" name="team1_player_{{ i }}">
+                                    <option value="">Select player</option>
+                                    {% if our_slot == 'team1' %}
+                                        {% for player in team_players %}
+                                        <option value="{{ player }}" {% if sec.team1[i].player == player %}selected{% endif %}>{{ player }}</option>
+                                        {% endfor %}
+                                    {% else %}
+                                        {% for player in enemy_players %}
+                                        <option value="{{ player.name }}" {% if sec.team1[i].player == player.name %}selected{% endif %}>{{ player.name }}{% if player.role %} ({{ player.role }}){% endif %}</option>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <option value="" disabled>---</option>
+                                    <option value="custom">Type manually...</option>
+                                </select>
+                                <input type="text" class="comp-player-input" data-slot="team1_{{ i }}" value="{{ sec.team1[i].player }}" placeholder="Player name" style="display: none;">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="draft-column">
+                    <h4 class="team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <div class="draft-slots comp-pick-slots">
+                        {% for i in range(6) %}
+                        <div class="comp-slot-wrap">
+                            <div class="field">
+                                <label>Hero {{ i + 1 }}</label>
+                                <select name="team2_hero_{{ i }}">
+                                    <option value="">Empty</option>
+                                    {% for hero in heroes %}
+                                    <option value="{{ hero }}" {% if sec.team2[i].hero == hero %}selected{% endif %}>{{ hero }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Player</label>
+                                <select class="comp-player-select" name="team2_player_{{ i }}">
+                                    <option value="">Select player</option>
+                                    {% if our_slot == 'team2' %}
+                                        {% for player in team_players %}
+                                        <option value="{{ player }}" {% if sec.team2[i].player == player %}selected{% endif %}>{{ player }}</option>
+                                        {% endfor %}
+                                    {% else %}
+                                        {% for player in enemy_players %}
+                                        <option value="{{ player.name }}" {% if sec.team2[i].player == player.name %}selected{% endif %}>{{ player.name }}{% if player.role %} ({{ player.role }}){% endif %}</option>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <option value="" disabled>---</option>
+                                    <option value="custom">Type manually...</option>
+                                </select>
+                                <input type="text" class="comp-player-input" data-slot="team2_{{ i }}" value="{{ sec.team2[i].player }}" placeholder="Player name" style="display: none;">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                {% if s > 0 %}
+                <button type="button" class="btn-secondary" onclick="copyPreviousCompSection('{{ s }}')">Use Previous Round/Submap</button>
+                {% endif %}
+                <button type="submit">Save Section</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editCompSectionModal{{ s }}')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- EDIT DRAFT MODAL -->
+<div class="modal-backdrop" id="draftModal">
+    <div class="modal modal-wide">
+        <div class="modal-header">
+            <h2>Edit Draft</h2>
+            <button class="modal-close" onclick="closeModal('draftModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_draft', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
+            <div class="draft-grid">
+                <div class="draft-column">
+                    <h4 class="team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <div class="draft-slots">
+                        {% for slot_key, slot_label in team1_draft_slots %}
+                        {% set hero = map_entry.draft.team1[slot_key] %}
+                        <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="team1_{{ slot_key }}" onclick="activateDraftSlot(this)">
+                            <span class="slot-label {{ 'protect-label' if 'protect' in slot_key else 'ban-label' }}">{{ slot_label }}</span>
+                            {% if hero and hero in hero_transformations %}
+                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                            {% endif %}
+                            <span class="slot-hero">{{ hero or '—' }}</span>
+                            <input type="hidden" name="team1_{{ slot_key }}" value="{{ hero }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="draft-column">
+                    <h4 class="team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <div class="draft-slots">
+                        {% for slot_key, slot_label in team2_draft_slots %}
+                        {% set hero = map_entry.draft.team2[slot_key] %}
+                        <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="team2_{{ slot_key }}" onclick="activateDraftSlot(this)">
+                            <span class="slot-label {{ 'protect-label' if 'protect' in slot_key else 'ban-label' }}">{{ slot_label }}</span>
+                            {% if hero and hero in hero_transformations %}
+                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                            {% endif %}
+                            <span class="slot-hero">{{ hero or '—' }}</span>
+                            <input type="hidden" name="team2_{{ slot_key }}" value="{{ hero }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click to clear.</p>
+
+            <div class="hero-picker" id="draftHeroPicker">
+                {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+                <div class="hero-role-section">
+                    <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+                    <div class="hero-icon-grid">
+                        {% for hero in hero_roles[role] %}
+                        <button type="button" class="hero-pick-btn draft-hero-btn" data-hero="{{ hero }}"
+                                onclick="pickDraftHero(this)" title="{{ hero }}">
+                            <div class="hero-img-wrap">
+                                <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                                     alt="{{ hero }}" loading="lazy">
+                            </div>
+                            <span class="hero-pick-name">{{ hero }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="button-row">
+                <button type="submit">Save Draft</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('draftModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ADD EVENT MODAL -->
+<div class="modal-backdrop" id="addEventModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Add Event</h2>
+            <button class="modal-close" onclick="closeModal('addEventModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('add_event_to_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="modal_timestamp">Timestamp</label>
+                    <input type="text" id="modal_timestamp" name="timestamp" placeholder="e.g. 02:14">
+                </div>
+                <div class="field">
+                    <label for="modal_event_type">Event Type</label>
+                    <select id="modal_event_type" name="event_type" required>
+                        <option value="">Select event type</option>
+                        {% for event_type in event_types %}
+                            <option value="{{ event_type }}">{{ event_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="field top-gap">
+                <label for="modal_description">Description</label>
+                <textarea id="modal_description" name="description" rows="4" placeholder="What happened?"></textarea>
+            </div>
+            <div class="button-row">
+                <button type="submit">Add Event</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('addEventModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT VOD MODAL -->
+<div class="modal-backdrop" id="editVodModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Edit VOD Link</h2>
+            <button class="modal-close" onclick="closeModal('editVodModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_vod', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+            <div class="field">
+                <label for="modal_vod_url">YouTube / Twitch URL</label>
+                <input type="url" id="modal_vod_url" name="vod_url" value="{{ map_entry.get('vod_url', '') }}" placeholder="https://youtube.com/watch?v=...">
+            </div>
+            <div class="button-row">
+                <button type="submit">Save VOD</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editVodModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT NOTES MODAL -->
+<div class="modal-backdrop" id="editNotesModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Edit Map Notes</h2>
+            <button class="modal-close" onclick="closeModal('editNotesModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('update_notes', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+            <div class="field">
+                <textarea id="modal_map_notes" name="notes" rows="8" placeholder="Game strategy, what went wrong, what to improve...">{{ map_entry.notes }}</textarea>
+            </div>
+            <div class="button-row">
+                <button type="submit">Save Notes</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editNotesModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+/* ── Tab Switching ── */
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('tab-active', b.dataset.tab === tab);
+    });
+    document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.toggle('tab-hidden', c.id !== 'tab-' + tab);
+    });
+}
+
+/* ── Modal open/close ── */
+function openModal(id) {
+    document.getElementById(id).classList.add('show');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-backdrop.show').forEach(function(el) {
+            el.classList.remove('show');
+        });
+    }
+});
+
+/* ── Delete Map ── */
+function confirmDeleteMap() {
+    if (confirm('Delete this map? This cannot be undone.')) {
+        document.getElementById('deleteMapForm').submit();
+    }
+}
+
+/* ── VOD Embed ── */
+(function() {
+    var vodUrl = document.getElementById('modal_vod_url');
+    var iframe = document.getElementById('vodEmbed');
+    if (vodUrl && iframe && vodUrl.value) {
+        var url = vodUrl.value;
+        var m;
+        if ((m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/))) {
+            iframe.src = 'https://www.youtube.com/embed/' + m[1];
+        } else if ((m = url.match(/twitch\.tv\/videos\/(\d+)/))) {
+            iframe.src = 'https://player.twitch.tv/?video=' + m[1] + '&parent=' + location.hostname;
+        }
+    }
+})();
+
+/* ══════════════════════════════════════
+   DRAFT EDITOR — click-slot-then-pick
+   ══════════════════════════════════════ */
+var activeDraftSlot = null;
+
+function getDraftSlotHeroes(team, type) {
+    var heroes = [];
+    document.querySelectorAll('.draft-pick-slot').forEach(function(slot) {
+        var name = slot.dataset.slot;
+        if (name && name.startsWith(team + '_' + type)) {
+            var val = slot.querySelector('input[type=hidden]').value;
+            if (val) heroes.push(val);
+        }
+    });
+    return heroes;
+}
+
+function updateDraftAvailability() {
+    if (!activeDraftSlot) {
+        document.querySelectorAll('.draft-hero-btn').forEach(function(b) {
+            b.disabled = false;
+            b.classList.remove('hero-disabled');
+        });
+        return;
+    }
+    var slotName = activeDraftSlot.dataset.slot;
+    var slotTeam = slotName.startsWith('team1') ? 'team1' : 'team2';
+    var slotType = slotName.includes('ban') ? 'ban' : 'protect';
+    var otherTeam = slotTeam === 'team1' ? 'team2' : 'team1';
+    var otherProtects = getDraftSlotHeroes(otherTeam, 'protect');
+    var teamBans = getDraftSlotHeroes(slotTeam, 'ban');
+    var otherBans = getDraftSlotHeroes(otherTeam, 'ban');
+
+    document.querySelectorAll('.draft-hero-btn').forEach(function(btn) {
+        var hero = btn.dataset.hero;
+        var blocked = false;
+        if (slotType === 'ban') {
+            if (otherProtects.indexOf(hero) >= 0) blocked = true;
+            if (teamBans.indexOf(hero) >= 0) blocked = true;
+        } else {
+            if (otherBans.indexOf(hero) >= 0) blocked = true;
+        }
+        btn.disabled = blocked;
+        btn.classList.toggle('hero-disabled', blocked);
+    });
+}
+
+function activateDraftSlot(el) {
+    document.querySelectorAll('.draft-pick-slot').forEach(function(s) { s.classList.remove('slot-active'); });
+    el.classList.add('slot-active');
+    activeDraftSlot = el;
+    updateDraftAvailability();
+}
+
+function clearDraftSlot(el) {
+    el.querySelector('.slot-hero').textContent = '\u2014';
+    el.querySelector('input[type=hidden]').value = '';
+    var wrap = el.querySelector('.slot-img-wrap');
+    if (wrap) wrap.remove();
+    el.classList.remove('slot-filled', 'slot-active');
+    if (activeDraftSlot === el) activeDraftSlot = null;
+    updateDraftAvailability();
+}
+
+function pickDraftHero(btn) {
+    if (!activeDraftSlot) return;
+    var hero = btn.dataset.hero;
+    var img = btn.querySelector('img').src;
+
+    activeDraftSlot.querySelector('.slot-hero').textContent = hero;
+    activeDraftSlot.querySelector('input[type=hidden]').value = hero;
+
+    var wrap = activeDraftSlot.querySelector('.slot-img-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'slot-img-wrap';
+        var slotImg = document.createElement('img');
+        slotImg.className = 'slot-img';
+        wrap.appendChild(slotImg);
+        activeDraftSlot.insertBefore(wrap, activeDraftSlot.querySelector('.slot-hero'));
+    }
+    wrap.querySelector('.slot-img').src = img;
+    wrap.querySelector('.slot-img').alt = hero;
+
+    activeDraftSlot.classList.remove('slot-active');
+    activeDraftSlot.classList.add('slot-filled');
+
+    // Auto-advance to next empty draft slot
+    var allSlots = Array.from(document.querySelectorAll('.draft-pick-slot'));
+    var curIdx = allSlots.indexOf(activeDraftSlot);
+    activeDraftSlot = null;
+    for (var i = curIdx + 1; i < allSlots.length; i++) {
+        if (!allSlots[i].querySelector('input[type=hidden]').value) {
+            activateDraftSlot(allSlots[i]);
+            break;
+        }
+    }
+    if (!activeDraftSlot) updateDraftAvailability();
+}
+
+// Right-click to clear draft slots
+document.addEventListener('contextmenu', function(e) {
+    var slot = e.target.closest('.draft-pick-slot');
+    if (slot) { e.preventDefault(); clearDraftSlot(slot); }
+});
+
+// Player selection dropdown management
+document.querySelectorAll('.comp-player-select').forEach(select => {
+    const slot = select.getAttribute('name');
+    const inputField = document.querySelector(`.comp-player-input[data-slot="${slot.replace('_player_', '_')}"]`);
+    const form = select.closest('form');
+    
+    // Function to update the hidden input field
+    const updateInput = () => {
+        const value = select.value;
+        if (value === 'custom') {
+            // Show text input and make it the active one
+            if (inputField) {
+                inputField.style.display = 'block';
+                inputField.focus();
+            }
+            select.style.display = 'none';
+        } else {
+            // Use selected value
+            if (inputField) {
+                inputField.style.display = 'none';
+                inputField.value = value;
+            }
+            select.style.display = 'block';
+        }
+    };
+
+    // When form is about to submit, update the hidden input with the correct value
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (inputField && select.style.display === 'none') {
+                // Text input is active, use its value
+                inputField.setAttribute('name', slot);
+            } else if (inputField) {
+                // Dropdown is active, use dropdown value
+                inputField.setAttribute('name', '');
+                const correctInput = document.createElement('input');
+                correctInput.type = 'hidden';
+                correctInput.name = slot;
+                correctInput.value = select.value;
+                form.appendChild(correctInput);
+            }
+        });
+    }
+    
+    select.addEventListener('change', updateInput);
+    
+    // Initialize on page load
+    if (select.value === 'custom' || (inputField && inputField.value && !Array.from(select.options).some(opt => opt.value === inputField.value))) {
+        select.value = 'custom';
+        updateInput();
+    }
+});
+
+function applyPlayerValueToControls(form, slotName, value) {
+    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
+    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
+    if (!select || !input) {
+        return;
+    }
+
+    const normalizedValue = value || '';
+    const matchingOption = Array.from(select.options).find(opt => opt.value === normalizedValue);
+    if (normalizedValue && matchingOption && normalizedValue !== 'custom') {
+        select.style.display = 'block';
+        select.value = normalizedValue;
+        input.style.display = 'none';
+        input.value = normalizedValue;
+        return;
+    }
+
+    if (!normalizedValue) {
+        select.style.display = 'block';
+        select.value = '';
+        input.style.display = 'none';
+        input.value = '';
+        return;
+    }
+
+    select.value = 'custom';
+    select.style.display = 'none';
+    input.style.display = 'block';
+    input.value = normalizedValue;
+}
+
+function copyPreviousCompSection(sectionIndex) {
+    sectionIndex = Number(sectionIndex);
+    if (!Number.isFinite(sectionIndex)) {
+        return;
+    }
+    if (sectionIndex <= 0) {
+        return;
+    }
+
+    const currentModal = document.getElementById(`editCompSectionModal${sectionIndex}`);
+    const prevModal = document.getElementById(`editCompSectionModal${sectionIndex - 1}`);
+    if (!currentModal || !prevModal) {
+        return;
+    }
+
+    const currentForm = currentModal.querySelector('form');
+    const prevForm = prevModal.querySelector('form');
+    if (!currentForm || !prevForm) {
+        return;
+    }
+
+    const scoreInput = currentForm.querySelector('input[name="score"]');
+    const prevScoreInput = prevForm.querySelector('input[name="score"]');
+    if (scoreInput && prevScoreInput) {
+        scoreInput.value = prevScoreInput.value || '';
+    }
+
+    ['team1', 'team2'].forEach(team => {
+        for (let i = 0; i < 6; i++) {
+            const heroName = `${team}_hero_${i}`;
+            const playerName = `${team}_player_${i}`;
+
+            const fromHero = prevForm.querySelector(`select[name="${heroName}"]`);
+            const toHero = currentForm.querySelector(`select[name="${heroName}"]`);
+            if (fromHero && toHero) {
+                toHero.value = fromHero.value || '';
+            }
+
+            const fromPlayerSelect = prevForm.querySelector(`.comp-player-select[name="${playerName}"]`);
+            const fromPlayerInput = prevForm.querySelector(`.comp-player-input[data-slot="${playerName.replace('_player_', '_')}"]`);
+            let fromPlayerValue = '';
+
+            if (fromPlayerSelect) {
+                if (fromPlayerSelect.style.display === 'none' || fromPlayerSelect.value === 'custom') {
+                    fromPlayerValue = fromPlayerInput ? fromPlayerInput.value : '';
+                } else {
+                    fromPlayerValue = fromPlayerSelect.value || '';
+                }
+            }
+
+            applyPlayerValueToControls(currentForm, playerName, fromPlayerValue);
+        }
+    });
+}
+</script>
+{% endblock %}
