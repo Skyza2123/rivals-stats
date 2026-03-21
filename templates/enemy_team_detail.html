@@ -16,6 +16,11 @@
         </div>
     </div>
     <div class="header-actions team-hero-actions">
+        <select id="enemyTimeRange" aria-label="Time range" class="team-range-select" onchange="const u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('timeframe')}else{u.searchParams.set('timeframe', this.value)} window.location.href=u.toString();">
+            <option value="all" {% if selected_timeframe == 'all' %}selected{% endif %}>All Time</option>
+            <option value="month" {% if selected_timeframe == 'month' %}selected{% endif %}>Last Month</option>
+            <option value="week" {% if selected_timeframe == 'week' %}selected{% endif %}>Last Week</option>
+        </select>
         <a href="{{ url_for('team_detail', team_id=main_team.id) }}" class="button-secondary">Back to {{ main_team.name }}</a>
         <form method="post" action="{{ url_for('delete_enemy_team', enemy_team_id=enemy_team.id) }}" onsubmit="return confirm('Delete this enemy team and all players?');">
             <button type="submit" class="button-secondary">Delete Team</button>

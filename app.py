@@ -7,7 +7,7 @@ import sqlite3
 import importlib
 from difflib import SequenceMatcher
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
@@ -186,6 +186,39 @@ def save_app_state() -> None:
         ],
     )
     db.commit()
+
+
+def _parse_scrim_date(raw_value: str) -> date | None:
+    text = (raw_value or "").strip()
+    if not text:
+        return None
+
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        pass
+
+    for fmt in ("%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def filter_scrims_by_timeframe(scrims: list[dict], timeframe: str) -> list[dict]:
+    key = (timeframe or "all").strip().lower()
+    if key not in {"week", "month"}:
+        return scrims
+
+    days = 7 if key == "week" else 30
+    cutoff = date.today() - timedelta(days=days)
+    filtered = []
+    for scrim in scrims:
+        parsed = _parse_scrim_date(scrim.get("scrim_date", ""))
+        if parsed and parsed >= cutoff:
+            filtered.append(scrim)
+    return filtered
 
 
 def compute_player_stats(player_name: str) -> dict:
@@ -1497,7 +1530,7 @@ def team_detail(team_id: int):
     if team is None:
         abort(404)
 
-    team_scrims = [
+    all_team_scrims = [
         scrim
         for scrim in SCRIMS
         if scrim.get("team_id") == team["id"]
@@ -1506,6 +1539,10 @@ def team_detail(team_id: int):
             and (scrim.get("team_name", "") or "").strip().lower() == team["name"].strip().lower()
         )
     ]
+    time_range = (request.args.get("timeframe") or "all").strip().lower()
+    if time_range not in {"all", "month", "week"}:
+        time_range = "all"
+    team_scrims = filter_scrims_by_timeframe(all_team_scrims, time_range)
     team_analytics = build_scrim_analytics(team_scrims)
     hero_graph_rows = [
         {
@@ -1630,6 +1667,7 @@ def team_detail(team_id: int):
         enemy_teams=enemy_teams,
         player_roles=PLAYER_ROLES,
         team_analytics=team_analytics,
+        selected_timeframe=time_range,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
         team_scrim_count=len(team_scrims),
@@ -2018,7 +2056,7 @@ def enemy_team_detail(enemy_team_id: int):
         (enemy_team_id,),
     ).fetchall()
 
-    matched_enemy_scrims = []
+    all_matched_enemy_scrims = []
     enemy_name_lower = (enemy_team["name"] or "").strip().lower()
     for scrim in SCRIMS:
         if scrim.get("team_id") != main_team["id"]:
@@ -2026,12 +2064,17 @@ def enemy_team_detail(enemy_team_id: int):
 
         scrim_enemy_id = scrim.get("enemy_team_id")
         if scrim_enemy_id == enemy_team_id:
-            matched_enemy_scrims.append(scrim)
+            all_matched_enemy_scrims.append(scrim)
             continue
 
         scrim_enemy_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip().lower()
         if scrim_enemy_name and scrim_enemy_name == enemy_name_lower:
-            matched_enemy_scrims.append(scrim)
+            all_matched_enemy_scrims.append(scrim)
+
+    time_range = (request.args.get("timeframe") or "all").strip().lower()
+    if time_range not in {"all", "month", "week"}:
+        time_range = "all"
+    matched_enemy_scrims = filter_scrims_by_timeframe(all_matched_enemy_scrims, time_range)
 
     enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
     enemy_analytics = build_scrim_analytics(enemy_perspective_scrims)
@@ -2085,6 +2128,7 @@ def enemy_team_detail(enemy_team_id: int):
         enemy_team=enemy_team,
         players=players,
         enemy_analytics=enemy_analytics,
+        selected_timeframe=time_range,
         enemy_scrim_count=len(matched_enemy_scrims),
         enemy_map_cards=enemy_map_cards,
         enemy_map_mode_rows=enemy_map_mode_rows,
