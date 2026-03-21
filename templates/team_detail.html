@@ -12,7 +12,15 @@
                 Overall Record: {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L
                 &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
             </p>
-            <p>{{ team.notes or 'No team notes yet.' }} &bull; {{ team_scrim_count }} scrims</p>
+            <p>
+                {{ team.notes or 'No team notes yet.' }}
+                &bull;
+                {% if selected_timeframe == 'all' %}
+                    {{ team_scrim_count }} scrims
+                {% else %}
+                    {{ team_scrim_count }} scrims in this range ({{ team_scrim_total_count }} total)
+                {% endif %}
+            </p>
         </div>
     </div>
     <div class="header-actions team-hero-actions">

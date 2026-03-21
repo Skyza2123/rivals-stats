@@ -12,7 +12,15 @@
                 Record vs {{ main_team.name }}: {{ enemy_analytics.summary.total_wins }}W - {{ enemy_analytics.summary.total_losses }}L
                 &bull; {{ enemy_analytics.summary.overall_win_rate }}% Win Rate
             </p>
-            <p>{{ enemy_team.notes or 'No team notes yet.' }} &bull; {{ enemy_scrim_count }} scrims</p>
+            <p>
+                {{ enemy_team.notes or 'No team notes yet.' }}
+                &bull;
+                {% if selected_timeframe == 'all' %}
+                    {{ enemy_scrim_count }} scrims
+                {% else %}
+                    {{ enemy_scrim_count }} scrims in this range ({{ enemy_scrim_total_count }} total)
+                {% endif %}
+            </p>
         </div>
     </div>
     <div class="header-actions team-hero-actions">
