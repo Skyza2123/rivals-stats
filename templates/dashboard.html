@@ -51,7 +51,7 @@
                     <div>
                         <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
                         <div class="list-subtitle">
-                            {{ scrim.scrim_date }}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
+                            {{ scrim.scrim_date }}{% if scrim.season %} • Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
                         </div>
                     </div>
                     <div class="list-meta">

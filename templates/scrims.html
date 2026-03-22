@@ -30,7 +30,7 @@
                         <span class="scrim-box-maps">{{ scrim.maps|length }} maps</span>
                     </div>
                     <div class="list-subtitle">
-                        {{ scrim.scrim_date }}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
+                        {{ scrim.scrim_date }}{% if scrim.season %} • Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
                     </div>
                     <div class="scrim-box-cta">Open Scrim →</div>
                 </a>

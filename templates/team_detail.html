@@ -15,19 +15,20 @@
             <p>
                 {{ team.notes or 'No team notes yet.' }}
                 &bull;
-                {% if selected_timeframe == 'all' %}
+                {% if selected_season == 'all' %}
                     {{ team_scrim_count }} scrims
                 {% else %}
-                    {{ team_scrim_count }} scrims in this range ({{ team_scrim_total_count }} total)
+                    {{ team_scrim_count }} scrims in Season {{ selected_season }} ({{ team_scrim_total_count }} total)
                 {% endif %}
             </p>
         </div>
     </div>
     <div class="header-actions team-hero-actions">
-        <select id="teamTimeRange" aria-label="Time range" class="team-range-select" onchange="const u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('timeframe')}else{u.searchParams.set('timeframe', this.value)} window.location.href=u.toString();">
-            <option value="all" {% if selected_timeframe == 'all' %}selected{% endif %}>All Time</option>
-            <option value="month" {% if selected_timeframe == 'month' %}selected{% endif %}>Last Month</option>
-            <option value="week" {% if selected_timeframe == 'week' %}selected{% endif %}>Last Week</option>
+        <select id="teamSeasonFilter" aria-label="Season filter" class="team-range-select" onchange="const u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', this.value)} window.location.href=u.toString();">
+            <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+            {% for season in season_options %}
+                <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+            {% endfor %}
         </select>
         <a href="{{ url_for('teams') }}" class="button-secondary">Back to Teams</a>
         <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
@@ -386,7 +387,7 @@
                 <h3>Draft Simulator Prediction</h3>
                 <p class="panel-intro">Select slots and heroes to simulate the draft. Start simulation to see live likely responses.</p>
                 <form method="get" class="top-gap" id="draft-predict-form-team">
-                    <input type="hidden" name="timeframe" value="{{ selected_timeframe }}">
+                    <input type="hidden" name="season" value="{{ selected_season }}">
                     <div class="field" style="max-width: 260px;">
                         <label for="sim-side-team">Simulation Side</label>
                         <select id="sim-side-team" aria-label="Simulation Side">
@@ -500,7 +501,7 @@
                     const resultsContainer = document.getElementById('simulation-results-team');
                     const team1Heading = board.querySelector('.draft-column:nth-child(1) h4');
                     const team2Heading = board.querySelector('.draft-column:nth-child(2) h4');
-                    const timeframeValue = '{{ selected_timeframe }}';
+                    const seasonValue = '{{ selected_season }}';
                     const endpointUrl = '{{ url_for("team_draft_predict", team_id=team.id) }}';
 
                     const groups = [
@@ -630,7 +631,9 @@
 
                     async function fetchSimulationPrediction(triggerField) {
                         const query = new URLSearchParams();
-                        query.set('timeframe', timeframeValue);
+                        if (seasonValue && seasonValue !== 'all') {
+                            query.set('season', seasonValue);
+                        }
                         const payload = collectInputs();
                         Object.entries(payload).forEach(([key, value]) => query.set(key, value));
 

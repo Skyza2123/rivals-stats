@@ -6,7 +6,7 @@
 <div class="main-header">
     <div>
         <h2>vs {{ scrim.enemy_team or scrim.opponent }}</h2>
-        <p>{{ scrim.scrim_date }}{% if scrim.team_name %} &bull; {{ scrim.team_name }}{% endif %}</p>
+        <p>{{ scrim.scrim_date }}{% if scrim.season %} &bull; Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} &bull; {{ scrim.team_name }}{% endif %}</p>
     </div>
     <div class="header-actions">
         <a href="{{ url_for('scrims') }}" class="button-secondary">Back to Scrims</a>
@@ -32,6 +32,10 @@
     <section class="stat-card">
         <strong>Team</strong>
         <span>{{ scrim.team_name or "—" }}</span>
+    </section>
+    <section class="stat-card">
+        <strong>Season</strong>
+        <span>{{ scrim.season or "—" }}</span>
     </section>
 </div>
 
@@ -174,6 +178,10 @@
                 <div class="field">
                     <label for="edit_date">Date</label>
                     <input type="date" id="edit_date" name="scrim_date" value="{{ scrim.scrim_date }}">
+                </div>
+                <div class="field">
+                    <label for="edit_season">Season</label>
+                    <input type="text" id="edit_season" name="season" value="{{ scrim.season }}" placeholder="e.g. 7 or 7.5" required>
                 </div>
                 <div class="field">
                     <label for="edit_team_id">Your Team</label>

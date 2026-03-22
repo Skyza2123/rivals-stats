@@ -74,6 +74,9 @@ def ensure_state_defaults() -> None:
     global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID
     if not isinstance(SCRIMS, list):
         SCRIMS = []
+    for scrim in SCRIMS:
+        if isinstance(scrim, dict):
+            normalize_scrim_record(scrim)
     NEXT_SCRIM_ID = max(1, int(NEXT_SCRIM_ID or 1))
     NEXT_MAP_ID = max(1, int(NEXT_MAP_ID or 1))
     NEXT_EVENT_ID = max(1, int(NEXT_EVENT_ID or 1))
@@ -230,19 +233,36 @@ def _parse_scrim_date(raw_value: str) -> date | None:
     return None
 
 
-def filter_scrims_by_timeframe(scrims: list[dict], timeframe: str) -> list[dict]:
-    key = (timeframe or "all").strip().lower()
-    if key not in {"week", "month"}:
-        return scrims
+def normalize_season_value(raw_value: str) -> str:
+    return " ".join((raw_value or "").strip().split())
 
-    days = 7 if key == "week" else 30
-    cutoff = date.today() - timedelta(days=days)
-    filtered = []
-    for scrim in scrims:
-        parsed = _parse_scrim_date(scrim.get("scrim_date", ""))
-        if parsed and parsed >= cutoff:
-            filtered.append(scrim)
-    return filtered
+
+def normalize_scrim_record(scrim: dict) -> dict:
+    scrim["season"] = normalize_season_value(scrim.get("season", ""))
+    return scrim
+
+
+def get_scrim_season_options(scrims: list[dict]) -> list[str]:
+    seasons = {
+        normalize_season_value(scrim.get("season", ""))
+        for scrim in scrims
+        if normalize_season_value(scrim.get("season", ""))
+    }
+    return sorted(seasons, key=lambda value: [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)])
+
+
+def get_selected_season(raw_value: str, season_options: list[str]) -> str:
+    selected = normalize_season_value(raw_value)
+    if not selected or selected.lower() == "all":
+        return "all"
+    return selected if selected in season_options else "all"
+
+
+def filter_scrims_by_season(scrims: list[dict], season: str) -> list[dict]:
+    selected = normalize_season_value(season)
+    if not selected or selected.lower() == "all":
+        return scrims
+    return [scrim for scrim in scrims if normalize_season_value(scrim.get("season", "")) == selected]
 
 
 def compute_player_stats(player_name: str) -> dict:
@@ -1994,10 +2014,9 @@ def team_detail(team_id: int):
             and (scrim.get("team_name", "") or "").strip().lower() == team["name"].strip().lower()
         )
     ]
-    time_range = (request.args.get("timeframe") or "all").strip().lower()
-    if time_range not in {"all", "month", "week"}:
-        time_range = "all"
-    team_scrims = filter_scrims_by_timeframe(all_team_scrims, time_range)
+    season_options = get_scrim_season_options(all_team_scrims)
+    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
         for field_key in PREDICTOR_INPUT_ORDER
@@ -2128,7 +2147,8 @@ def team_detail(team_id: int):
         enemy_teams=enemy_teams,
         player_roles=PLAYER_ROLES,
         team_analytics=team_analytics,
-        selected_timeframe=time_range,
+        season_options=season_options,
+        selected_season=selected_season,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
         team_scrim_count=len(team_scrims),
@@ -2162,12 +2182,9 @@ def team_draft_predict(team_id: int):
             and (scrim.get("team_name", "") or "").strip().lower() == team["name"].strip().lower()
         )
     ]
-
-    time_range = (request.args.get("timeframe") or "all").strip().lower()
-    if time_range not in {"all", "month", "week"}:
-        time_range = "all"
-
-    team_scrims = filter_scrims_by_timeframe(all_team_scrims, time_range)
+    season_options = get_scrim_season_options(all_team_scrims)
+    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
         for field_key in PREDICTOR_INPUT_ORDER
@@ -2564,10 +2581,9 @@ def enemy_team_detail(enemy_team_id: int):
         if scrim_enemy_name and scrim_enemy_name == enemy_name_lower:
             all_matched_enemy_scrims.append(scrim)
 
-    time_range = (request.args.get("timeframe") or "all").strip().lower()
-    if time_range not in {"all", "month", "week"}:
-        time_range = "all"
-    matched_enemy_scrims = filter_scrims_by_timeframe(all_matched_enemy_scrims, time_range)
+    season_options = get_scrim_season_options(all_matched_enemy_scrims)
+    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    matched_enemy_scrims = filter_scrims_by_season(all_matched_enemy_scrims, selected_season)
 
     enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
     predictor_inputs = {
@@ -2627,7 +2643,8 @@ def enemy_team_detail(enemy_team_id: int):
         enemy_team=enemy_team,
         players=players,
         enemy_analytics=enemy_analytics,
-        selected_timeframe=time_range,
+        season_options=season_options,
+        selected_season=selected_season,
         enemy_scrim_count=len(matched_enemy_scrims),
         enemy_scrim_total_count=len(all_matched_enemy_scrims),
         enemy_map_cards=enemy_map_cards,
@@ -2675,11 +2692,10 @@ def enemy_draft_predict(enemy_team_id: int):
         if scrim_enemy_name and scrim_enemy_name == enemy_name_lower:
             all_matched_enemy_scrims.append(scrim)
 
-    time_range = (request.args.get("timeframe") or "all").strip().lower()
-    if time_range not in {"all", "month", "week"}:
-        time_range = "all"
+    season_options = get_scrim_season_options(all_matched_enemy_scrims)
+    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
 
-    matched_enemy_scrims = filter_scrims_by_timeframe(all_matched_enemy_scrims, time_range)
+    matched_enemy_scrims = filter_scrims_by_season(all_matched_enemy_scrims, selected_season)
     enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
@@ -3220,6 +3236,7 @@ def _parse_csv_into_scrims(
             "enemy_team":    enemy_name,
             "enemy_team_id": None,
             "scrim_date":    scrim_date,
+            "season":       "",
             "team_id":       team_id,
             "team_name":     team_name,
             "notes":         "",
@@ -3275,6 +3292,7 @@ def import_csv_scrims():
 
     imported = 0
     for scrim in parsed_scrims:
+        normalize_scrim_record(scrim)
         # Assign IDs
         scrim["id"] = NEXT_SCRIM_ID
         NEXT_SCRIM_ID += 1
@@ -3341,7 +3359,12 @@ def create_scrim():
     enemy_team = request.form.get("enemy_team_manual", "").strip() or request.form.get("opponent", "").strip()
     enemy_team_id = request.form.get("enemy_team_id", "").strip()
     scrim_date = request.form.get("scrim_date", "").strip()
+    season = normalize_season_value(request.form.get("season", ""))
     notes = request.form.get("notes", "").strip()
+
+    if not season:
+        flash("Please set a season for this scrim.", "error")
+        return redirect(url_for("new_scrim"))
 
     scrim = {
         "id": NEXT_SCRIM_ID,
@@ -3349,6 +3372,7 @@ def create_scrim():
         "enemy_team": enemy_team,
         "enemy_team_id": int(enemy_team_id) if enemy_team_id else None,
         "scrim_date": scrim_date,
+        "season": season,
         "team_id": team_id,
         "team_name": team_name,
         "notes": notes,
@@ -3397,9 +3421,15 @@ def edit_scrim(scrim_id: int):
         return redirect(url_for("scrim_detail", scrim_id=scrim_id))
 
     enemy_team = request.form.get("enemy_team", scrim.get("enemy_team", scrim.get("opponent", ""))).strip()
+    season = normalize_season_value(request.form.get("season", scrim.get("season", "")))
+    if not season:
+        flash("Please set a season for this scrim.", "error")
+        return redirect(url_for("scrim_detail", scrim_id=scrim_id))
+
     scrim["opponent"] = enemy_team
     scrim["enemy_team"] = enemy_team
     scrim["scrim_date"] = request.form.get("scrim_date", scrim["scrim_date"]).strip()
+    scrim["season"] = season
     scrim["team_id"] = team_id
     scrim["team_name"] = team_name
     scrim["notes"] = request.form.get("notes", scrim["notes"]).strip()
