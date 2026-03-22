@@ -319,7 +319,7 @@ def filter_scrims_by_season(scrims: list[dict], season: str) -> list[dict]:
     return [scrim for scrim in scrims if normalize_season_value(scrim.get("season", "")) == selected]
 
 
-def compute_player_stats(player_name: str) -> dict:
+def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> dict:
     target = player_name.strip()
     if not target:
         return {
@@ -336,8 +336,9 @@ def compute_player_stats(player_name: str) -> dict:
     events_mentioned = 0
     target_lower = target.lower()
     exact_name_pattern = re.compile(r"(?<!\\w)" + re.escape(target_lower) + r"(?!\\w)")
+    source_scrims = scrims if scrims is not None else SCRIMS
 
-    for scrim in SCRIMS:
+    for scrim in source_scrims:
         for map_entry in scrim["maps"]:
             player_found = False
             for section in map_entry.get("comp", []):
@@ -2178,7 +2179,7 @@ def team_detail(team_id: int):
 
     players = []
     for row in player_rows:
-        stats = compute_player_stats(row["name"])
+        stats = compute_player_stats(row["name"], team_scrims)
         players.append({
             "id": row["id"],
             "name": row["name"],
