@@ -16,6 +16,48 @@
 </div>
 
 <section class="panel">
+    <h3>Team Draft Saves</h3>
+    <div class="form-grid">
+        <div class="field">
+            <label for="draftTeamSelect">Team</label>
+            <select id="draftTeamSelect">
+                <option value="">Select team</option>
+                {% for team in teams %}
+                    <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="draftSeasonInput">Season</label>
+            <input id="draftSeasonInput" type="text" placeholder="e.g. 7 or 7.5">
+        </div>
+        <div class="field">
+            <label for="draftNameInput">Draft Name</label>
+            <input id="draftNameInput" type="text" placeholder="e.g. Anti-Dive Open" maxlength="80">
+        </div>
+    </div>
+    <div class="button-row top-gap">
+        <button type="button" id="saveDraftBtn">Save Draft</button>
+    </div>
+    <div class="form-grid top-gap">
+        <div class="field">
+            <label for="savedDraftSelect">Saved Drafts</label>
+            <select id="savedDraftSelect">
+                <option value="">No saved drafts</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>&nbsp;</label>
+            <div class="button-row">
+                <button type="button" class="button-secondary" id="loadDraftBtn">Load Selected</button>
+                <button type="button" class="button-secondary" id="deleteDraftBtn">Delete Selected</button>
+            </div>
+        </div>
+    </div>
+    <p class="panel-intro top-gap" id="draftSaveStatus"></p>
+</section>
+
+<section class="panel">
     <div class="draft-grid">
         <div class="draft-column">
             <h4>Team 1</h4>
@@ -173,9 +215,227 @@ let delayTimer = null;
 let pickTimer = null;
 let countdownInterval = null;
 let countdownSeconds = 0;
+let savedDrafts = [];
+
+const HERO_IMAGE_BY_NAME = {};
+document.querySelectorAll('.hero-pick-btn').forEach(btn => {
+    const hero = btn.dataset.hero;
+    const img = btn.querySelector('img');
+    if (hero && img) {
+        HERO_IMAGE_BY_NAME[hero] = img.src;
+    }
+});
 
 function getSlotByName(name) {
     return document.querySelector('.draft-slot[data-slot="' + name + '"]');
+}
+
+function setSlotHero(slot, hero) {
+    const value = (hero || '').trim();
+    const hidden = slot.querySelector('input');
+    const heroLabel = slot.querySelector('.slot-hero');
+    let slotWrap = slot.querySelector('.slot-img-wrap');
+
+    hidden.value = value;
+
+    if (!value) {
+        heroLabel.textContent = '';
+        if (slotWrap) slotWrap.remove();
+        slot.classList.remove('slot-filled');
+        return;
+    }
+
+    heroLabel.textContent = value;
+    if (!slotWrap) {
+        slotWrap = document.createElement('div');
+        slotWrap.className = 'slot-img-wrap';
+        const slotImg = document.createElement('img');
+        slotImg.className = 'slot-img';
+        slotWrap.appendChild(slotImg);
+        slot.insertBefore(slotWrap, heroLabel);
+    }
+
+    const slotImg = slotWrap.querySelector('.slot-img');
+    slotImg.src = HERO_IMAGE_BY_NAME[value] || '';
+    slotImg.alt = value;
+
+    const oldTag = slotWrap.querySelector('.pool-tag');
+    if (oldTag) oldTag.remove();
+    const heroBtn = document.querySelector('.hero-pick-btn[data-hero="' + CSS.escape(value) + '"]');
+    const poolTag = heroBtn ? heroBtn.querySelector('.pool-tag') : null;
+    if (poolTag) {
+        slotWrap.appendChild(poolTag.cloneNode(true));
+    }
+
+    slot.classList.add('slot-filled');
+}
+
+function collectDraftSlots() {
+    const slots = {};
+    document.querySelectorAll('.draft-slot').forEach(slot => {
+        slots[slot.dataset.slot] = (slot.querySelector('input').value || '').trim();
+    });
+    return slots;
+}
+
+function applyDraftSlots(slots) {
+    resetDraft();
+    const data = (slots && typeof slots === 'object') ? slots : {};
+    document.querySelectorAll('.draft-slot').forEach(slot => {
+        const hero = data[slot.dataset.slot] || '';
+        setSlotHero(slot, hero);
+    });
+    recalcStep();
+    if (!realTimeMode && currentStep < DRAFT_ORDER.length) {
+        activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
+    } else {
+        updateHeroAvailability();
+    }
+}
+
+function showDraftStatus(message, isError) {
+    const status = document.getElementById('draftSaveStatus');
+    if (!status) return;
+    status.textContent = message || '';
+    status.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+}
+
+function renderSavedDraftOptions() {
+    const select = document.getElementById('savedDraftSelect');
+    const currentId = select.value;
+    select.innerHTML = '';
+
+    if (!savedDrafts.length) {
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = 'No saved drafts';
+        select.appendChild(emptyOpt);
+        return;
+    }
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select saved draft';
+    select.appendChild(placeholder);
+
+    savedDrafts.forEach(draft => {
+        const option = document.createElement('option');
+        option.value = String(draft.id);
+        const seasonPart = draft.season ? ' [S' + draft.season + ']' : '';
+        option.textContent = draft.name + seasonPart;
+        select.appendChild(option);
+    });
+
+    if (currentId && savedDrafts.some(d => String(d.id) === currentId)) {
+        select.value = currentId;
+    }
+}
+
+async function loadSavedDrafts() {
+    const teamId = document.getElementById('draftTeamSelect').value;
+    savedDrafts = [];
+    renderSavedDraftOptions();
+
+    if (!teamId) {
+        showDraftStatus('Select a team to manage saved drafts.', false);
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/teams/' + encodeURIComponent(teamId) + '/saved-drafts');
+        if (!response.ok) throw new Error('Could not load saved drafts.');
+        savedDrafts = await response.json();
+        renderSavedDraftOptions();
+        showDraftStatus('Loaded ' + savedDrafts.length + ' saved draft' + (savedDrafts.length === 1 ? '' : 's') + '.', false);
+    } catch (_error) {
+        showDraftStatus('Failed to load saved drafts for this team.', true);
+    }
+}
+
+async function saveCurrentDraft() {
+    const teamId = document.getElementById('draftTeamSelect').value;
+    const season = (document.getElementById('draftSeasonInput').value || '').trim();
+    const name = (document.getElementById('draftNameInput').value || '').trim();
+
+    if (!teamId) {
+        showDraftStatus('Choose a team before saving.', true);
+        return;
+    }
+    if (!name) {
+        showDraftStatus('Enter a draft name before saving.', true);
+        return;
+    }
+
+    const payload = {
+        name,
+        season,
+        slots: collectDraftSlots(),
+    };
+
+    try {
+        const response = await fetch('/api/teams/' + encodeURIComponent(teamId) + '/saved-drafts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            showDraftStatus(data.error || 'Failed to save draft.', true);
+            return;
+        }
+        await loadSavedDrafts();
+        const select = document.getElementById('savedDraftSelect');
+        select.value = String(data.id);
+        showDraftStatus('Draft saved for this team.', false);
+    } catch (_error) {
+        showDraftStatus('Failed to save draft.', true);
+    }
+}
+
+function loadSelectedDraft() {
+    const selectedId = document.getElementById('savedDraftSelect').value;
+    if (!selectedId) {
+        showDraftStatus('Select a saved draft first.', true);
+        return;
+    }
+    const draft = savedDrafts.find(item => String(item.id) === String(selectedId));
+    if (!draft) {
+        showDraftStatus('Saved draft not found. Refreshing list.', true);
+        loadSavedDrafts();
+        return;
+    }
+
+    applyDraftSlots(draft.slots);
+    if (draft.season) {
+        document.getElementById('draftSeasonInput').value = draft.season;
+    }
+    document.getElementById('draftNameInput').value = draft.name;
+    showDraftStatus('Loaded saved draft.', false);
+}
+
+async function deleteSelectedDraft() {
+    const selectedId = document.getElementById('savedDraftSelect').value;
+    if (!selectedId) {
+        showDraftStatus('Select a saved draft first.', true);
+        return;
+    }
+    if (!confirm('Delete this saved draft?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/saved-drafts/' + encodeURIComponent(selectedId), {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            showDraftStatus('Failed to delete saved draft.', true);
+            return;
+        }
+        await loadSavedDrafts();
+        showDraftStatus('Saved draft deleted.', false);
+    } catch (_error) {
+        showDraftStatus('Failed to delete saved draft.', true);
+    }
 }
 
 function getTeamHeroes(team, type) {
@@ -549,5 +809,11 @@ function resetDraft() {
 document.getElementById('rt-start-wrap').style.display = 'none';
 updateStepHighlight();
 activateSlot(getSlotByName(DRAFT_ORDER[0]));
+
+document.getElementById('draftTeamSelect').addEventListener('change', loadSavedDrafts);
+document.getElementById('saveDraftBtn').addEventListener('click', saveCurrentDraft);
+document.getElementById('loadDraftBtn').addEventListener('click', loadSelectedDraft);
+document.getElementById('deleteDraftBtn').addEventListener('click', deleteSelectedDraft);
+loadSavedDrafts();
 </script>
 {% endblock %}

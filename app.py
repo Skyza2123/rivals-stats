@@ -53,6 +53,20 @@ PREDICTOR_INPUT_ORDER = (
     "t2_protect2",
     "t1_ban4",
 )
+SIMULATOR_SLOT_ORDER = (
+    "team1_ban1",
+    "team2_ban1",
+    "team1_ban2",
+    "team2_protect1",
+    "team2_ban2",
+    "team1_protect1",
+    "team1_ban3",
+    "team2_ban3",
+    "team1_protect2",
+    "team2_ban4",
+    "team1_ban4",
+    "team2_protect2",
+)
 PREDICTOR_GROUPS = (
     (("team1", "ban1", "t1_ban1"), ("team2", "ban1", "t2_ban1")),
     (("team2", "protect1", "t2_protect1"),),
@@ -149,6 +163,16 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS app_state (
                 state_key TEXT PRIMARY KEY,
                 state_value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS team_saved_drafts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id INTEGER NOT NULL,
+                draft_name TEXT NOT NULL,
+                season TEXT NOT NULL DEFAULT '',
+                draft_slots_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
             );
             """
         )
@@ -1380,6 +1404,16 @@ def _canonical_draft_hero(raw_hero: str) -> str:
     if not hero_text:
         return ""
     return _resolve_hero_transform_key(hero_text) or hero_text
+
+
+def _sanitize_simulator_draft_slots(raw_slots: dict | None) -> dict[str, str]:
+    cleaned = {slot_name: "" for slot_name in SIMULATOR_SLOT_ORDER}
+    if not isinstance(raw_slots, dict):
+        return cleaned
+
+    for slot_name in SIMULATOR_SLOT_ORDER:
+        cleaned[slot_name] = _canonical_draft_hero(raw_slots.get(slot_name, ""))
+    return cleaned
 
 
 def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dict:
@@ -3365,6 +3399,101 @@ def api_get_enemy_teams(team_id: int):
     } for row in enemy_team_rows])
 
 
+@app.route("/api/teams")
+def api_get_teams():
+    team_rows = get_db().execute(
+        "SELECT id, name FROM teams ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    return jsonify([
+        {
+            "id": row["id"],
+            "name": row["name"],
+        }
+        for row in team_rows
+    ])
+
+
+@app.route("/api/teams/<int:team_id>/saved-drafts", methods=["GET", "POST"])
+def api_team_saved_drafts(team_id: int):
+    db = get_db()
+    team = db.execute("SELECT id FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    if request.method == "GET":
+        rows = db.execute(
+            """
+            SELECT id, draft_name, season, draft_slots_json, created_at
+            FROM team_saved_drafts
+            WHERE team_id = ?
+            ORDER BY created_at DESC, id DESC
+            """,
+            (team_id,),
+        ).fetchall()
+        drafts = []
+        for row in rows:
+            try:
+                slots = _sanitize_simulator_draft_slots(json.loads(row["draft_slots_json"] or "{}"))
+            except json.JSONDecodeError:
+                slots = _sanitize_simulator_draft_slots({})
+
+            drafts.append(
+                {
+                    "id": row["id"],
+                    "name": row["draft_name"],
+                    "season": row["season"],
+                    "slots": slots,
+                    "created_at": row["created_at"],
+                }
+            )
+        return jsonify(drafts)
+
+    payload = request.get_json(silent=True) or {}
+    draft_name = (payload.get("name") or "").strip()
+    season = normalize_season_value(payload.get("season", ""))
+    slots = _sanitize_simulator_draft_slots(payload.get("slots"))
+
+    if not draft_name:
+        return jsonify({"error": "Draft name is required."}), 400
+    if len(draft_name) > 80:
+        return jsonify({"error": "Draft name must be 80 characters or less."}), 400
+    if not any(slots.values()):
+        return jsonify({"error": "Add at least one draft hero before saving."}), 400
+
+    cursor = db.execute(
+        """
+        INSERT INTO team_saved_drafts (team_id, draft_name, season, draft_slots_json)
+        VALUES (?, ?, ?, ?)
+        """,
+        (team_id, draft_name, season, json.dumps(slots)),
+    )
+    db.commit()
+
+    return jsonify(
+        {
+            "id": cursor.lastrowid,
+            "name": draft_name,
+            "season": season,
+            "slots": slots,
+        }
+    ), 201
+
+
+@app.route("/api/saved-drafts/<int:draft_id>", methods=["DELETE"])
+def api_delete_saved_draft(draft_id: int):
+    db = get_db()
+    row = db.execute(
+        "SELECT id FROM team_saved_drafts WHERE id = ?",
+        (draft_id,),
+    ).fetchone()
+    if row is None:
+        abort(404)
+
+    db.execute("DELETE FROM team_saved_drafts WHERE id = ?", (draft_id,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
 @app.route("/scrims/new")
 def new_scrim():
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
@@ -3775,10 +3904,12 @@ def add_event_to_map(scrim_id: int, map_id: int):
 
 @app.route("/draft-simulator")
 def draft_simulator():
+    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
     return render_template(
         "draft_simulator.html",
         hero_roles=HERO_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
+        teams=teams,
     )
 
 
