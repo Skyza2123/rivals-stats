@@ -2537,6 +2537,12 @@ th {
     font-weight: 600;
 }
 
+.vbar-winrate {
+    font-size: 0.68rem;
+    color: #cbd5e1;
+    font-weight: 700;
+}
+
 .hero-inline-cell {
     display: inline-flex;
     align-items: center;

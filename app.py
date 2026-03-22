@@ -38,6 +38,30 @@ DB_PATH = Path(
 TEAM_LOGO_DIR = Path(app.static_folder) / "uploads" / "team_logos"
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
+DRAFT_SLOT_ORDER = ("ban1", "protect1", "ban2", "ban3", "protect2", "ban4")
+PREDICTOR_INPUT_ORDER = (
+    "t1_ban1",
+    "t2_ban1",
+    "t2_protect1",
+    "t1_ban2",
+    "t1_protect1",
+    "t1_ban3",
+    "t2_ban2",
+    "t1_protect2",
+    "t2_ban3",
+    "t2_ban4",
+    "t2_protect2",
+    "t1_ban4",
+)
+PREDICTOR_GROUPS = (
+    (("team1", "ban1", "t1_ban1"), ("team2", "ban1", "t2_ban1")),
+    (("team2", "protect1", "t2_protect1"),),
+    (("team1", "ban2", "t1_ban2"), ("team1", "protect1", "t1_protect1")),
+    (("team1", "ban3", "t1_ban3"), ("team2", "ban2", "t2_ban2")),
+    (("team1", "protect2", "t1_protect2"),),
+    (("team2", "ban3", "t2_ban3"), ("team2", "ban4", "t2_ban4"), ("team2", "protect2", "t2_protect2")),
+    (("team1", "ban4", "t1_ban4"),),
+)
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 SCRIMS = []
@@ -386,8 +410,6 @@ def build_default_comp_sections(map_name: str) -> list[dict]:
 
 def build_scrim_analytics(scrims: list[dict]) -> dict:
     ban_slot_keys = ("ban1", "ban2", "ban3", "ban4")
-    phase_ban_to_ban_slots = ("ban1", "ban2", "ban3", "ban4")
-    phase_ban_to_protect_slots = (("ban1", "protect1"), ("ban3", "protect2"))
     ban_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     enemy_ban_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     ban_position_stats = {slot: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for slot in ban_slot_keys}
@@ -411,10 +433,35 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
     comp_mirror_total = 0
     comp_soft_mirror_count = 0
     comp_hard_mirror_count = 0
-    ban_response_matrix = defaultdict(lambda: defaultdict(int))
-    enemy_ban_response_matrix = defaultdict(lambda: defaultdict(int))
-    ban_to_protect_matrix = defaultdict(lambda: defaultdict(int))
-    enemy_ban_to_protect_matrix = defaultdict(lambda: defaultdict(int))
+    ban_next_pairs = defaultdict(lambda: defaultdict(int))
+    ban_to_protect_pairs = defaultdict(lambda: defaultdict(int))
+    draft_route_counts = defaultdict(int)
+    draft_route_from_totals = defaultdict(int)
+    lead_source_counts = {
+        "ban": defaultdict(lambda: defaultdict(int)),
+        "protect": defaultdict(lambda: defaultdict(int)),
+    }
+    lead_target_totals = {
+        "ban": defaultdict(int),
+        "protect": defaultdict(int),
+    }
+    second_order_ban_targets = defaultdict(
+        lambda: {
+            "ban3": defaultdict(int),
+            "protect2": defaultdict(int),
+            "ban4": defaultdict(int),
+            "totals": {"ban3": 0, "protect2": 0, "ban4": 0},
+        }
+    )
+    protect1_influence_targets = defaultdict(
+        lambda: {
+            "ban2": defaultdict(int),
+            "ban3": defaultdict(int),
+            "protect2": defaultdict(int),
+            "ban4": defaultdict(int),
+            "totals": {"ban2": 0, "ban3": 0, "protect2": 0, "ban4": 0},
+        }
+    )
 
     total_maps = 0
     total_wins = 0
@@ -424,12 +471,6 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
     ban_position_totals = defaultdict(int)
     enemy_ban_position_totals = defaultdict(int)
     total_filled_protects = 0
-
-    def canonical_hero(hero_name: str) -> str:
-        raw = (hero_name or "").strip()
-        if not raw:
-            return ""
-        return _resolve_hero_transform_key(raw) or raw
 
     def classify_comp_profile(heroes: list[str]) -> str:
         role_counts = defaultdict(int)
@@ -447,6 +488,19 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         if strategist_count == 2 and dps_count == 2 and tank_count == 2:
             return "two_two_two"
         return "other"
+
+    def canonical_hero(raw_hero: str) -> str:
+        hero_text = (raw_hero or "").strip()
+        if not hero_text:
+            return ""
+        return _resolve_hero_transform_key(hero_text) or hero_text
+
+    def draft_slot_label(slot_key: str) -> str:
+        if slot_key.startswith("ban"):
+            return f"Ban {slot_key[-1]}"
+        if slot_key.startswith("protect"):
+            return f"Protect {slot_key[-1]}"
+        return slot_key
 
     for scrim in scrims:
         for map_entry in scrim.get("maps", []):
@@ -473,23 +527,87 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             our_draft = draft.get(our_team_slot, {})
             enemy_draft = draft.get(opposite_team_slot(our_team_slot), {})
 
-            for slot_key in phase_ban_to_ban_slots:
-                our_ban = canonical_hero(our_draft.get(slot_key, ""))
-                enemy_ban = canonical_hero(enemy_draft.get(slot_key, ""))
-                if our_ban and enemy_ban:
-                    ban_response_matrix[our_ban][enemy_ban] += 1
-                    enemy_ban_response_matrix[enemy_ban][our_ban] += 1
+            our_ban_slots = {
+                slot: canonical_hero(our_draft.get(slot, ""))
+                for slot in ("ban1", "ban2", "ban3", "ban4")
+            }
+            enemy_ban_slots = {
+                slot: canonical_hero(enemy_draft.get(slot, ""))
+                for slot in ("ban1", "ban2", "ban3", "ban4")
+            }
+            our_protect_slots = {
+                slot: canonical_hero(our_draft.get(slot, ""))
+                for slot in ("protect1", "protect2")
+            }
 
-            for ban_slot, protect_slot in phase_ban_to_protect_slots:
-                our_ban = canonical_hero(our_draft.get(ban_slot, ""))
-                our_protect = canonical_hero(our_draft.get(protect_slot, ""))
-                if our_ban and our_protect:
-                    ban_to_protect_matrix[our_ban][our_protect] += 1
+            # Ban response likelihood: when we ban X in a slot, what the enemy bans
+            # in their corresponding next ban slot.
+            for slot in ("ban1", "ban2", "ban3", "ban4"):
+                source_ban = our_ban_slots.get(slot, "")
+                response_ban = enemy_ban_slots.get(slot, "")
+                if source_ban and response_ban:
+                    ban_next_pairs[source_ban][response_ban] += 1
 
-                enemy_ban = canonical_hero(enemy_draft.get(ban_slot, ""))
-                enemy_protect = canonical_hero(enemy_draft.get(protect_slot, ""))
-                if enemy_ban and enemy_protect:
-                    enemy_ban_to_protect_matrix[enemy_ban][enemy_protect] += 1
+            # Ban -> Protect flow based on draft phases:
+            # Phase 1: ban1 leads into protect1.
+            # Phase 3: protect2 happens after ban1-3, while ban4 is final.
+            if our_ban_slots.get("ban1") and our_protect_slots.get("protect1"):
+                ban_to_protect_pairs[our_ban_slots["ban1"]][our_protect_slots["protect1"]] += 1
+
+            if our_protect_slots.get("protect2"):
+                for slot in ("ban1", "ban2", "ban3"):
+                    if our_ban_slots.get(slot):
+                        ban_to_protect_pairs[our_ban_slots[slot]][our_protect_slots["protect2"]] += 1
+
+            ban2_hero = our_ban_slots.get("ban2", "")
+            if ban2_hero:
+                ban3_hero = our_ban_slots.get("ban3", "")
+                protect2_hero = our_protect_slots.get("protect2", "")
+                ban4_hero = our_ban_slots.get("ban4", "")
+                if ban3_hero:
+                    second_order_ban_targets[ban2_hero]["ban3"][ban3_hero] += 1
+                    second_order_ban_targets[ban2_hero]["totals"]["ban3"] += 1
+                if protect2_hero:
+                    second_order_ban_targets[ban2_hero]["protect2"][protect2_hero] += 1
+                    second_order_ban_targets[ban2_hero]["totals"]["protect2"] += 1
+                if ban4_hero:
+                    second_order_ban_targets[ban2_hero]["ban4"][ban4_hero] += 1
+                    second_order_ban_targets[ban2_hero]["totals"]["ban4"] += 1
+
+            protect1_hero = our_protect_slots.get("protect1", "")
+            if protect1_hero:
+                if our_ban_slots.get("ban2"):
+                    protect1_influence_targets[protect1_hero]["ban2"][our_ban_slots["ban2"]] += 1
+                    protect1_influence_targets[protect1_hero]["totals"]["ban2"] += 1
+                if our_ban_slots.get("ban3"):
+                    protect1_influence_targets[protect1_hero]["ban3"][our_ban_slots["ban3"]] += 1
+                    protect1_influence_targets[protect1_hero]["totals"]["ban3"] += 1
+                if our_protect_slots.get("protect2"):
+                    protect1_influence_targets[protect1_hero]["protect2"][our_protect_slots["protect2"]] += 1
+                    protect1_influence_targets[protect1_hero]["totals"]["protect2"] += 1
+                if our_ban_slots.get("ban4"):
+                    protect1_influence_targets[protect1_hero]["ban4"][our_ban_slots["ban4"]] += 1
+                    protect1_influence_targets[protect1_hero]["totals"]["ban4"] += 1
+
+            draft_sequence = [
+                (slot, canonical_hero(our_draft.get(slot, "")))
+                for slot in ("ban1", "protect1", "ban2", "ban3", "protect2", "ban4")
+                if canonical_hero(our_draft.get(slot, ""))
+            ]
+
+            for idx in range(len(draft_sequence) - 1):
+                from_slot, from_hero = draft_sequence[idx]
+                to_slot, to_hero = draft_sequence[idx + 1]
+                draft_route_counts[(from_slot, from_hero, to_slot, to_hero)] += 1
+                draft_route_from_totals[(from_slot, from_hero)] += 1
+
+            for idx in range(1, len(draft_sequence)):
+                target_slot, target_hero = draft_sequence[idx]
+                target_type = "ban" if target_slot.startswith("ban") else "protect"
+                lead_target_totals[target_type][target_hero] += 1
+                for prev_slot, prev_hero in draft_sequence[:idx]:
+                    source_key = f"{draft_slot_label(prev_slot)}|{prev_hero}"
+                    lead_source_counts[target_type][target_hero][source_key] += 1
 
             our_draft_heroes = [
                 (_resolve_hero_transform_key((hero or "").strip()) or (hero or "").strip())
@@ -642,31 +760,155 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         )
     enemy_ban_rows.sort(key=lambda r: (r["count"], r["win_rate"]), reverse=True)
 
-    def build_transition_rows(transition_matrix: dict) -> list[dict]:
-        rows = []
-        for source_hero, target_counts in transition_matrix.items():
-            total_source = sum(target_counts.values())
-            if total_source <= 0:
-                continue
-
-            for target_hero, count in target_counts.items():
-                rows.append(
+    ban_next_rows = []
+    for source_hero, response_counts in ban_next_pairs.items():
+        total_sequences = sum(response_counts.values())
+        response_rows = sorted(response_counts.items(), key=lambda item: item[1], reverse=True)
+        top_response, top_count = response_rows[0] if response_rows else ("", 0)
+        ban_next_rows.append(
+            {
+                "ban_hero": source_hero,
+                "total": total_sequences,
+                "top_enemy_ban": top_response,
+                "top_count": top_count,
+                "top_rate": pct(top_count, total_sequences),
+                "responses": [
                     {
-                        "source_hero": source_hero,
-                        "target_hero": target_hero,
-                        "count": count,
-                        "source_total": total_source,
-                        "rate": pct(count, total_source),
+                        "hero": response_hero,
+                        "count": response_count,
+                        "rate": pct(response_count, total_sequences),
                     }
-                )
+                    for response_hero, response_count in response_rows[:3]
+                ],
+            }
+        )
+    ban_next_rows.sort(key=lambda row: (row["total"], row["top_rate"]), reverse=True)
 
-        rows.sort(key=lambda r: (r["count"], r["rate"], r["source_total"]), reverse=True)
+    ban_to_protect_rows = []
+    for source_hero, protect_counts in ban_to_protect_pairs.items():
+        total_links = sum(protect_counts.values())
+        protect_rows = sorted(protect_counts.items(), key=lambda item: item[1], reverse=True)
+        top_protect, top_count = protect_rows[0] if protect_rows else ("", 0)
+        ban_to_protect_rows.append(
+            {
+                "ban_hero": source_hero,
+                "total": total_links,
+                "top_protect": top_protect,
+                "top_count": top_count,
+                "top_rate": pct(top_count, total_links),
+                "protects": [
+                    {
+                        "hero": protect_hero,
+                        "count": protect_count,
+                        "rate": pct(protect_count, total_links),
+                    }
+                    for protect_hero, protect_count in protect_rows[:3]
+                ],
+            }
+        )
+    ban_to_protect_rows.sort(key=lambda row: (row["total"], row["top_rate"]), reverse=True)
+
+    draft_route_rows = []
+    for (from_slot, from_hero, to_slot, to_hero), count in draft_route_counts.items():
+        total_from = draft_route_from_totals[(from_slot, from_hero)]
+        draft_route_rows.append(
+            {
+                "from_slot": draft_slot_label(from_slot),
+                "from_hero": from_hero,
+                "to_slot": draft_slot_label(to_slot),
+                "to_hero": to_hero,
+                "count": count,
+                "rate": pct(count, total_from),
+            }
+        )
+    draft_route_rows.sort(key=lambda row: (row["count"], row["rate"]), reverse=True)
+
+    def build_lead_rows(target_type: str) -> list[dict]:
+        rows = []
+        for target_hero, source_counts in lead_source_counts[target_type].items():
+            total = lead_target_totals[target_type][target_hero]
+            sorted_sources = sorted(source_counts.items(), key=lambda item: item[1], reverse=True)
+            if not sorted_sources:
+                continue
+            top_source_key, top_count = sorted_sources[0]
+            top_slot, top_hero = top_source_key.split("|", 1)
+            rows.append(
+                {
+                    "target_hero": target_hero,
+                    "total": total,
+                    "top_source_slot": top_slot,
+                    "top_source_hero": top_hero,
+                    "top_count": top_count,
+                    "top_rate": pct(top_count, total),
+                }
+            )
+        rows.sort(key=lambda row: (row["total"], row["top_rate"]), reverse=True)
         return rows
 
-    ban_response_rows = build_transition_rows(ban_response_matrix)
-    enemy_ban_response_rows = build_transition_rows(enemy_ban_response_matrix)
-    ban_to_protect_rows = build_transition_rows(ban_to_protect_matrix)
-    enemy_ban_to_protect_rows = build_transition_rows(enemy_ban_to_protect_matrix)
+    lead_to_ban_rows = build_lead_rows("ban")
+    lead_to_protect_rows = build_lead_rows("protect")
+
+    second_order_ban_rows = []
+    for ban2_hero, target_data in second_order_ban_targets.items():
+        ban3_total = target_data["totals"]["ban3"]
+        protect2_total = target_data["totals"]["protect2"]
+        ban4_total = target_data["totals"]["ban4"]
+
+        ban3_sorted = sorted(target_data["ban3"].items(), key=lambda item: item[1], reverse=True)
+        protect2_sorted = sorted(target_data["protect2"].items(), key=lambda item: item[1], reverse=True)
+        ban4_sorted = sorted(target_data["ban4"].items(), key=lambda item: item[1], reverse=True)
+
+        top_ban3, top_ban3_count = ban3_sorted[0] if ban3_sorted else ("", 0)
+        top_protect2, top_protect2_count = protect2_sorted[0] if protect2_sorted else ("", 0)
+        top_ban4, top_ban4_count = ban4_sorted[0] if ban4_sorted else ("", 0)
+
+        second_order_ban_rows.append(
+            {
+                "ban2_hero": ban2_hero,
+                "ban3_hero": top_ban3,
+                "ban3_count": top_ban3_count,
+                "ban3_rate": pct(top_ban3_count, ban3_total),
+                "ban3_total": ban3_total,
+                "protect2_hero": top_protect2,
+                "protect2_count": top_protect2_count,
+                "protect2_rate": pct(top_protect2_count, protect2_total),
+                "protect2_total": protect2_total,
+                "ban4_hero": top_ban4,
+                "ban4_count": top_ban4_count,
+                "ban4_rate": pct(top_ban4_count, ban4_total),
+                "ban4_total": ban4_total,
+                "sample_total": ban3_total + protect2_total + ban4_total,
+            }
+        )
+    second_order_ban_rows.sort(key=lambda row: row["sample_total"], reverse=True)
+
+    def top_slot_pick(slot_counts: dict, total: int) -> dict:
+        sorted_rows = sorted(slot_counts.items(), key=lambda item: item[1], reverse=True)
+        hero, count = sorted_rows[0] if sorted_rows else ("", 0)
+        return {
+            "hero": hero,
+            "count": count,
+            "total": total,
+            "rate": pct(count, total),
+        }
+
+    protect1_influence_rows = []
+    for protect1_hero, target_data in protect1_influence_targets.items():
+        ban2_top = top_slot_pick(target_data["ban2"], target_data["totals"]["ban2"])
+        ban3_top = top_slot_pick(target_data["ban3"], target_data["totals"]["ban3"])
+        protect2_top = top_slot_pick(target_data["protect2"], target_data["totals"]["protect2"])
+        ban4_top = top_slot_pick(target_data["ban4"], target_data["totals"]["ban4"])
+        protect1_influence_rows.append(
+            {
+                "protect1_hero": protect1_hero,
+                "ban2": ban2_top,
+                "ban3": ban3_top,
+                "protect2": protect2_top,
+                "ban4": ban4_top,
+                "sample_total": sum(target_data["totals"].values()),
+            }
+        )
+    protect1_influence_rows.sort(key=lambda row: row["sample_total"], reverse=True)
 
     overall_win_rate = pct(total_wins, total_maps)
 
@@ -1049,10 +1291,6 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         },
         "ban_rows": ban_rows[:12],
         "enemy_ban_rows": enemy_ban_rows[:12],
-        "ban_response_rows": ban_response_rows[:12],
-        "enemy_ban_response_rows": enemy_ban_response_rows[:12],
-        "ban_to_protect_rows": ban_to_protect_rows[:12],
-        "enemy_ban_to_protect_rows": enemy_ban_to_protect_rows[:12],
         "ban_position_rows": ban_position_rows,
         "enemy_ban_position_rows": enemy_ban_position_rows,
         "ban_phase_variation": {
@@ -1061,6 +1299,13 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         },
         "mirror_rates": mirror_rates,
         "ban_diff_rows": ban_diff_rows[:12],
+        "ban_next_rows": ban_next_rows[:12],
+        "ban_to_protect_rows": ban_to_protect_rows[:12],
+        "draft_route_rows": draft_route_rows[:16],
+        "second_order_ban_rows": second_order_ban_rows[:12],
+        "protect1_influence_rows": protect1_influence_rows[:12],
+        "lead_to_ban_rows": lead_to_ban_rows[:12],
+        "lead_to_protect_rows": lead_to_protect_rows[:12],
         "ban_protect_rows": ban_protect_rows[:12],
         "protect_rows": protect_rows[:12],
         "hero_rows": hero_rows[:12],
@@ -1071,6 +1316,156 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
 
 def opposite_team_slot(team_slot: str) -> str:
     return "team2" if team_slot == "team1" else "team1"
+
+
+def _draft_slot_label(slot_key: str) -> str:
+    labels = {
+        "ban1": "Ban 1",
+        "protect1": "Protect 1",
+        "ban2": "Ban 2",
+        "ban3": "Ban 3",
+        "protect2": "Protect 2",
+        "ban4": "Ban 4",
+    }
+    return labels.get(slot_key, slot_key)
+
+
+def _canonical_draft_hero(raw_hero: str) -> str:
+    hero_text = (raw_hero or "").strip()
+    if not hero_text:
+        return ""
+    return _resolve_hero_transform_key(hero_text) or hero_text
+
+
+def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dict:
+    cleaned_inputs = {
+        field_key: (raw_inputs.get(field_key, "") or "").strip()
+        for field_key in PREDICTOR_INPUT_ORDER
+    }
+    normalized_inputs = {
+        field_key: _canonical_draft_hero(cleaned_inputs[field_key])
+        for field_key in PREDICTOR_INPUT_ORDER
+    }
+
+    next_targets = []
+    for group in PREDICTOR_GROUPS:
+        missing = [item for item in group if not normalized_inputs[item[2]]]
+        if missing:
+            next_targets = missing
+            break
+
+    if not next_targets:
+        return {
+            "inputs": cleaned_inputs,
+            "matching_maps": 0,
+            "targets": [],
+            "status": "complete",
+        }
+
+    matching_maps = 0
+    target_counts = {
+        field_key: defaultdict(int)
+        for _, _, field_key in next_targets
+    }
+    comp_counts = {
+        "team1": defaultdict(int),
+        "team2": defaultdict(int),
+    }
+
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            draft = map_entry.get("draft", {})
+            if not isinstance(draft, dict):
+                continue
+
+            map_values = {}
+            for group in PREDICTOR_GROUPS:
+                for team_slot, slot_key, field_key in group:
+                    team_draft = draft.get(team_slot, {})
+                    if not isinstance(team_draft, dict):
+                        team_draft = {}
+                    map_values[field_key] = _canonical_draft_hero(team_draft.get(slot_key, ""))
+
+            if any(
+                normalized_inputs[field_key] and map_values.get(field_key, "") != normalized_inputs[field_key]
+                for field_key in PREDICTOR_INPUT_ORDER
+            ):
+                continue
+
+            matching_maps += 1
+            for _, _, field_key in next_targets:
+                hero = map_values.get(field_key, "")
+                if hero:
+                    target_counts[field_key][hero] += 1
+
+            comp_sections = map_entry.get("comp", [])
+            if isinstance(comp_sections, list):
+                for team_slot in TEAM_SLOTS:
+                    richest_comp: list[str] = []
+                    for section in comp_sections:
+                        if not isinstance(section, dict):
+                            continue
+                        lineup = section.get(team_slot, [])
+                        if not isinstance(lineup, list):
+                            continue
+
+                        heroes = []
+                        for slot in lineup:
+                            if not isinstance(slot, dict):
+                                continue
+                            hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                            if hero_name:
+                                heroes.append(hero_name)
+
+                        if len(heroes) > len(richest_comp):
+                            richest_comp = heroes
+
+                    if richest_comp:
+                        comp_counts[team_slot][tuple(richest_comp)] += 1
+
+    target_rows = []
+    for team_slot, slot_key, field_key in next_targets:
+        options = sorted(target_counts[field_key].items(), key=lambda item: item[1], reverse=True)
+        target_rows.append(
+            {
+                "field_key": field_key,
+                "team_label": "Team 1" if team_slot == "team1" else "Team 2",
+                "slot_label": _draft_slot_label(slot_key),
+                "options": [
+                    {
+                        "hero": hero,
+                        "count": count,
+                        "rate": round((count / matching_maps) * 100, 1) if matching_maps else 0,
+                    }
+                    for hero, count in options[:8]
+                ],
+            }
+        )
+
+    likely_comps = []
+    for team_slot in TEAM_SLOTS:
+        comp_options = sorted(comp_counts[team_slot].items(), key=lambda item: item[1], reverse=True)
+        if not comp_options:
+            continue
+
+        top_comp, top_count = comp_options[0]
+        likely_comps.append(
+            {
+                "team_key": team_slot,
+                "team_label": "Team 1" if team_slot == "team1" else "Team 2",
+                "heroes": list(top_comp),
+                "count": top_count,
+                "rate": round((top_count / matching_maps) * 100, 1) if matching_maps else 0,
+            }
+        )
+
+    return {
+        "inputs": cleaned_inputs,
+        "matching_maps": matching_maps,
+        "targets": target_rows,
+        "likely_comps": likely_comps,
+        "status": "ready",
+    }
 
 
 def flip_result(result: str) -> str:
@@ -1603,6 +1998,12 @@ def team_detail(team_id: int):
     if time_range not in {"all", "month", "week"}:
         time_range = "all"
     team_scrims = filter_scrims_by_timeframe(all_team_scrims, time_range)
+    predictor_inputs = {
+        field_key: (request.args.get(field_key) or "").strip()
+        for field_key in PREDICTOR_INPUT_ORDER
+    }
+    draft_predictor = build_draft_predictor(team_scrims, predictor_inputs)
+
     team_analytics = build_scrim_analytics(team_scrims)
     hero_graph_rows = [
         {
@@ -1738,9 +2139,40 @@ def team_detail(team_id: int):
         worst_mode=worst_mode,
         map_modes=MAP_MODES,
         map_images=MAP_IMAGES,
+        draft_predictor=draft_predictor,
         hero_transformations=HERO_TRANSFORMATIONS,
         heroes=HEROES,
+        hero_roles=HERO_ROLES,
     )
+
+
+@app.route("/teams/<int:team_id>/draft-predict")
+def team_draft_predict(team_id: int):
+    db = get_db()
+    team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    all_team_scrims = [
+        scrim
+        for scrim in SCRIMS
+        if scrim.get("team_id") == team["id"]
+        or (
+            not scrim.get("team_id")
+            and (scrim.get("team_name", "") or "").strip().lower() == team["name"].strip().lower()
+        )
+    ]
+
+    time_range = (request.args.get("timeframe") or "all").strip().lower()
+    if time_range not in {"all", "month", "week"}:
+        time_range = "all"
+
+    team_scrims = filter_scrims_by_timeframe(all_team_scrims, time_range)
+    predictor_inputs = {
+        field_key: (request.args.get(field_key) or "").strip()
+        for field_key in PREDICTOR_INPUT_ORDER
+    }
+    return jsonify(build_draft_predictor(team_scrims, predictor_inputs))
 
 
 @app.route("/teams/<int:team_id>/heroes/<path:hero_name>")
@@ -2138,6 +2570,12 @@ def enemy_team_detail(enemy_team_id: int):
     matched_enemy_scrims = filter_scrims_by_timeframe(all_matched_enemy_scrims, time_range)
 
     enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
+    predictor_inputs = {
+        field_key: (request.args.get(field_key) or "").strip()
+        for field_key in PREDICTOR_INPUT_ORDER
+    }
+    draft_predictor = build_draft_predictor(enemy_perspective_scrims, predictor_inputs)
+
     enemy_analytics = build_scrim_analytics(enemy_perspective_scrims)
     enemy_map_cards, enemy_map_mode_rows, enemy_best_mode, enemy_worst_mode = build_map_mode_breakdown(
         enemy_perspective_scrims
@@ -2197,10 +2635,57 @@ def enemy_team_detail(enemy_team_id: int):
         enemy_best_mode=enemy_best_mode,
         enemy_worst_mode=enemy_worst_mode,
         enemy_timeline_points=enemy_timeline_points,
+        draft_predictor=draft_predictor,
         player_roles=PLAYER_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
         heroes=HEROES,
+        hero_roles=HERO_ROLES,
     )
+
+
+@app.route("/enemies/<int:enemy_team_id>/draft-predict")
+def enemy_draft_predict(enemy_team_id: int):
+    db = get_db()
+    enemy_team = db.execute(
+        "SELECT id, team_id, name FROM enemy_teams WHERE id = ?",
+        (enemy_team_id,),
+    ).fetchone()
+    if enemy_team is None:
+        abort(404)
+
+    main_team = db.execute(
+        "SELECT * FROM teams WHERE id = ?",
+        (enemy_team["team_id"],),
+    ).fetchone()
+    if main_team is None:
+        abort(404)
+
+    all_matched_enemy_scrims = []
+    enemy_name_lower = (enemy_team["name"] or "").strip().lower()
+    for scrim in SCRIMS:
+        if scrim.get("team_id") != main_team["id"]:
+            continue
+
+        scrim_enemy_id = scrim.get("enemy_team_id")
+        if scrim_enemy_id == enemy_team_id:
+            all_matched_enemy_scrims.append(scrim)
+            continue
+
+        scrim_enemy_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip().lower()
+        if scrim_enemy_name and scrim_enemy_name == enemy_name_lower:
+            all_matched_enemy_scrims.append(scrim)
+
+    time_range = (request.args.get("timeframe") or "all").strip().lower()
+    if time_range not in {"all", "month", "week"}:
+        time_range = "all"
+
+    matched_enemy_scrims = filter_scrims_by_timeframe(all_matched_enemy_scrims, time_range)
+    enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
+    predictor_inputs = {
+        field_key: (request.args.get(field_key) or "").strip()
+        for field_key in PREDICTOR_INPUT_ORDER
+    }
+    return jsonify(build_draft_predictor(enemy_perspective_scrims, predictor_inputs))
 
 
 @app.route("/scrims")

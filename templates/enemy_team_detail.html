@@ -48,6 +48,9 @@
         <div class="section-kicker">Matchup Draft</div>
         <h3>{{ enemy_team.name }} Ban & Protect Stats</h3>
         <p class="panel-intro">Compare how the enemy drafts against your main team, including ban splits and pressure points.</p>
+        <p class="panel-intro">
+            Phase order: 1st Phase (each team bans once and protects once), 2nd Phase (each team takes two uninterrupted bans), 3rd Phase (each team protects, then takes one final ban).
+        </p>
         <div class="summary-grid">
             <section class="stat-card">
                 <strong>Total Maps</strong>
@@ -89,15 +92,9 @@
                 </article>
             </div>
 
-            <div class="panel top-gap">
-                <div class="section-kicker">Draft Phases</div>
-                <h3>Phase Structure</h3>
-                <p class="panel-intro">Phase 1: each team bans once and protects once. Phase 2: each team takes two uninterrupted bans. Phase 3: each team protects, then takes one final ban.</p>
-            </div>
-
             <div class="ban-visual-grid">
                 <div class="panel ban-chart-panel">
-                    <h3>Ban Distribution (With Ban Win Rate)</h3>
+                    <h3>Ban Distribution + Ban Win Rate</h3>
                     {% if enemy_analytics.ban_rows %}
                         {% set ban_max = enemy_analytics.ban_rows[0].count %}
                         <div class="vbar-chart">
@@ -110,12 +107,13 @@
                                              onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                     </div>
                                     <div class="vbar-bar-wrapper">
-                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%) • {{ row.win_rate }}% win rate when banned">
+                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%), {{ row.win_rate }}% win rate when banned">
                                             <span class="vbar-label-top">{{ row.count }}</span>
                                         </div>
                                     </div>
                                     <div class="vbar-label">
-                                        <span class="vbar-rate">{{ row.ban_rate }}% • {{ row.win_rate }}% WR</span>
+                                        <span class="vbar-rate">{{ row.ban_rate }}%</span>
+                                        <span class="vbar-winrate">WR {{ row.win_rate }}%</span>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -124,280 +122,700 @@
                         <p class="empty-text">No ban data yet.</p>
                     {% endif %}
                 </div>
+
+                <div class="panel ban-chart-panel">
+                    <h3>Protect Distribution + Protect Win Rate</h3>
+                    {% if enemy_analytics.protect_rows %}
+                        {% set protect_max = enemy_analytics.protect_rows[0].count %}
+                        <div class="vbar-chart">
+                            {% for row in enemy_analytics.protect_rows[:12] %}
+                                {% set height = ((row.count / protect_max) * 100) if protect_max else 0 %}
+                                <div class="vbar-container">
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    </div>
+                                    <div class="vbar-bar-wrapper">
+                                        <div class="vbar-bar vbar-bar-protect" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} protects ({{ row.protect_rate }}%), {{ row.win_rate }}% win rate when protected">
+                                            <span class="vbar-label-top">{{ row.count }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="vbar-label">
+                                        <span class="vbar-rate">{{ row.protect_rate }}%</span>
+                                        <span class="vbar-winrate">WR {{ row.win_rate }}%</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect data yet.</p>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="form-grid top-gap">
                 <div class="panel panel-soft-gold">
-                    <div class="section-kicker">Ban Responses</div>
-                    <h3>Enemy Ban → Main Next Ban</h3>
-                    {% if enemy_analytics.ban_response_rows %}
+                    <div class="section-kicker">Draft Flow</div>
+                    <h3>When Enemy Team Bans, Main Team Is Likely To Ban</h3>
+                    {% if enemy_analytics.ban_next_rows %}
                         <div class="table-wrap">
                             <table class="stats-table stats-table-compare">
                                 <thead>
                                     <tr>
-                                        <th>Enemy Ban</th>
-                                        <th>Main Next Ban</th>
-                                        <th>Count</th>
+                                        <th>Enemy Team Ban</th>
+                                        <th>Likely Main Team Next Ban</th>
                                         <th>Likelihood</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for row in enemy_analytics.ban_response_rows %}
+                                    {% for row in enemy_analytics.ban_next_rows %}
                                         <tr>
-                                            <td>{{ row.source_hero }}</td>
-                                            <td>{{ row.target_hero }}</td>
-                                            <td>{{ row.count }}</td>
-                                            <td>{{ row.rate }}%</td>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                                    <span>{{ row.ban_hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
+                                                    <span>{{ row.top_enemy_ban }}</span>
+                                                </span>
+                                            </td>
+                                            <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     {% else %}
-                        <p class="empty-text">No ban-response data yet.</p>
+                        <p class="empty-text">No ban response sequence data yet.</p>
                     {% endif %}
                 </div>
 
-                <div class="panel panel-soft-blue">
-                    <div class="section-kicker">Ban Responses</div>
-                    <h3>Main Ban → Enemy Next Ban</h3>
-                    {% if enemy_analytics.enemy_ban_response_rows %}
-                        <div class="table-wrap">
-                            <table class="stats-table stats-table-compare">
-                                <thead>
-                                    <tr>
-                                        <th>Main Ban</th>
-                                        <th>Enemy Next Ban</th>
-                                        <th>Count</th>
-                                        <th>Likelihood</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in enemy_analytics.enemy_ban_response_rows %}
-                                        <tr>
-                                            <td>{{ row.source_hero }}</td>
-                                            <td>{{ row.target_hero }}</td>
-                                            <td>{{ row.count }}</td>
-                                            <td>{{ row.rate }}%</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="empty-text">No ban-response data yet.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="form-grid top-gap">
                 <div class="panel panel-soft-green">
-                    <div class="section-kicker">Ban To Protect</div>
-                    <h3>Enemy Ban → Enemy Protect</h3>
+                    <div class="section-kicker">Draft Flow</div>
+                    <h3>Which Bans Reach Into Protects</h3>
                     {% if enemy_analytics.ban_to_protect_rows %}
                         <div class="table-wrap">
-                            <table class="stats-table stats-table-protect">
+                            <table class="stats-table stats-table-compare">
                                 <thead>
                                     <tr>
-                                        <th>Enemy Ban</th>
-                                        <th>Enemy Protect</th>
-                                        <th>Count</th>
-                                        <th>Likelihood</th>
+                                        <th>Enemy Team Ban</th>
+                                        <th>Most Linked Protect</th>
+                                        <th>Link Rate</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for row in enemy_analytics.ban_to_protect_rows %}
                                         <tr>
-                                            <td>{{ row.source_hero }}</td>
-                                            <td>{{ row.target_hero }}</td>
-                                            <td>{{ row.count }}</td>
-                                            <td>{{ row.rate }}%</td>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                                    <span>{{ row.ban_hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
+                                                    <span>{{ row.top_protect }}</span>
+                                                </span>
+                                            </td>
+                                            <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     {% else %}
-                        <p class="empty-text">No ban-to-protect data yet.</p>
+                        <p class="empty-text">No ban-to-protect link data yet.</p>
                     {% endif %}
                 </div>
+            </div>
 
-                <div class="panel panel-soft-blue">
-                    <div class="section-kicker">Ban To Protect</div>
-                    <h3>Main Ban → Main Protect</h3>
-                    {% if enemy_analytics.enemy_ban_to_protect_rows %}
+            <div class="form-grid top-gap">
+                <div class="panel panel-soft-violet">
+                    <div class="section-kicker">Draft Flow</div>
+                    <h3>Second-Order Ban Routes (Ban 2 Into Ban 3 / Protect 2 / Ban 4)</h3>
+                    {% if enemy_analytics.second_order_ban_rows %}
                         <div class="table-wrap">
-                            <table class="stats-table stats-table-protect">
+                            <table class="stats-table stats-table-compare">
                                 <thead>
                                     <tr>
-                                        <th>Main Ban</th>
-                                        <th>Main Protect</th>
-                                        <th>Count</th>
-                                        <th>Likelihood</th>
+                                        <th>Ban 2 Hero</th>
+                                        <th>Likely Ban 3</th>
+                                        <th>Likely Protect 2</th>
+                                        <th>Likely Ban 4</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for row in enemy_analytics.enemy_ban_to_protect_rows %}
+                                    {% for row in enemy_analytics.second_order_ban_rows %}
                                         <tr>
-                                            <td>{{ row.source_hero }}</td>
-                                            <td>{{ row.target_hero }}</td>
-                                            <td>{{ row.count }}</td>
-                                            <td>{{ row.rate }}%</td>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.ban2_hero) }}" alt="{{ row.ban2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2_hero | urlencode }}'">
+                                                    <span>{{ row.ban2_hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if row.ban3_hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.ban3_hero) }}" alt="{{ row.ban3_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3_hero | urlencode }}'">
+                                                        <span>{{ row.ban3_hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.ban3_rate }}% ({{ row.ban3_count }}/{{ row.ban3_total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if row.protect2_hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.protect2_hero) }}" alt="{{ row.protect2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2_hero | urlencode }}'">
+                                                        <span>{{ row.protect2_hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.protect2_rate }}% ({{ row.protect2_count }}/{{ row.protect2_total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if row.ban4_hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.ban4_hero) }}" alt="{{ row.ban4_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4_hero | urlencode }}'">
+                                                        <span>{{ row.ban4_hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.ban4_rate }}% ({{ row.ban4_count }}/{{ row.ban4_total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     {% else %}
-                        <p class="empty-text">No ban-to-protect data yet.</p>
+                        <p class="empty-text">No second-order ban route data yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel panel-soft-green">
+                    <div class="section-kicker">Draft Flow</div>
+                    <h3>Protect 1 Influence On Later Bans / Protects</h3>
+                    {% if enemy_analytics.protect1_influence_rows %}
+                        <div class="table-wrap">
+                            <table class="stats-table stats-table-compare">
+                                <thead>
+                                    <tr>
+                                        <th>Protect 1</th>
+                                        <th>Likely Ban 2</th>
+                                        <th>Likely Ban 3</th>
+                                        <th>Likely Protect 2</th>
+                                        <th>Likely Ban 4</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in enemy_analytics.protect1_influence_rows %}
+                                        <tr>
+                                            <td>
+                                                <span class="hero-inline-cell">
+                                                    <img src="{{ hero_image_url(row.protect1_hero) }}" alt="{{ row.protect1_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect1_hero | urlencode }}'">
+                                                    <span>{{ row.protect1_hero }}</span>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if row.ban2.hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.ban2.hero) }}" alt="{{ row.ban2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2.hero | urlencode }}'">
+                                                        <span>{{ row.ban2.hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.ban2.rate }}% ({{ row.ban2.count }}/{{ row.ban2.total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if row.ban3.hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.ban3.hero) }}" alt="{{ row.ban3.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3.hero | urlencode }}'">
+                                                        <span>{{ row.ban3.hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.ban3.rate }}% ({{ row.ban3.count }}/{{ row.ban3.total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if row.protect2.hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.protect2.hero) }}" alt="{{ row.protect2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2.hero | urlencode }}'">
+                                                        <span>{{ row.protect2.hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.protect2.rate }}% ({{ row.protect2.count }}/{{ row.protect2.total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if row.ban4.hero %}
+                                                    <span class="hero-inline-cell">
+                                                        <img src="{{ hero_image_url(row.ban4.hero) }}" alt="{{ row.ban4.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4.hero | urlencode }}'">
+                                                        <span>{{ row.ban4.hero }}</span>
+                                                    </span>
+                                                    <span> {{ row.ban4.rate }}% ({{ row.ban4.count }}/{{ row.ban4.total }})</span>
+                                                {% else %}
+                                                    --
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect influence data yet.</p>
                     {% endif %}
                 </div>
             </div>
+
+            <div class="panel panel-soft-violet top-gap">
+                <div class="section-kicker">Draft Predictor</div>
+                <h3>Draft Simulator Prediction</h3>
+                <p class="panel-intro">Select slots and heroes to simulate the draft. Start simulation to see live likely responses.</p>
+                <form method="get" class="top-gap" id="draft-predict-form-enemy">
+                    <input type="hidden" name="timeframe" value="{{ selected_timeframe }}">
+                    <div class="field" style="max-width: 260px;">
+                        <label for="sim-side-enemy">Simulation Side</label>
+                        <select id="sim-side-enemy" aria-label="Simulation Side">
+                            <option value="team1" selected>I am Team 1</option>
+                            <option value="team2">I am Team 2</option>
+                        </select>
+                    </div>
+                    <div class="draft-grid" id="draft-predictor-enemy">
+                        <div class="draft-column">
+                            <h4>Team 1</h4>
+                            <div class="draft-slots">
+                                <div class="draft-slot" data-field="t1_ban1">
+                                    <span class="slot-label ban-label">Ban 1</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t1_ban1" value="{{ draft_predictor.inputs.t1_ban1 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t1_ban2">
+                                    <span class="slot-label ban-label">Ban 2</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t1_ban2" value="{{ draft_predictor.inputs.t1_ban2 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t1_protect1">
+                                    <span class="slot-label protect-label">Protect 1</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t1_protect1" value="{{ draft_predictor.inputs.t1_protect1 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t1_ban3">
+                                    <span class="slot-label ban-label">Ban 3</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t1_ban3" value="{{ draft_predictor.inputs.t1_ban3 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t1_protect2">
+                                    <span class="slot-label protect-label">Protect 2</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t1_protect2" value="{{ draft_predictor.inputs.t1_protect2 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t1_ban4">
+                                    <span class="slot-label ban-label">Ban 4</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t1_ban4" value="{{ draft_predictor.inputs.t1_ban4 }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="draft-column">
+                            <h4>Team 2</h4>
+                            <div class="draft-slots">
+                                <div class="draft-slot" data-field="t2_ban1">
+                                    <span class="slot-label ban-label">Ban 1</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t2_ban1" value="{{ draft_predictor.inputs.t2_ban1 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t2_protect1">
+                                    <span class="slot-label protect-label">Protect 1</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t2_protect1" value="{{ draft_predictor.inputs.t2_protect1 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t2_ban2">
+                                    <span class="slot-label ban-label">Ban 2</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t2_ban2" value="{{ draft_predictor.inputs.t2_ban2 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t2_ban3">
+                                    <span class="slot-label ban-label">Ban 3</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t2_ban3" value="{{ draft_predictor.inputs.t2_ban3 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t2_ban4">
+                                    <span class="slot-label ban-label">Ban 4</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t2_ban4" value="{{ draft_predictor.inputs.t2_ban4 }}">
+                                </div>
+                                <div class="draft-slot" data-field="t2_protect2">
+                                    <span class="slot-label protect-label">Protect 2</span>
+                                    <span class="slot-hero"></span>
+                                    <input type="hidden" name="t2_protect2" value="{{ draft_predictor.inputs.t2_protect2 }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="draft-hint">Click a slot to select it, then click a hero below. Right-click a slot to clear it.</p>
+                    <div class="hero-picker">
+                        {% for role_name, role_heroes in hero_roles.items() %}
+                        <div class="hero-role-section">
+                            <h5 class="role-heading role-{{ role_name|lower }}">{{ role_name }}</h5>
+                            <div class="hero-icon-grid">
+                                {% for hero in role_heroes %}
+                                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-image="{{ hero_image_url(hero) }}" title="{{ hero }}">
+                                    <div class="hero-img-wrap">
+                                        <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy">
+                                    </div>
+                                    <span class="hero-pick-name">{{ hero }}</span>
+                                </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="top-gap">
+                        <button type="button" id="begin-sim-enemy">Begin Simulation</button>
+                        <button type="button" class="button-secondary" id="clear-sim-enemy">Clear</button>
+                    </div>
+                </form>
+                <div id="simulation-results-enemy" class="top-gap"></div>
+                <script>
+                (function () {
+                    const board = document.getElementById('draft-predictor-enemy');
+                    if (!board) return;
+                    const beginButton = document.getElementById('begin-sim-enemy');
+                    const clearButton = document.getElementById('clear-sim-enemy');
+                    const simSideSelect = document.getElementById('sim-side-enemy');
+                    const resultsContainer = document.getElementById('simulation-results-enemy');
+                    const team1Heading = board.querySelector('.draft-column:nth-child(1) h4');
+                    const team2Heading = board.querySelector('.draft-column:nth-child(2) h4');
+                    const timeframeValue = '{{ selected_timeframe }}';
+                    const endpointUrl = '{{ url_for("enemy_draft_predict", enemy_team_id=enemy_team.id) }}';
+
+                    const groups = [
+                        ['t1_ban1', 't2_ban1'],
+                        ['t2_protect1'],
+                        ['t1_ban2', 't1_protect1'],
+                        ['t1_ban3', 't2_ban2'],
+                        ['t1_protect2'],
+                        ['t2_ban3', 't2_ban4', 't2_protect2'],
+                        ['t1_ban4'],
+                    ];
+
+                    let activeField = null;
+                    let simulationStarted = false;
+                    let simulationSide = (simSideSelect && simSideSelect.value) ? simSideSelect.value : 'team1';
+                    const slots = Array.from(board.querySelectorAll('.draft-slot'));
+                    const heroButtons = Array.from(document.querySelectorAll('#draft-predict-form-enemy .hero-pick-btn'));
+                    const heroImageMap = {};
+                    heroButtons.forEach(btn => {
+                        heroImageMap[btn.dataset.hero] = btn.dataset.image;
+                    });
+
+                    function getSlot(fieldKey) {
+                        return board.querySelector('.draft-slot[data-field="' + fieldKey + '"]');
+                    }
+
+                    function getFieldTeam(fieldKey) {
+                        return fieldKey.startsWith('t1_') ? 'team1' : 'team2';
+                    }
+
+                    function getOpponentSide() {
+                        return simulationSide === 'team1' ? 'team2' : 'team1';
+                    }
+
+                    function getTeamDisplayName(teamKey) {
+                        return teamKey === simulationSide ? 'You' : 'Enemy';
+                    }
+
+                    function mapTeamLabel(label) {
+                        const normalized = String(label || '').trim().toLowerCase();
+                        if (normalized.includes('team 1') || normalized === 'team1') {
+                            return getTeamDisplayName('team1');
+                        }
+                        if (normalized.includes('team 2') || normalized === 'team2') {
+                            return getTeamDisplayName('team2');
+                        }
+                        return label || '';
+                    }
+
+                    function updateDraftHeadings() {
+                        if (team1Heading) {
+                            team1Heading.textContent = getTeamDisplayName('team1');
+                        }
+                        if (team2Heading) {
+                            team2Heading.textContent = getTeamDisplayName('team2');
+                        }
+                    }
+
+                    function collectInputs() {
+                        const payload = {};
+                        slots.forEach(slot => {
+                            const input = slot.querySelector('input[type="hidden"]');
+                            payload[slot.dataset.field] = (input.value || '').trim();
+                        });
+                        return payload;
+                    }
+
+                    function renderSlot(slot) {
+                        const input = slot.querySelector('input[type="hidden"]');
+                        const heroName = (input.value || '').trim();
+                        const existing = slot.querySelector('.slot-img-wrap');
+                        if (existing) existing.remove();
+                        slot.classList.remove('slot-filled');
+                        if (!heroName) return;
+
+                        const imgWrap = document.createElement('span');
+                        imgWrap.className = 'slot-img-wrap';
+                        const img = document.createElement('img');
+                        img.className = 'slot-img';
+                        img.alt = heroName;
+                        img.src = heroImageMap[heroName] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName));
+                        img.onerror = function () {
+                            this.src = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName);
+                        };
+                        imgWrap.appendChild(img);
+                        slot.appendChild(imgWrap);
+                        slot.classList.add('slot-filled');
+                    }
+
+                    function refreshAllSlots() {
+                        slots.forEach(renderSlot);
+                    }
+
+                    function setActive(fieldKey) {
+                        activeField = fieldKey;
+                        slots.forEach(slot => {
+                            slot.classList.toggle('slot-active', slot.dataset.field === fieldKey);
+                        });
+                    }
+
+                    function getNextTargets() {
+                        for (const group of groups) {
+                            const missing = group.filter(field => {
+                                const slot = getSlot(field);
+                                if (!slot) return false;
+                                const input = slot.querySelector('input[type="hidden"]');
+                                return !(input.value || '').trim();
+                            });
+                            if (missing.length) return missing;
+                        }
+                        return [];
+                    }
+
+                    function setPreferredActiveTarget() {
+                        const targets = getNextTargets();
+                        if (!targets.length) {
+                            setActive(null);
+                            return;
+                        }
+                        const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
+                        setActive(preferred || targets[0]);
+                    }
+
+                    function setSlotValue(fieldKey, heroName) {
+                        const slot = getSlot(fieldKey);
+                        if (!slot) return;
+                        const input = slot.querySelector('input[type="hidden"]');
+                        input.value = heroName;
+                        renderSlot(slot);
+                    }
+
+                    function renderSuggestionTable(target, matchingMaps) {
+                        const rows = target.options.map(option => {
+                            return '<tr>'
+                                + '<td><span class="hero-inline-cell"><img src="' + (heroImageMap[option.hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(option.hero))) + '" alt="' + option.hero + '" class="hero-inline-thumb"><span>' + option.hero + '</span></span></td>'
+                                + '<td>' + option.rate + '% (' + option.count + '/' + matchingMaps + ')</td>'
+                                + '</tr>';
+                        }).join('');
+                        return '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Likely Next Hero</th><th>Likelihood</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+                    }
+
+                    function renderLikelyCompSection(data) {
+                        if (!Array.isArray(data.likely_comps) || !data.likely_comps.length) {
+                            return '';
+                        }
+
+                        const compRows = data.likely_comps.map(comp => {
+                            const heroes = Array.isArray(comp.heroes) ? comp.heroes : [];
+                            const heroLine = heroes.map(hero => {
+                                const img = heroImageMap[hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero));
+                                return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + hero + '" class="hero-inline-thumb"><span>' + hero + '</span></span>';
+                            }).join(' ');
+                            return '<tr>'
+                                + '<td>' + mapTeamLabel(comp.team_label) + '</td>'
+                                + '<td>' + (heroLine || '--') + '</td>'
+                                + '<td>' + comp.rate + '% (' + comp.count + '/' + data.matching_maps + ')</td>'
+                                + '</tr>';
+                        }).join('');
+
+                        return '<h4 class="top-gap">Most Likely Comp To Be Played</h4>'
+                            + '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Side</th><th>Likely Comp</th><th>Likelihood</th></tr></thead><tbody>'
+                            + compRows
+                            + '</tbody></table></div>';
+                    }
+
+                    function renderSimulationResults(data) {
+                        if (!resultsContainer) return;
+                        if (data.status === 'complete') {
+                            resultsContainer.innerHTML = '<p class="empty-text">All draft slots are filled. Clear one slot to continue simulation.</p>';
+                            return;
+                        }
+                        if (!data.matching_maps) {
+                            resultsContainer.innerHTML = '<p class="empty-text">No matching drafts for this simulation state yet.</p>';
+                            return;
+                        }
+
+                        let html = '<p class="panel-intro">Matched maps: <strong>' + data.matching_maps + '</strong>.</p><h4 class="top-gap">Upcoming Picks</h4>';
+                        if (Array.isArray(data.targets) && data.targets.length) {
+                            data.targets.forEach(target => {
+                                html += '<p class="panel-intro top-gap"><strong>' + mapTeamLabel(target.team_label) + ' ' + target.slot_label + '</strong></p>';
+                                if (target.options && target.options.length) {
+                                    html += renderSuggestionTable(target, data.matching_maps);
+                                } else {
+                                    html += '<p class="empty-text top-gap">Matched maps exist, but this slot was blank in those drafts.</p>';
+                                }
+                            });
+                        }
+                        html += renderLikelyCompSection(data);
+                        resultsContainer.innerHTML = html;
+                    }
+
+                    async function fetchSimulationPrediction(triggerField) {
+                        const query = new URLSearchParams();
+                        query.set('timeframe', timeframeValue);
+                        const payload = collectInputs();
+                        Object.entries(payload).forEach(([key, value]) => query.set(key, value));
+
+                        const response = await fetch(endpointUrl + '?' + query.toString(), {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' },
+                        });
+                        if (!response.ok) {
+                            return;
+                        }
+                        const data = await response.json();
+                        renderSimulationResults(data);
+
+                        if (!triggerField || !Array.isArray(data.targets)) {
+                            return;
+                        }
+
+                        const autoTarget = data.targets.find(target => {
+                            if (!target || !target.field_key || !target.options || !target.options.length) {
+                                return false;
+                            }
+                            if (getFieldTeam(target.field_key) !== getOpponentSide()) {
+                                return false;
+                            }
+                            const slot = getSlot(target.field_key);
+                            if (!slot) {
+                                return false;
+                            }
+                            const input = slot.querySelector('input[type="hidden"]');
+                            return !(input.value || '').trim();
+                        });
+
+                        if (autoTarget) {
+                            setSlotValue(autoTarget.field_key, autoTarget.options[0].hero);
+                            setPreferredActiveTarget();
+                            await fetchSimulationPrediction(null);
+                        }
+                    }
+
+                    function clearSlot(slot) {
+                        const input = slot.querySelector('input[type="hidden"]');
+                        input.value = '';
+                        renderSlot(slot);
+                        setPreferredActiveTarget();
+                        if (simulationStarted) {
+                            fetchSimulationPrediction(null);
+                        }
+                    }
+
+                    slots.forEach(slot => {
+                        slot.addEventListener('click', function () {
+                            setActive(slot.dataset.field);
+                        });
+                        slot.addEventListener('contextmenu', function (event) {
+                            event.preventDefault();
+                            clearSlot(slot);
+                        });
+                    });
+
+                    heroButtons.forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            const hero = btn.dataset.hero;
+                            const targets = getNextTargets();
+                            const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
+                            const targetField = (activeField && targets.includes(activeField) && getFieldTeam(activeField) === simulationSide)
+                                ? activeField
+                                : (preferred || targets[0]);
+                            if (!targetField) return;
+                            setSlotValue(targetField, hero);
+                            setPreferredActiveTarget();
+                            if (simulationStarted) {
+                                fetchSimulationPrediction(targetField);
+                            }
+                        });
+                    });
+
+                    if (beginButton) {
+                        beginButton.addEventListener('click', function () {
+                            simulationStarted = true;
+                            beginButton.textContent = 'Simulation Running';
+                            beginButton.disabled = true;
+                            fetchSimulationPrediction(null);
+                        });
+                    }
+
+                    if (clearButton) {
+                        clearButton.addEventListener('click', function () {
+                            slots.forEach(slot => {
+                                const input = slot.querySelector('input[type="hidden"]');
+                                input.value = '';
+                                renderSlot(slot);
+                            });
+                            simulationStarted = false;
+                            if (beginButton) {
+                                beginButton.textContent = 'Begin Simulation';
+                                beginButton.disabled = false;
+                            }
+                            if (resultsContainer) {
+                                resultsContainer.innerHTML = '';
+                            }
+                            setPreferredActiveTarget();
+                        });
+                    }
+
+                    if (simSideSelect) {
+                        simSideSelect.addEventListener('change', function () {
+                            simulationSide = simSideSelect.value || 'team1';
+                            updateDraftHeadings();
+                            setPreferredActiveTarget();
+                            if (simulationStarted) {
+                                fetchSimulationPrediction(null);
+                            }
+                        });
+                    }
+
+                    refreshAllSlots();
+                    updateDraftHeadings();
+                    setPreferredActiveTarget();
+                })();
+                </script>
+            </div>
         {% endif %}
-
-        <div class="form-grid">
-            <div class="panel panel-soft-red">
-                <div class="section-kicker">Ban Table</div>
-                <h3>Ban Rates / Ban Win Rate</h3>
-                {% if enemy_analytics.ban_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-bans">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Bans</th>
-                                    <th>Ban Rate</th>
-                                    <th>Win Rate When Banned</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in enemy_analytics.ban_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.ban_rate }}%</td>
-                                        <td>{{ row.win_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No ban data yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="panel panel-soft-green">
-                <div class="section-kicker">Protect Table</div>
-                <h3>Protect Rates / Protect Win Rate</h3>
-                {% if enemy_analytics.protect_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-protect">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Protects</th>
-                                    <th>Protect Rate</th>
-                                    <th>Win Rate When Protected</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in enemy_analytics.protect_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.protect_rate }}%</td>
-                                        <td>{{ row.win_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No protect data yet.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="form-grid top-gap">
-            <div class="panel panel-soft-gold">
-                <div class="section-kicker">Split View</div>
-                <h3>Enemy Team Bans</h3>
-                {% if enemy_analytics.ban_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Bans</th>
-                                    <th>Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in enemy_analytics.ban_rows[:8] %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.ban_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No team ban data yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="panel panel-soft-blue">
-                <div class="section-kicker">Split View</div>
-                <h3>Main Team Bans</h3>
-                {% if enemy_analytics.enemy_ban_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Bans</th>
-                                    <th>Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in enemy_analytics.enemy_ban_rows[:8] %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.ban_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No opponent ban data yet.</p>
-                {% endif %}
-            </div>
-        </div>
 
         <div class="form-grid top-gap">
             <div class="panel panel-soft-gold">
