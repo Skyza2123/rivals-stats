@@ -17,6 +17,8 @@
                 &bull;
                 {% if selected_season == 'all' %}
                     {{ team_scrim_count }} scrims
+                {% elif selected_season == unspecified_season_token %}
+                    {{ team_scrim_count }} scrims with no season set ({{ team_scrim_total_count }} total)
                 {% else %}
                     {{ team_scrim_count }} scrims in Season {{ selected_season }} ({{ team_scrim_total_count }} total)
                 {% endif %}
@@ -26,6 +28,9 @@
     <div class="header-actions team-hero-actions">
         <select id="teamSeasonFilter" aria-label="Season filter" class="team-range-select" onchange="const u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', this.value)} window.location.href=u.toString();">
             <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+            {% if has_unseasoned_scrims %}
+                <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+            {% endif %}
             {% for season in season_options %}
                 <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
             {% endfor %}

@@ -76,6 +76,7 @@ PREDICTOR_GROUPS = (
     (("team2", "ban3", "t2_ban3"), ("team2", "ban4", "t2_ban4"), ("team2", "protect2", "t2_protect2")),
     (("team1", "ban4", "t1_ban4"),),
 )
+UNSPECIFIED_SEASON_TOKEN = "__unspecified__"
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 SCRIMS = []
@@ -300,10 +301,12 @@ def get_scrim_season_options(scrims: list[dict]) -> list[str]:
     return sorted(seasons, key=lambda value: [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)])
 
 
-def get_selected_season(raw_value: str, season_options: list[str]) -> str:
+def get_selected_season(raw_value: str, season_options: list[str], *, allow_unspecified: bool = False) -> str:
     selected = normalize_season_value(raw_value)
     if not selected or selected.lower() == "all":
         return "all"
+    if selected == UNSPECIFIED_SEASON_TOKEN and allow_unspecified:
+        return UNSPECIFIED_SEASON_TOKEN
     return selected if selected in season_options else "all"
 
 
@@ -311,6 +314,8 @@ def filter_scrims_by_season(scrims: list[dict], season: str) -> list[dict]:
     selected = normalize_season_value(season)
     if not selected or selected.lower() == "all":
         return scrims
+    if selected == UNSPECIFIED_SEASON_TOKEN:
+        return [scrim for scrim in scrims if not normalize_season_value(scrim.get("season", ""))]
     return [scrim for scrim in scrims if normalize_season_value(scrim.get("season", "")) == selected]
 
 
@@ -2074,7 +2079,12 @@ def team_detail(team_id: int):
         )
     ]
     season_options = get_scrim_season_options(all_team_scrims)
-    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", "all"),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+    )
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
@@ -2207,6 +2217,8 @@ def team_detail(team_id: int):
         player_roles=PLAYER_ROLES,
         team_analytics=team_analytics,
         season_options=season_options,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+        has_unseasoned_scrims=has_unseasoned_scrims,
         selected_season=selected_season,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
@@ -2242,7 +2254,12 @@ def team_draft_predict(team_id: int):
         )
     ]
     season_options = get_scrim_season_options(all_team_scrims)
-    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", "all"),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+    )
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
@@ -2641,7 +2658,14 @@ def enemy_team_detail(enemy_team_id: int):
             all_matched_enemy_scrims.append(scrim)
 
     season_options = get_scrim_season_options(all_matched_enemy_scrims)
-    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    has_unseasoned_scrims = any(
+        not normalize_season_value(scrim.get("season", "")) for scrim in all_matched_enemy_scrims
+    )
+    selected_season = get_selected_season(
+        request.args.get("season", "all"),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+    )
     matched_enemy_scrims = filter_scrims_by_season(all_matched_enemy_scrims, selected_season)
 
     enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
@@ -2703,6 +2727,8 @@ def enemy_team_detail(enemy_team_id: int):
         players=players,
         enemy_analytics=enemy_analytics,
         season_options=season_options,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+        has_unseasoned_scrims=has_unseasoned_scrims,
         selected_season=selected_season,
         enemy_scrim_count=len(matched_enemy_scrims),
         enemy_scrim_total_count=len(all_matched_enemy_scrims),
@@ -2752,7 +2778,14 @@ def enemy_draft_predict(enemy_team_id: int):
             all_matched_enemy_scrims.append(scrim)
 
     season_options = get_scrim_season_options(all_matched_enemy_scrims)
-    selected_season = get_selected_season(request.args.get("season", "all"), season_options)
+    has_unseasoned_scrims = any(
+        not normalize_season_value(scrim.get("season", "")) for scrim in all_matched_enemy_scrims
+    )
+    selected_season = get_selected_season(
+        request.args.get("season", "all"),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+    )
 
     matched_enemy_scrims = filter_scrims_by_season(all_matched_enemy_scrims, selected_season)
     enemy_perspective_scrims = to_enemy_perspective_scrims(matched_enemy_scrims)
@@ -3312,8 +3345,12 @@ def import_csv_scrims():
 
     team_id  = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
+    season = normalize_season_value(request.form.get("season", ""))
     if not team_name:
         flash("Please select your team before importing.", "error")
+        return redirect(url_for("scrims"))
+    if not season:
+        flash("Please set a season for this import.", "error")
         return redirect(url_for("scrims"))
 
     file = request.files.get("csv_file")
@@ -3351,6 +3388,7 @@ def import_csv_scrims():
 
     imported = 0
     for scrim in parsed_scrims:
+        scrim["season"] = season
         normalize_scrim_record(scrim)
         # Assign IDs
         scrim["id"] = NEXT_SCRIM_ID
