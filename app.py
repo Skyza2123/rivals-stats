@@ -185,11 +185,33 @@ def load_app_state() -> None:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
 
-        SCRIMS = json.loads(state.get("scrims", "[]"))
+        raw_scrims = json.loads(state.get("scrims", "[]"))
+        scrims_changed = False
+        normalized_scrims = []
+        for scrim in raw_scrims:
+            if not isinstance(scrim, dict):
+                normalized_scrims.append(scrim)
+                continue
+
+            had_season_key = "season" in scrim
+            previous_season = scrim.get("season")
+            normalize_scrim_record(scrim)
+            if not had_season_key or previous_season != scrim.get("season"):
+                scrims_changed = True
+            normalized_scrims.append(scrim)
+
+        SCRIMS = normalized_scrims
         NEXT_SCRIM_ID = int(state.get("next_scrim_id", "1"))
         NEXT_MAP_ID = int(state.get("next_map_id", "1"))
         NEXT_EVENT_ID = int(state.get("next_event_id", "1"))
         ensure_state_defaults()
+
+        if scrims_changed:
+            conn.execute(
+                "UPDATE app_state SET state_value = ? WHERE state_key = ?",
+                (json.dumps(SCRIMS), "scrims"),
+            )
+            conn.commit()
     finally:
         conn.close()
 
@@ -202,6 +224,9 @@ def refresh_app_state_from_db() -> None:
 
 def save_app_state() -> None:
     ensure_state_defaults()
+    for scrim in SCRIMS:
+        if isinstance(scrim, dict):
+            normalize_scrim_record(scrim)
     db = get_db()
     db.executemany(
         "UPDATE app_state SET state_value = ? WHERE state_key = ?",

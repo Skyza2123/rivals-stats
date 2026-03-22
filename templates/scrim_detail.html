@@ -181,7 +181,7 @@
                 </div>
                 <div class="field">
                     <label for="edit_season">Season</label>
-                    <input type="text" id="edit_season" name="season" value="{{ scrim.season }}" placeholder="e.g. 7 or 7.5" required>
+                    <input type="text" id="edit_season" name="season" value="{{ scrim.season or '' }}" placeholder="e.g. 7 or 7.5" required>
                 </div>
                 <div class="field">
                     <label for="edit_team_id">Your Team</label>
