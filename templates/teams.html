@@ -8,12 +8,15 @@
         <h2>View Your Teams</h2>
         <p>Create teams and jump into stats quickly.</p>
         {% if selected_season != 'all' %}
-            <p style="color: var(--accent-color, #0066cc); font-weight: 500; margin-top: 0.5rem;">
-                {% if selected_season == unspecified_season_token %}
-                    Showing teams with scrims from unspecified seasons
-                {% else %}
-                    Showing teams with scrims from Season {{ selected_season }}
-                {% endif %}
+            <p style="margin-top: 0.4rem; margin-bottom: 0;">
+                <strong style="color: var(--accent-color, #0066cc);">
+                    {% if selected_season == unspecified_season_token %}
+                        Filtered: scrims with no season set
+                    {% else %}
+                        Filtered: Season {{ selected_season }}
+                    {% endif %}
+                </strong>
+                &nbsp;<a href="{{ url_for('teams') }}" style="font-size: 0.85rem; color: #888;">Clear ×</a>
             </p>
         {% endif %}
     </div>

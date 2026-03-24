@@ -35,23 +35,27 @@
     {% endfor %}
 {% endwith %}
 
-{% if selected_season != 'all' or selected_team_id %}
-    <div style="background-color: #f0f4ff; border-left: 4px solid var(--accent-color, #0066cc); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 4px;">
-        <p style="margin: 0; font-weight: 500; color: var(--accent-color, #0066cc); font-size: 0.95rem;">
-            Showing scrims
-            {%- if selected_team_id -%}
-                {%- for team in teams -%}
-                    {%- if team.id|string == selected_team_id %} from {{ team.name }}{%- endif -%}
-                {%- endfor -%}
-            {%- endif -%}
-            {%- if selected_season != 'all' -%}
-                {%- if selected_season == unspecified_season_token %} with no season set{%- else %} from Season {{ selected_season }}{%- endif -%}
-            {%- endif -%}
-        </p>
-    </div>
-{% endif %}
-
 <section class="panel">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <p style="margin: 0; font-size: 0.95rem; color: #555;">
+            {% if selected_season == 'all' and not selected_team_id %}
+                Showing all <strong>{{ scrims|length }}</strong> scrims
+            {% else %}
+                <strong style="color: var(--accent-color, #0066cc);">{{ scrims|length }} of {{ total_scrim_count }}</strong> scrims
+                {%- if selected_team_id -%}
+                    {%- for team in teams -%}
+                        {%- if team.id|string == selected_team_id %} &bull; {{ team.name }}{%- endif -%}
+                    {%- endfor -%}
+                {%- endif -%}
+                {%- if selected_season != 'all' -%}
+                    {%- if selected_season == unspecified_season_token %} &bull; No season set{%- else %} &bull; Season {{ selected_season }}{%- endif -%}
+                {%- endif -%}
+            {% endif %}
+        </p>
+        {% if selected_season != 'all' or selected_team_id %}
+            <a href="{{ url_for('scrims') }}" style="font-size: 0.85rem; color: #888;">Clear filters ×</a>
+        {% endif %}
+    </div>
     {% if scrims %}
         <div class="scrim-box-grid">
             {% for scrim in scrims %}
