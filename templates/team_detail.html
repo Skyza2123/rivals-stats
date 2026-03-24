@@ -1393,8 +1393,9 @@
         {% if enemy_teams %}
             <div class="enemy-teams-grid">
                 {% for enemy in enemy_teams %}
+                    {% set enemy_detail_url = url_for('enemy_team_detail', enemy_team_id=enemy.id, season=selected_season) if selected_season != 'all' else url_for('enemy_team_detail', enemy_team_id=enemy.id) %}
                     <article class="team-dash-card enemy-dash-card">
-                        <a class="team-dash-main" href="{{ url_for('enemy_team_detail', enemy_team_id=enemy.id) }}">
+                        <a class="team-dash-main" href="{{ enemy_detail_url }}">
                             <img
                                 class="team-dash-logo"
                                 src="{{ url_for('static', filename=enemy.logo_path) if enemy.logo_path else 'https://avatar.vercel.sh/' ~ (enemy.name | urlencode) ~ '.png?size=140' }}"
@@ -1408,7 +1409,7 @@
                             </div>
                         </a>
 
-                        <a class="team-dash-stats-link" href="{{ url_for('enemy_team_detail', enemy_team_id=enemy.id) }}">View matchup →</a>
+                        <a class="team-dash-stats-link" href="{{ enemy_detail_url }}">View matchup →</a>
 
                         {% if enemy.players %}
                             <div class="enemy-dash-roster">

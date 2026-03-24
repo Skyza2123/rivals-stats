@@ -34,7 +34,7 @@
                             <span>{{ team.map_win_rate }}% WR</span>
                         </div>
                     </a>
-                    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id) }}#maps">View stats →</a>
+                    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id) }}">View stats →</a>
                     <div class="team-dash-players">{{ team.player_count }} players</div>
                 </article>
             {% endfor %}

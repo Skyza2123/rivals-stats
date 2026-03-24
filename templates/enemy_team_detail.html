@@ -35,7 +35,7 @@
                 <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
             {% endfor %}
         </select>
-        <a href="{{ url_for('team_detail', team_id=main_team.id) }}" class="button-secondary">Back to {{ main_team.name }}</a>
+        <a href="{{ url_for('team_detail', team_id=main_team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=main_team.id) }}" class="button-secondary">Back to {{ main_team.name }}</a>
         <form method="post" action="{{ url_for('delete_enemy_team', enemy_team_id=enemy_team.id) }}" onsubmit="return confirm('Delete this enemy team and all players?');">
             <button type="submit" class="button-secondary">Delete Team</button>
         </form>
