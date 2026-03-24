@@ -3,6 +3,7 @@ import io
 import os
 import json
 import re
+import hashlib
 import sqlite3
 import importlib
 from difflib import SequenceMatcher
@@ -84,6 +85,7 @@ NEXT_SCRIM_ID = 1
 NEXT_MAP_ID = 1
 NEXT_EVENT_ID = 1
 LAST_SCRIMS_REV = 0
+LAST_SCRIMS_ETAG = ""
 MAX_SCRIM_BACKUPS = 100
 
 
@@ -97,6 +99,11 @@ def ensure_state_defaults() -> None:
     NEXT_SCRIM_ID = max(1, int(NEXT_SCRIM_ID or 1))
     NEXT_MAP_ID = max(1, int(NEXT_MAP_ID or 1))
     NEXT_EVENT_ID = max(1, int(NEXT_EVENT_ID or 1))
+
+
+def _build_scrims_etag(scrims: list) -> str:
+    payload = json.dumps(scrims, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
 def get_db() -> sqlite3.Connection:
@@ -213,7 +220,7 @@ def init_db() -> None:
 
 
 def load_app_state() -> None:
-    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV
+    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -241,6 +248,7 @@ def load_app_state() -> None:
         NEXT_EVENT_ID = int(state.get("next_event_id", "1"))
         LAST_SCRIMS_REV = int(state.get("scrims_rev", "0"))
         ensure_state_defaults()
+        LAST_SCRIMS_ETAG = _build_scrims_etag(SCRIMS)
 
         if scrims_changed:
             conn.execute(
@@ -264,7 +272,7 @@ def refresh_app_state_from_db() -> None:
 
 
 def save_app_state() -> None:
-    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV
+    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
 
     def _safe_json_list(raw_value: str) -> list:
         try:
@@ -352,6 +360,20 @@ def save_app_state() -> None:
             normalize_scrim_record(scrim)
 
     db = get_db()
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS app_state_backups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            source TEXT NOT NULL DEFAULT 'save_app_state',
+            scrims_json TEXT NOT NULL
+        )
+        """
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO app_state (state_key, state_value) VALUES (?, ?)",
+        ("scrims_rev", "0"),
+    )
     db.execute("BEGIN IMMEDIATE")
     rows = db.execute(
         "SELECT state_key, state_value FROM app_state WHERE state_key IN ('scrims', 'scrims_rev', 'next_scrim_id', 'next_map_id', 'next_event_id')"
@@ -360,8 +382,10 @@ def save_app_state() -> None:
 
     persisted_scrims = _safe_json_list(state.get("scrims", "[]"))
     persisted_rev = _parse_int(state.get("scrims_rev", "0"), 0)
+    persisted_etag = _build_scrims_etag(persisted_scrims)
+    local_etag = LAST_SCRIMS_ETAG or _build_scrims_etag(SCRIMS)
 
-    conflict_detected = persisted_rev != LAST_SCRIMS_REV
+    conflict_detected = (persisted_rev != LAST_SCRIMS_REV) or (persisted_etag != local_etag)
     if conflict_detected:
         SCRIMS = _merge_scrim_lists(persisted_scrims, SCRIMS)
         ensure_state_defaults()
@@ -391,6 +415,7 @@ def save_app_state() -> None:
     )
     db.commit()
     LAST_SCRIMS_REV = new_rev
+    LAST_SCRIMS_ETAG = _build_scrims_etag(SCRIMS)
 
     if conflict_detected and has_request_context():
         flash("A concurrent scrim update was detected. Changes were merged to prevent data loss.", "warning")
