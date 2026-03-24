@@ -271,7 +271,7 @@ def refresh_app_state_from_db() -> None:
     load_app_state()
 
 
-def save_app_state() -> None:
+def save_app_state(*, allow_scrim_removal: bool = False) -> None:
     global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
 
     def _safe_json_list(raw_value: str) -> list:
@@ -360,6 +360,7 @@ def save_app_state() -> None:
             normalize_scrim_record(scrim)
 
     db = get_db()
+    # DDL first (auto-committed by SQLite, doesn't open a Python implicit transaction)
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS app_state_backups (
@@ -370,11 +371,14 @@ def save_app_state() -> None:
         )
         """
     )
+    # Acquire an IMMEDIATE write lock before any DML so Python's sqlite3
+    # never opens a weaker implicit deferred transaction that skips this lock.
+    if not db.in_transaction:
+        db.execute("BEGIN IMMEDIATE")
     db.execute(
         "INSERT OR IGNORE INTO app_state (state_key, state_value) VALUES (?, ?)",
         ("scrims_rev", "0"),
     )
-    db.execute("BEGIN IMMEDIATE")
     rows = db.execute(
         "SELECT state_key, state_value FROM app_state WHERE state_key IN ('scrims', 'scrims_rev', 'next_scrim_id', 'next_map_id', 'next_event_id')"
     ).fetchall()
@@ -384,6 +388,14 @@ def save_app_state() -> None:
     persisted_rev = _parse_int(state.get("scrims_rev", "0"), 0)
     persisted_etag = _build_scrims_etag(persisted_scrims)
     local_etag = LAST_SCRIMS_ETAG or _build_scrims_etag(SCRIMS)
+
+    # Safety rail: unless the caller explicitly allows removals, non-delete
+    # operations must never shrink the scrim set.
+    if not allow_scrim_removal and len(SCRIMS) < len(persisted_scrims):
+        SCRIMS = _merge_scrim_lists(persisted_scrims, SCRIMS)
+        ensure_state_defaults()
+        if has_request_context():
+            flash("Detected a partial scrim state update and auto-restored missing scrims.", "warning")
 
     conflict_detected = (persisted_rev != LAST_SCRIMS_REV) or (persisted_etag != local_etag)
     if conflict_detected:
@@ -2126,9 +2138,18 @@ def teams():
         ORDER BY t.name COLLATE NOCASE
         """
     ).fetchall()
+
+    season_options = get_scrim_season_options(SCRIMS)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in SCRIMS)
+    selected_season = get_selected_season(
+        request.args.get("season", "all"),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+    )
+
     teams_with_scrim_stats = []
     for row in team_rows:
-        team_scrims = [
+        all_team_scrims = [
             scrim
             for scrim in SCRIMS
             if scrim.get("team_id") == row["id"]
@@ -2137,6 +2158,7 @@ def teams():
                 and (scrim.get("team_name", "") or "").strip().lower() == row["name"].strip().lower()
             )
         ]
+        team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
         team_maps = sum(len(scrim.get("maps", [])) for scrim in team_scrims)
         team_wins = sum(
             1
@@ -2159,7 +2181,14 @@ def teams():
             }
         )
 
-    return render_template("teams.html", teams=teams_with_scrim_stats)
+    return render_template(
+        "teams.html",
+        teams=teams_with_scrim_stats,
+        season_options=season_options,
+        selected_season=selected_season,
+        has_unseasoned_scrims=has_unseasoned_scrims,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+    )
 
 
 @app.route("/teams/create", methods=["POST"])
@@ -2955,8 +2984,35 @@ def enemy_draft_predict(enemy_team_id: int):
 
 @app.route("/scrims")
 def scrims():
+    season_options = get_scrim_season_options(SCRIMS)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in SCRIMS)
+    selected_season = get_selected_season(
+        request.args.get("season", "all"),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+    )
+    selected_team_id = request.args.get("team_id", "").strip()
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
-    return render_template("scrims.html", scrims=list(reversed(SCRIMS)), teams=teams)
+
+    filtered = filter_scrims_by_season(SCRIMS, selected_season)
+    if selected_team_id:
+        try:
+            tid = int(selected_team_id)
+            filtered = [s for s in filtered if s.get("team_id") == tid]
+        except (ValueError, TypeError):
+            selected_team_id = ""
+
+    return render_template(
+        "scrims.html",
+        scrims=list(reversed(filtered)),
+        teams=teams,
+        season_options=season_options,
+        selected_season=selected_season,
+        has_unseasoned_scrims=has_unseasoned_scrims,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+        selected_team_id=selected_team_id,
+        total_scrim_count=len(SCRIMS),
+    )
 
 
 @app.route("/scrims/recover/latest", methods=["POST"])
@@ -2981,14 +3037,40 @@ def recover_latest_scrim_backup():
         flash("Backup data format is invalid.", "error")
         return redirect(url_for("scrims"))
 
+    current_by_id = {}
+    current_no_id = []
+    for scrim in SCRIMS:
+        if not isinstance(scrim, dict):
+            continue
+        normalize_scrim_record(scrim)
+        scrim_id = scrim.get("id")
+        if isinstance(scrim_id, int):
+            current_by_id[scrim_id] = scrim
+        else:
+            current_no_id.append(scrim)
+
+    recovered_no_id = []
+    restored_count = 0
     for scrim in recovered_scrims:
-        if isinstance(scrim, dict):
-            normalize_scrim_record(scrim)
+        if not isinstance(scrim, dict):
+            continue
+        normalize_scrim_record(scrim)
+        scrim_id = scrim.get("id")
+        if isinstance(scrim_id, int):
+            if scrim_id not in current_by_id:
+                current_by_id[scrim_id] = scrim
+                restored_count += 1
+        else:
+            recovered_no_id.append(scrim)
+
+    merged_scrims = [current_by_id[scrim_id] for scrim_id in sorted(current_by_id.keys())]
+    merged_scrims.extend(current_no_id)
+    merged_scrims.extend(recovered_no_id)
 
     max_scrim_id = 0
     max_map_id = 0
     max_event_id = 0
-    for scrim in recovered_scrims:
+    for scrim in merged_scrims:
         if not isinstance(scrim, dict):
             continue
         if isinstance(scrim.get("id"), int):
@@ -3002,13 +3084,19 @@ def recover_latest_scrim_backup():
                 if isinstance(event, dict) and isinstance(event.get("id"), int):
                     max_event_id = max(max_event_id, event["id"])
 
-    SCRIMS = recovered_scrims
+    SCRIMS = merged_scrims
     NEXT_SCRIM_ID = max(1, max_scrim_id + 1)
     NEXT_MAP_ID = max(1, max_map_id + 1)
     NEXT_EVENT_ID = max(1, max_event_id + 1)
     save_app_state()
 
-    flash(f"Restored scrims from backup #{row['id']} ({row['created_at']}).", "success")
+    if restored_count:
+        flash(
+            f"Recovered {restored_count} missing scrim(s) from backup #{row['id']} ({row['created_at']}).",
+            "success",
+        )
+    else:
+        flash("No missing scrims were found in the latest backup.", "warning")
     return redirect(url_for("scrims"))
 
 
@@ -3843,7 +3931,7 @@ def edit_scrim(scrim_id: int):
 def delete_scrim(scrim_id: int):
     scrim = get_scrim_or_404(scrim_id)
     SCRIMS.remove(scrim)
-    save_app_state()
+    save_app_state(allow_scrim_removal=True)
     return redirect(url_for("scrims"))
 
 

@@ -9,9 +9,21 @@
         <p>Browse all scrims.</p>
     </div>
     <div class="header-actions">
-        <form method="post" action="{{ url_for('recover_latest_scrim_backup') }}" onsubmit="return confirm('Restore the latest scrim backup? This will replace current scrims with the previous snapshot.');">
-            <button class="button-secondary" type="submit">Restore Latest Backup</button>
-        </form>
+        <select aria-label="Filter by season" class="team-range-select" onchange="(function(s){var u=new URL(window.location.href); if(s.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', s.value)} window.location.href=u.toString();})(this)">
+            <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+            {% if has_unseasoned_scrims %}
+                <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+            {% endif %}
+            {% for season in season_options %}
+                <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+            {% endfor %}
+        </select>
+        <select aria-label="Filter by team" class="team-range-select" onchange="(function(s){var u=new URL(window.location.href); if(s.value===''){u.searchParams.delete('team_id')}else{u.searchParams.set('team_id', s.value)} window.location.href=u.toString();})(this)">
+            <option value="">All Teams</option>
+            {% for team in teams %}
+                <option value="{{ team.id }}" {% if selected_team_id == team.id|string %}selected{% endif %}>{{ team.name }}</option>
+            {% endfor %}
+        </select>
         <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
         <a class="button-link" href="{{ url_for('new_scrim') }}">+ New Scrim</a>
     </div>
@@ -22,6 +34,22 @@
         <div class="flash flash-{{ category }}">{{ message }}</div>
     {% endfor %}
 {% endwith %}
+
+{% if selected_season != 'all' or selected_team_id %}
+    <div style="background-color: #f0f4ff; border-left: 4px solid var(--accent-color, #0066cc); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 4px;">
+        <p style="margin: 0; font-weight: 500; color: var(--accent-color, #0066cc); font-size: 0.95rem;">
+            Showing scrims
+            {%- if selected_team_id -%}
+                {%- for team in teams -%}
+                    {%- if team.id|string == selected_team_id %} from {{ team.name }}{%- endif -%}
+                {%- endfor -%}
+            {%- endif -%}
+            {%- if selected_season != 'all' -%}
+                {%- if selected_season == unspecified_season_token %} with no season set{%- else %} from Season {{ selected_season }}{%- endif -%}
+            {%- endif -%}
+        </p>
+    </div>
+{% endif %}
 
 <section class="panel">
     {% if scrims %}

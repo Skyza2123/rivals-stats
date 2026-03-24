@@ -268,23 +268,79 @@
                 </div>
             </div>
 
+            <!-- Hero pick slots -->
             <div class="draft-grid">
                 <div class="draft-column">
                     <h4 class="team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <div class="draft-slots">
+                        {% for i in range(6) %}
+                        {% set entry = sec.team1[i] %}
+                        <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
+                             data-comp-modal="{{ s }}"
+                             onclick="activateCompSlot(this)">
+                            {% if entry.hero and entry.hero in hero_transformations %}
+                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
+                            {% endif %}
+                            <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
+                            <input type="hidden" name="team1_hero_{{ i }}" value="{{ entry.hero or '' }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="draft-column">
+                    <h4 class="team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <div class="draft-slots">
+                        {% for i in range(6) %}
+                        {% set entry = sec.team2[i] %}
+                        <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
+                             data-comp-modal="{{ s }}"
+                             onclick="activateCompSlot(this)">
+                            {% if entry.hero and entry.hero in hero_transformations %}
+                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
+                            {% endif %}
+                            <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
+                            <input type="hidden" name="team2_hero_{{ i }}" value="{{ entry.hero or '' }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
+
+            <!-- Hero portrait picker -->
+            <div class="hero-picker">
+                {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+                <div class="hero-role-section">
+                    <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+                    <div class="hero-icon-grid">
+                        {% for hero in hero_roles[role] %}
+                        <button type="button" class="hero-pick-btn comp-hero-btn"
+                                data-hero="{{ hero }}"
+                                data-comp-modal="{{ s }}"
+                                onclick="pickCompHero(this)"
+                                title="{{ hero }}">
+                            <div class="hero-img-wrap">
+                                <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                                     alt="{{ hero }}" loading="lazy">
+                            </div>
+                            <span class="hero-pick-name">{{ hero }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Player assignment -->
+            <div class="draft-grid top-gap">
+                <div class="draft-column">
+                    <h4 class="team-label team1-label">Team 1 Players</h4>
                     <div class="draft-slots comp-pick-slots">
                         {% for i in range(6) %}
                         <div class="comp-slot-wrap">
                             <div class="field">
-                                <label>Hero {{ i + 1 }}</label>
-                                <select name="team1_hero_{{ i }}">
-                                    <option value="">Empty</option>
-                                    {% for hero in heroes %}
-                                    <option value="{{ hero }}" {% if sec.team1[i].hero == hero %}selected{% endif %}>{{ hero }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="field">
-                                <label>Player</label>
+                                <label>Slot {{ i + 1 }}</label>
                                 <select class="comp-player-select" name="team1_player_{{ i }}">
                                     <option value="">Select player</option>
                                     {% if our_slot == 'team1' %}
@@ -306,21 +362,12 @@
                     </div>
                 </div>
                 <div class="draft-column">
-                    <h4 class="team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <h4 class="team-label team2-label">Team 2 Players</h4>
                     <div class="draft-slots comp-pick-slots">
                         {% for i in range(6) %}
                         <div class="comp-slot-wrap">
                             <div class="field">
-                                <label>Hero {{ i + 1 }}</label>
-                                <select name="team2_hero_{{ i }}">
-                                    <option value="">Empty</option>
-                                    {% for hero in heroes %}
-                                    <option value="{{ hero }}" {% if sec.team2[i].hero == hero %}selected{% endif %}>{{ hero }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="field">
-                                <label>Player</label>
+                                <label>Slot {{ i + 1 }}</label>
                                 <select class="comp-player-select" name="team2_player_{{ i }}">
                                     <option value="">Select player</option>
                                     {% if our_slot == 'team2' %}
@@ -740,48 +787,131 @@ function applyPlayerValueToControls(form, slotName, value) {
     input.value = normalizedValue;
 }
 
+/* ══════════════════════════════════════
+   COMP EDITOR — click-slot-then-pick
+   ══════════════════════════════════════ */
+var activeCompSlot = null;
+
+const COMP_HERO_IMGS = {};
+document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
+    var h = btn.dataset.hero;
+    var im = btn.querySelector('img');
+    if (h && im) COMP_HERO_IMGS[h] = im.src;
+});
+
+function activateCompSlot(el) {
+    document.querySelectorAll('.comp-pick-slot').forEach(function(s) {
+        s.classList.remove('slot-active');
+    });
+    el.classList.add('slot-active');
+    activeCompSlot = el;
+}
+
+function clearCompSlot(el) {
+    var inp = el.querySelector('input[type=hidden]');
+    if (inp) inp.value = '';
+    var textEl = el.querySelector('.slot-hero');
+    if (textEl) textEl.textContent = '\u2014';
+    var wrap = el.querySelector('.slot-img-wrap');
+    if (wrap) wrap.remove();
+    el.classList.remove('slot-filled', 'slot-active');
+    if (activeCompSlot === el) activeCompSlot = null;
+}
+
+function pickCompHero(btn) {
+    if (!activeCompSlot) return;
+    if (btn.dataset.compModal !== activeCompSlot.dataset.compModal) return;
+    var hero = btn.dataset.hero;
+    var imgSrc = btn.querySelector('img').src;
+    var inp = activeCompSlot.querySelector('input[type=hidden]');
+    if (inp) inp.value = hero;
+    var textEl = activeCompSlot.querySelector('.slot-hero');
+    if (textEl) textEl.textContent = hero;
+    var wrap = activeCompSlot.querySelector('.slot-img-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'slot-img-wrap';
+        var slotImg = document.createElement('img');
+        slotImg.className = 'slot-img';
+        wrap.appendChild(slotImg);
+        if (textEl) activeCompSlot.insertBefore(wrap, textEl);
+        else activeCompSlot.appendChild(wrap);
+    }
+    wrap.querySelector('img').src = imgSrc;
+    wrap.querySelector('img').alt = hero;
+    activeCompSlot.classList.remove('slot-active');
+    activeCompSlot.classList.add('slot-filled');
+    // Auto-advance to next empty slot in same modal
+    var modalId = activeCompSlot.dataset.compModal;
+    var allSlots = Array.from(document.querySelectorAll('.comp-pick-slot[data-comp-modal="' + modalId + '"]'));
+    var curIdx = allSlots.indexOf(activeCompSlot);
+    activeCompSlot = null;
+    for (var i = curIdx + 1; i < allSlots.length; i++) {
+        var nextInp = allSlots[i].querySelector('input[type=hidden]');
+        if (!nextInp || !nextInp.value) { activateCompSlot(allSlots[i]); break; }
+    }
+}
+
+// Right-click to clear comp slots
+document.addEventListener('contextmenu', function(e) {
+    var compSlot = e.target.closest('.comp-pick-slot');
+    if (compSlot) { e.preventDefault(); clearCompSlot(compSlot); }
+});
+
 function copyPreviousCompSection(sectionIndex) {
     sectionIndex = Number(sectionIndex);
-    if (!Number.isFinite(sectionIndex)) {
-        return;
-    }
-    if (sectionIndex <= 0) {
-        return;
-    }
+    if (!Number.isFinite(sectionIndex) || sectionIndex <= 0) return;
 
     const currentModal = document.getElementById(`editCompSectionModal${sectionIndex}`);
     const prevModal = document.getElementById(`editCompSectionModal${sectionIndex - 1}`);
-    if (!currentModal || !prevModal) {
-        return;
-    }
+    if (!currentModal || !prevModal) return;
 
     const currentForm = currentModal.querySelector('form');
     const prevForm = prevModal.querySelector('form');
-    if (!currentForm || !prevForm) {
-        return;
-    }
+    if (!currentForm || !prevForm) return;
 
     const scoreInput = currentForm.querySelector('input[name="score"]');
     const prevScoreInput = prevForm.querySelector('input[name="score"]');
-    if (scoreInput && prevScoreInput) {
-        scoreInput.value = prevScoreInput.value || '';
-    }
+    if (scoreInput && prevScoreInput) scoreInput.value = prevScoreInput.value || '';
 
     ['team1', 'team2'].forEach(team => {
         for (let i = 0; i < 6; i++) {
             const heroName = `${team}_hero_${i}`;
             const playerName = `${team}_player_${i}`;
 
-            const fromHero = prevForm.querySelector(`select[name="${heroName}"]`);
-            const toHero = currentForm.querySelector(`select[name="${heroName}"]`);
-            if (fromHero && toHero) {
-                toHero.value = fromHero.value || '';
+            // Heroes are now hidden inputs inside comp-pick-slot
+            const fromHero = prevForm.querySelector(`input[type=hidden][name="${heroName}"]`);
+            const toHiddenInp = currentForm.querySelector(`.comp-pick-slot input[type=hidden][name="${heroName}"]`);
+            if (fromHero && toHiddenInp) {
+                const heroVal = fromHero.value;
+                toHiddenInp.value = heroVal;
+                const slot = toHiddenInp.closest('.comp-pick-slot');
+                if (slot) {
+                    const textEl = slot.querySelector('.slot-hero');
+                    if (textEl) textEl.textContent = heroVal || '\u2014';
+                    let wrap = slot.querySelector('.slot-img-wrap');
+                    if (heroVal && COMP_HERO_IMGS[heroVal]) {
+                        if (!wrap) {
+                            wrap = document.createElement('div');
+                            wrap.className = 'slot-img-wrap';
+                            const img = document.createElement('img');
+                            img.className = 'slot-img';
+                            wrap.appendChild(img);
+                            if (textEl) slot.insertBefore(wrap, textEl);
+                        }
+                        wrap.querySelector('img').src = COMP_HERO_IMGS[heroVal];
+                        wrap.querySelector('img').alt = heroVal;
+                        slot.classList.add('slot-filled');
+                    } else {
+                        if (wrap) wrap.remove();
+                        slot.classList.remove('slot-filled');
+                    }
+                }
             }
 
             const fromPlayerSelect = prevForm.querySelector(`.comp-player-select[name="${playerName}"]`);
-            const fromPlayerInput = prevForm.querySelector(`.comp-player-input[data-slot="${playerName.replace('_player_', '_')}"]`);
+            const fromPlayerInput = prevForm.querySelector(`.comp-player-input[data-slot="${team}_${i}"]`);
             let fromPlayerValue = '';
-
             if (fromPlayerSelect) {
                 if (fromPlayerSelect.style.display === 'none' || fromPlayerSelect.value === 'custom') {
                     fromPlayerValue = fromPlayerInput ? fromPlayerInput.value : '';
@@ -789,7 +919,6 @@ function copyPreviousCompSection(sectionIndex) {
                     fromPlayerValue = fromPlayerSelect.value || '';
                 }
             }
-
             applyPlayerValueToControls(currentForm, playerName, fromPlayerValue);
         }
     });

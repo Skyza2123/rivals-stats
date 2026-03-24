@@ -7,8 +7,26 @@
     <div>
         <h2>View Your Teams</h2>
         <p>Create teams and jump into stats quickly.</p>
+        {% if selected_season != 'all' %}
+            <p style="color: var(--accent-color, #0066cc); font-weight: 500; margin-top: 0.5rem;">
+                {% if selected_season == unspecified_season_token %}
+                    Showing teams with scrims from unspecified seasons
+                {% else %}
+                    Showing teams with scrims from Season {{ selected_season }}
+                {% endif %}
+            </p>
+        {% endif %}
     </div>
     <div class="header-actions">
+        <select id="teamsSeasonFilter" aria-label="Season filter" class="team-range-select" onchange="var u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', this.value)} window.location.href=u.toString();">
+            <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+            {% if has_unseasoned_scrims %}
+                <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+            {% endif %}
+            {% for season in season_options %}
+                <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+            {% endfor %}
+        </select>
         <button id="openAddTeamModal" type="button" class="button-small">+ Add Team</button>
         <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
     </div>
@@ -34,7 +52,7 @@
                             <span>{{ team.map_win_rate }}% WR</span>
                         </div>
                     </a>
-                    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id) }}">View stats →</a>
+                    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
                     <div class="team-dash-players">{{ team.player_count }} players</div>
                 </article>
             {% endfor %}

@@ -26,7 +26,7 @@
         </div>
     </div>
     <div class="header-actions team-hero-actions">
-        <select id="teamSeasonFilter" aria-label="Season filter" class="team-range-select" onchange="const u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', this.value)} window.location.href=u.toString();">
+        <select id="teamSeasonFilter" aria-label="Season filter" class="team-range-select" onchange="var u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', this.value)} window.location.href=u.toString();">
             <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
             {% if has_unseasoned_scrims %}
                 <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
