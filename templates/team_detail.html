@@ -26,15 +26,17 @@
         </div>
     </div>
     <div class="header-actions team-hero-actions">
-        <select id="teamSeasonFilter" aria-label="Season filter" class="team-range-select" onchange="var u=new URL(window.location.href); if(this.value==='all'){u.searchParams.delete('season')}else{u.searchParams.set('season', this.value)} window.location.href=u.toString();">
-            <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
-            {% if has_unseasoned_scrims %}
-                <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
-            {% endif %}
-            {% for season in season_options %}
-                <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
-            {% endfor %}
-        </select>
+        <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" style="display:contents">
+            <select name="season" aria-label="Season filter" class="team-range-select" onchange="this.form.submit()">
+                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                {% if has_unseasoned_scrims %}
+                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                {% endif %}
+                {% for season in season_options %}
+                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                {% endfor %}
+            </select>
+        </form>
         <a href="{{ url_for('teams') }}" class="button-secondary">Back to Teams</a>
         <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
             <button type="submit" class="button-secondary">Delete Team</button>
