@@ -9,6 +9,9 @@
         <p>Browse all scrims.</p>
     </div>
     <div class="header-actions">
+        <form method="post" action="{{ url_for('recover_latest_scrim_backup') }}" onsubmit="return confirm('Restore the latest scrim backup? This will replace current scrims with the previous snapshot.');">
+            <button class="button-secondary" type="submit">Restore Latest Backup</button>
+        </form>
         <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
         <a class="button-link" href="{{ url_for('new_scrim') }}">+ New Scrim</a>
     </div>

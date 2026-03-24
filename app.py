@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
-from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from data import (
@@ -83,6 +83,8 @@ SCRIMS = []
 NEXT_SCRIM_ID = 1
 NEXT_MAP_ID = 1
 NEXT_EVENT_ID = 1
+LAST_SCRIMS_REV = 0
+MAX_SCRIM_BACKUPS = 100
 
 
 def ensure_state_defaults() -> None:
@@ -166,6 +168,13 @@ def init_db() -> None:
                 state_value TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS app_state_backups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                source TEXT NOT NULL DEFAULT 'save_app_state',
+                scrims_json TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS team_saved_drafts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 team_id INTEGER NOT NULL,
@@ -182,6 +191,7 @@ def init_db() -> None:
             ("next_scrim_id", "1"),
             ("next_map_id", "1"),
             ("next_event_id", "1"),
+            ("scrims_rev", "0"),
         ):
             conn.execute(
                 "INSERT OR IGNORE INTO app_state (state_key, state_value) VALUES (?, ?)",
@@ -203,7 +213,7 @@ def init_db() -> None:
 
 
 def load_app_state() -> None:
-    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID
+    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -229,12 +239,18 @@ def load_app_state() -> None:
         NEXT_SCRIM_ID = int(state.get("next_scrim_id", "1"))
         NEXT_MAP_ID = int(state.get("next_map_id", "1"))
         NEXT_EVENT_ID = int(state.get("next_event_id", "1"))
+        LAST_SCRIMS_REV = int(state.get("scrims_rev", "0"))
         ensure_state_defaults()
 
         if scrims_changed:
             conn.execute(
                 "UPDATE app_state SET state_value = ? WHERE state_key = ?",
                 (json.dumps(SCRIMS), "scrims"),
+            )
+            LAST_SCRIMS_REV += 1
+            conn.execute(
+                "UPDATE app_state SET state_value = ? WHERE state_key = ?",
+                (str(LAST_SCRIMS_REV), "scrims_rev"),
             )
             conn.commit()
     finally:
@@ -248,11 +264,121 @@ def refresh_app_state_from_db() -> None:
 
 
 def save_app_state() -> None:
+    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV
+
+    def _safe_json_list(raw_value: str) -> list:
+        try:
+            parsed = json.loads(raw_value or "[]")
+            return parsed if isinstance(parsed, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def _parse_int(raw_value: str, default: int) -> int:
+        try:
+            return int(raw_value)
+        except (TypeError, ValueError):
+            return default
+
+    def _merge_scrim_lists(current_scrims: list, pending_scrims: list) -> list:
+        merged_by_id = {}
+        no_id_scrims = []
+
+        for item in current_scrims:
+            if isinstance(item, dict) and isinstance(item.get("id"), int):
+                merged_by_id[item["id"]] = item
+            elif isinstance(item, dict):
+                no_id_scrims.append(item)
+
+        for item in pending_scrims:
+            if isinstance(item, dict) and isinstance(item.get("id"), int):
+                merged_by_id[item["id"]] = item
+            elif isinstance(item, dict):
+                no_id_scrims.append(item)
+
+        merged = [merged_by_id[scrim_id] for scrim_id in sorted(merged_by_id.keys())]
+        merged.extend(no_id_scrims)
+        return merged
+
+    def _recalculate_next_ids(scrims: list, fallback_scrim: int, fallback_map: int, fallback_event: int) -> tuple[int, int, int]:
+        max_scrim_id = 0
+        max_map_id = 0
+        max_event_id = 0
+
+        for scrim in scrims:
+            if not isinstance(scrim, dict):
+                continue
+            scrim_id = scrim.get("id")
+            if isinstance(scrim_id, int):
+                max_scrim_id = max(max_scrim_id, scrim_id)
+
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                map_id = map_entry.get("id")
+                if isinstance(map_id, int):
+                    max_map_id = max(max_map_id, map_id)
+
+                for event in map_entry.get("events", []):
+                    if not isinstance(event, dict):
+                        continue
+                    event_id = event.get("id")
+                    if isinstance(event_id, int):
+                        max_event_id = max(max_event_id, event_id)
+
+        return (
+            max(fallback_scrim, max_scrim_id + 1),
+            max(fallback_map, max_map_id + 1),
+            max(fallback_event, max_event_id + 1),
+        )
+
+    def _write_scrim_backup(db_conn: sqlite3.Connection, scrims_to_backup: list, source: str) -> None:
+        db_conn.execute(
+            "INSERT INTO app_state_backups (source, scrims_json) VALUES (?, ?)",
+            (source, json.dumps(scrims_to_backup)),
+        )
+        db_conn.execute(
+            """
+            DELETE FROM app_state_backups
+            WHERE id NOT IN (
+                SELECT id FROM app_state_backups ORDER BY id DESC LIMIT ?
+            )
+            """,
+            (MAX_SCRIM_BACKUPS,),
+        )
+
     ensure_state_defaults()
     for scrim in SCRIMS:
         if isinstance(scrim, dict):
             normalize_scrim_record(scrim)
+
     db = get_db()
+    db.execute("BEGIN IMMEDIATE")
+    rows = db.execute(
+        "SELECT state_key, state_value FROM app_state WHERE state_key IN ('scrims', 'scrims_rev', 'next_scrim_id', 'next_map_id', 'next_event_id')"
+    ).fetchall()
+    state = {row["state_key"]: row["state_value"] for row in rows}
+
+    persisted_scrims = _safe_json_list(state.get("scrims", "[]"))
+    persisted_rev = _parse_int(state.get("scrims_rev", "0"), 0)
+
+    conflict_detected = persisted_rev != LAST_SCRIMS_REV
+    if conflict_detected:
+        SCRIMS = _merge_scrim_lists(persisted_scrims, SCRIMS)
+        ensure_state_defaults()
+
+    persisted_next_scrim = _parse_int(state.get("next_scrim_id", "1"), 1)
+    persisted_next_map = _parse_int(state.get("next_map_id", "1"), 1)
+    persisted_next_event = _parse_int(state.get("next_event_id", "1"), 1)
+    NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID = _recalculate_next_ids(
+        SCRIMS,
+        max(NEXT_SCRIM_ID, persisted_next_scrim),
+        max(NEXT_MAP_ID, persisted_next_map),
+        max(NEXT_EVENT_ID, persisted_next_event),
+    )
+
+    _write_scrim_backup(db, persisted_scrims, "save_app_state")
+
+    new_rev = persisted_rev + 1
     db.executemany(
         "UPDATE app_state SET state_value = ? WHERE state_key = ?",
         [
@@ -260,9 +386,14 @@ def save_app_state() -> None:
             (str(NEXT_SCRIM_ID), "next_scrim_id"),
             (str(NEXT_MAP_ID), "next_map_id"),
             (str(NEXT_EVENT_ID), "next_event_id"),
+            (str(new_rev), "scrims_rev"),
         ],
     )
     db.commit()
+    LAST_SCRIMS_REV = new_rev
+
+    if conflict_detected and has_request_context():
+        flash("A concurrent scrim update was detected. Changes were merged to prevent data loss.", "warning")
 
 
 def _parse_scrim_date(raw_value: str) -> date | None:
@@ -2801,6 +2932,59 @@ def enemy_draft_predict(enemy_team_id: int):
 def scrims():
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
     return render_template("scrims.html", scrims=list(reversed(SCRIMS)), teams=teams)
+
+
+@app.route("/scrims/recover/latest", methods=["POST"])
+def recover_latest_scrim_backup():
+    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID
+
+    db = get_db()
+    row = db.execute(
+        "SELECT id, created_at, scrims_json FROM app_state_backups ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    if row is None:
+        flash("No scrim backup is available yet.", "error")
+        return redirect(url_for("scrims"))
+
+    try:
+        recovered_scrims = json.loads(row["scrims_json"] or "[]")
+    except json.JSONDecodeError:
+        flash("Backup data was invalid and could not be restored.", "error")
+        return redirect(url_for("scrims"))
+
+    if not isinstance(recovered_scrims, list):
+        flash("Backup data format is invalid.", "error")
+        return redirect(url_for("scrims"))
+
+    for scrim in recovered_scrims:
+        if isinstance(scrim, dict):
+            normalize_scrim_record(scrim)
+
+    max_scrim_id = 0
+    max_map_id = 0
+    max_event_id = 0
+    for scrim in recovered_scrims:
+        if not isinstance(scrim, dict):
+            continue
+        if isinstance(scrim.get("id"), int):
+            max_scrim_id = max(max_scrim_id, scrim["id"])
+        for map_entry in scrim.get("maps", []):
+            if not isinstance(map_entry, dict):
+                continue
+            if isinstance(map_entry.get("id"), int):
+                max_map_id = max(max_map_id, map_entry["id"])
+            for event in map_entry.get("events", []):
+                if isinstance(event, dict) and isinstance(event.get("id"), int):
+                    max_event_id = max(max_event_id, event["id"])
+
+    SCRIMS = recovered_scrims
+    NEXT_SCRIM_ID = max(1, max_scrim_id + 1)
+    NEXT_MAP_ID = max(1, max_map_id + 1)
+    NEXT_EVENT_ID = max(1, max_event_id + 1)
+    save_app_state()
+
+    flash(f"Restored scrims from backup #{row['id']} ({row['created_at']}).", "success")
+    return redirect(url_for("scrims"))
 
 
 # ── CSV column indices ──────────────────────────────────────────────────────
