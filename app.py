@@ -81,7 +81,9 @@ UNSPECIFIED_SEASON_TOKEN = "__unspecified__"
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 SCRIMS = []
+TOURNAMENT_MATCHES = []
 NEXT_SCRIM_ID = 1
+NEXT_TOURNAMENT_ID = 1
 NEXT_MAP_ID = 1
 NEXT_EVENT_ID = 1
 LAST_SCRIMS_REV = 0
@@ -90,13 +92,19 @@ MAX_SCRIM_BACKUPS = 100
 
 
 def ensure_state_defaults() -> None:
-    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID
+    global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID
     if not isinstance(SCRIMS, list):
         SCRIMS = []
     for scrim in SCRIMS:
         if isinstance(scrim, dict):
             normalize_scrim_record(scrim)
+    if not isinstance(TOURNAMENT_MATCHES, list):
+        TOURNAMENT_MATCHES = []
+    for match in TOURNAMENT_MATCHES:
+        if isinstance(match, dict):
+            normalize_tournament_record(match)
     NEXT_SCRIM_ID = max(1, int(NEXT_SCRIM_ID or 1))
+    NEXT_TOURNAMENT_ID = max(1, int(NEXT_TOURNAMENT_ID or 1))
     NEXT_MAP_ID = max(1, int(NEXT_MAP_ID or 1))
     NEXT_EVENT_ID = max(1, int(NEXT_EVENT_ID or 1))
 
@@ -195,7 +203,9 @@ def init_db() -> None:
         )
         for key, default in (
             ("scrims", "[]"),
+            ("tournament_matches", "[]"),
             ("next_scrim_id", "1"),
+            ("next_tournament_id", "1"),
             ("next_map_id", "1"),
             ("next_event_id", "1"),
             ("scrims_rev", "0"),
@@ -220,7 +230,7 @@ def init_db() -> None:
 
 
 def load_app_state() -> None:
-    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
+    global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -243,7 +253,18 @@ def load_app_state() -> None:
             normalized_scrims.append(scrim)
 
         SCRIMS = normalized_scrims
+        raw_tournament_matches = json.loads(state.get("tournament_matches", "[]"))
+        normalized_tournament_matches = []
+        for match in raw_tournament_matches:
+            if not isinstance(match, dict):
+                normalized_tournament_matches.append(match)
+                continue
+            normalize_tournament_record(match)
+            normalized_tournament_matches.append(match)
+
+        TOURNAMENT_MATCHES = normalized_tournament_matches
         NEXT_SCRIM_ID = int(state.get("next_scrim_id", "1"))
+        NEXT_TOURNAMENT_ID = int(state.get("next_tournament_id", "1"))
         NEXT_MAP_ID = int(state.get("next_map_id", "1"))
         NEXT_EVENT_ID = int(state.get("next_event_id", "1"))
         LAST_SCRIMS_REV = int(state.get("scrims_rev", "0"))
@@ -272,7 +293,7 @@ def refresh_app_state_from_db() -> None:
 
 
 def save_app_state(*, allow_scrim_removal: bool = False) -> None:
-    global SCRIMS, NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
+    global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
 
     def _safe_json_list(raw_value: str) -> list:
         try:
@@ -339,6 +360,16 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
             max(fallback_event, max_event_id + 1),
         )
 
+    def _recalculate_next_tournament_id(matches: list, fallback_tournament: int) -> int:
+        max_tournament_id = 0
+        for match in matches:
+            if not isinstance(match, dict):
+                continue
+            tournament_id = match.get("id")
+            if isinstance(tournament_id, int):
+                max_tournament_id = max(max_tournament_id, tournament_id)
+        return max(fallback_tournament, max_tournament_id + 1)
+
     def _write_scrim_backup(db_conn: sqlite3.Connection, scrims_to_backup: list, source: str) -> None:
         db_conn.execute(
             "INSERT INTO app_state_backups (source, scrims_json) VALUES (?, ?)",
@@ -358,6 +389,9 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
     for scrim in SCRIMS:
         if isinstance(scrim, dict):
             normalize_scrim_record(scrim)
+    for match in TOURNAMENT_MATCHES:
+        if isinstance(match, dict):
+            normalize_tournament_record(match)
 
     db = get_db()
     # DDL first (auto-committed by SQLite, doesn't open a Python implicit transaction)
@@ -380,7 +414,7 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
         ("scrims_rev", "0"),
     )
     rows = db.execute(
-        "SELECT state_key, state_value FROM app_state WHERE state_key IN ('scrims', 'scrims_rev', 'next_scrim_id', 'next_map_id', 'next_event_id')"
+        "SELECT state_key, state_value FROM app_state WHERE state_key IN ('scrims', 'tournament_matches', 'scrims_rev', 'next_scrim_id', 'next_tournament_id', 'next_map_id', 'next_event_id')"
     ).fetchall()
     state = {row["state_key"]: row["state_value"] for row in rows}
 
@@ -403,6 +437,7 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
         ensure_state_defaults()
 
     persisted_next_scrim = _parse_int(state.get("next_scrim_id", "1"), 1)
+    persisted_next_tournament = _parse_int(state.get("next_tournament_id", "1"), 1)
     persisted_next_map = _parse_int(state.get("next_map_id", "1"), 1)
     persisted_next_event = _parse_int(state.get("next_event_id", "1"), 1)
     NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID = _recalculate_next_ids(
@@ -410,6 +445,10 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
         max(NEXT_SCRIM_ID, persisted_next_scrim),
         max(NEXT_MAP_ID, persisted_next_map),
         max(NEXT_EVENT_ID, persisted_next_event),
+    )
+    NEXT_TOURNAMENT_ID = _recalculate_next_tournament_id(
+        TOURNAMENT_MATCHES,
+        max(NEXT_TOURNAMENT_ID, persisted_next_tournament),
     )
 
     _write_scrim_backup(db, persisted_scrims, "save_app_state")
@@ -419,7 +458,9 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
         "UPDATE app_state SET state_value = ? WHERE state_key = ?",
         [
             (json.dumps(SCRIMS), "scrims"),
+            (json.dumps(TOURNAMENT_MATCHES), "tournament_matches"),
             (str(NEXT_SCRIM_ID), "next_scrim_id"),
+            (str(NEXT_TOURNAMENT_ID), "next_tournament_id"),
             (str(NEXT_MAP_ID), "next_map_id"),
             (str(NEXT_EVENT_ID), "next_event_id"),
             (str(new_rev), "scrims_rev"),
@@ -458,6 +499,19 @@ def normalize_season_value(raw_value: str) -> str:
 def normalize_scrim_record(scrim: dict) -> dict:
     scrim["season"] = normalize_season_value(scrim.get("season", ""))
     return scrim
+
+
+def normalize_tournament_record(match: dict) -> dict:
+    match["season"] = normalize_season_value(match.get("season", ""))
+    match.setdefault("notes", "")
+    match.setdefault("maps", [])
+    match.setdefault("team_id", None)
+    match.setdefault("team_name", "")
+    match.setdefault("team1_enemy_id", None)
+    match.setdefault("team1_name", "")
+    match.setdefault("team2_enemy_id", None)
+    match.setdefault("team2_name", "")
+    return match
 
 
 def get_scrim_season_options(scrims: list[dict]) -> list[str]:
@@ -569,6 +623,13 @@ def get_scrim_or_404(scrim_id: int) -> dict:
     abort(404)
 
 
+def get_tournament_or_404(tournament_id: int) -> dict:
+    for match in TOURNAMENT_MATCHES:
+        if match["id"] == tournament_id:
+            return match
+    abort(404)
+
+
 def get_map_or_404(scrim: dict, map_id: int) -> dict:
     for map_entry in scrim["maps"]:
         if map_entry["id"] == map_id:
@@ -602,6 +663,166 @@ def get_team_name_by_id(team_id: int | None) -> str:
         return ""
     row = get_db().execute("SELECT name FROM teams WHERE id = ?", (team_id,)).fetchone()
     return row["name"] if row else ""
+
+
+def get_enemy_team_name_by_id(team_id: int | None, enemy_team_id: int | None) -> str:
+    if team_id is None or enemy_team_id is None:
+        return ""
+    row = get_db().execute(
+        "SELECT name FROM enemy_teams WHERE id = ? AND team_id = ?",
+        (enemy_team_id, team_id),
+    ).fetchone()
+    return row["name"] if row else ""
+
+
+def build_match_map_entry_from_form() -> dict:
+    global NEXT_MAP_ID
+
+    map_name = request.form.get("map_name", "").strip()
+    result = request.form.get("result", "").strip()
+    if result not in RESULTS:
+        result = ""
+
+    our_team_slot = request.form.get("our_team_slot", "team1").strip()
+    if our_team_slot not in TEAM_SLOTS:
+        our_team_slot = "team1"
+
+    draft = {
+        "team1": {
+            "ban1": request.form.get("team1_ban1", "").strip(),
+            "protect1": request.form.get("team1_protect1", "").strip(),
+            "ban2": request.form.get("team1_ban2", "").strip(),
+            "ban3": request.form.get("team1_ban3", "").strip(),
+            "ban4": request.form.get("team1_ban4", "").strip(),
+            "protect2": request.form.get("team1_protect2", "").strip(),
+        },
+        "team2": {
+            "ban1": request.form.get("team2_ban1", "").strip(),
+            "ban2": request.form.get("team2_ban2", "").strip(),
+            "protect1": request.form.get("team2_protect1", "").strip(),
+            "ban3": request.form.get("team2_ban3", "").strip(),
+            "protect2": request.form.get("team2_protect2", "").strip(),
+            "ban4": request.form.get("team2_ban4", "").strip(),
+        },
+    }
+
+    first_submap = request.form.get("first_submap", "").strip()
+    map_entry = {
+        "id": NEXT_MAP_ID,
+        "map_name": map_name,
+        "side": "",
+        "our_team_slot": our_team_slot,
+        "result": result,
+        "score": request.form.get("score", "").strip(),
+        "draft": draft,
+        "comp": build_default_comp_sections(map_name, first_submap=first_submap),
+        "notes": request.form.get("notes", "").strip(),
+        "vod_url": "",
+        "events": [],
+    }
+    NEXT_MAP_ID += 1
+    return map_entry
+
+
+def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_tournament: bool) -> dict:
+    if map_entry.get("our_team_slot") not in TEAM_SLOTS:
+        map_entry["our_team_slot"] = "team1"
+
+    if "comp" not in map_entry or isinstance(map_entry["comp"], dict):
+        old = map_entry.get("comp", {})
+        if isinstance(old, dict) and "team1" in old:
+            map_entry["comp"] = [{
+                "submap": "",
+                "side": map_entry.get("side", ""),
+                "team1": old["team1"],
+                "team2": old["team2"],
+            }]
+        else:
+            map_entry["comp"] = build_default_comp_sections(map_entry["map_name"])
+
+    use_section_sides = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])) or map_entry.get("map_name") in ATTACK_DEFENSE_MAPS
+    for sec in map_entry.get("comp", []):
+        sec.setdefault("submap", "")
+        sec.setdefault("score", "")
+        side_value = (sec.get("side", "") or "").strip()
+        if not use_section_sides:
+            side_value = ""
+        elif side_value not in SIDES:
+            side_value = ""
+        sec["side"] = side_value
+
+    team_players = []
+    enemy_players = []
+    enemy_team_data = None
+    team1_label = match_record.get("team_name") or "Team 1"
+    team2_label = match_record.get("enemy_team") or match_record.get("opponent") or "Team 2"
+
+    db = get_db()
+    if is_tournament:
+        team1_label = match_record.get("team1_name") or "Team 1"
+        team2_label = match_record.get("team2_name") or "Team 2"
+        team1_enemy_id = match_record.get("team1_enemy_id")
+        team2_enemy_id = match_record.get("team2_enemy_id")
+        if team1_enemy_id:
+            rows = db.execute(
+                "SELECT name, role, main_hero FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                (team1_enemy_id,),
+            ).fetchall()
+            team_players = [row["name"] for row in rows]
+        if team2_enemy_id:
+            enemy_team_row = db.execute(
+                "SELECT id, name, notes FROM enemy_teams WHERE id = ?",
+                (team2_enemy_id,),
+            ).fetchone()
+            if enemy_team_row:
+                enemy_team_data = dict(enemy_team_row)
+            rows = db.execute(
+                "SELECT name, role, main_hero FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                (team2_enemy_id,),
+            ).fetchall()
+            enemy_players = [dict(row) for row in rows]
+    else:
+        team_id = match_record.get("team_id")
+        if team_id:
+            player_rows = db.execute(
+                "SELECT name FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+                (team_id,),
+            ).fetchall()
+            team_players = [row["name"] for row in player_rows]
+
+        enemy_team_id = match_record.get("enemy_team_id")
+        if enemy_team_id:
+            enemy_team_rows = db.execute(
+                "SELECT id, name, notes FROM enemy_teams WHERE id = ?",
+                (enemy_team_id,),
+            ).fetchone()
+            if enemy_team_rows:
+                enemy_team_data = dict(enemy_team_rows)
+                enemy_player_rows = db.execute(
+                    "SELECT name, role, main_hero FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                    (enemy_team_id,),
+                ).fetchall()
+                enemy_players = [dict(row) for row in enemy_player_rows]
+
+    return {
+        "match_record": match_record,
+        "map_entry": map_entry,
+        "heroes": HEROES,
+        "hero_roles": HERO_ROLES,
+        "hero_transformations": HERO_TRANSFORMATIONS,
+        "map_images": MAP_IMAGES,
+        "map_submaps": MAP_SUBMAPS,
+        "maps": MAPS,
+        "sides": SIDES,
+        "results": RESULTS,
+        "event_types": EVENT_TYPES,
+        "team_players": team_players,
+        "enemy_team": enemy_team_data,
+        "enemy_players": enemy_players,
+        "team1_label": team1_label,
+        "team2_label": team2_label,
+        "split_score_pair": split_score_pair,
+    }
 
 
 def save_team_logo(file: FileStorage | None, team_name: str) -> str:
@@ -1982,6 +2203,13 @@ def to_enemy_perspective_scrims(scrims: list[dict]) -> list[dict]:
             transformed_map = dict(map_entry)
             transformed_map["our_team_slot"] = enemy_team_slot
             transformed_map["result"] = flip_result(map_entry.get("result", ""))
+            transformed_map["score"] = flip_score_text(map_entry.get("score", ""))
+            transformed_sections = []
+            for section in map_entry.get("comp", []):
+                transformed_section = dict(section)
+                transformed_section["score"] = flip_score_text(section.get("score", ""))
+                transformed_sections.append(transformed_section)
+            transformed_map["comp"] = transformed_sections
             transformed_maps.append(transformed_map)
 
         transformed_scrim = dict(scrim)
@@ -2024,7 +2252,7 @@ def build_map_mode_breakdown(scrims: list[dict]) -> tuple[list[dict], list[dict]
                 section_side = (section.get("side") or "").strip()
                 if section_side not in ("Attack", "Defense"):
                     continue
-                numeric_score = _parse_score_number(section.get("score", ""))
+                numeric_score = score_for_perspective(section.get("score", ""), perspective="left")
                 if numeric_score is None:
                     continue
                 side_score_records[map_name][section_side]["sum"] += numeric_score
@@ -2350,19 +2578,25 @@ def build_hero_usage_timeline(team_scrims: list[dict], top_heroes: list[str]) ->
 def dashboard():
     db = get_db()
     total_scrims = len(SCRIMS)
-    total_maps = sum(len(scrim["maps"]) for scrim in SCRIMS)
-    total_events = sum(len(map_entry["events"]) for scrim in SCRIMS for map_entry in scrim["maps"])
+    total_tournaments = len(TOURNAMENT_MATCHES)
+    total_maps = sum(len(scrim["maps"]) for scrim in SCRIMS) + sum(len(match["maps"]) for match in TOURNAMENT_MATCHES)
+    total_events = (
+        sum(len(map_entry["events"]) for scrim in SCRIMS for map_entry in scrim["maps"])
+        + sum(len(map_entry.get("events", [])) for match in TOURNAMENT_MATCHES for map_entry in match["maps"])
+    )
     total_teams = db.execute("SELECT COUNT(*) FROM teams").fetchone()[0]
     total_players = db.execute("SELECT COUNT(*) FROM players").fetchone()[0]
 
     return render_template(
         "dashboard.html",
         total_scrims=total_scrims,
+        total_tournaments=total_tournaments,
         total_maps=total_maps,
         total_events=total_events,
         total_teams=total_teams,
         total_players=total_players,
         recent_scrims=list(reversed(SCRIMS[-5:])),
+        recent_tournaments=list(reversed(TOURNAMENT_MATCHES[-5:])),
     )
 
 
@@ -3608,18 +3842,47 @@ def _canonicalize_submap_name(parent_map: str, raw_submap: str) -> str:
     return clean
 
 
-def _parse_score_number(raw_score: str) -> float | None:
-    """Extract the first numeric value from a score string like '2-1' or '0.92'."""
+def split_score_pair(raw_score: str) -> tuple[str, str]:
     value = (raw_score or "").strip()
     if not value:
-        return None
-    match = re.search(r"\d+(?:\.\d+)?", value)
-    if not match:
+        return "", ""
+
+    matches = re.findall(r"\d+(?:\.\d+)?", value)
+    if not matches:
+        return "", ""
+    if len(matches) == 1:
+        return matches[0], ""
+    return matches[0], matches[1]
+
+
+def build_score_text(left_score: str, right_score: str, fallback: str = "") -> str:
+    left = (left_score or "").strip()
+    right = (right_score or "").strip()
+    if left and right:
+        return f"{left}-{right}"
+    if left:
+        return left
+    if right:
+        return right
+    return (fallback or "").strip()
+
+
+def score_for_perspective(raw_score: str, *, perspective: str = "left") -> float | None:
+    left_score, right_score = split_score_pair(raw_score)
+    target = left_score if perspective == "left" else right_score
+    if not target:
         return None
     try:
-        return float(match.group(0))
+        return float(target)
     except ValueError:
         return None
+
+
+def flip_score_text(raw_score: str) -> str:
+    left_score, right_score = split_score_pair(raw_score)
+    if left_score and right_score:
+        return f"{right_score}-{left_score}"
+    return (raw_score or "").strip()
 
 
 def _our_team_slot_from_protect_order(raw_value: str) -> str:
@@ -4147,6 +4410,91 @@ def new_scrim():
     return render_template("new_scrim.html", today=date.today().isoformat(), teams=teams)
 
 
+@app.route("/tournaments")
+def tournaments():
+    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    season_options = get_scrim_season_options(TOURNAMENT_MATCHES)
+    has_unseasoned_matches = any(not normalize_season_value(match.get("season", "")) for match in TOURNAMENT_MATCHES)
+    default_season = get_current_season_from_recent_scrim(TOURNAMENT_MATCHES)
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_matches,
+        default_season=default_season,
+    )
+    selected_team_id = (request.args.get("team_id", "") or "").strip()
+
+    filtered_matches = filter_scrims_by_season(TOURNAMENT_MATCHES, selected_season)
+    if selected_team_id:
+        filtered_matches = [match for match in filtered_matches if str(match.get("team_id") or "") == selected_team_id]
+
+    return render_template(
+        "tournaments.html",
+        tournaments=filtered_matches,
+        teams=teams,
+        season_options=season_options,
+        selected_season=selected_season,
+        selected_team_id=selected_team_id,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+        has_unseasoned_tournaments=has_unseasoned_matches,
+        total_tournament_count=len(TOURNAMENT_MATCHES),
+    )
+
+
+@app.route("/tournaments/new")
+def new_tournament():
+    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    return render_template("new_tournament.html", today=date.today().isoformat(), teams=teams)
+
+
+@app.route("/tournaments/create", methods=["POST"])
+def create_tournament():
+    global NEXT_TOURNAMENT_ID
+
+    team_id = parse_team_id(request.form.get("team_id", ""))
+    team_name = get_team_name_by_id(team_id)
+    if not team_name:
+        flash("Please assign this tournament match to one of your teams.", "error")
+        return redirect(url_for("new_tournament"))
+
+    team1_enemy_id = parse_team_id(request.form.get("team1_enemy_id", ""))
+    team2_enemy_id = parse_team_id(request.form.get("team2_enemy_id", ""))
+    team1_name = get_enemy_team_name_by_id(team_id, team1_enemy_id)
+    team2_name = get_enemy_team_name_by_id(team_id, team2_enemy_id)
+    if not team1_name or not team2_name:
+        flash("Please select both tournament teams from your saved enemy teams.", "error")
+        return redirect(url_for("new_tournament"))
+    if team1_enemy_id == team2_enemy_id:
+        flash("Tournament teams must be different.", "error")
+        return redirect(url_for("new_tournament"))
+
+    match_date = request.form.get("scrim_date", "").strip()
+    season = normalize_season_value(request.form.get("season", ""))
+    notes = request.form.get("notes", "").strip()
+    if not season:
+        flash("Please set a season for this tournament match.", "error")
+        return redirect(url_for("new_tournament"))
+
+    tournament_match = {
+        "id": NEXT_TOURNAMENT_ID,
+        "scrim_date": match_date,
+        "season": season,
+        "team_id": team_id,
+        "team_name": team_name,
+        "team1_enemy_id": team1_enemy_id,
+        "team1_name": team1_name,
+        "team2_enemy_id": team2_enemy_id,
+        "team2_name": team2_name,
+        "notes": notes,
+        "maps": [],
+    }
+
+    TOURNAMENT_MATCHES.append(tournament_match)
+    NEXT_TOURNAMENT_ID += 1
+    save_app_state()
+    return redirect(url_for("tournament_detail", tournament_id=tournament_match["id"]))
+
+
 @app.route("/scrims/create", methods=["POST"])
 def create_scrim():
     global NEXT_SCRIM_ID
@@ -4209,6 +4557,60 @@ def scrim_detail(scrim_id: int):
         teams=teams,
         wins=wins,
         losses=losses,
+        match_label="Scrim",
+        match_list_endpoint="scrims",
+        match_detail_endpoint="scrim_detail",
+        match_edit_endpoint="edit_scrim",
+        match_delete_endpoint="delete_scrim",
+        add_map_endpoint="add_map",
+        map_detail_endpoint="map_detail",
+        delete_map_endpoint="delete_map",
+        participant_one_label=scrim.get("team_name") or "Your Team",
+        participant_two_label=scrim.get("enemy_team") or scrim.get("opponent") or "Enemy Team",
+        opponent_field_label="Enemy Team",
+        show_team_selector=True,
+    )
+
+
+@app.route("/tournaments/<int:tournament_id>")
+def tournament_detail(tournament_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    enemy_teams = get_db().execute(
+        "SELECT id, name FROM enemy_teams WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        (tournament_match.get("team_id"),),
+    ).fetchall()
+
+    wins = sum(1 for m in tournament_match["maps"] if m["result"] == "Win")
+    losses = sum(1 for m in tournament_match["maps"] if m["result"] == "Loss")
+
+    return render_template(
+        "scrim_detail.html",
+        scrim=tournament_match,
+        maps=MAPS,
+        map_images=MAP_IMAGES,
+        map_submaps=MAP_SUBMAPS,
+        sides=SIDES,
+        results=RESULTS,
+        heroes=HEROES,
+        hero_roles=HERO_ROLES,
+        hero_transformations=HERO_TRANSFORMATIONS,
+        teams=teams,
+        enemy_teams=enemy_teams,
+        wins=wins,
+        losses=losses,
+        match_label="Tournament Match",
+        match_list_endpoint="tournaments",
+        match_detail_endpoint="tournament_detail",
+        match_edit_endpoint="edit_tournament",
+        match_delete_endpoint="delete_tournament",
+        add_map_endpoint="add_tournament_map",
+        map_detail_endpoint="tournament_map_detail",
+        delete_map_endpoint="delete_tournament_map",
+        participant_one_label=tournament_match.get("team1_name") or "Team 1",
+        participant_two_label=tournament_match.get("team2_name") or "Team 2",
+        opponent_field_label="Tournament Teams",
+        show_team_selector=False,
     )
 
 
@@ -4238,6 +4640,38 @@ def edit_scrim(scrim_id: int):
     return redirect(url_for("scrim_detail", scrim_id=scrim_id))
 
 
+@app.route("/tournaments/<int:tournament_id>/edit", methods=["POST"])
+def edit_tournament(tournament_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    team_id = tournament_match.get("team_id")
+
+    team1_enemy_id = parse_team_id(request.form.get("team1_enemy_id", ""))
+    team2_enemy_id = parse_team_id(request.form.get("team2_enemy_id", ""))
+    team1_name = get_enemy_team_name_by_id(team_id, team1_enemy_id)
+    team2_name = get_enemy_team_name_by_id(team_id, team2_enemy_id)
+    if not team1_name or not team2_name:
+        flash("Please select both tournament teams from your saved enemy teams.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+    if team1_enemy_id == team2_enemy_id:
+        flash("Tournament teams must be different.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    season = normalize_season_value(request.form.get("season", tournament_match.get("season", "")))
+    if not season:
+        flash("Please set a season for this tournament match.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    tournament_match["scrim_date"] = request.form.get("scrim_date", tournament_match.get("scrim_date", "")).strip()
+    tournament_match["season"] = season
+    tournament_match["team1_enemy_id"] = team1_enemy_id
+    tournament_match["team1_name"] = team1_name
+    tournament_match["team2_enemy_id"] = team2_enemy_id
+    tournament_match["team2_name"] = team2_name
+    tournament_match["notes"] = request.form.get("notes", tournament_match.get("notes", "")).strip()
+    save_app_state()
+    return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+
 @app.route("/scrims/<int:scrim_id>/delete", methods=["POST"])
 def delete_scrim(scrim_id: int):
     scrim = get_scrim_or_404(scrim_id)
@@ -4246,70 +4680,84 @@ def delete_scrim(scrim_id: int):
     return redirect(url_for("scrims"))
 
 
+@app.route("/tournaments/<int:tournament_id>/delete", methods=["POST"])
+def delete_tournament(tournament_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    TOURNAMENT_MATCHES.remove(tournament_match)
+    save_app_state()
+    return redirect(url_for("tournaments"))
+
+
 @app.route("/scrims/<int:scrim_id>/add-map", methods=["POST"])
 def add_map(scrim_id: int):
-    global NEXT_MAP_ID
-
     scrim = get_scrim_or_404(scrim_id)
 
-    map_name = request.form.get("map_name", "").strip()
-    side = ""
-    result = request.form.get("result", "").strip()
-    if result not in RESULTS:
-        result = ""
-    our_team_slot = request.form.get("our_team_slot", "team1").strip()
-    if our_team_slot not in TEAM_SLOTS:
-        our_team_slot = "team1"
-    score = request.form.get("score", "").strip()
-    notes = request.form.get("notes", "").strip()
-    first_submap = request.form.get("first_submap", "").strip()
-
-    draft = {
-        "team1": {
-            "ban1": request.form.get("team1_ban1", "").strip(),
-            "protect1": request.form.get("team1_protect1", "").strip(),
-            "ban2": request.form.get("team1_ban2", "").strip(),
-            "ban3": request.form.get("team1_ban3", "").strip(),
-            "ban4": request.form.get("team1_ban4", "").strip(),
-            "protect2": request.form.get("team1_protect2", "").strip(),
-        },
-        "team2": {
-            "ban1": request.form.get("team2_ban1", "").strip(),
-            "ban2": request.form.get("team2_ban2", "").strip(),
-            "protect1": request.form.get("team2_protect1", "").strip(),
-            "ban3": request.form.get("team2_ban3", "").strip(),
-            "protect2": request.form.get("team2_protect2", "").strip(),
-            "ban4": request.form.get("team2_ban4", "").strip(),
-        },
-    }
-
-    comp_sections = build_default_comp_sections(map_name, first_submap=first_submap)
-
-    map_entry = {
-        "id": NEXT_MAP_ID,
-        "map_name": map_name,
-        "side": side,
-        "our_team_slot": our_team_slot,
-        "result": result,
-        "score": score,
-        "draft": draft,
-        "comp": comp_sections,
-        "notes": notes,
-        "vod_url": "",
-        "events": [],
-    }
-
-    scrim["maps"].append(map_entry)
-    NEXT_MAP_ID += 1
+    scrim["maps"].append(build_match_map_entry_from_form())
     save_app_state()
 
     return redirect(url_for("scrim_detail", scrim_id=scrim_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/add-map", methods=["POST"])
+def add_tournament_map(tournament_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    tournament_match["maps"].append(build_match_map_entry_from_form())
+    save_app_state()
+    return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
 
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>")
 def map_detail(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
+
+    context = build_match_map_detail_context(scrim, map_entry, is_tournament=False)
+
+    return render_template(
+        "map_detail.html",
+        scrim=scrim,
+        is_tournament=False,
+        back_to_detail_endpoint="scrim_detail",
+        match_detail_endpoint="map_detail",
+        delete_map_endpoint="delete_map",
+        update_draft_endpoint="update_draft",
+        update_notes_endpoint="update_notes",
+        update_vod_endpoint="update_vod",
+        update_map_info_endpoint="update_map_info",
+        update_comp_endpoint="update_comp",
+        update_comp_section_endpoint="update_comp_section",
+        delete_event_endpoint="delete_event",
+        add_event_endpoint="add_event_to_map",
+        detail_parent_id=scrim_id,
+        **context,
+    )
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>")
+def tournament_map_detail(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+
+    context = build_match_map_detail_context(tournament_match, map_entry, is_tournament=True)
+
+    return render_template(
+        "map_detail.html",
+        scrim=tournament_match,
+        is_tournament=True,
+        back_to_detail_endpoint="tournament_detail",
+        match_detail_endpoint="tournament_map_detail",
+        delete_map_endpoint="delete_tournament_map",
+        update_draft_endpoint="update_tournament_draft",
+        update_notes_endpoint="update_tournament_notes",
+        update_vod_endpoint="update_tournament_vod",
+        update_map_info_endpoint="update_tournament_map_info",
+        update_comp_endpoint="update_tournament_comp",
+        update_comp_section_endpoint="update_tournament_comp_section",
+        delete_event_endpoint="delete_tournament_event",
+        add_event_endpoint="add_tournament_event_to_map",
+        detail_parent_id=tournament_id,
+        **context,
+    )
 
     if map_entry.get("our_team_slot") not in TEAM_SLOTS:
         map_entry["our_team_slot"] = "team1"
@@ -4394,6 +4842,15 @@ def delete_map(scrim_id: int, map_id: int):
     return redirect(url_for("scrim_detail", scrim_id=scrim_id))
 
 
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/delete", methods=["POST"])
+def delete_tournament_map(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    tournament_match["maps"].remove(map_entry)
+    save_app_state()
+    return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/update-draft", methods=["POST"])
 def update_draft(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
@@ -4421,6 +4878,33 @@ def update_draft(scrim_id: int, map_id: int):
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
 
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/update-draft", methods=["POST"])
+def update_tournament_draft(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+
+    map_entry["draft"] = {
+        "team1": {
+            "ban1": request.form.get("team1_ban1", "").strip(),
+            "protect1": request.form.get("team1_protect1", "").strip(),
+            "ban2": request.form.get("team1_ban2", "").strip(),
+            "ban3": request.form.get("team1_ban3", "").strip(),
+            "ban4": request.form.get("team1_ban4", "").strip(),
+            "protect2": request.form.get("team1_protect2", "").strip(),
+        },
+        "team2": {
+            "ban1": request.form.get("team2_ban1", "").strip(),
+            "ban2": request.form.get("team2_ban2", "").strip(),
+            "protect1": request.form.get("team2_protect1", "").strip(),
+            "ban3": request.form.get("team2_ban3", "").strip(),
+            "protect2": request.form.get("team2_protect2", "").strip(),
+            "ban4": request.form.get("team2_ban4", "").strip(),
+        },
+    }
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+
+
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/update-notes", methods=["POST"])
 def update_notes(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
@@ -4430,6 +4914,15 @@ def update_notes(scrim_id: int, map_id: int):
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
 
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/update-notes", methods=["POST"])
+def update_tournament_notes(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    map_entry["notes"] = request.form.get("notes", "").strip()
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+
+
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/update-vod", methods=["POST"])
 def update_vod(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
@@ -4437,6 +4930,15 @@ def update_vod(scrim_id: int, map_id: int):
     map_entry["vod_url"] = request.form.get("vod_url", "").strip()
     save_app_state()
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/update-vod", methods=["POST"])
+def update_tournament_vod(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    map_entry["vod_url"] = request.form.get("vod_url", "").strip()
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
 
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/update-info", methods=["POST"])
@@ -4460,6 +4962,27 @@ def update_map_info(scrim_id: int, map_id: int):
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
 
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/update-info", methods=["POST"])
+def update_tournament_map_info(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    map_entry["result"] = request.form.get("result", map_entry["result"]).strip()
+    if map_entry["result"] not in RESULTS:
+        map_entry["result"] = ""
+    map_entry["score"] = request.form.get("score", map_entry.get("score", "")).strip()
+    our_team_slot = request.form.get("our_team_slot", map_entry.get("our_team_slot", "team1")).strip()
+    map_entry["our_team_slot"] = our_team_slot if our_team_slot in TEAM_SLOTS else "team1"
+    has_submaps = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), []))
+    if has_submaps:
+        map_entry["side"] = request.form.get("side", map_entry.get("side", "")).strip()
+    else:
+        map_entry["side"] = ""
+    save_app_state()
+    if request.form.get("next") == "scrim":
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+
+
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/update-comp", methods=["POST"])
 def update_comp(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
@@ -4474,7 +4997,11 @@ def update_comp(scrim_id: int, map_id: int):
         sec = {
             "submap": request.form.get(f"sec_{s}_submap", "").strip(),
             "side": side_value,
-            "score": request.form.get(f"sec_{s}_score", "").strip(),
+            "score": build_score_text(
+                request.form.get(f"sec_{s}_score_team1", "").strip(),
+                request.form.get(f"sec_{s}_score_team2", "").strip(),
+                request.form.get(f"sec_{s}_score", "").strip(),
+            ),
             "team1": [],
             "team2": [],
         }
@@ -4487,6 +5014,39 @@ def update_comp(scrim_id: int, map_id: int):
     map_entry["comp"] = sections
     save_app_state()
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/update-comp", methods=["POST"])
+def update_tournament_comp(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    use_section_sides = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])) or map_entry.get("map_name") in ATTACK_DEFENSE_MAPS
+    section_count = int(request.form.get("section_count", "1"))
+    sections = []
+    for s in range(section_count):
+        side_value = request.form.get(f"sec_{s}_side", "").strip() if use_section_sides else ""
+        if side_value not in SIDES:
+            side_value = ""
+        sec = {
+            "submap": request.form.get(f"sec_{s}_submap", "").strip(),
+            "side": side_value,
+            "score": build_score_text(
+                request.form.get(f"sec_{s}_score_team1", "").strip(),
+                request.form.get(f"sec_{s}_score_team2", "").strip(),
+                request.form.get(f"sec_{s}_score", "").strip(),
+            ),
+            "team1": [],
+            "team2": [],
+        }
+        for team in ("team1", "team2"):
+            for i in range(6):
+                hero = request.form.get(f"sec_{s}_{team}_hero_{i}", "").strip()
+                player = request.form.get(f"sec_{s}_{team}_player_{i}", "").strip()
+                sec[team].append({"hero": hero, "player": player})
+        sections.append(sec)
+    map_entry["comp"] = sections
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
 
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/update-comp-section/<int:section_index>", methods=["POST"])
@@ -4505,7 +5065,11 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
     if side_value not in SIDES:
         side_value = ""
     section["side"] = side_value
-    section["score"] = request.form.get("score", section.get("score", "")).strip()
+    section["score"] = build_score_text(
+        request.form.get("score_team1", "").strip(),
+        request.form.get("score_team2", "").strip(),
+        request.form.get("score", section.get("score", "")).strip(),
+    )
 
     for team in ("team1", "team2"):
         team_slots = []
@@ -4520,6 +5084,40 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
 
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/update-comp-section/<int:section_index>", methods=["POST"])
+def update_tournament_comp_section(tournament_id: int, map_id: int, section_index: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    sections = map_entry.get("comp", [])
+    if section_index < 0 or section_index >= len(sections):
+        abort(404)
+
+    use_section_sides = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])) or map_entry.get("map_name") in ATTACK_DEFENSE_MAPS
+    section = sections[section_index]
+    section["submap"] = request.form.get("submap", section.get("submap", "")).strip()
+    side_value = request.form.get("side", section.get("side", "")).strip() if use_section_sides else ""
+    if side_value not in SIDES:
+        side_value = ""
+    section["side"] = side_value
+    section["score"] = build_score_text(
+        request.form.get("score_team1", "").strip(),
+        request.form.get("score_team2", "").strip(),
+        request.form.get("score", section.get("score", "")).strip(),
+    )
+
+    for team in ("team1", "team2"):
+        team_slots = []
+        for i in range(6):
+            hero = request.form.get(f"{team}_hero_{i}", "").strip()
+            player = request.form.get(f"{team}_player_{i}", "").strip()
+            team_slots.append({"hero": hero, "player": player})
+        section[team] = team_slots
+
+    map_entry["comp"][section_index] = section
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+
+
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/delete-event/<int:event_id>", methods=["POST"])
 def delete_event(scrim_id: int, map_id: int, event_id: int):
     scrim = get_scrim_or_404(scrim_id)
@@ -4527,6 +5125,15 @@ def delete_event(scrim_id: int, map_id: int, event_id: int):
     map_entry["events"] = [e for e in map_entry["events"] if e["id"] != event_id]
     save_app_state()
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/delete-event/<int:event_id>", methods=["POST"])
+def delete_tournament_event(tournament_id: int, map_id: int, event_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    map_entry["events"] = [e for e in map_entry["events"] if e["id"] != event_id]
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
 
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/add-event", methods=["POST"])
@@ -4552,6 +5159,26 @@ def add_event_to_map(scrim_id: int, map_id: int):
     save_app_state()
 
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/add-event", methods=["POST"])
+def add_tournament_event_to_map(tournament_id: int, map_id: int):
+    global NEXT_EVENT_ID
+
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+
+    event_entry = {
+        "id": NEXT_EVENT_ID,
+        "timestamp": request.form.get("timestamp", "").strip(),
+        "event_type": request.form.get("event_type", "").strip(),
+        "description": request.form.get("description", "").strip(),
+    }
+
+    map_entry["events"].append(event_entry)
+    NEXT_EVENT_ID += 1
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
 
 @app.route("/draft-simulator")

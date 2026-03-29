@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Scrim Detail{% endblock %}
+{% block title %}{{ match_label }} Detail{% endblock %}
 
 {% block content %}
 <div class="main-header">
     <div>
-        <h2>vs {{ scrim.enemy_team or scrim.opponent }}</h2>
+        <h2>{% if show_team_selector %}vs {{ scrim.enemy_team or scrim.opponent }}{% else %}{{ participant_one_label }} vs {{ participant_two_label }}{% endif %}</h2>
         <p>{{ scrim.scrim_date }}{% if scrim.season %} &bull; Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} &bull; {{ scrim.team_name }}{% endif %}</p>
     </div>
     <div class="header-actions">
-        <a href="{{ url_for('scrims') }}" class="button-secondary">Back to Scrims</a>
+        <a href="{{ url_for(match_list_endpoint) }}" class="button-secondary">Back to {{ match_label }}s</a>
         <button type="button" class="button-secondary" onclick="openEditScrimModal()">Edit</button>
         <button type="button" class="button-link" onclick="openMapModal()">+ Add Map</button>
-        <button type="button" class="btn-danger-sm" onclick="confirmDeleteScrim()">Delete Scrim</button>
+        <button type="button" class="btn-danger-sm" onclick="confirmDeleteScrim()">Delete {{ match_label }}</button>
     </div>
 </div>
 
@@ -30,8 +30,8 @@
         <span>{{ losses }}</span>
     </section>
     <section class="stat-card">
-        <strong>Team</strong>
-        <span>{{ scrim.team_name or "—" }}</span>
+        <strong>{% if show_team_selector %}Team{% else %}Matchup{% endif %}</strong>
+        <span>{% if show_team_selector %}{{ scrim.team_name or "—" }}{% else %}{{ participant_one_label }} vs {{ participant_two_label }}{% endif %}</span>
     </section>
     <section class="stat-card">
         <strong>Season</strong>
@@ -41,7 +41,7 @@
 
 {% if scrim.notes %}
 <section class="panel">
-    <h3>Scrim Notes</h3>
+    <h3>{{ match_label }} Notes</h3>
     <div class="summary-box">{{ scrim.notes }}</div>
 </section>
 {% endif %}
@@ -56,7 +56,7 @@
         <div class="map-card-grid">
             {% for map_entry in scrim.maps %}
                 <div class="map-card-wrap">
-                    <a class="map-card" href="{{ url_for('map_detail', scrim_id=scrim.id, map_id=map_entry.id) }}"
+                    <a class="map-card" href="{{ url_for(map_detail_endpoint, tournament_id=scrim.id, scrim_id=scrim.id, map_id=map_entry.id) }}"
                        {% if map_entry.map_name in map_images %}
                        style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"
                        {% endif %}>
@@ -119,9 +119,9 @@
 </section>
 
 <!-- Hidden delete forms -->
-<form id="deleteScrimForm" action="{{ url_for('delete_scrim', scrim_id=scrim.id) }}" method="post" style="display:none;"></form>
+<form id="deleteScrimForm" action="{{ url_for(match_delete_endpoint, tournament_id=scrim.id, scrim_id=scrim.id) }}" method="post" style="display:none;"></form>
 {% for map_entry in scrim.maps %}
-<form id="deleteMapForm{{ map_entry.id }}" action="{{ url_for('delete_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
+<form id="deleteMapForm{{ map_entry.id }}" action="{{ url_for(delete_map_endpoint, tournament_id=scrim.id, scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
 {% endfor %}
 
 <!-- Edit Map Result Modal -->
@@ -148,10 +148,10 @@
                     <input type="text" id="em_score" name="score" placeholder="e.g. 3-2">
                 </div>
                 <div class="field">
-                    <label for="em_our_team_slot">Your Team Slot</label>
+                    <label for="em_our_team_slot">Result Side</label>
                     <select id="em_our_team_slot" name="our_team_slot">
-                        <option value="team1">Team 1</option>
-                        <option value="team2">Team 2</option>
+                        <option value="team1">{{ participant_one_label }}</option>
+                        <option value="team2">{{ participant_two_label }}</option>
                     </select>
                 </div>
             </div>
@@ -167,15 +167,36 @@
 <div id="editScrimModal" class="modal-overlay" onclick="closeEditScrimModal(event)">
     <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h3>Edit Scrim</h3>
+            <h3>Edit {{ match_label }}</h3>
             <button type="button" class="modal-close" onclick="closeEditScrimModal()">&times;</button>
         </div>
-        <form action="{{ url_for('edit_scrim', scrim_id=scrim.id) }}" method="post">
+        <form action="{{ url_for(match_edit_endpoint, tournament_id=scrim.id, scrim_id=scrim.id) }}" method="post">
             <div class="form-grid">
+                {% if show_team_selector %}
                 <div class="field">
                     <label for="edit_enemy_team">Enemy Team</label>
                     <input type="text" id="edit_enemy_team" name="enemy_team" value="{{ scrim.enemy_team or scrim.opponent }}" required>
                 </div>
+                {% else %}
+                <div class="field">
+                    <label for="edit_team1_enemy_id">Team 1</label>
+                    <select id="edit_team1_enemy_id" name="team1_enemy_id" required>
+                        <option value="">Select team 1</option>
+                        {% for enemy in enemy_teams %}
+                            <option value="{{ enemy.id }}" {% if scrim.team1_enemy_id == enemy.id %}selected{% endif %}>{{ enemy.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_team2_enemy_id">Team 2</label>
+                    <select id="edit_team2_enemy_id" name="team2_enemy_id" required>
+                        <option value="">Select team 2</option>
+                        {% for enemy in enemy_teams %}
+                            <option value="{{ enemy.id }}" {% if scrim.team2_enemy_id == enemy.id %}selected{% endif %}>{{ enemy.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="field">
                     <label for="edit_date">Date</label>
                     <input type="date" id="edit_date" name="scrim_date" value="{{ scrim.scrim_date }}">
@@ -184,6 +205,7 @@
                     <label for="edit_season">Season</label>
                     <input type="text" id="edit_season" name="season" value="{{ scrim.season or '' }}" placeholder="e.g. 7 or 7.5" required>
                 </div>
+                {% if show_team_selector %}
                 <div class="field">
                     <label for="edit_team_id">Your Team</label>
                     <select id="edit_team_id" name="team_id" required>
@@ -193,6 +215,7 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
                 <div class="field field-full">
                     <label for="edit_notes">Notes</label>
                     <textarea id="edit_notes" name="notes" rows="3">{{ scrim.notes }}</textarea>
@@ -217,7 +240,7 @@
             <button type="button" class="modal-close" onclick="closeMapModal()">&times;</button>
         </div>
 
-        <form action="{{ url_for('add_map', scrim_id=scrim.id) }}" method="post">
+        <form action="{{ url_for(add_map_endpoint, tournament_id=scrim.id, scrim_id=scrim.id) }}" method="post">
             <div class="compact-grid">
                 <div class="field">
                     <label for="map_name">Map</label>
@@ -252,10 +275,10 @@
                 </div>
 
                 <div class="field">
-                    <label for="our_team_slot">Your Team Slot</label>
+                    <label for="our_team_slot">Result Side</label>
                     <select id="our_team_slot" name="our_team_slot">
-                        <option value="team1" selected>Team 1</option>
-                        <option value="team2">Team 2</option>
+                        <option value="team1" selected>{{ participant_one_label }}</option>
+                        <option value="team2">{{ participant_two_label }}</option>
                     </select>
                 </div>
 
@@ -265,7 +288,7 @@
     <!-- Draft slots display -->
     <div class="draft-grid">
         <div class="draft-column">
-            <h4>Team 1</h4>
+            <h4>{{ participant_one_label }}</h4>
             <div class="draft-slots">
                 <div class="draft-slot" data-slot="team1_ban1" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 1</span>
@@ -301,7 +324,7 @@
         </div>
 
         <div class="draft-column">
-            <h4>Team 2</h4>
+            <h4>{{ participant_two_label }}</h4>
             <div class="draft-slots">
                 <div class="draft-slot" data-slot="team2_ban1" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 1</span>

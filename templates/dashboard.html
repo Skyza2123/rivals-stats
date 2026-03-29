@@ -6,15 +6,23 @@
 <div class="main-header">
     <div>
         <h2>Dashboard</h2>
-        <p>Overview of scrims, maps, player entries, and events.</p>
+        <p>Overview of scrims, tournaments, maps, player entries, and events.</p>
     </div>
-    <a class="button-link" href="{{ url_for('new_scrim') }}">+ New Scrim</a>
+    <div class="header-actions">
+        <a class="button-secondary" href="{{ url_for('new_tournament') }}">+ New Tournament</a>
+        <a class="button-link" href="{{ url_for('new_scrim') }}">+ New Scrim</a>
+    </div>
 </div>
 
 <div class="summary-grid">
     <section class="stat-card">
         <strong>Total Scrims</strong>
         <span>{{ total_scrims }}</span>
+    </section>
+
+    <section class="stat-card">
+        <strong>Tournament Matches</strong>
+        <span>{{ total_tournaments }}</span>
     </section>
 
     <section class="stat-card">
@@ -62,6 +70,33 @@
         </div>
     {% else %}
         <p class="empty-text">No scrims yet. Create your first scrim.</p>
+    {% endif %}
+</section>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Recent Tournament Matches</h3>
+        <a href="{{ url_for('tournaments') }}">View all</a>
+    </div>
+
+    {% if recent_tournaments %}
+        <div class="list-stack">
+            {% for match in recent_tournaments %}
+                <a class="list-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
+                    <div>
+                        <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
+                        <div class="list-subtitle">
+                            {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}
+                        </div>
+                    </div>
+                    <div class="list-meta">
+                        <small>{{ match.maps|length }} maps</small>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No tournament matches yet.</p>
     {% endif %}
 </section>
 {% endblock %}

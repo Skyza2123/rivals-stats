@@ -1,6 +1,6 @@
 ﻿{% extends "base.html" %}
 
-{% block title %}Map Detail{% endblock %}
+{% block title %}{{ map_entry.map_name }}{% endblock %}
 
 {% block content %}
 {% set our_slot = map_entry.our_team_slot if map_entry.our_team_slot in ['team1', 'team2'] else 'team1' %}
@@ -23,10 +23,10 @@
         <div class="main-header">
             <div>
                 <h2>{{ map_entry.map_name }}</h2>
-                <p>vs {{ scrim.enemy_team or scrim.opponent }}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
+                <p>{{ team1_label }} vs {{ team2_label }}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
             </div>
             <div class="header-actions">
-                <a href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}" class="button-secondary">Back to Scrim</a>
+                <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
                 <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else ('pill-loss' if map_entry.result == 'Loss' else '') }}">{{ map_entry.result or 'No Result' }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}</div>
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
@@ -60,7 +60,7 @@
     </div>
     <div class="draft-grid">
         <div class="draft-column draft-display">
-            <h4>Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+            <h4>{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
             <div class="draft-slots">
                 {% for slot in team1_draft_slots %}
                 {% set hero = map_entry.draft.team1[slot[0]] %}
@@ -75,7 +75,7 @@
             </div>
         </div>
         <div class="draft-column draft-display">
-            <h4>Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+            <h4>{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
             <div class="draft-slots">
                 {% for slot in team2_draft_slots %}
                 {% set hero = map_entry.draft.team2[slot[0]] %}
@@ -99,6 +99,7 @@
     </div>
     {% for sec in map_entry.comp %}
     {% set s = loop.index0 %}
+    {% set sec_score_parts = split_score_pair(sec.score or '') %}
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
             <span class="comp-submap-name">{{ sec.submap or ('Round ' ~ (s + 1)) }}</span>
@@ -106,7 +107,7 @@
         </div>
         <div class="comp-grid">
             <div class="comp-team">
-                <h4 class="comp-team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                <h4 class="comp-team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
                 <div class="comp-slots">
                     {% for entry in sec.team1 %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
@@ -124,7 +125,7 @@
                 </div>
             </div>
             <div class="comp-team">
-                <h4 class="comp-team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                <h4 class="comp-team-label team2-label">{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
                 <div class="comp-slots">
                     {% for entry in sec.team2 %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
@@ -165,7 +166,7 @@
                         <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
                         <div class="list-subtitle">{{ event.description or "No description" }}</div>
                     </div>
-                    <form action="{{ url_for('delete_event', scrim_id=scrim.id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
+                    <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
                         <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
                     </form>
                 </div>
@@ -211,7 +212,7 @@
 </div>
 
 <!-- Hidden delete form -->
-<form id="deleteMapForm" action="{{ url_for('delete_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
+<form id="deleteMapForm" action="{{ url_for(delete_map_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
 
 <!-- ==================== MODALS ==================== -->
 
@@ -222,7 +223,7 @@
             <h2>Edit Map Info</h2>
             <button class="modal-close" onclick="closeModal('editInfoModal')">&times;</button>
         </div>
-        <form action="{{ url_for('update_map_info', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(update_map_info_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
                 <div class="field">
                     <label for="edit_result">Result</label>
@@ -236,10 +237,10 @@
                     <input type="text" id="edit_score" name="score" value="{{ map_entry.get('score', '') }}" placeholder="e.g. 3-2">
                 </div>
                 <div class="field">
-                    <label for="edit_our_team_slot">Your Team Slot</label>
+                    <label for="edit_our_team_slot">Result Side</label>
                     <select id="edit_our_team_slot" name="our_team_slot">
-                        <option value="team1" {% if our_slot == 'team1' %}selected{% endif %}>Team 1</option>
-                        <option value="team2" {% if our_slot == 'team2' %}selected{% endif %}>Team 2</option>
+                        <option value="team1" {% if our_slot == 'team1' %}selected{% endif %}>{{ team1_label }}</option>
+                        <option value="team2" {% if our_slot == 'team2' %}selected{% endif %}>{{ team2_label }}</option>
                     </select>
                 </div>
             </div>
@@ -254,25 +255,30 @@
 <!-- EDIT COMP SECTION MODALS -->
 {% for sec in map_entry.comp %}
 {% set s = loop.index0 %}
+{% set sec_score_parts = split_score_pair(sec.score or '') %}
 <div class="modal-backdrop" id="editCompSectionModal{{ s }}">
     <div class="modal modal-wide">
         <div class="modal-header">
             <h2>Edit Team Comp - {{ sec.submap or ('Round ' ~ (s + 1)) }}</h2>
             <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
         </div>
-        <form action="{{ url_for('update_comp_section', scrim_id=scrim.id, map_id=map_entry.id, section_index=s) }}" method="post">
+        <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id, section_index=s) }}" method="post">
             <input type="hidden" name="submap" value="{{ sec.submap }}">
             <div class="form-grid">
                 <div class="field">
-                    <label>Score</label>
-                    <input type="text" name="score" value="{{ sec.score or '' }}" placeholder="e.g. 2-1">
+                    <label>{{ team1_label }} Score</label>
+                    <input type="text" name="score_team1" value="{{ sec_score_parts[0] }}" placeholder="e.g. 2">
+                </div>
+                <div class="field">
+                    <label>{{ team2_label }} Score</label>
+                    <input type="text" name="score_team2" value="{{ sec_score_parts[1] }}" placeholder="e.g. 1">
                 </div>
             </div>
 
             <!-- Hero pick slots -->
             <div class="draft-grid">
                 <div class="draft-column">
-                    <h4 class="team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <h4 class="team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team1[i] %}
@@ -289,7 +295,7 @@
                     </div>
                 </div>
                 <div class="draft-column">
-                    <h4 class="team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <h4 class="team-label team2-label">{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team2[i] %}
@@ -344,7 +350,11 @@
                                 <label>Slot {{ i + 1 }}</label>
                                 <select class="comp-player-select" name="team1_player_{{ i }}">
                                     <option value="">Select player</option>
-                                    {% if our_slot == 'team1' %}
+                                    {% if is_tournament %}
+                                        {% for player in team_players %}
+                                        <option value="{{ player }}" {% if sec.team1[i].player == player %}selected{% endif %}>{{ player }}</option>
+                                        {% endfor %}
+                                    {% elif our_slot == 'team1' %}
                                         {% for player in team_players %}
                                         <option value="{{ player }}" {% if sec.team1[i].player == player %}selected{% endif %}>{{ player }}</option>
                                         {% endfor %}
@@ -371,7 +381,11 @@
                                 <label>Slot {{ i + 1 }}</label>
                                 <select class="comp-player-select" name="team2_player_{{ i }}">
                                     <option value="">Select player</option>
-                                    {% if our_slot == 'team2' %}
+                                    {% if is_tournament %}
+                                        {% for player in enemy_players %}
+                                        <option value="{{ player.name }}" {% if sec.team2[i].player == player.name %}selected{% endif %}>{{ player.name }}{% if player.role %} ({{ player.role }}){% endif %}</option>
+                                        {% endfor %}
+                                    {% elif our_slot == 'team2' %}
                                         {% for player in team_players %}
                                         <option value="{{ player }}" {% if sec.team2[i].player == player %}selected{% endif %}>{{ player }}</option>
                                         {% endfor %}
@@ -410,10 +424,10 @@
             <h2>Edit Draft</h2>
             <button class="modal-close" onclick="closeModal('draftModal')">&times;</button>
         </div>
-        <form action="{{ url_for('update_draft', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
+        <form action="{{ url_for(update_draft_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
             <div class="draft-grid">
                 <div class="draft-column">
-                    <h4 class="team-label team1-label">Team 1 {% if our_slot == 'team1' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <h4 class="team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
                     <div class="draft-slots">
                         {% for slot_key, slot_label in team1_draft_slots %}
                         {% set hero = map_entry.draft.team1[slot_key] %}
@@ -429,7 +443,7 @@
                     </div>
                 </div>
                 <div class="draft-column">
-                    <h4 class="team-label team2-label">Team 2 {% if our_slot == 'team2' %}(Your Team){% else %}(Enemy){% endif %}</h4>
+                    <h4 class="team-label team2-label">{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
                     <div class="draft-slots">
                         {% for slot_key, slot_label in team2_draft_slots %}
                         {% set hero = map_entry.draft.team2[slot_key] %}
@@ -483,7 +497,7 @@
             <h2>Add Event</h2>
             <button class="modal-close" onclick="closeModal('addEventModal')">&times;</button>
         </div>
-        <form action="{{ url_for('add_event_to_map', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(add_event_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
                 <div class="field">
                     <label for="modal_timestamp">Timestamp</label>
@@ -518,7 +532,7 @@
             <h2>Edit VOD Link</h2>
             <button class="modal-close" onclick="closeModal('editVodModal')">&times;</button>
         </div>
-        <form action="{{ url_for('update_vod', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(update_vod_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
             <div class="field">
                 <label for="modal_vod_url">YouTube / Twitch URL</label>
                 <input type="url" id="modal_vod_url" name="vod_url" value="{{ map_entry.get('vod_url', '') }}" placeholder="https://youtube.com/watch?v=...">
@@ -538,7 +552,7 @@
             <h2>Edit Map Notes</h2>
             <button class="modal-close" onclick="closeModal('editNotesModal')">&times;</button>
         </div>
-        <form action="{{ url_for('update_notes', scrim_id=scrim.id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(update_notes_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
             <div class="field">
                 <textarea id="modal_map_notes" name="notes" rows="8" placeholder="Game strategy, what went wrong, what to improve...">{{ map_entry.notes }}</textarea>
             </div>
@@ -871,9 +885,13 @@ function copyPreviousCompSection(sectionIndex) {
     const prevForm = prevModal.querySelector('form');
     if (!currentForm || !prevForm) return;
 
-    const scoreInput = currentForm.querySelector('input[name="score"]');
-    const prevScoreInput = prevForm.querySelector('input[name="score"]');
-    if (scoreInput && prevScoreInput) scoreInput.value = prevScoreInput.value || '';
+    const scoreTeam1Input = currentForm.querySelector('input[name="score_team1"]');
+    const prevScoreTeam1Input = prevForm.querySelector('input[name="score_team1"]');
+    if (scoreTeam1Input && prevScoreTeam1Input) scoreTeam1Input.value = prevScoreTeam1Input.value || '';
+
+    const scoreTeam2Input = currentForm.querySelector('input[name="score_team2"]');
+    const prevScoreTeam2Input = prevForm.querySelector('input[name="score_team2"]');
+    if (scoreTeam2Input && prevScoreTeam2Input) scoreTeam2Input.value = prevScoreTeam2Input.value || '';
 
     ['team1', 'team2'].forEach(team => {
         for (let i = 0; i < 6; i++) {

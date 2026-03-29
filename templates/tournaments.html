@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Tournaments{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>Tournaments</h2>
+        <p>Track enemy-vs-enemy tournament matches for scouting and comparison.</p>
+    </div>
+    <div class="header-actions">
+        <form method="GET" action="{{ url_for('tournaments') }}" style="display:contents">
+            <select name="season" aria-label="Filter by season" class="team-range-select" onchange="this.form.submit()">
+                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                {% if has_unseasoned_tournaments %}
+                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                {% endif %}
+                {% for season in season_options %}
+                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                {% endfor %}
+            </select>
+            <select name="team_id" aria-label="Filter by owner team" class="team-range-select" onchange="this.form.submit()">
+                <option value="">All Owner Teams</option>
+                {% for team in teams %}
+                    <option value="{{ team.id }}" {% if selected_team_id == team.id|string %}selected{% endif %}>{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <a class="button-link" href="{{ url_for('new_tournament') }}">+ New Tournament</a>
+    </div>
+</div>
+
+<section class="panel">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <p style="margin: 0; font-size: 0.95rem; color: #555;">
+            {% if selected_season == 'all' and not selected_team_id %}
+                Showing all <strong>{{ tournaments|length }}</strong> tournament matches
+            {% else %}
+                <strong style="color: var(--accent-color, #0066cc);">{{ tournaments|length }} of {{ total_tournament_count }}</strong> tournament matches
+            {% endif %}
+        </p>
+        {% if selected_season != 'all' or selected_team_id %}
+            <a href="{{ url_for('tournaments') }}" style="font-size: 0.85rem; color: #888;">Clear filters ×</a>
+        {% endif %}
+    </div>
+
+    {% if tournaments %}
+        <div class="scrim-box-grid">
+            {% for match in tournaments %}
+                <a class="scrim-box-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
+                    <div class="scrim-box-head">
+                        <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
+                        <span class="scrim-box-maps">{{ match.maps|length }} maps</span>
+                    </div>
+                    <div class="list-subtitle">
+                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}
+                    </div>
+                    <div class="scrim-box-cta">Open Match →</div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No tournament matches created yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
