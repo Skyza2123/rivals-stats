@@ -248,6 +248,13 @@
                 </div>
                 {% if is_tournament %}
                 <div class="field">
+                    <label for="edit_map_team1_tournament_team_id">Team On Side 1</label>
+                    <select id="edit_map_team1_tournament_team_id" name="map_team1_tournament_team_id" required>
+                        <option value="{{ scrim.team1_tournament_team_id }}" {% if map_entry.team1_tournament_team_id == scrim.team1_tournament_team_id %}selected{% endif %}>{{ scrim.team1_name }}</option>
+                        <option value="{{ scrim.team2_tournament_team_id }}" {% if map_entry.team1_tournament_team_id == scrim.team2_tournament_team_id %}selected{% endif %}>{{ scrim.team2_name }}</option>
+                    </select>
+                </div>
+                <div class="field">
                     <label for="edit_picked_by_tournament_team_id">Picked By</label>
                     <select id="edit_picked_by_tournament_team_id" name="picked_by_tournament_team_id">
                         <option value="">Not Set</option>
@@ -603,6 +610,29 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+function syncTournamentEditMapTeams() {
+    const side1Select = document.getElementById('edit_map_team1_tournament_team_id');
+    const resultSideSelect = document.getElementById('edit_our_team_slot');
+    const pickedBySelect = document.getElementById('edit_picked_by_tournament_team_id');
+    if (!side1Select || !resultSideSelect || !pickedBySelect) return;
+
+    const firstTeamId = '{{ scrim.team1_tournament_team_id if is_tournament else "" }}';
+    const secondTeamId = '{{ scrim.team2_tournament_team_id if is_tournament else "" }}';
+    const firstTeamName = '{{ scrim.team1_name if is_tournament else "" }}';
+    const secondTeamName = '{{ scrim.team2_name if is_tournament else "" }}';
+    const side1IsFirst = side1Select.value === firstTeamId;
+    const side1Name = side1IsFirst ? firstTeamName : secondTeamName;
+    const side2Name = side1IsFirst ? secondTeamName : firstTeamName;
+    const side2Id = side1IsFirst ? secondTeamId : firstTeamId;
+
+    resultSideSelect.options[0].text = side1Name;
+    resultSideSelect.options[1].text = side2Name;
+    pickedBySelect.options[1].value = side1Select.value;
+    pickedBySelect.options[1].text = side1Name;
+    pickedBySelect.options[2].value = side2Id;
+    pickedBySelect.options[2].text = side2Name;
+}
+
 /* ── Delete Map ── */
 function confirmDeleteMap() {
     if (confirm('Delete this map? This cannot be undone.')) {
@@ -624,6 +654,9 @@ function confirmDeleteMap() {
         }
     }
 })();
+
+document.getElementById('edit_map_team1_tournament_team_id')?.addEventListener('change', syncTournamentEditMapTeams);
+syncTournamentEditMapTeams();
 
 /* ══════════════════════════════════════
    DRAFT EDITOR — click-slot-then-pick

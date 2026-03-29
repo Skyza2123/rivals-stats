@@ -864,15 +864,23 @@ def get_result_for_slot(map_entry: dict, slot: str) -> str:
     return "Loss" if result == "Win" else "Win"
 
 
+def get_tournament_team_slot_for_map(map_entry: dict, tournament_team_id: int | None) -> str | None:
+    if tournament_team_id is None:
+        return None
+    if map_entry.get("team1_tournament_team_id") == tournament_team_id:
+        return "team1"
+    if map_entry.get("team2_tournament_team_id") == tournament_team_id:
+        return "team2"
+    return None
+
+
 def build_tournament_team_scrims(tournament_record: dict, tournament_team: dict) -> list[dict]:
     tournament_team_id = tournament_team.get("id")
     team_scrims: list[dict] = []
     for tournament_match in tournament_record.get("matches", []):
         if tournament_match.get("team1_tournament_team_id") == tournament_team_id:
-            team_slot = "team1"
             opponent_name = tournament_match.get("team2_name") or "Opponent"
         elif tournament_match.get("team2_tournament_team_id") == tournament_team_id:
-            team_slot = "team2"
             opponent_name = tournament_match.get("team1_name") or "Opponent"
         else:
             continue
@@ -880,6 +888,9 @@ def build_tournament_team_scrims(tournament_record: dict, tournament_team: dict)
         remapped_maps: list[dict] = []
         for original_map in tournament_match.get("maps", []):
             if not isinstance(original_map, dict):
+                continue
+            team_slot = get_tournament_team_slot_for_map(original_map, tournament_team_id)
+            if team_slot is None:
                 continue
             map_entry = copy.deepcopy(original_map)
             map_entry["our_team_slot"] = team_slot
@@ -902,20 +913,64 @@ def build_tournament_team_scrims(tournament_record: dict, tournament_team: dict)
     return team_scrims
 
 
+def build_tournament_match_scrims(tournament_record: dict, perspective: str = "team1") -> list[dict]:
+    perspective = perspective if perspective in TEAM_SLOTS else "team1"
+    opponent_slot = "team2" if perspective == "team1" else "team1"
+    perspective_id_key = f"{perspective}_tournament_team_id"
+    opponent_id_key = f"{opponent_slot}_tournament_team_id"
+    perspective_name_key = f"{perspective}_name"
+    opponent_name_key = f"{opponent_slot}_name"
+
+    tournament_scrims: list[dict] = []
+    for tournament_match in tournament_record.get("matches", []):
+        perspective_team_id = tournament_match.get(perspective_id_key)
+        if perspective_team_id is None:
+            continue
+
+        remapped_maps: list[dict] = []
+        for original_map in tournament_match.get("maps", []):
+            if not isinstance(original_map, dict):
+                continue
+            team_slot = get_tournament_team_slot_for_map(original_map, perspective_team_id)
+            if team_slot is None:
+                continue
+            map_entry = copy.deepcopy(original_map)
+            map_entry["our_team_slot"] = team_slot
+            map_entry["result"] = get_result_for_slot(original_map, team_slot)
+            remapped_maps.append(map_entry)
+
+        tournament_scrims.append(
+            {
+                "id": tournament_match.get("id"),
+                "opponent": tournament_match.get(opponent_name_key) or "Opponent",
+                "enemy_team": tournament_match.get(opponent_name_key) or "Opponent",
+                "scrim_date": tournament_match.get("scrim_date") or tournament_record.get("scrim_date", ""),
+                "season": tournament_record.get("season", ""),
+                "team_id": tournament_record.get("team_id"),
+                "team_name": tournament_match.get(perspective_name_key) or f"Match {perspective.title()}",
+                "notes": tournament_match.get("notes", ""),
+                "maps": remapped_maps,
+                "team1_tournament_team_id": tournament_match.get(perspective_id_key),
+                "team2_tournament_team_id": tournament_match.get(opponent_id_key),
+            }
+        )
+
+    return tournament_scrims
+
+
 def build_tournament_team_pick_rows(tournament_record: dict, tournament_team: dict) -> list[dict]:
     pick_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     tournament_team_id = tournament_team.get("id")
 
     for tournament_match in tournament_record.get("matches", []):
-        if tournament_match.get("team1_tournament_team_id") == tournament_team_id:
-            team_slot = "team1"
-        elif tournament_match.get("team2_tournament_team_id") == tournament_team_id:
-            team_slot = "team2"
-        else:
+        if tournament_match.get("team1_tournament_team_id") != tournament_team_id and tournament_match.get("team2_tournament_team_id") != tournament_team_id:
             continue
 
         for map_entry in tournament_match.get("maps", []):
             if map_entry.get("picked_by_tournament_team_id") != tournament_team_id:
+                continue
+            team_slot = get_tournament_team_slot_for_map(map_entry, tournament_team_id)
+            if team_slot is None:
                 continue
             map_name = str(map_entry.get("map_name", "")).strip()
             if not map_name:
@@ -969,7 +1024,18 @@ def build_tournament_match_summaries(tournament_record: dict) -> list[dict]:
 def build_tournament_overview_analytics(tournament_record: dict) -> dict:
     ban_counts = defaultdict(int)
     protect_counts = defaultdict(int)
-    map_counts = defaultdict(int)
+    map_stats = defaultdict(
+        lambda: {
+            "count": 0,
+            "completed": 0,
+            "wins": 0,
+            "losses": 0,
+            "mirrored_completed": 0,
+            "mirrored_wins": 0,
+            "unmirrored_completed": 0,
+            "unmirrored_wins": 0,
+        }
+    )
 
     total_maps = 0
     total_ban_events = 0
@@ -982,8 +1048,27 @@ def build_tournament_overview_analytics(tournament_record: dict) -> dict:
 
             map_name = str(map_entry.get("map_name", "")).strip()
             if map_name:
-                map_counts[map_name] += 1
+                map_stats[map_name]["count"] += 1
                 total_maps += 1
+
+            result_value = str(map_entry.get("result", "")).strip()
+            if map_name and result_value in {"Win", "Loss"}:
+                mirrored = is_map_draft_mirrored(map_entry)
+                unmirrored = is_map_draft_unmirrored(map_entry)
+                map_stats[map_name]["completed"] += 1
+                if result_value == "Win":
+                    map_stats[map_name]["wins"] += 1
+                else:
+                    map_stats[map_name]["losses"] += 1
+
+                if mirrored:
+                    map_stats[map_name]["mirrored_completed"] += 1
+                    if result_value == "Win":
+                        map_stats[map_name]["mirrored_wins"] += 1
+                if unmirrored:
+                    map_stats[map_name]["unmirrored_completed"] += 1
+                    if result_value == "Win":
+                        map_stats[map_name]["unmirrored_wins"] += 1
 
             draft = map_entry.get("draft", {})
             for team_key in ("team1", "team2"):
@@ -1022,17 +1107,25 @@ def build_tournament_overview_analytics(tournament_record: dict) -> dict:
     protect_rows.sort(key=lambda row: (row["count"], row["hero"]), reverse=True)
 
     map_rows = []
-    for map_name, count in map_counts.items():
+    for map_name, stats in map_stats.items():
         map_rows.append(
             {
                 "map_name": map_name,
                 "mode": MAP_MODES.get(map_name, "Other"),
-                "count": count,
-                "play_rate": round((count / total_maps) * 100, 1) if total_maps else 0,
+                "count": stats["count"],
+                "completed": stats["completed"],
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "win_rate": round((stats["wins"] / stats["completed"]) * 100, 1) if stats["completed"] else None,
+                "mirrored_completed": stats["mirrored_completed"],
+                "mirrored_win_rate": round((stats["mirrored_wins"] / stats["mirrored_completed"]) * 100, 1) if stats["mirrored_completed"] else None,
+                "unmirrored_completed": stats["unmirrored_completed"],
+                "unmirrored_win_rate": round((stats["unmirrored_wins"] / stats["unmirrored_completed"]) * 100, 1) if stats["unmirrored_completed"] else None,
+                "play_rate": round((stats["count"] / total_maps) * 100, 1) if total_maps else 0,
                 "image": MAP_IMAGES.get(map_name, ""),
             }
         )
-    map_rows.sort(key=lambda row: (row["count"], row["map_name"]), reverse=True)
+    map_rows.sort(key=lambda row: (row["count"], row["completed"], row["map_name"]), reverse=True)
 
     return {
         "summary": {
@@ -1054,6 +1147,53 @@ def canonicalize_hero_name(raw_hero: str) -> str:
     if not hero_text:
         return ""
     return _resolve_hero_transform_key(hero_text) or hero_text
+
+
+def is_map_draft_mirrored(map_entry: dict) -> bool:
+    draft = map_entry.get("draft", {})
+    if not isinstance(draft, dict):
+        return False
+
+    team1_draft = draft.get("team1", {}) if isinstance(draft.get("team1", {}), dict) else {}
+    team2_draft = draft.get("team2", {}) if isinstance(draft.get("team2", {}), dict) else {}
+    team1_heroes = {
+        canonicalize_hero_name(hero)
+        for hero in team1_draft.values()
+        if canonicalize_hero_name(hero)
+    }
+    team2_heroes = {
+        canonicalize_hero_name(hero)
+        for hero in team2_draft.values()
+        if canonicalize_hero_name(hero)
+    }
+    if not team1_heroes or not team2_heroes:
+        return False
+    return len(team1_heroes & team2_heroes) >= 3
+
+
+def is_map_draft_unmirrored(map_entry: dict) -> bool:
+    """Check if a map has unmirrored draft: 1-2 shared heroes between teams (some overlap, but not fully mirrored)."""
+    draft = map_entry.get("draft", {})
+    if not isinstance(draft, dict):
+        return False
+
+    team1_draft = draft.get("team1", {}) if isinstance(draft.get("team1", {}), dict) else {}
+    team2_draft = draft.get("team2", {}) if isinstance(draft.get("team2", {}), dict) else {}
+    team1_heroes = {
+        canonicalize_hero_name(hero)
+        for hero in team1_draft.values()
+        if canonicalize_hero_name(hero)
+    }
+    team2_heroes = {
+        canonicalize_hero_name(hero)
+        for hero in team2_draft.values()
+        if canonicalize_hero_name(hero)
+    }
+    if not team1_heroes or not team2_heroes:
+        return False
+    shared_count = len(team1_heroes & team2_heroes)
+    # Unmirrored: 1-2 shared heroes (not fully mirrored with 3+, but not completely different with 0)
+    return 1 <= shared_count <= 2
 
 
 def normalize_player_role(raw_role: str) -> str:
@@ -1317,7 +1457,7 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
     ban_position_stats = {slot: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for slot in ban_slot_keys}
     enemy_ban_position_stats = {slot: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for slot in ban_slot_keys}
     protect_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
-    hero_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    hero_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "unmirrored_maps": 0, "unmirrored_wins": 0, "unmirrored_losses": 0})
     map_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     map_draft_stats = defaultdict(
         lambda: {
@@ -1614,12 +1754,25 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
                     elif shared_comp_heroes >= 3:
                         comp_soft_mirror_count += 1
 
+            # Determine if draft is unmirrored (1-2 shared heroes)
+            is_draft_unmirrored = False
+            if our_draft_heroes and enemy_draft_heroes:
+                shared_draft_heroes = len(set(our_draft_heroes) & set(enemy_draft_heroes))
+                is_draft_unmirrored = 1 <= shared_draft_heroes <= 2
+
             for hero_name in heroes_in_map:
                 hero_stats[hero_name]["maps"] += 1
                 if is_win:
                     hero_stats[hero_name]["wins"] += 1
                 elif is_loss:
                     hero_stats[hero_name]["losses"] += 1
+                
+                if is_draft_unmirrored:
+                    hero_stats[hero_name]["unmirrored_maps"] += 1
+                    if is_win:
+                        hero_stats[hero_name]["unmirrored_wins"] += 1
+                    elif is_loss:
+                        hero_stats[hero_name]["unmirrored_losses"] += 1
 
             for profile_key in comp_profiles_in_map:
                 comp_profile_stats[profile_key]["count"] += 1
@@ -1645,10 +1798,9 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
                 "hero": hero,
                 "count": stats["count"],
                 "ban_rate": pct(stats["count"], total_filled_bans),
-                "win_rate": pct(stats["wins"], stats["count"]),
             }
         )
-    ban_rows.sort(key=lambda r: (r["count"], r["win_rate"]), reverse=True)
+    ban_rows.sort(key=lambda r: r["count"], reverse=True)
 
     enemy_ban_rows = []
     for hero, stats in enemy_ban_stats.items():
@@ -1657,10 +1809,9 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
                 "hero": hero,
                 "count": stats["count"],
                 "ban_rate": pct(stats["count"], total_enemy_filled_bans),
-                "win_rate": pct(stats["wins"], stats["count"]),
             }
         )
-    enemy_ban_rows.sort(key=lambda r: (r["count"], r["win_rate"]), reverse=True)
+    enemy_ban_rows.sort(key=lambda r: r["count"], reverse=True)
 
     ban_next_rows = []
     for source_hero, response_counts in ban_next_pairs.items():
@@ -2048,6 +2199,8 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
                 "hero": hero,
                 "maps": stats["maps"],
                 "win_rate": pct(stats["wins"], stats["maps"]),
+                "unmirrored_maps": stats["unmirrored_maps"],
+                "unmirrored_win_rate": pct(stats["unmirrored_wins"], stats["unmirrored_maps"]),
             }
         )
     hero_rows.sort(key=lambda r: (r["maps"], r["win_rate"]), reverse=True)
@@ -3337,10 +3490,10 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
         {
             "hero": row["hero"],
             "maps": row["maps"],
-            "win_rate": row["win_rate"],
-            "usage_rate": round((row["maps"] / team_analytics["summary"]["total_maps"]) * 100, 1)
+            "pick_rate": round((row["maps"] / team_analytics["summary"]["total_maps"]) * 100, 1)
             if team_analytics["summary"]["total_maps"]
             else 0,
+            "unmirrored_win_rate": row["unmirrored_win_rate"],
         }
         for row in team_analytics.get("hero_rows", [])
     ]
@@ -3355,10 +3508,8 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
 
     for tournament_match in tournament_record.get("matches", []):
         if tournament_match.get("team1_tournament_team_id") == tournament_team_id:
-            team_slot = "team1"
             opponent_name = tournament_match.get("team2_name") or "Opponent"
         elif tournament_match.get("team2_tournament_team_id") == tournament_team_id:
-            team_slot = "team2"
             opponent_name = tournament_match.get("team1_name") or "Opponent"
         else:
             continue
@@ -3366,6 +3517,9 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
         wins = 0
         losses = 0
         for map_entry in tournament_match.get("maps", []):
+            team_slot = get_tournament_team_slot_for_map(map_entry, tournament_team_id)
+            if team_slot is None:
+                continue
             map_name = (map_entry.get("map_name", "") or "").strip()
             if map_name:
                 mode_name = MAP_MODES.get(map_name, "Other")
@@ -5130,6 +5284,7 @@ def tournament_detail(tournament_id: int):
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
     match_summaries = build_tournament_match_summaries(tournament_record)
     overview_analytics = build_tournament_overview_analytics(tournament_record)
+    tournament_ban_analytics = build_scrim_analytics(build_tournament_match_scrims(tournament_record))
     total_maps = sum(summary["maps"] for summary in match_summaries)
     completed_maps = sum(summary["completed_maps"] for summary in match_summaries)
 
@@ -5139,6 +5294,7 @@ def tournament_detail(tournament_id: int):
         teams=teams,
         match_summaries=match_summaries,
         overview_analytics=overview_analytics,
+        tournament_ban_analytics=tournament_ban_analytics,
         total_maps=total_maps,
         completed_maps=completed_maps,
     )
@@ -5178,8 +5334,22 @@ def add_tournament_match(tournament_id: int):
 def tournament_match_detail(tournament_id: int, match_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
-    team1_map_wins = sum(1 for map_entry in tournament_match.get("maps", []) if get_result_for_slot(map_entry, "team1") == "Win")
-    team2_map_wins = sum(1 for map_entry in tournament_match.get("maps", []) if get_result_for_slot(map_entry, "team2") == "Win")
+    team1_map_wins = sum(
+        1
+        for map_entry in tournament_match.get("maps", [])
+        if get_result_for_slot(
+            map_entry,
+            get_tournament_team_slot_for_map(map_entry, tournament_match.get("team1_tournament_team_id")) or "team1",
+        ) == "Win"
+    )
+    team2_map_wins = sum(
+        1
+        for map_entry in tournament_match.get("maps", [])
+        if get_result_for_slot(
+            map_entry,
+            get_tournament_team_slot_for_map(map_entry, tournament_match.get("team2_tournament_team_id")) or "team2",
+        ) == "Win"
+    )
 
     return render_template(
         "tournament_match_detail.html",
@@ -5249,10 +5419,22 @@ def add_tournament_match_map(tournament_id: int, match_id: int):
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
 
     map_entry = build_match_map_entry_from_form()
-    map_entry["team1_tournament_team_id"] = tournament_match.get("team1_tournament_team_id")
-    map_entry["team2_tournament_team_id"] = tournament_match.get("team2_tournament_team_id")
-    map_entry["team1_name"] = tournament_match.get("team1_name", "")
-    map_entry["team2_name"] = tournament_match.get("team2_name", "")
+    side1_tournament_team_id = parse_team_id(request.form.get("map_team1_tournament_team_id", ""))
+    valid_team_ids = {
+        tournament_match.get("team1_tournament_team_id"),
+        tournament_match.get("team2_tournament_team_id"),
+    }
+    if side1_tournament_team_id not in valid_team_ids:
+        flash("Choose which match team is on side 1 for this map.", "error")
+        return redirect(url_for("tournament_match_detail", tournament_id=tournament_id, match_id=match_id))
+
+    side2_tournament_team_id = next(team_id for team_id in valid_team_ids if team_id != side1_tournament_team_id)
+    team1 = get_tournament_team_by_id(tournament_record, side1_tournament_team_id)
+    team2 = get_tournament_team_by_id(tournament_record, side2_tournament_team_id)
+    map_entry["team1_tournament_team_id"] = side1_tournament_team_id
+    map_entry["team2_tournament_team_id"] = side2_tournament_team_id
+    map_entry["team1_name"] = team1.get("name", "") if team1 is not None else ""
+    map_entry["team2_name"] = team2.get("name", "") if team2 is not None else ""
 
     picked_by_tournament_team_id = parse_team_id(request.form.get("picked_by_tournament_team_id", ""))
     if picked_by_tournament_team_id is not None:
@@ -5573,6 +5755,24 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
     map_entry["score"] = request.form.get("score", map_entry.get("score", "")).strip()
     our_team_slot = request.form.get("our_team_slot", map_entry.get("our_team_slot", "team1")).strip()
     map_entry["our_team_slot"] = our_team_slot if our_team_slot in TEAM_SLOTS else "team1"
+
+    raw_map_team1_id = request.form.get("map_team1_tournament_team_id", "")
+    if raw_map_team1_id:
+        side1_tournament_team_id = parse_team_id(raw_map_team1_id)
+        valid_team_ids = {
+            tournament_match.get("team1_tournament_team_id"),
+            tournament_match.get("team2_tournament_team_id"),
+        }
+        if side1_tournament_team_id not in valid_team_ids:
+            flash("Choose a valid match team for side 1.", "error")
+            return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
+        side2_tournament_team_id = next(team_id for team_id in valid_team_ids if team_id != side1_tournament_team_id)
+        team1 = get_tournament_team_by_id(tournament_record, side1_tournament_team_id)
+        team2 = get_tournament_team_by_id(tournament_record, side2_tournament_team_id)
+        map_entry["team1_tournament_team_id"] = side1_tournament_team_id
+        map_entry["team2_tournament_team_id"] = side2_tournament_team_id
+        map_entry["team1_name"] = team1.get("name", "") if team1 is not None else ""
+        map_entry["team2_name"] = team2.get("name", "") if team2 is not None else ""
 
     picked_by_tournament_team_id = parse_team_id(request.form.get("picked_by_tournament_team_id", ""))
     if picked_by_tournament_team_id is not None:

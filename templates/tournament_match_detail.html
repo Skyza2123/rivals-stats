@@ -61,6 +61,7 @@
                         <div class="map-card-bottom">
                             <div class="map-card-title">{{ map_entry.map_name }}</div>
                             <div class="map-card-sub">
+                                {{ map_entry.team1_name or match.team1_name }} vs {{ map_entry.team2_name or match.team2_name }} &bull;
                                 {% if map_entry.picked_by_name %}Picked by {{ map_entry.picked_by_name }} &bull;{% endif %}
                                 {% if map_entry.score %}{{ map_entry.score }} &bull;{% endif %}
                                 {{ map_entry.side or '' }}
@@ -171,6 +172,14 @@
                 </div>
 
                 <div class="field">
+                    <label for="map_team1_tournament_team_id">Team On Side 1</label>
+                    <select id="map_team1_tournament_team_id" name="map_team1_tournament_team_id" required>
+                        <option value="{{ match.team1_tournament_team_id }}">{{ match.team1_name }}</option>
+                        <option value="{{ match.team2_tournament_team_id }}">{{ match.team2_name }}</option>
+                    </select>
+                </div>
+
+                <div class="field">
                     <label for="picked_by_tournament_team_id">Picked By</label>
                     <select id="picked_by_tournament_team_id" name="picked_by_tournament_team_id">
                         <option value="">Not Set</option>
@@ -268,6 +277,35 @@ document.addEventListener('keydown', function(event) {
         ['editMatchModal', 'addMapModal'].forEach(closeModal);
     }
 });
+
+function syncMatchMapTeams() {
+    const side1Select = document.getElementById('map_team1_tournament_team_id');
+    const resultSideSelect = document.getElementById('our_team_slot');
+    const pickedBySelect = document.getElementById('picked_by_tournament_team_id');
+    const headings = document.querySelectorAll('#addMapModal .draft-column h4');
+    if (!side1Select || !resultSideSelect || !pickedBySelect) return;
+
+    const firstTeamId = '{{ match.team1_tournament_team_id }}';
+    const secondTeamId = '{{ match.team2_tournament_team_id }}';
+    const firstTeamName = '{{ match.team1_name }}';
+    const secondTeamName = '{{ match.team2_name }}';
+    const side1IsFirst = side1Select.value === firstTeamId;
+    const side1Name = side1IsFirst ? firstTeamName : secondTeamName;
+    const side2Name = side1IsFirst ? secondTeamName : firstTeamName;
+    const side2Id = side1IsFirst ? secondTeamId : firstTeamId;
+
+    resultSideSelect.options[0].text = side1Name;
+    resultSideSelect.options[1].text = side2Name;
+    pickedBySelect.options[1].value = side1Select.value;
+    pickedBySelect.options[1].text = side1Name;
+    pickedBySelect.options[2].value = side2Id;
+    pickedBySelect.options[2].text = side2Name;
+
+    if (headings.length >= 2) {
+        headings[0].textContent = side1Name;
+        headings[1].textContent = side2Name;
+    }
+}
 
 let activeSlot = null;
 const mapSubmapsPayload = document.getElementById('mapSubmapsData');
@@ -394,7 +432,9 @@ function pickHero(button) {
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('map_name')?.addEventListener('change', updateFirstSubmapOptions);
+    document.getElementById('map_team1_tournament_team_id')?.addEventListener('change', syncMatchMapTeams);
     updateFirstSubmapOptions();
+    syncMatchMapTeams();
 });
 </script>
 {% endblock %}

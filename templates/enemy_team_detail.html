@@ -110,7 +110,7 @@
                                 {% set height = ((row.count / ban_max) * 100) if ban_max else 0 %}
                                 <div class="vbar-container">
                                     <div class="vbar-bar-wrapper">
-                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%), {{ row.win_rate }}% win rate when banned">
+                                        <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%)">
                                             <span class="vbar-label-top">{{ row.count }}</span>
                                         </div>
                                     </div>
