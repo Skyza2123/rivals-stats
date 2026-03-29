@@ -1,0 +1,378 @@
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Opponent Prep Report</div>
+            <h3>Scouting Snapshot</h3>
+            <p class="panel-intro">A focused read on enemy ban pressure, likely pivots, comp shape, and where the draft usually bends across the current sample.</p>
+        </div>
+        <div class="header-actions">
+            <label for="prepEnemySelector" class="sr-only">Enemy selector</label>
+            <select id="prepEnemySelector" class="team-range-select">
+                <option value="">All Enemies</option>
+                {% for enemy in enemy_teams %}
+                    <option value="{{ enemy.id }}" {% if selected_prep_enemy_id == enemy.id|string %}selected{% endif %}>{{ enemy.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    {% set enemy_focus = prep_analytics.enemy_ban_rows[0] if prep_analytics.enemy_ban_rows else None %}
+    {% set top_response = prep_analytics.ban_next_rows[0] if prep_analytics.ban_next_rows else None %}
+    {% set top_route = prep_analytics.draft_route_rows[0] if prep_analytics.draft_route_rows else None %}
+    {% set top_skip_map = prep_analytics.map_draft_rows[0] if prep_analytics.map_draft_rows else None %}
+    <div class="summary-grid top-gap">
+        <section class="stat-card">
+            <strong>Sample</strong>
+            <span>{% if selected_prep_enemy_name %}{{ selected_prep_enemy_name }}{% else %}All Enemies{% endif %}</span>
+            <small>{{ prep_scrim_count }} scrims</small>
+        </section>
+        <section class="stat-card">
+            <strong>Enemy Top Ban</strong>
+            {% if enemy_focus %}
+                <span>{{ enemy_focus.hero }}</span>
+                <small>{{ enemy_focus.count }} bans • {{ enemy_focus.ban_rate }}%</small>
+            {% else %}
+                <span>—</span>
+            {% endif %}
+        </section>
+        <section class="stat-card">
+            <strong>Most Likely Response</strong>
+            {% if top_response %}
+                <span>{{ top_response.ban_hero }} → {{ top_response.top_enemy_ban }}</span>
+                <small>{{ top_response.top_rate }}% response rate</small>
+            {% else %}
+                <span>—</span>
+            {% endif %}
+        </section>
+        <section class="stat-card">
+            <strong>Highest Pivot Route</strong>
+            {% if top_route %}
+                <span>{{ top_route.from_slot }} {{ top_route.from_hero }}</span>
+                <small>{{ top_route.to_slot }} {{ top_route.to_hero }} • {{ top_route.rate }}%</small>
+            {% else %}
+                <span>—</span>
+            {% endif %}
+        </section>
+        <section class="stat-card">
+            <strong>Highest Veto Pressure</strong>
+            {% if top_skip_map %}
+                <span>{{ top_skip_map.map_name }}</span>
+                <small>{{ top_skip_map.recommendation }}</small>
+            {% else %}
+                <span>—</span>
+            {% endif %}
+        </section>
+    </div>
+</section>
+
+<section class="panel panel-soft-green top-gap">
+    <div class="section-kicker">Ban Value</div>
+    <h3>Ban Value / Pivot Analysis</h3>
+    <p class="panel-intro">Use this to see which heroes actually swing outcomes when banned or protected, and which routes are most stable enough to prep around.</p>
+    {% if prep_analytics.ban_protect_rows %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>Ban Rate</th>
+                        <th>Protect Rate</th>
+                        <th>Ban Delta</th>
+                        <th>Protect Delta</th>
+                        <th>Tendency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in prep_analytics.ban_protect_rows[:10] %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ row.hero }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.ban_rate }}%</td>
+                            <td>{{ row.protect_rate }}%</td>
+                            <td>{% if row.ban_count %}{% if row.ban_delta > 0 %}+{% endif %}{{ row.ban_delta }}%{% else %}--{% endif %}</td>
+                            <td>{% if row.protect_count %}{% if row.protect_delta > 0 %}+{% endif %}{{ row.protect_delta }}%{% else %}--{% endif %}</td>
+                            <td>
+                                {% if row.leaning == 'Ban leaning' %}
+                                    <span class="compare-tag compare-tag-negative">Ban leaning</span>
+                                {% elif row.leaning == 'Protect leaning' %}
+                                    <span class="compare-tag compare-tag-positive">Protect leaning</span>
+                                {% else %}
+                                    <span class="compare-tag compare-tag-neutral">Balanced</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No ban value data yet.</p>
+    {% endif %}
+</section>
+
+<div class="form-grid top-gap">
+    <section class="panel panel-soft-blue">
+        <div class="section-kicker">Pivot Routes</div>
+        <h3>Most Common Draft Pivots</h3>
+        {% if prep_analytics.draft_route_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Rate</th>
+                            <th>Samples</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in prep_analytics.draft_route_rows[:10] %}
+                            <tr>
+                                <td>{{ row.from_slot }} • {{ row.from_hero }}</td>
+                                <td>{{ row.to_slot }} • {{ row.to_hero }}</td>
+                                <td>{{ row.rate }}%</td>
+                                <td>{{ row.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No pivot routes yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel panel-soft-violet">
+        <div class="section-kicker">Lead Indicators</div>
+        <h3>What Usually Leads Into Later Slots</h3>
+        {% if prep_analytics.lead_to_ban_rows or prep_analytics.lead_to_protect_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Target</th>
+                            <th>Top Leading Slot</th>
+                            <th>Hero</th>
+                            <th>Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in prep_analytics.lead_to_ban_rows[:5] %}
+                            <tr>
+                                <td>Ban • {{ row.target_hero }}</td>
+                                <td>{{ row.top_source_slot }}</td>
+                                <td>{{ row.top_source_hero }}</td>
+                                <td>{{ row.top_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                        {% for row in prep_analytics.lead_to_protect_rows[:5] %}
+                            <tr>
+                                <td>Protect • {{ row.target_hero }}</td>
+                                <td>{{ row.top_source_slot }}</td>
+                                <td>{{ row.top_source_hero }}</td>
+                                <td>{{ row.top_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No lead indicator data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="panel panel-soft-gold top-gap">
+    <div class="section-kicker">Comp Archetype Explorer</div>
+    <h3>Main Team vs Enemy Archetypes</h3>
+    <p class="panel-intro">Compare archetype prevalence and win rate across both sides for the filtered sample.</p>
+    {% if prep_analytics.comp_archetype_rows %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Archetype</th>
+                        <th>Main Usage</th>
+                        <th>Main WR</th>
+                        <th>Enemy Usage</th>
+                        <th>Enemy WR</th>
+                        <th>Edge</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in prep_analytics.comp_archetype_rows %}
+                        <tr>
+                            <td>{{ row.label }}</td>
+                            <td>{{ row.main_count }} ({{ row.main_rate }}%)</td>
+                            <td>{% if row.main_count %}{{ row.main_win_rate }}%{% else %}--{% endif %}</td>
+                            <td>{{ row.enemy_count }} ({{ row.enemy_rate }}%)</td>
+                            <td>{% if row.enemy_count %}{{ row.enemy_win_rate }}%{% else %}--{% endif %}</td>
+                            <td>
+                                {% if row.rate_diff > 0 %}
+                                    <span class="compare-tag compare-tag-positive">Main +{{ row.rate_diff }}%</span>
+                                {% elif row.rate_diff < 0 %}
+                                    <span class="compare-tag compare-tag-negative">Enemy {{ row.rate_diff }}%</span>
+                                {% else %}
+                                    <span class="compare-tag compare-tag-neutral">Even</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No comp archetype data yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel top-gap">
+    <div class="section-kicker">Draft Phase Timeline</div>
+    <h3>Aggregate Timeline: Main Team vs Enemy Team</h3>
+    <p class="panel-intro">This aggregate compares the most common hero at each draft slot across the whole filtered sample, side by side for both teams.</p>
+    {% if draft_phase_timeline.aggregate.maps %}
+        {% set aggregate_main_lookup = {} %}
+        {% for row in draft_phase_timeline.aggregate.main_rows %}
+            {% set _ = aggregate_main_lookup.update({row.slot_key: row}) %}
+        {% endfor %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>Main Team</th>
+                        <th>Enemy Team</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in draft_phase_timeline.aggregate.enemy_rows %}
+                        {% set main_row = aggregate_main_lookup[row.slot_key] %}
+                        <tr>
+                            <td>{{ row.slot_label }}</td>
+                            <td>
+                                {% if main_row.top_hero and main_row.top_hero != '—' %}
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(main_row.top_hero) }}" alt="{{ main_row.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ main_row.top_hero | urlencode }}'">
+                                        <span>{{ main_row.top_hero }} ({{ main_row.top_rate }}%)</span>
+                                    </span>
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.top_hero and row.top_hero != '—' %}
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.top_hero) }}" alt="{{ row.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_hero | urlencode }}'">
+                                        <span>{{ row.top_hero }} ({{ row.top_rate }}%)</span>
+                                    </span>
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No aggregate draft timeline yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel top-gap">
+    <div class="section-kicker">Map Comparison</div>
+    <h3>Two-Map Draft Phase Comparison</h3>
+    <div class="map-filter-bar top-gap">
+        <select id="prepCompareMapA">
+            {% for map_name in compare_map_options %}
+                <option value="{{ map_name }}" {% if compare_map_a == map_name %}selected{% endif %}>{{ map_name }}</option>
+            {% endfor %}
+        </select>
+        <select id="prepCompareMapB">
+            <option value="">Select second map</option>
+            {% for map_name in compare_map_options %}
+                {% if map_name != compare_map_a %}
+                    <option value="{{ map_name }}" {% if compare_map_b == map_name %}selected{% endif %}>{{ map_name }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+        <div class="empty-text">Aggregate comparison is shown above.</div>
+    </div>
+    {% if compare_map_rows %}
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>{{ compare_map_a }} Main</th>
+                        <th>{{ compare_map_a }} Enemy</th>
+                        <th>{{ compare_map_b }} Main</th>
+                        <th>{{ compare_map_b }} Enemy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in compare_map_rows %}
+                        <tr>
+                            <td>{{ row.slot_label }}</td>
+                            <td>{{ row.map_a_main.top_hero or '—' }}{% if row.map_a_main.top_hero and row.map_a_main.top_hero != '—' %} ({{ row.map_a_main.top_rate }}%){% endif %}</td>
+                            <td>{{ row.map_a_enemy.top_hero or '—' }}{% if row.map_a_enemy.top_hero and row.map_a_enemy.top_hero != '—' %} ({{ row.map_a_enemy.top_rate }}%){% endif %}</td>
+                            <td>{{ row.map_b_main.top_hero or '—' }}{% if row.map_b_main.top_hero and row.map_b_main.top_hero != '—' %} ({{ row.map_b_main.top_rate }}%){% endif %}</td>
+                            <td>{{ row.map_b_enemy.top_hero or '—' }}{% if row.map_b_enemy.top_hero and row.map_b_enemy.top_hero != '—' %} ({{ row.map_b_enemy.top_rate }}%){% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif compare_map_options|length > 1 %}
+        <p class="empty-text top-gap">Choose two maps to compare their draft timelines.</p>
+    {% else %}
+        <p class="empty-text top-gap">Need at least two maps in the current filter to compare timelines.</p>
+    {% endif %}
+</section>
+
+<section class="panel top-gap">
+    <div class="section-kicker">Per-Map Timeline</div>
+    <h3>Draft Phase Timeline For Each Map</h3>
+    {% if draft_phase_timeline.maps %}
+        <div class="form-grid top-gap">
+            {% for map_row in draft_phase_timeline.maps %}
+                <section class="panel panel-soft-blue">
+                    <div class="panel-header-row">
+                        <h3>{{ map_row.map_name }}</h3>
+                        <span class="compare-tag compare-tag-neutral">{{ map_row.maps }} maps</span>
+                    </div>
+                    {% set map_main_lookup = {} %}
+                    {% for row in map_row.main_rows %}
+                        {% set _ = map_main_lookup.update({row.slot_key: row}) %}
+                    {% endfor %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-compare">
+                            <thead>
+                                <tr>
+                                    <th>Slot</th>
+                                    <th>Main Team</th>
+                                    <th>Enemy Team</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in map_row.enemy_rows %}
+                                    {% set main_row = map_main_lookup[row.slot_key] %}
+                                    <tr>
+                                        <td>{{ row.slot_label }}</td>
+                                        <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
+                                        <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No per-map draft timeline data yet.</p>
+    {% endif %}
+</section>

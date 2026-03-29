@@ -1751,6 +1751,75 @@ def build_draft_phase_map_comparison_rows(
     return rows
 
 
+def filter_team_scrims_for_enemy(team_scrims: list[dict], enemy_team_id: int | None, enemy_team_name: str = "") -> list[dict]:
+    if not enemy_team_id and not enemy_team_name:
+        return team_scrims
+
+    filtered = []
+    enemy_name_lower = (enemy_team_name or "").strip().lower()
+    for scrim in team_scrims:
+        scrim_enemy_id = scrim.get("enemy_team_id")
+        if enemy_team_id and scrim_enemy_id == enemy_team_id:
+            filtered.append(scrim)
+            continue
+
+        scrim_enemy_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip().lower()
+        if enemy_name_lower and scrim_enemy_name == enemy_name_lower:
+            filtered.append(scrim)
+
+    return filtered
+
+
+def build_team_prep_context(
+    *,
+    team_scrims: list[dict],
+    enemy_teams: list[dict],
+    selected_enemy_id_raw: str,
+    compare_map_a_raw: str,
+    compare_map_b_raw: str,
+) -> dict:
+    enemy_lookup = {str(enemy["id"]): enemy for enemy in enemy_teams}
+    selected_enemy_id = selected_enemy_id_raw.strip()
+    selected_enemy = enemy_lookup.get(selected_enemy_id)
+
+    prep_scrims = team_scrims
+    selected_enemy_name = ""
+    if selected_enemy is not None:
+        selected_enemy_name = selected_enemy["name"]
+        prep_scrims = filter_team_scrims_for_enemy(team_scrims, int(selected_enemy_id), selected_enemy_name)
+
+    prep_analytics = build_scrim_analytics(prep_scrims)
+    draft_phase_timeline = build_draft_phase_timeline(prep_scrims)
+
+    compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
+    compare_map_a = (compare_map_a_raw or "").strip()
+    if compare_map_a not in compare_map_options:
+        compare_map_a = compare_map_options[0] if compare_map_options else ""
+
+    remaining_compare_maps = [map_name for map_name in compare_map_options if map_name != compare_map_a]
+    compare_map_b = (compare_map_b_raw or "").strip()
+    if compare_map_b not in remaining_compare_maps:
+        compare_map_b = remaining_compare_maps[0] if remaining_compare_maps else ""
+
+    compare_map_rows = build_draft_phase_map_comparison_rows(
+        draft_phase_timeline,
+        compare_map_a,
+        compare_map_b,
+    )
+
+    return {
+        "prep_analytics": prep_analytics,
+        "prep_scrim_count": len(prep_scrims),
+        "selected_prep_enemy_id": selected_enemy_id,
+        "selected_prep_enemy_name": selected_enemy_name,
+        "compare_map_options": compare_map_options,
+        "compare_map_a": compare_map_a,
+        "compare_map_b": compare_map_b,
+        "compare_map_rows": compare_map_rows,
+        "draft_phase_timeline": draft_phase_timeline,
+    }
+
+
 def _sanitize_simulator_draft_slots(raw_slots: dict | None) -> dict[str, str]:
     cleaned = {slot_name: "" for slot_name in SIMULATOR_SLOT_ORDER}
     if not isinstance(raw_slots, dict):
@@ -2469,20 +2538,6 @@ def team_detail(team_id: int):
         team_scrims,
         [row["hero"] for row in hero_graph_rows[:6]],
     )
-    draft_phase_timeline = build_draft_phase_timeline(team_scrims)
-    compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
-    compare_map_a = (request.args.get("compare_map_a") or "").strip()
-    if compare_map_a not in compare_map_options:
-        compare_map_a = compare_map_options[0] if compare_map_options else ""
-    remaining_compare_maps = [map_name for map_name in compare_map_options if map_name != compare_map_a]
-    compare_map_b = (request.args.get("compare_map_b") or "").strip()
-    if compare_map_b not in remaining_compare_maps:
-        compare_map_b = remaining_compare_maps[0] if remaining_compare_maps else ""
-    compare_map_rows = build_draft_phase_map_comparison_rows(
-        draft_phase_timeline,
-        compare_map_a,
-        compare_map_b,
-    )
 
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
@@ -2584,6 +2639,14 @@ def team_detail(team_id: int):
             "players": [dict(p) for p in enemy_players],
         })
 
+    prep_context = build_team_prep_context(
+        team_scrims=team_scrims,
+        enemy_teams=enemy_teams,
+        selected_enemy_id_raw=request.args.get("prep_enemy_id", ""),
+        compare_map_a_raw=request.args.get("compare_map_a", ""),
+        compare_map_b_raw=request.args.get("compare_map_b", ""),
+    )
+
     return render_template(
         "team_detail.html",
         team=team,
@@ -2597,11 +2660,6 @@ def team_detail(team_id: int):
         selected_season=selected_season,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
-        draft_phase_timeline=draft_phase_timeline,
-        compare_map_options=compare_map_options,
-        compare_map_a=compare_map_a,
-        compare_map_b=compare_map_b,
-        compare_map_rows=compare_map_rows,
         team_scrim_count=len(team_scrims),
         team_scrim_total_count=len(all_team_scrims),
         team_map_cards=team_map_cards,
@@ -2614,6 +2672,57 @@ def team_detail(team_id: int):
         hero_transformations=HERO_TRANSFORMATIONS,
         heroes=HEROES,
         hero_roles=HERO_ROLES,
+        **prep_context,
+    )
+
+
+@app.route("/teams/<int:team_id>/prep-fragment")
+def team_prep_fragment(team_id: int):
+    db = get_db()
+    team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    all_team_scrims = [
+        scrim
+        for scrim in SCRIMS
+        if scrim.get("team_id") == team["id"]
+        or (
+            not scrim.get("team_id")
+            and (scrim.get("team_name", "") or "").strip().lower() == team["name"].strip().lower()
+        )
+    ]
+    season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+
+    enemy_team_rows = db.execute(
+        "SELECT id, name, notes, logo_path, created_at FROM enemy_teams WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        (team_id,),
+    ).fetchall()
+    enemy_teams = [dict(row) for row in enemy_team_rows]
+
+    prep_context = build_team_prep_context(
+        team_scrims=team_scrims,
+        enemy_teams=enemy_teams,
+        selected_enemy_id_raw=request.args.get("prep_enemy_id", ""),
+        compare_map_a_raw=request.args.get("compare_map_a", ""),
+        compare_map_b_raw=request.args.get("compare_map_b", ""),
+    )
+
+    return render_template(
+        "_team_prep_content.html",
+        team=team,
+        enemy_teams=enemy_teams,
+        selected_season=selected_season,
+        **prep_context,
     )
 
 
