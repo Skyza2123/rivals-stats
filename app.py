@@ -3019,11 +3019,13 @@ def enemy_draft_predict(enemy_team_id: int):
 @app.route("/scrims")
 def scrims():
     season_options = get_scrim_season_options(SCRIMS)
+    default_season = get_current_season_from_recent_scrim(SCRIMS)
     has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in SCRIMS)
     selected_season = get_selected_season(
-        request.args.get("season", "all"),
+        request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
     )
     selected_team_id = request.args.get("team_id", "").strip()
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
