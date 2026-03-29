@@ -62,8 +62,8 @@
                        {% endif %}>
                         <div class="map-card-overlay">
                             <div class="map-card-top">
-                                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else 'pill-loss' }}">
-                                    {{ map_entry.result }}
+                                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else ('pill-loss' if map_entry.result == 'Loss' else '') }}">
+                                    {{ map_entry.result or 'No Result' }}
                                 </div>
                             </div>
                             <div class="map-card-bottom">
@@ -136,7 +136,8 @@
             <div class="form-grid">
                 <div class="field">
                     <label for="em_result">Result</label>
-                    <select id="em_result" name="result" required>
+                    <select id="em_result" name="result">
+                        <option value="">Not Set</option>
                         {% for r in results %}
                             <option value="{{ r }}">{{ r }}</option>
                         {% endfor %}
@@ -211,7 +212,7 @@
         <div class="modal-header">
             <div>
                 <h3>Add Map</h3>
-                <p>Enter map result, side, bans, and notes.</p>
+                <p>Set draft + notes. Result is optional.</p>
             </div>
             <button type="button" class="modal-close" onclick="closeMapModal()">&times;</button>
         </div>
@@ -230,11 +231,18 @@
 
                 <div class="field">
                     <label for="result">Result</label>
-                    <select id="result" name="result" required>
-                        <option value="">Select result</option>
+                    <select id="result" name="result">
+                        <option value="">Not Set</option>
                         {% for result in results %}
                             <option value="{{ result }}">{{ result }}</option>
                         {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field" id="first_submap_field" style="display:none;">
+                    <label for="first_submap">First Control Sub-Map</label>
+                    <select id="first_submap" name="first_submap">
+                        <option value="">Default order</option>
                     </select>
                 </div>
 
@@ -369,6 +377,7 @@
     </div>
 </div>
 
+<script id="mapSubmapsData" type="application/json">{{ map_submaps | tojson }}</script>
 <script>
 /* ── Modals ── */
 function openMapModal() { document.getElementById("mapModal").classList.add("show"); }
@@ -419,6 +428,34 @@ function confirmDeleteMapFromButton(button) {
 
 /* ── Draft hero picker ── */
 let activeSlot = null;
+const mapSubmapsPayload = document.getElementById('mapSubmapsData');
+const mapSubmaps = mapSubmapsPayload ? JSON.parse(mapSubmapsPayload.textContent || '{}') : {};
+
+function updateFirstSubmapOptions() {
+    const mapSelect = document.getElementById('map_name');
+    const field = document.getElementById('first_submap_field');
+    const select = document.getElementById('first_submap');
+    if (!mapSelect || !field || !select) return;
+
+    const mapName = mapSelect.value;
+    const submaps = mapSubmaps[mapName] || [];
+    const hasControlSubmaps = Array.isArray(submaps) && submaps.length > 0;
+
+    field.style.display = hasControlSubmaps ? '' : 'none';
+    select.innerHTML = '<option value="">Default order</option>';
+
+    if (!hasControlSubmaps) {
+        select.value = '';
+        return;
+    }
+
+    submaps.forEach(function (submap) {
+        const option = document.createElement('option');
+        option.value = submap;
+        option.textContent = submap;
+        select.appendChild(option);
+    });
+}
 
 function getSlotValue(slotName) {
     const el = document.querySelector('.draft-slot[data-slot="' + slotName + '"] input');
@@ -542,5 +579,13 @@ function pickHero(btn) {
     }
     if (!activeSlot) updateHeroAvailability();
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const mapSelect = document.getElementById('map_name');
+    if (mapSelect) {
+        mapSelect.addEventListener('change', updateFirstSubmapOptions);
+    }
+    updateFirstSubmapOptions();
+});
 </script>
 {% endblock %}

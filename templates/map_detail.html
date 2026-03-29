@@ -27,7 +27,7 @@
             </div>
             <div class="header-actions">
                 <a href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}" class="button-secondary">Back to Scrim</a>
-                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else 'pill-loss' }}">{{ map_entry.result }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}</div>
+                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else ('pill-loss' if map_entry.result == 'Loss' else '') }}">{{ map_entry.result or 'No Result' }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}</div>
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
             </div>
@@ -37,7 +37,7 @@
 
 <div class="summary-grid">
     <section class="stat-card"><strong>Score</strong><span>{{ summary_score or "---" }}</span></section>
-    <section class="stat-card"><strong>Result</strong><span>{{ map_entry.result }}</span></section>
+    <section class="stat-card"><strong>Result</strong><span>{{ map_entry.result or 'Not Set' }}</span></section>
     <section class="stat-card"><strong>Events</strong><span>{{ map_entry.events|length }}</span></section>
 </div>
 
@@ -227,6 +227,7 @@
                 <div class="field">
                     <label for="edit_result">Result</label>
                     <select id="edit_result" name="result">
+                        <option value="" {% if not map_entry.result %}selected{% endif %}>Not Set</option>
                         {% for r in results %}<option value="{{ r }}" {% if map_entry.result == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
                     </select>
                 </div>

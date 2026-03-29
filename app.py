@@ -614,9 +614,14 @@ def delete_team_logo_file(relative_path: str) -> None:
         pass
 
 
-def build_default_comp_sections(map_name: str) -> list[dict]:
+def build_default_comp_sections(map_name: str, first_submap: str = "") -> list[dict]:
     submaps = MAP_SUBMAPS.get(map_name, [])
     if submaps:
+        ordered_submaps = list(submaps)
+        chosen_submap = (first_submap or "").strip()
+        if chosen_submap in ordered_submaps:
+            start_index = ordered_submaps.index(chosen_submap)
+            ordered_submaps = ordered_submaps[start_index:] + ordered_submaps[:start_index]
         return [
             {
                 "submap": sm,
@@ -625,7 +630,7 @@ def build_default_comp_sections(map_name: str) -> list[dict]:
                 "team1": [{"hero": "", "player": ""} for _ in range(6)],
                 "team2": [{"hero": "", "player": ""} for _ in range(6)],
             }
-            for sm in submaps
+            for sm in ordered_submaps
         ]
 
     if map_name in ATTACK_DEFENSE_MAPS:
@@ -3944,11 +3949,14 @@ def add_map(scrim_id: int):
     map_name = request.form.get("map_name", "").strip()
     side = ""
     result = request.form.get("result", "").strip()
+    if result not in RESULTS:
+        result = ""
     our_team_slot = request.form.get("our_team_slot", "team1").strip()
     if our_team_slot not in TEAM_SLOTS:
         our_team_slot = "team1"
     score = request.form.get("score", "").strip()
     notes = request.form.get("notes", "").strip()
+    first_submap = request.form.get("first_submap", "").strip()
 
     draft = {
         "team1": {
@@ -3969,7 +3977,7 @@ def add_map(scrim_id: int):
         },
     }
 
-    comp_sections = build_default_comp_sections(map_name)
+    comp_sections = build_default_comp_sections(map_name, first_submap=first_submap)
 
     map_entry = {
         "id": NEXT_MAP_ID,
@@ -4130,6 +4138,8 @@ def update_map_info(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
     map_entry["result"] = request.form.get("result", map_entry["result"]).strip()
+    if map_entry["result"] not in RESULTS:
+        map_entry["result"] = ""
     map_entry["score"] = request.form.get("score", map_entry.get("score", "")).strip()
     our_team_slot = request.form.get("our_team_slot", map_entry.get("our_team_slot", "team1")).strip()
     map_entry["our_team_slot"] = our_team_slot if our_team_slot in TEAM_SLOTS else "team1"
