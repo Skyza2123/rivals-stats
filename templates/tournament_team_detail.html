@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tournament_team.name }}{% endblock %}
+
+{% block content %}
+<div class="team-hero">
+    <div class="team-hero-left">
+        <img class="team-avatar" src="https://avatar.vercel.sh/{{ tournament_team.name | urlencode }}.png?size=140" alt="{{ tournament_team.name }}">
+        <div>
+            <h2>{{ tournament_team.name }}</h2>
+            <p class="team-record-line">
+                Tournament Record: {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L
+                &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
+            </p>
+            <p>
+                {{ tournament.tournament_name or 'Tournament' }}
+                &bull; {{ match_rows|length }} matches
+                &bull; {{ team_analytics.summary.total_maps }} maps
+            </p>
+        </div>
+    </div>
+    <div class="header-actions team-hero-actions">
+        <a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}" class="button-secondary">Back to Tournament</a>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
+    <button class="tab-btn" data-tab="maps" type="button">Maps</button>
+    <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
+    <button class="tab-btn" data-tab="matches" type="button">Matches</button>
+    <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+</div>
+
+<div class="tab-content" id="tab-overview">
+    <section class="panel">
+        <div class="summary-grid">
+            <section class="stat-card"><strong>Matches</strong><span>{{ match_rows|length }}</span></section>
+            <section class="stat-card"><strong>Maps</strong><span>{{ team_analytics.summary.total_maps }}</span></section>
+            <section class="stat-card"><strong>Wins</strong><span>{{ team_analytics.summary.total_wins }}</span></section>
+            <section class="stat-card"><strong>Losses</strong><span>{{ team_analytics.summary.total_losses }}</span></section>
+            <section class="stat-card"><strong>Win Rate</strong><span>{{ team_analytics.summary.overall_win_rate }}%</span></section>
+            <section class="stat-card"><strong>Players</strong><span>{{ players|length }}</span></section>
+        </div>
+    </section>
+
+    <section class="panel panel-soft-green top-gap">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Overview</div>
+                <h3>Most Picked Maps</h3>
+            </div>
+        </div>
+        {% if picked_map_rows %}
+            <div class="scrim-box-grid">
+                {% for row in picked_map_rows[:6] %}
+                    <article class="scrim-box-card">
+                        <div class="scrim-box-head">
+                            <div class="list-title">{{ row.map_name }}</div>
+                            <span class="scrim-box-maps">{{ row.maps }} picks</span>
+                        </div>
+                        <div class="list-subtitle">{{ row.mode }} • {{ row.wins }}W - {{ row.losses }}L • {{ row.win_rate }}% win rate</div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No map pick data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel panel-soft-blue top-gap">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Overview</div>
+                <h3>Top Heroes</h3>
+            </div>
+        </div>
+        {% if hero_graph_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Hero</th>
+                            <th>Maps</th>
+                            <th>Usage</th>
+                            <th>Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in hero_graph_rows[:10] %}
+                            <tr>
+                                <td>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ row.hero }}</span>
+                                    </span>
+                                </td>
+                                <td>{{ row.maps }}</td>
+                                <td>{{ row.usage_rate }}%</td>
+                                <td>{{ row.win_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No hero data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-maps">
+    <section class="panel">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Map Stats</div>
+                <h3>Performance By Map</h3>
+            </div>
+        </div>
+        {% if team_map_cards %}
+            <div class="scrim-box-grid">
+                {% for map_row in team_map_cards %}
+                    <article class="scrim-box-card">
+                        <div class="scrim-box-head">
+                            <div class="list-title">{{ map_row.map_name }}</div>
+                            <span class="scrim-box-maps">{{ map_row.maps }} maps</span>
+                        </div>
+                        <div class="list-subtitle">{{ map_row.mode }} • {{ map_row.wins }}W - {{ map_row.losses }}L • {{ map_row.win_rate }}%</div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No map stats yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel panel-soft-violet top-gap">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Map Modes</div>
+                <h3>Mode Breakdown</h3>
+            </div>
+        </div>
+        {% if team_map_mode_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Maps</th>
+                            <th>Record</th>
+                            <th>Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in team_map_mode_rows %}
+                            <tr>
+                                <td>{{ row.mode }}</td>
+                                <td>{{ row.maps }}</td>
+                                <td>{{ row.wins }}W - {{ row.losses }}L</td>
+                                <td>{{ row.win_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No mode data yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-heroes">
+    <section class="panel">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Heroes</div>
+                <h3>Hero Usage</h3>
+            </div>
+        </div>
+        {% if hero_graph_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Hero</th>
+                            <th>Maps</th>
+                            <th>Usage Rate</th>
+                            <th>Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in hero_graph_rows %}
+                            <tr>
+                                <td>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ row.hero }}</span>
+                                    </span>
+                                </td>
+                                <td>{{ row.maps }}</td>
+                                <td>{{ row.usage_rate }}%</td>
+                                <td>{{ row.win_rate }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No hero usage yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-matches">
+    <section class="panel">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Matches</div>
+                <h3>Match History</h3>
+            </div>
+        </div>
+        {% if match_rows %}
+            <div class="list-stack">
+                {% for row in match_rows %}
+                    <a class="list-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=row.id) }}">
+                        <div>
+                            <div class="list-title">vs {{ row.opponent_name }}</div>
+                            <div class="list-subtitle">{{ row.scrim_date or 'No date set' }} • {{ row.maps }} maps • {{ row.wins }}W - {{ row.losses }}L</div>
+                        </div>
+                        <div class="list-meta">Open →</div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No matches for this team yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-roster">
+    <section class="panel">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Roster</div>
+                <h3>Players</h3>
+            </div>
+        </div>
+        {% if players %}
+            <div class="list-stack">
+                {% for player in players %}
+                    <div class="list-card static-card">
+                        <div>
+                            <div class="list-title">{{ player.name }}</div>
+                            <div class="list-subtitle">{{ player.stats.maps_played }} maps • {{ player.stats.wins }}W - {{ player.stats.losses }}L • {{ player.stats.win_rate }}% win rate</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No players added yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+(() => {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-content');
+    const validTabs = new Set(['overview', 'maps', 'heroes', 'matches', 'roster']);
+
+    const switchTab = (tabName) => {
+        const nextTab = validTabs.has(tabName) ? tabName : 'overview';
+        tabButtons.forEach((button) => {
+            button.classList.toggle('tab-active', button.dataset.tab === nextTab);
+        });
+        tabPanels.forEach((panel) => {
+            panel.classList.toggle('tab-hidden', panel.id !== `tab-${nextTab}`);
+        });
+        window.history.replaceState(null, '', `#${nextTab}`);
+    };
+
+    tabButtons.forEach((button) => {
+        button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+
+    const hashTab = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+    if (validTabs.has(hashTab)) {
+        switchTab(hashTab);
+    }
+})();
+</script>
+{% endblock %}

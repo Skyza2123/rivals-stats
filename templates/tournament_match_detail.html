@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}{{ match.team1_name }} vs {{ match.team2_name }}{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>{{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}</h2>
+        <p>
+            {{ tournament.tournament_name or 'Tournament' }}
+            {% if match.scrim_date or tournament.scrim_date %} &bull; {{ match.scrim_date or tournament.scrim_date }}{% endif %}
+            {% if tournament.season %} &bull; Season {{ tournament.season }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('tournament_detail', tournament_id=tournament.id) }}" class="button-secondary">Back to Tournament</a>
+        <button type="button" class="button-secondary" onclick="openModal('editMatchModal')">Edit Match</button>
+        <button type="button" class="button-link" onclick="openModal('addMapModal')">+ Add Map</button>
+        <button type="button" class="btn-danger-sm" onclick="confirmDeleteMatch()">Delete Match</button>
+    </div>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card"><strong>Maps</strong><span>{{ match.maps|length }}</span></section>
+    <section class="stat-card"><strong>{{ match.team1_name }}</strong><span>{{ team1_map_wins }} map wins</span></section>
+    <section class="stat-card"><strong>{{ match.team2_name }}</strong><span>{{ team2_map_wins }} map wins</span></section>
+    <section class="stat-card"><strong>Picks Logged</strong><span>{{ match.maps|selectattr('picked_by_tournament_team_id')|list|length }}</span></section>
+    <section class="stat-card"><strong>Date</strong><span>{{ match.scrim_date or tournament.scrim_date or '—' }}</span></section>
+    <section class="stat-card"><strong>Tournament</strong><span>{{ tournament.tournament_name or '—' }}</span></section>
+</div>
+
+{% if match.notes %}
+<section class="panel">
+    <h3>Match Notes</h3>
+    <div class="summary-box">{{ match.notes }}</div>
+</section>
+{% endif %}
+
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <h3>Maps</h3>
+            <p class="panel-intro">Maps inside tournament matches work like scrims, with an extra field for who picked the map.</p>
+        </div>
+        <button type="button" class="button-small" onclick="openModal('addMapModal')">Add Map</button>
+    </div>
+
+    {% if match.maps %}
+        <div class="map-card-grid">
+            {% for map_entry in match.maps %}
+                <a class="map-card" href="{{ url_for('tournament_match_map_detail', tournament_id=tournament.id, match_id=match.id, map_id=map_entry.id) }}"
+                   {% if map_entry.map_name in map_images %}
+                   style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"
+                   {% endif %}>
+                    <div class="map-card-overlay">
+                        <div class="map-card-top">
+                            <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else ('pill-loss' if map_entry.result == 'Loss' else '') }}">
+                                {{ map_entry.result or 'No Result' }}
+                            </div>
+                        </div>
+                        <div class="map-card-bottom">
+                            <div class="map-card-title">{{ map_entry.map_name }}</div>
+                            <div class="map-card-sub">
+                                {% if map_entry.picked_by_name %}Picked by {{ map_entry.picked_by_name }} &bull;{% endif %}
+                                {% if map_entry.score %}{{ map_entry.score }} &bull;{% endif %}
+                                {{ map_entry.side or '' }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No maps added yet.</p>
+    {% endif %}
+</section>
+
+<form id="deleteMatchForm" action="{{ url_for('delete_tournament_match', tournament_id=tournament.id, match_id=match.id) }}" method="post" style="display:none;"></form>
+
+<div id="editMatchModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'editMatchModal')">
+    <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>Edit Match</h3>
+            <button type="button" class="modal-close" onclick="closeModal('editMatchModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('edit_tournament_match', tournament_id=tournament.id, match_id=match.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="edit_match_team1">Team 1</label>
+                    <select id="edit_match_team1" name="team1_tournament_team_id" required>
+                        {% for tournament_team in tournament.tournament_teams %}
+                            <option value="{{ tournament_team.id }}" {% if match.team1_tournament_team_id == tournament_team.id %}selected{% endif %}>{{ tournament_team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_match_team2">Team 2</label>
+                    <select id="edit_match_team2" name="team2_tournament_team_id" required>
+                        {% for tournament_team in tournament.tournament_teams %}
+                            <option value="{{ tournament_team.id }}" {% if match.team2_tournament_team_id == tournament_team.id %}selected{% endif %}>{{ tournament_team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_match_date">Date</label>
+                    <input type="date" id="edit_match_date" name="scrim_date" value="{{ match.scrim_date or tournament.scrim_date }}">
+                </div>
+                <div class="field field-full">
+                    <label for="edit_match_notes">Notes</label>
+                    <textarea id="edit_match_notes" name="notes" rows="4">{{ match.notes }}</textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeModal('editMatchModal')">Cancel</button>
+                <button type="submit" class="button-small">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="addMapModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'addMapModal')">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Add Map</h3>
+                <p>Set result, map picker, draft, and notes.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeModal('addMapModal')">&times;</button>
+        </div>
+
+        <form action="{{ url_for('add_tournament_match_map', tournament_id=tournament.id, match_id=match.id) }}" method="post">
+            <div class="compact-grid">
+                <div class="field">
+                    <label for="map_name">Map</label>
+                    <select id="map_name" name="map_name" required>
+                        <option value="">Select a map</option>
+                        {% for map_name in maps %}
+                            <option value="{{ map_name }}">{{ map_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="result">Result</label>
+                    <select id="result" name="result">
+                        <option value="">Not Set</option>
+                        {% for result in results %}
+                            <option value="{{ result }}">{{ result }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field" id="first_submap_field" style="display:none;">
+                    <label for="first_submap">First Control Sub-Map</label>
+                    <select id="first_submap" name="first_submap">
+                        <option value="">Default order</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="score">Score</label>
+                    <input type="text" id="score" name="score" placeholder="e.g. 3-2">
+                </div>
+
+                <div class="field">
+                    <label for="our_team_slot">Result Side</label>
+                    <select id="our_team_slot" name="our_team_slot">
+                        <option value="team1">{{ match.team1_name }}</option>
+                        <option value="team2">{{ match.team2_name }}</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="picked_by_tournament_team_id">Picked By</label>
+                    <select id="picked_by_tournament_team_id" name="picked_by_tournament_team_id">
+                        <option value="">Not Set</option>
+                        <option value="{{ match.team1_tournament_team_id }}">{{ match.team1_name }}</option>
+                        <option value="{{ match.team2_tournament_team_id }}">{{ match.team2_name }}</option>
+                    </select>
+                </div>
+
+                <div class="field field-full">
+                    <label>Draft Phase</label>
+                    <div class="draft-grid">
+                        <div class="draft-column">
+                            <h4>{{ match.team1_name }}</h4>
+                            <div class="draft-slots">
+                                <div class="draft-slot" data-slot="team1_ban1" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 1</span><span class="slot-hero">—</span><input type="hidden" name="team1_ban1" value=""></div>
+                                <div class="draft-slot" data-slot="team1_ban2" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 2</span><span class="slot-hero">—</span><input type="hidden" name="team1_ban2" value=""></div>
+                                <div class="draft-slot" data-slot="team1_protect1" onclick="activateSlot(this)"><span class="slot-label protect-label">Protect 1</span><span class="slot-hero">—</span><input type="hidden" name="team1_protect1" value=""></div>
+                                <div class="draft-slot" data-slot="team1_ban3" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 3</span><span class="slot-hero">—</span><input type="hidden" name="team1_ban3" value=""></div>
+                                <div class="draft-slot" data-slot="team1_protect2" onclick="activateSlot(this)"><span class="slot-label protect-label">Protect 2</span><span class="slot-hero">—</span><input type="hidden" name="team1_protect2" value=""></div>
+                                <div class="draft-slot" data-slot="team1_ban4" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 4</span><span class="slot-hero">—</span><input type="hidden" name="team1_ban4" value=""></div>
+                            </div>
+                        </div>
+                        <div class="draft-column">
+                            <h4>{{ match.team2_name }}</h4>
+                            <div class="draft-slots">
+                                <div class="draft-slot" data-slot="team2_ban1" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 1</span><span class="slot-hero">—</span><input type="hidden" name="team2_ban1" value=""></div>
+                                <div class="draft-slot" data-slot="team2_protect1" onclick="activateSlot(this)"><span class="slot-label protect-label">Protect 1</span><span class="slot-hero">—</span><input type="hidden" name="team2_protect1" value=""></div>
+                                <div class="draft-slot" data-slot="team2_ban2" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 2</span><span class="slot-hero">—</span><input type="hidden" name="team2_ban2" value=""></div>
+                                <div class="draft-slot" data-slot="team2_ban3" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 3</span><span class="slot-hero">—</span><input type="hidden" name="team2_ban3" value=""></div>
+                                <div class="draft-slot" data-slot="team2_ban4" onclick="activateSlot(this)"><span class="slot-label ban-label">Ban 4</span><span class="slot-hero">—</span><input type="hidden" name="team2_ban4" value=""></div>
+                                <div class="draft-slot" data-slot="team2_protect2" onclick="activateSlot(this)"><span class="slot-label protect-label">Protect 2</span><span class="slot-hero">—</span><input type="hidden" name="team2_protect2" value=""></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
+
+                    <div class="hero-picker">
+                        {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+                        <div class="hero-role-section">
+                            <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+                            <div class="hero-icon-grid">
+                                {% for hero in hero_roles[role] %}
+                                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" onclick="pickHero(this)" title="{{ hero }}">
+                                    <div class="hero-img-wrap">
+                                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}" loading="lazy">
+                                    </div>
+                                    <span class="hero-pick-name">{{ hero }}</span>
+                                </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="field field-full">
+                    <label for="notes">Map Notes</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="Optional short note"></textarea>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeModal('addMapModal')">Cancel</button>
+                <button type="submit" class="button-small">Add Map</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script id="mapSubmapsData" type="application/json">{{ map_submaps | tojson }}</script>
+<script>
+function openModal(id) {
+    document.getElementById(id)?.classList.add('show');
+}
+
+function closeModal(id) {
+    document.getElementById(id)?.classList.remove('show');
+}
+
+function closeModalFromOverlay(event, id) {
+    if (!event || event.target.id === id) {
+        closeModal(id);
+    }
+}
+
+function confirmDeleteMatch() {
+    if (confirm('Delete this match and all of its maps? This cannot be undone.')) {
+        document.getElementById('deleteMatchForm').submit();
+    }
+}
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        ['editMatchModal', 'addMapModal'].forEach(closeModal);
+    }
+});
+
+let activeSlot = null;
+const mapSubmapsPayload = document.getElementById('mapSubmapsData');
+const mapSubmaps = mapSubmapsPayload ? JSON.parse(mapSubmapsPayload.textContent || '{}') : {};
+
+function updateFirstSubmapOptions() {
+    const mapSelect = document.getElementById('map_name');
+    const field = document.getElementById('first_submap_field');
+    const select = document.getElementById('first_submap');
+    if (!mapSelect || !field || !select) return;
+
+    const mapName = mapSelect.value;
+    const submaps = mapSubmaps[mapName] || [];
+    const hasControlSubmaps = Array.isArray(submaps) && submaps.length > 0;
+
+    field.style.display = hasControlSubmaps ? '' : 'none';
+    select.innerHTML = '<option value="">Default order</option>';
+    if (!hasControlSubmaps) {
+        select.value = '';
+        return;
+    }
+
+    submaps.forEach(function(submap) {
+        const option = document.createElement('option');
+        option.value = submap;
+        option.textContent = submap;
+        select.appendChild(option);
+    });
+}
+
+function getTeamHeroes(team, type) {
+    const heroes = [];
+    document.querySelectorAll('#addMapModal .draft-slot').forEach(function(slot) {
+        const name = slot.dataset.slot;
+        if (name && name.startsWith(team + '_' + type)) {
+            const value = slot.querySelector('input').value;
+            if (value) heroes.push(value);
+        }
+    });
+    return heroes;
+}
+
+function updateHeroAvailability() {
+    if (!activeSlot) {
+        document.querySelectorAll('#addMapModal .hero-pick-btn').forEach(function(button) {
+            button.disabled = false;
+            button.classList.remove('hero-disabled');
+        });
+        return;
+    }
+
+    const slotName = activeSlot.dataset.slot;
+    const slotTeam = slotName.startsWith('team1') ? 'team1' : 'team2';
+    const slotType = slotName.includes('ban') ? 'ban' : 'protect';
+    const otherTeam = slotTeam === 'team1' ? 'team2' : 'team1';
+    const otherProtects = getTeamHeroes(otherTeam, 'protect');
+    const teamBans = getTeamHeroes(slotTeam, 'ban');
+    const otherBans = getTeamHeroes(otherTeam, 'ban');
+
+    document.querySelectorAll('#addMapModal .hero-pick-btn').forEach(function(button) {
+        const hero = button.dataset.hero;
+        let blocked = false;
+        if (slotType === 'ban') {
+            if (otherProtects.includes(hero)) blocked = true;
+            if (teamBans.includes(hero)) blocked = true;
+        } else if (slotType === 'protect') {
+            if (otherBans.includes(hero)) blocked = true;
+        }
+        button.disabled = blocked;
+        button.classList.toggle('hero-disabled', blocked);
+    });
+}
+
+function activateSlot(element) {
+    document.querySelectorAll('#addMapModal .draft-slot').forEach(function(slot) {
+        slot.classList.remove('slot-active');
+    });
+    element.classList.add('slot-active');
+    activeSlot = element;
+    updateHeroAvailability();
+}
+
+function clearSlot(element) {
+    element.querySelector('.slot-hero').textContent = '—';
+    element.querySelector('input').value = '';
+    const imageWrap = element.querySelector('.slot-img-wrap');
+    if (imageWrap) imageWrap.remove();
+    element.classList.remove('slot-filled', 'slot-active');
+    if (activeSlot === element) activeSlot = null;
+    updateHeroAvailability();
+}
+
+document.addEventListener('contextmenu', function(event) {
+    const slot = event.target.closest('#addMapModal .draft-slot');
+    if (slot) {
+        event.preventDefault();
+        clearSlot(slot);
+    }
+});
+
+function pickHero(button) {
+    if (!activeSlot) return;
+    const hero = button.dataset.hero;
+    const image = button.querySelector('img').src;
+
+    activeSlot.querySelector('.slot-hero').textContent = hero;
+    activeSlot.querySelector('input').value = hero;
+    let imageWrap = activeSlot.querySelector('.slot-img-wrap');
+    if (!imageWrap) {
+        imageWrap = document.createElement('div');
+        imageWrap.className = 'slot-img-wrap';
+        const imageElement = document.createElement('img');
+        imageElement.className = 'slot-img';
+        imageWrap.appendChild(imageElement);
+        activeSlot.insertBefore(imageWrap, activeSlot.querySelector('.slot-hero'));
+    }
+    imageWrap.querySelector('.slot-img').src = image;
+    imageWrap.querySelector('.slot-img').alt = hero;
+    activeSlot.classList.remove('slot-active');
+    activeSlot.classList.add('slot-filled');
+    activeSlot = null;
+    updateHeroAvailability();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('map_name')?.addEventListener('change', updateFirstSubmapOptions);
+    updateFirstSubmapOptions();
+});
+</script>
+{% endblock %}

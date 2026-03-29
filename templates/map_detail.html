@@ -23,10 +23,10 @@
         <div class="main-header">
             <div>
                 <h2>{{ map_entry.map_name }}</h2>
-                <p>{{ team1_label }} vs {{ team2_label }}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
+                <p>{{ team1_label }} vs {{ team2_label }}{% if picked_by_label %} &bull; Picked by {{ picked_by_label }}{% endif %}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
             </div>
             <div class="header-actions">
-                <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
+                <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
                 <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else ('pill-loss' if map_entry.result == 'Loss' else '') }}">{{ map_entry.result or 'No Result' }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}</div>
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
@@ -38,6 +38,9 @@
 <div class="summary-grid">
     <section class="stat-card"><strong>Score</strong><span>{{ summary_score or "---" }}</span></section>
     <section class="stat-card"><strong>Result</strong><span>{{ map_entry.result or 'Not Set' }}</span></section>
+    {% if is_tournament %}
+    <section class="stat-card"><strong>Picked By</strong><span>{{ picked_by_label or 'Not Set' }}</span></section>
+    {% endif %}
     <section class="stat-card"><strong>Events</strong><span>{{ map_entry.events|length }}</span></section>
 </div>
 
@@ -166,7 +169,7 @@
                         <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
                         <div class="list-subtitle">{{ event.description or "No description" }}</div>
                     </div>
-                    <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
+                    <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
                         <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
                     </form>
                 </div>
@@ -212,7 +215,7 @@
 </div>
 
 <!-- Hidden delete form -->
-<form id="deleteMapForm" action="{{ url_for(delete_map_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
+<form id="deleteMapForm" action="{{ url_for(delete_map_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
 
 <!-- ==================== MODALS ==================== -->
 
@@ -223,7 +226,7 @@
             <h2>Edit Map Info</h2>
             <button class="modal-close" onclick="closeModal('editInfoModal')">&times;</button>
         </div>
-        <form action="{{ url_for(update_map_info_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(update_map_info_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
                 <div class="field">
                     <label for="edit_result">Result</label>
@@ -243,6 +246,16 @@
                         <option value="team2" {% if our_slot == 'team2' %}selected{% endif %}>{{ team2_label }}</option>
                     </select>
                 </div>
+                {% if is_tournament %}
+                <div class="field">
+                    <label for="edit_picked_by_tournament_team_id">Picked By</label>
+                    <select id="edit_picked_by_tournament_team_id" name="picked_by_tournament_team_id">
+                        <option value="">Not Set</option>
+                        <option value="{{ map_entry.team1_tournament_team_id }}" {% if map_entry.picked_by_tournament_team_id == map_entry.team1_tournament_team_id %}selected{% endif %}>{{ team1_label }}</option>
+                        <option value="{{ map_entry.team2_tournament_team_id }}" {% if map_entry.picked_by_tournament_team_id == map_entry.team2_tournament_team_id %}selected{% endif %}>{{ team2_label }}</option>
+                    </select>
+                </div>
+                {% endif %}
             </div>
             <div class="button-row">
                 <button type="submit">Save Changes</button>
@@ -262,7 +275,7 @@
             <h2>Edit Team Comp - {{ sec.submap or ('Round ' ~ (s + 1)) }}</h2>
             <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
         </div>
-        <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id, section_index=s) }}" method="post">
+        <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, section_index=s) }}" method="post">
             <input type="hidden" name="submap" value="{{ sec.submap }}">
             <div class="form-grid">
                 <div class="field">
@@ -424,7 +437,7 @@
             <h2>Edit Draft</h2>
             <button class="modal-close" onclick="closeModal('draftModal')">&times;</button>
         </div>
-        <form action="{{ url_for(update_draft_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
+        <form action="{{ url_for(update_draft_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
             <div class="draft-grid">
                 <div class="draft-column">
                     <h4 class="team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
@@ -497,7 +510,7 @@
             <h2>Add Event</h2>
             <button class="modal-close" onclick="closeModal('addEventModal')">&times;</button>
         </div>
-        <form action="{{ url_for(add_event_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(add_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
                 <div class="field">
                     <label for="modal_timestamp">Timestamp</label>
@@ -532,7 +545,7 @@
             <h2>Edit VOD Link</h2>
             <button class="modal-close" onclick="closeModal('editVodModal')">&times;</button>
         </div>
-        <form action="{{ url_for(update_vod_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(update_vod_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="field">
                 <label for="modal_vod_url">YouTube / Twitch URL</label>
                 <input type="url" id="modal_vod_url" name="vod_url" value="{{ map_entry.get('vod_url', '') }}" placeholder="https://youtube.com/watch?v=...">
@@ -552,7 +565,7 @@
             <h2>Edit Map Notes</h2>
             <button class="modal-close" onclick="closeModal('editNotesModal')">&times;</button>
         </div>
-        <form action="{{ url_for(update_notes_endpoint, tournament_id=detail_parent_id, scrim_id=detail_parent_id, map_id=map_entry.id) }}" method="post">
+        <form action="{{ url_for(update_notes_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="field">
                 <textarea id="modal_map_notes" name="notes" rows="8" placeholder="Game strategy, what went wrong, what to improve...">{{ map_entry.notes }}</textarea>
             </div>

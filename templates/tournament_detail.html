@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tournament.tournament_name or 'Tournament' }}{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>{{ tournament.tournament_name or 'Tournament' }}</h2>
+        <p>
+            {{ tournament.scrim_date or 'No date set' }}
+            {% if tournament.season %} &bull; Season {{ tournament.season }}{% endif %}
+            {% if tournament.team_name %} &bull; {{ tournament.team_name }} scouting{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('tournaments') }}" class="button-secondary">Back to Tournaments</a>
+        <button type="button" class="button-secondary" onclick="openModal('editTournamentModal')">Edit</button>
+        <button type="button" class="button-secondary" onclick="openModal('addTeamModal')">Add Team</button>
+        <button type="button" class="button-link" onclick="openModal('addMatchModal')">+ Add Match</button>
+        <button type="button" class="btn-danger-sm" onclick="confirmDeleteTournament()">Delete Tournament</button>
+    </div>
+</div>
+
+<div class="summary-grid">
+    <section class="stat-card"><strong>Teams</strong><span>{{ tournament.tournament_teams|length }}</span></section>
+    <section class="stat-card"><strong>Matches</strong><span>{{ match_summaries|length }}</span></section>
+    <section class="stat-card"><strong>Maps</strong><span>{{ total_maps }}</span></section>
+    <section class="stat-card"><strong>Completed Maps</strong><span>{{ completed_maps }}</span></section>
+    <section class="stat-card"><strong>Season</strong><span>{{ tournament.season or '—' }}</span></section>
+    <section class="stat-card"><strong>Owner Team</strong><span>{{ tournament.team_name or '—' }}</span></section>
+</div>
+
+{% if tournament.notes %}
+<section class="panel">
+    <h3>Tournament Notes</h3>
+    <div class="summary-box">{{ tournament.notes }}</div>
+</section>
+{% endif %}
+
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <h3>Overview</h3>
+            <p class="panel-intro">Tournament-wide draft and map usage across every match in this tournament.</p>
+        </div>
+    </div>
+
+    <div class="summary-grid">
+        <section class="stat-card"><strong>Total Bans</strong><span>{{ overview_analytics.summary.total_ban_events }}</span></section>
+        <section class="stat-card"><strong>Unique Bans</strong><span>{{ overview_analytics.summary.unique_bans }}</span></section>
+        <section class="stat-card"><strong>Total Protects</strong><span>{{ overview_analytics.summary.total_protect_events }}</span></section>
+        <section class="stat-card"><strong>Unique Protects</strong><span>{{ overview_analytics.summary.unique_protects }}</span></section>
+        <section class="stat-card"><strong>Maps Played</strong><span>{{ overview_analytics.summary.total_maps }}</span></section>
+        <section class="stat-card"><strong>Unique Maps</strong><span>{{ overview_analytics.summary.unique_maps }}</span></section>
+    </div>
+
+    <div class="form-grid top-gap">
+        <div class="panel panel-soft-red">
+            <div class="section-kicker">Draft</div>
+            <h3>Most Banned Heroes</h3>
+            {% if overview_analytics.ban_rows %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Bans</th>
+                                <th>Share</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in overview_analytics.ban_rows %}
+                                <tr>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                            <span>{{ row.hero }}</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ row.count }}</td>
+                                    <td>{{ row.share }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No ban data yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel panel-soft-green">
+            <div class="section-kicker">Draft</div>
+            <h3>Most Protected Heroes</h3>
+            {% if overview_analytics.protect_rows %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Protects</th>
+                                <th>Share</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in overview_analytics.protect_rows %}
+                                <tr>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                            <span>{{ row.hero }}</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ row.count }}</td>
+                                    <td>{{ row.share }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No protect data yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="panel panel-soft-blue top-gap">
+        <div class="section-kicker">Maps</div>
+        <h3>Most Played Maps</h3>
+        {% if overview_analytics.map_rows %}
+            <div class="scrim-box-grid">
+                {% for row in overview_analytics.map_rows %}
+                    <article class="scrim-box-card">
+                        <div class="scrim-box-head">
+                            <div class="list-title">{{ row.map_name }}</div>
+                            <span class="scrim-box-maps">{{ row.count }} plays</span>
+                        </div>
+                        <div class="list-subtitle">{{ row.mode }} • {{ row.play_rate }}% of tournament maps</div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No map data yet.</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <h3>Tournament Teams</h3>
+            <p class="panel-intro">Open a team page to see tournament-only stats, hero trends, and most-picked maps.</p>
+        </div>
+        <button type="button" class="button-small" onclick="openModal('addTeamModal')">Add Team</button>
+    </div>
+
+    {% if tournament.tournament_teams %}
+        <div class="form-grid">
+            {% for tournament_team in tournament.tournament_teams %}
+                <article class="panel {% if loop.index0 % 2 == 0 %}panel-soft-blue{% else %}panel-soft-green{% endif %}">
+                    <div class="panel-header-row">
+                        <div>
+                            <div class="section-kicker">Tournament Team {{ loop.index }}</div>
+                            <h3>{{ tournament_team.name }}</h3>
+                        </div>
+                        <form method="post" action="{{ url_for('delete_tournament_team', tournament_id=tournament.id, tournament_team_id=tournament_team.id) }}" onsubmit="return confirm('Delete this tournament team?');">
+                            <button type="submit" class="button-secondary button-small">Delete</button>
+                        </form>
+                    </div>
+                    <p class="panel-intro">{{ tournament_team.players|length }} players registered</p>
+                    {% if tournament_team.players %}
+                        <div class="list-stack top-gap">
+                            {% for player in tournament_team.players[:6] %}
+                                <div class="list-card static-card">
+                                    <div class="list-title">{{ player }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if tournament_team.players|length > 6 %}
+                            <p class="panel-intro top-gap">+ {{ tournament_team.players|length - 6 }} more players</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="empty-text">No players added yet.</p>
+                    {% endif %}
+                    <div class="button-row top-gap">
+                        <a href="{{ url_for('tournament_team_detail', tournament_id=tournament.id, tournament_team_id=tournament_team.id) }}" class="button-small">View Team Stats</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No tournament teams yet. Add teams before creating matches.</p>
+    {% endif %}
+</section>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <h3>Matches</h3>
+            <p class="panel-intro">Matches work like scrims. Open one to add maps, comps, notes, and who picked each map.</p>
+        </div>
+        <button type="button" class="button-small" onclick="openModal('addMatchModal')" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Add Match</button>
+    </div>
+
+    {% if match_summaries %}
+        <div class="scrim-box-grid">
+            {% for match in match_summaries %}
+                <a class="scrim-box-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=match.id) }}">
+                    <div class="scrim-box-head">
+                        <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
+                        <span class="scrim-box-maps">{{ match.maps }} maps</span>
+                    </div>
+                    <div class="list-subtitle">
+                        {{ match.scrim_date or tournament.scrim_date or 'No date set' }}
+                        {% if match.completed_maps %} • {{ match.completed_maps }} completed{% endif %}
+                        {% if match.picked_maps %} • {{ match.picked_maps }} picks logged{% endif %}
+                    </div>
+                    {% if match.notes %}
+                        <div class="summary-box top-gap">{{ match.notes }}</div>
+                    {% endif %}
+                    <div class="scrim-box-cta">Open Match →</div>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No matches yet. Add a match after you add at least two tournament teams.</p>
+    {% endif %}
+</section>
+
+<form id="deleteTournamentForm" action="{{ url_for('delete_tournament', tournament_id=tournament.id) }}" method="post" style="display:none;"></form>
+
+<div id="editTournamentModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'editTournamentModal')">
+    <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>Edit Tournament</h3>
+            <button type="button" class="modal-close" onclick="closeModal('editTournamentModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('edit_tournament', tournament_id=tournament.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label for="edit_tournament_name">Tournament Name</label>
+                    <input type="text" id="edit_tournament_name" name="tournament_name" value="{{ tournament.tournament_name or '' }}" required>
+                </div>
+                <div class="field">
+                    <label for="edit_tournament_date">Date</label>
+                    <input type="date" id="edit_tournament_date" name="scrim_date" value="{{ tournament.scrim_date }}">
+                </div>
+                <div class="field">
+                    <label for="edit_tournament_season">Season</label>
+                    <input type="text" id="edit_tournament_season" name="season" value="{{ tournament.season or '' }}" required>
+                </div>
+                <div class="field field-full">
+                    <label for="edit_tournament_notes">Notes</label>
+                    <textarea id="edit_tournament_notes" name="notes" rows="5">{{ tournament.notes }}</textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeModal('editTournamentModal')">Cancel</button>
+                <button type="submit" class="button-small">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="addTeamModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'addTeamModal')">
+    <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Add Tournament Team</h3>
+                <p>These teams only exist inside this tournament.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeModal('addTeamModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('add_tournament_team', tournament_id=tournament.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="new_team_name">Team Name</label>
+                    <input type="text" id="new_team_name" name="team_name" required>
+                </div>
+                <div class="field field-full">
+                    <label for="new_team_players">Players</label>
+                    <textarea id="new_team_players" name="players" rows="8" placeholder="One player per line or comma-separated"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeModal('addTeamModal')">Cancel</button>
+                <button type="submit" class="button-small">Add Team</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="addMatchModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'addMatchModal')">
+    <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Add Match</h3>
+                <p>Select two tournament teams, then add maps inside the match page.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeModal('addMatchModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('add_tournament_match', tournament_id=tournament.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="match_team1">Team 1</label>
+                    <select id="match_team1" name="team1_tournament_team_id" required>
+                        <option value="">Select team</option>
+                        {% for tournament_team in tournament.tournament_teams %}
+                            <option value="{{ tournament_team.id }}">{{ tournament_team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="match_team2">Team 2</label>
+                    <select id="match_team2" name="team2_tournament_team_id" required>
+                        <option value="">Select team</option>
+                        {% for tournament_team in tournament.tournament_teams %}
+                            <option value="{{ tournament_team.id }}">{{ tournament_team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="match_date">Date</label>
+                    <input type="date" id="match_date" name="scrim_date" value="{{ tournament.scrim_date }}">
+                </div>
+                <div class="field field-full">
+                    <label for="match_notes">Notes</label>
+                    <textarea id="match_notes" name="notes" rows="4" placeholder="Optional match notes"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeModal('addMatchModal')">Cancel</button>
+                <button type="submit" class="button-small" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Create Match</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(id) {
+    document.getElementById(id)?.classList.add('show');
+}
+
+function closeModal(id) {
+    document.getElementById(id)?.classList.remove('show');
+}
+
+function closeModalFromOverlay(event, id) {
+    if (!event || event.target.id === id) {
+        closeModal(id);
+    }
+}
+
+function confirmDeleteTournament() {
+    if (confirm('Delete this tournament and all of its matches? This cannot be undone.')) {
+        document.getElementById('deleteTournamentForm').submit();
+    }
+}
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        ['editTournamentModal', 'addTeamModal', 'addMatchModal'].forEach(closeModal);
+    }
+});
+</script>
+{% endblock %}

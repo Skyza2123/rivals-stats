@@ -50,10 +50,10 @@
                 <a class="scrim-box-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
                     <div class="scrim-box-head">
                         <div class="list-title">{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</div>
-                        <span class="scrim-box-maps">{{ match.maps|length }} maps</span>
+                        <span class="scrim-box-maps">{{ match.matches|length }} matches</span>
                     </div>
                     <div class="list-subtitle">
-                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}{% if match.team1_name or match.team2_name %} • {{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}{% endif %}
+                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %} • {{ match.tournament_teams|length }} teams
                     </div>
                     <div class="scrim-box-cta">Open Tournament →</div>
                 </a>
@@ -87,11 +87,11 @@
                             <div>
                                 <div class="list-title">{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</div>
                                 <div class="list-subtitle">
-                                    {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}{% if match.team1_name or match.team2_name %} • {{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}{% endif %}
+                                    {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %} • {{ match.tournament_teams|length }} teams
                                 </div>
                             </div>
                             <div class="list-meta">
-                                <small>{{ match.maps|length }} maps</small>
+                                <small>{{ match.matches|length }} matches</small>
                             </div>
                         </a>
                     {% endfor %}
