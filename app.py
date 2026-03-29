@@ -1526,6 +1526,32 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         else None
     )
 
+    comp_archetype_labels = {
+        "triple_support": "Triple Support",
+        "two_two_two": "2-2-2",
+        "other": "Other / Flex",
+    }
+    comp_archetype_rows = []
+    for profile_key in ("triple_support", "two_two_two", "other"):
+        main_count = comp_profile_stats[profile_key]["count"]
+        enemy_count = enemy_comp_profile_stats[profile_key]["count"]
+        main_rate = pct(main_count, total_maps)
+        enemy_rate = pct(enemy_count, total_maps)
+        rate_diff = round(main_rate - enemy_rate, 1)
+        comp_archetype_rows.append(
+            {
+                "profile_key": profile_key,
+                "label": comp_archetype_labels.get(profile_key, profile_key.replace("_", " ").title()),
+                "main_count": main_count,
+                "main_rate": main_rate,
+                "main_win_rate": pct(comp_profile_stats[profile_key]["wins"], main_count),
+                "enemy_count": enemy_count,
+                "enemy_rate": enemy_rate,
+                "enemy_win_rate": pct(enemy_comp_profile_stats[profile_key]["wins"], enemy_count),
+                "rate_diff": rate_diff,
+            }
+        )
+
     return {
         "summary": {
             "total_maps": total_maps,
@@ -1565,6 +1591,7 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             "enemy": enemy_ban_variation,
         },
         "mirror_rates": mirror_rates,
+        "comp_archetype_rows": comp_archetype_rows,
         "ban_diff_rows": ban_diff_rows[:12],
         "ban_next_rows": ban_next_rows[:12],
         "ban_to_protect_rows": ban_to_protect_rows[:12],
@@ -1602,6 +1629,126 @@ def _canonical_draft_hero(raw_hero: str) -> str:
     if not hero_text:
         return ""
     return _resolve_hero_transform_key(hero_text) or hero_text
+
+
+def _summarize_draft_phase_slot_counts(slot_counts: dict[str, dict[str, int]]) -> list[dict]:
+    rows = []
+    for slot_key in DRAFT_SLOT_ORDER:
+        slot_totals = sum(slot_counts.get(slot_key, {}).values())
+        hero_rows = [
+            {
+                "hero": hero,
+                "count": count,
+                "rate": round((count / slot_totals) * 100, 1) if slot_totals else 0,
+            }
+            for hero, count in sorted(slot_counts.get(slot_key, {}).items(), key=lambda item: item[1], reverse=True)
+        ]
+        top_row = hero_rows[0] if hero_rows else None
+        rows.append(
+            {
+                "slot_key": slot_key,
+                "slot_label": _draft_slot_label(slot_key),
+                "total": slot_totals,
+                "top_hero": top_row["hero"] if top_row else "—",
+                "top_count": top_row["count"] if top_row else 0,
+                "top_rate": top_row["rate"] if top_row else 0,
+                "hero_rows": hero_rows[:3],
+            }
+        )
+    return rows
+
+
+def build_draft_phase_timeline(scrims: list[dict]) -> dict:
+    def new_side_counts() -> dict[str, defaultdict[str, int]]:
+        return {slot_key: defaultdict(int) for slot_key in DRAFT_SLOT_ORDER}
+
+    aggregate = {
+        "main": new_side_counts(),
+        "enemy": new_side_counts(),
+        "maps": 0,
+    }
+    per_map = defaultdict(lambda: {"main": new_side_counts(), "enemy": new_side_counts(), "maps": 0})
+
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            map_name = (map_entry.get("map_name", "") or "").strip() or "Unknown Map"
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+
+            draft = map_entry.get("draft", {})
+            if not isinstance(draft, dict):
+                continue
+
+            our_draft = draft.get(our_team_slot, {})
+            enemy_draft = draft.get(opposite_team_slot(our_team_slot), {})
+            if not isinstance(our_draft, dict):
+                our_draft = {}
+            if not isinstance(enemy_draft, dict):
+                enemy_draft = {}
+
+            aggregate["maps"] += 1
+            per_map[map_name]["maps"] += 1
+
+            for side_key, side_draft in (("main", our_draft), ("enemy", enemy_draft)):
+                for slot_key in DRAFT_SLOT_ORDER:
+                    hero_name = _canonical_draft_hero(side_draft.get(slot_key, ""))
+                    if not hero_name:
+                        continue
+                    aggregate[side_key][slot_key][hero_name] += 1
+                    per_map[map_name][side_key][slot_key][hero_name] += 1
+
+    map_rows = []
+    for map_name, payload in per_map.items():
+        map_rows.append(
+            {
+                "map_name": map_name,
+                "maps": payload["maps"],
+                "main_rows": _summarize_draft_phase_slot_counts(payload["main"]),
+                "enemy_rows": _summarize_draft_phase_slot_counts(payload["enemy"]),
+            }
+        )
+    map_rows.sort(key=lambda row: (row["maps"], row["map_name"]), reverse=True)
+
+    return {
+        "aggregate": {
+            "maps": aggregate["maps"],
+            "main_rows": _summarize_draft_phase_slot_counts(aggregate["main"]),
+            "enemy_rows": _summarize_draft_phase_slot_counts(aggregate["enemy"]),
+        },
+        "maps": map_rows,
+    }
+
+
+def build_draft_phase_map_comparison_rows(
+    timeline_data: dict,
+    compare_map_a: str,
+    compare_map_b: str,
+) -> list[dict]:
+    map_lookup = {row["map_name"]: row for row in timeline_data.get("maps", [])}
+    map_a = map_lookup.get(compare_map_a)
+    map_b = map_lookup.get(compare_map_b)
+    if not map_a or not map_b:
+        return []
+
+    map_a_main = {row["slot_key"]: row for row in map_a["main_rows"]}
+    map_a_enemy = {row["slot_key"]: row for row in map_a["enemy_rows"]}
+    map_b_main = {row["slot_key"]: row for row in map_b["main_rows"]}
+    map_b_enemy = {row["slot_key"]: row for row in map_b["enemy_rows"]}
+
+    rows = []
+    for slot_key in DRAFT_SLOT_ORDER:
+        rows.append(
+            {
+                "slot_key": slot_key,
+                "slot_label": _draft_slot_label(slot_key),
+                "map_a_main": map_a_main.get(slot_key, {}),
+                "map_a_enemy": map_a_enemy.get(slot_key, {}),
+                "map_b_main": map_b_main.get(slot_key, {}),
+                "map_b_enemy": map_b_enemy.get(slot_key, {}),
+            }
+        )
+    return rows
 
 
 def _sanitize_simulator_draft_slots(raw_slots: dict | None) -> dict[str, str]:
@@ -2322,6 +2469,20 @@ def team_detail(team_id: int):
         team_scrims,
         [row["hero"] for row in hero_graph_rows[:6]],
     )
+    draft_phase_timeline = build_draft_phase_timeline(team_scrims)
+    compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
+    compare_map_a = (request.args.get("compare_map_a") or "").strip()
+    if compare_map_a not in compare_map_options:
+        compare_map_a = compare_map_options[0] if compare_map_options else ""
+    remaining_compare_maps = [map_name for map_name in compare_map_options if map_name != compare_map_a]
+    compare_map_b = (request.args.get("compare_map_b") or "").strip()
+    if compare_map_b not in remaining_compare_maps:
+        compare_map_b = remaining_compare_maps[0] if remaining_compare_maps else ""
+    compare_map_rows = build_draft_phase_map_comparison_rows(
+        draft_phase_timeline,
+        compare_map_a,
+        compare_map_b,
+    )
 
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
@@ -2436,6 +2597,11 @@ def team_detail(team_id: int):
         selected_season=selected_season,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
+        draft_phase_timeline=draft_phase_timeline,
+        compare_map_options=compare_map_options,
+        compare_map_a=compare_map_a,
+        compare_map_b=compare_map_b,
+        compare_map_rows=compare_map_rows,
         team_scrim_count=len(team_scrims),
         team_scrim_total_count=len(all_team_scrims),
         team_map_cards=team_map_cards,
