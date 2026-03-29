@@ -507,10 +507,15 @@ def normalize_tournament_record(match: dict) -> dict:
     match.setdefault("maps", [])
     match.setdefault("team_id", None)
     match.setdefault("team_name", "")
+    match.setdefault("tournament_name", "")
     match.setdefault("team1_enemy_id", None)
     match.setdefault("team1_name", "")
+    match.setdefault("team1_players", [])
     match.setdefault("team2_enemy_id", None)
     match.setdefault("team2_name", "")
+    match.setdefault("team2_players", [])
+    match["team1_players"] = [str(player).strip() for player in match.get("team1_players", []) if str(player).strip()]
+    match["team2_players"] = [str(player).strip() for player in match.get("team2_players", []) if str(player).strip()]
     return match
 
 
@@ -641,6 +646,22 @@ def parse_comma_list(raw: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def parse_name_list(raw: str) -> list[str]:
+    parts = re.split(r"[\r\n,]+", raw or "")
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        name = part.strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(name)
+    return cleaned
+
+
 def normalize_player_role(raw_role: str) -> str:
     candidate = raw_role.strip().lower()
     for role in PLAYER_ROLES:
@@ -761,26 +782,15 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     if is_tournament:
         team1_label = match_record.get("team1_name") or "Team 1"
         team2_label = match_record.get("team2_name") or "Team 2"
-        team1_enemy_id = match_record.get("team1_enemy_id")
-        team2_enemy_id = match_record.get("team2_enemy_id")
-        if team1_enemy_id:
-            rows = db.execute(
-                "SELECT name, role, main_hero FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
-                (team1_enemy_id,),
-            ).fetchall()
-            team_players = [row["name"] for row in rows]
-        if team2_enemy_id:
-            enemy_team_row = db.execute(
-                "SELECT id, name, notes FROM enemy_teams WHERE id = ?",
-                (team2_enemy_id,),
-            ).fetchone()
-            if enemy_team_row:
-                enemy_team_data = dict(enemy_team_row)
-            rows = db.execute(
-                "SELECT name, role, main_hero FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
-                (team2_enemy_id,),
-            ).fetchall()
-            enemy_players = [dict(row) for row in rows]
+        team_players = list(match_record.get("team1_players", []))
+        enemy_players = [
+            {
+                "name": player_name,
+                "role": "",
+                "main_hero": "",
+            }
+            for player_name in match_record.get("team2_players", [])
+        ]
     else:
         team_id = match_record.get("team_id")
         if team_id:
@@ -4455,37 +4465,34 @@ def create_tournament():
     team_id = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
     if not team_name:
-        flash("Please assign this tournament match to one of your teams.", "error")
+        flash("Please assign this tournament to one of your teams.", "error")
         return redirect(f"{url_for('tournaments')}#create-tournament")
 
-    team1_enemy_id = parse_team_id(request.form.get("team1_enemy_id", ""))
-    team2_enemy_id = parse_team_id(request.form.get("team2_enemy_id", ""))
-    team1_name = get_enemy_team_name_by_id(team_id, team1_enemy_id)
-    team2_name = get_enemy_team_name_by_id(team_id, team2_enemy_id)
-    if not team1_name or not team2_name:
-        flash("Please select both tournament teams from your saved enemy teams.", "error")
-        return redirect(f"{url_for('tournaments')}#create-tournament")
-    if team1_enemy_id == team2_enemy_id:
-        flash("Tournament teams must be different.", "error")
+    tournament_name = request.form.get("tournament_name", "").strip()
+    if not tournament_name:
+        flash("Please enter a tournament name.", "error")
         return redirect(f"{url_for('tournaments')}#create-tournament")
 
     match_date = request.form.get("scrim_date", "").strip()
     season = normalize_season_value(request.form.get("season", ""))
     notes = request.form.get("notes", "").strip()
     if not season:
-        flash("Please set a season for this tournament match.", "error")
+        flash("Please set a season for this tournament.", "error")
         return redirect(f"{url_for('tournaments')}#create-tournament")
 
     tournament_match = {
         "id": NEXT_TOURNAMENT_ID,
+        "tournament_name": tournament_name,
         "scrim_date": match_date,
         "season": season,
         "team_id": team_id,
         "team_name": team_name,
-        "team1_enemy_id": team1_enemy_id,
-        "team1_name": team1_name,
-        "team2_enemy_id": team2_enemy_id,
-        "team2_name": team2_name,
+        "team1_enemy_id": None,
+        "team1_name": "",
+        "team1_players": [],
+        "team2_enemy_id": None,
+        "team2_name": "",
+        "team2_players": [],
         "notes": notes,
         "maps": [],
     }
@@ -4577,10 +4584,6 @@ def scrim_detail(scrim_id: int):
 def tournament_detail(tournament_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
-    enemy_teams = get_db().execute(
-        "SELECT id, name FROM enemy_teams WHERE team_id = ? ORDER BY name COLLATE NOCASE",
-        (tournament_match.get("team_id"),),
-    ).fetchall()
 
     wins = sum(1 for m in tournament_match["maps"] if m["result"] == "Win")
     losses = sum(1 for m in tournament_match["maps"] if m["result"] == "Loss")
@@ -4597,10 +4600,9 @@ def tournament_detail(tournament_id: int):
         hero_roles=HERO_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
         teams=teams,
-        enemy_teams=enemy_teams,
         wins=wins,
         losses=losses,
-        match_label="Tournament Match",
+        match_label="Tournament",
         match_list_endpoint="tournaments",
         match_detail_endpoint="tournament_detail",
         match_edit_endpoint="edit_tournament",
@@ -4644,31 +4646,40 @@ def edit_scrim(scrim_id: int):
 @app.route("/tournaments/<int:tournament_id>/edit", methods=["POST"])
 def edit_tournament(tournament_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
-    team_id = tournament_match.get("team_id")
-
-    team1_enemy_id = parse_team_id(request.form.get("team1_enemy_id", ""))
-    team2_enemy_id = parse_team_id(request.form.get("team2_enemy_id", ""))
-    team1_name = get_enemy_team_name_by_id(team_id, team1_enemy_id)
-    team2_name = get_enemy_team_name_by_id(team_id, team2_enemy_id)
-    if not team1_name or not team2_name:
-        flash("Please select both tournament teams from your saved enemy teams.", "error")
-        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
-    if team1_enemy_id == team2_enemy_id:
-        flash("Tournament teams must be different.", "error")
+    tournament_name = request.form.get("tournament_name", tournament_match.get("tournament_name", "")).strip()
+    if not tournament_name:
+        flash("Please enter a tournament name.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
     season = normalize_season_value(request.form.get("season", tournament_match.get("season", "")))
     if not season:
-        flash("Please set a season for this tournament match.", "error")
+        flash("Please set a season for this tournament.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
+    tournament_match["tournament_name"] = tournament_name
     tournament_match["scrim_date"] = request.form.get("scrim_date", tournament_match.get("scrim_date", "")).strip()
     tournament_match["season"] = season
-    tournament_match["team1_enemy_id"] = team1_enemy_id
-    tournament_match["team1_name"] = team1_name
-    tournament_match["team2_enemy_id"] = team2_enemy_id
-    tournament_match["team2_name"] = team2_name
     tournament_match["notes"] = request.form.get("notes", tournament_match.get("notes", "")).strip()
+    save_app_state()
+    return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/teams", methods=["POST"])
+def update_tournament_teams(tournament_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+
+    team1_name = request.form.get("team1_name", tournament_match.get("team1_name", "")).strip()
+    team2_name = request.form.get("team2_name", tournament_match.get("team2_name", "")).strip()
+    if team1_name and team2_name and team1_name.lower() == team2_name.lower():
+        flash("Tournament teams must be different.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    tournament_match["team1_name"] = team1_name
+    tournament_match["team2_name"] = team2_name
+    tournament_match["team1_enemy_id"] = None
+    tournament_match["team2_enemy_id"] = None
+    tournament_match["team1_players"] = parse_name_list(request.form.get("team1_players", ""))
+    tournament_match["team2_players"] = parse_name_list(request.form.get("team2_players", ""))
     save_app_state()
     return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 

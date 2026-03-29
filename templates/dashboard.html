@@ -21,7 +21,7 @@
     </section>
 
     <section class="stat-card">
-        <strong>Tournament Matches</strong>
+        <strong>Tournaments</strong>
         <span>{{ total_tournaments }}</span>
     </section>
 
@@ -75,7 +75,7 @@
 
 <section class="panel">
     <div class="panel-header-row">
-        <h3>Recent Tournament Matches</h3>
+        <h3>Recent Tournaments</h3>
         <a href="{{ url_for('tournaments') }}">View all</a>
     </div>
 
@@ -96,7 +96,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <p class="empty-text">No tournament matches yet.</p>
+        <p class="empty-text">No tournaments yet.</p>
     {% endif %}
 </section>
 {% endblock %}

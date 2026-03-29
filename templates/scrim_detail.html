@@ -5,12 +5,28 @@
 {% block content %}
 <div class="main-header">
     <div>
-        <h2>{% if show_team_selector %}vs {{ scrim.enemy_team or scrim.opponent }}{% else %}{{ participant_one_label }} vs {{ participant_two_label }}{% endif %}</h2>
-        <p>{{ scrim.scrim_date }}{% if scrim.season %} &bull; Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} &bull; {{ scrim.team_name }}{% endif %}</p>
+        <h2>
+            {% if show_team_selector %}
+                vs {{ scrim.enemy_team or scrim.opponent }}
+            {% elif scrim.tournament_name %}
+                {{ scrim.tournament_name }}
+            {% else %}
+                {{ participant_one_label }} vs {{ participant_two_label }}
+            {% endif %}
+        </h2>
+        <p>
+            {{ scrim.scrim_date }}{% if scrim.season %} &bull; Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} &bull; {{ scrim.team_name }}{% endif %}
+            {% if not show_team_selector and scrim.tournament_name %}
+                &bull; {% if scrim.team1_name or scrim.team2_name %}{{ scrim.team1_name or 'Team 1' }} vs {{ scrim.team2_name or 'Team 2' }}{% else %}No teams assigned yet{% endif %}
+            {% endif %}
+        </p>
     </div>
     <div class="header-actions">
         <a href="{{ url_for(match_list_endpoint) }}" class="button-secondary">Back to {{ match_label }}s</a>
         <button type="button" class="button-secondary" onclick="openEditScrimModal()">Edit</button>
+        {% if not show_team_selector %}
+        <button type="button" class="button-secondary" onclick="openManageTeamsModal()">Manage Teams</button>
+        {% endif %}
         <button type="button" class="button-link" onclick="openMapModal()">+ Add Map</button>
         <button type="button" class="btn-danger-sm" onclick="confirmDeleteScrim()">Delete {{ match_label }}</button>
     </div>
@@ -30,9 +46,23 @@
         <span>{{ losses }}</span>
     </section>
     <section class="stat-card">
-        <strong>{% if show_team_selector %}Team{% else %}Matchup{% endif %}</strong>
-        <span>{% if show_team_selector %}{{ scrim.team_name or "—" }}{% else %}{{ participant_one_label }} vs {{ participant_two_label }}{% endif %}</span>
+        <strong>{% if show_team_selector %}Team{% elif scrim.tournament_name %}Tournament Teams{% else %}Matchup{% endif %}</strong>
+        <span>
+            {% if show_team_selector %}
+                {{ scrim.team_name or "—" }}
+            {% elif scrim.team1_name or scrim.team2_name %}
+                {{ participant_one_label }} vs {{ participant_two_label }}
+            {% else %}
+                No teams assigned
+            {% endif %}
+        </span>
     </section>
+    {% if scrim.tournament_name %}
+    <section class="stat-card">
+        <strong>Tournament</strong>
+        <span>{{ scrim.tournament_name }}</span>
+    </section>
+    {% endif %}
     <section class="stat-card">
         <strong>Season</strong>
         <span>{{ scrim.season or "—" }}</span>
@@ -43,6 +73,49 @@
 <section class="panel">
     <h3>{{ match_label }} Notes</h3>
     <div class="summary-box">{{ scrim.notes }}</div>
+</section>
+{% endif %}
+
+{% if not show_team_selector %}
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Tournament Teams</h3>
+        <button type="button" class="button-small" onclick="openManageTeamsModal()">Manage Teams</button>
+    </div>
+
+    <div class="form-grid">
+        <div class="panel panel-soft-blue">
+            <div class="section-kicker">Tournament Team 1</div>
+            <h3>{{ scrim.team1_name or 'No team added yet' }}</h3>
+            {% if scrim.team1_players %}
+                <div class="list-stack top-gap">
+                    {% for player in scrim.team1_players %}
+                        <div class="list-card static-card">
+                            <div class="list-title">{{ player }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No players added yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel panel-soft-green">
+            <div class="section-kicker">Tournament Team 2</div>
+            <h3>{{ scrim.team2_name or 'No team added yet' }}</h3>
+            {% if scrim.team2_players %}
+                <div class="list-stack top-gap">
+                    {% for player in scrim.team2_players %}
+                        <div class="list-card static-card">
+                            <div class="list-title">{{ player }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No players added yet.</p>
+            {% endif %}
+        </div>
+    </div>
 </section>
 {% endif %}
 
@@ -178,23 +251,9 @@
                     <input type="text" id="edit_enemy_team" name="enemy_team" value="{{ scrim.enemy_team or scrim.opponent }}" required>
                 </div>
                 {% else %}
-                <div class="field">
-                    <label for="edit_team1_enemy_id">Team 1</label>
-                    <select id="edit_team1_enemy_id" name="team1_enemy_id" required>
-                        <option value="">Select team 1</option>
-                        {% for enemy in enemy_teams %}
-                            <option value="{{ enemy.id }}" {% if scrim.team1_enemy_id == enemy.id %}selected{% endif %}>{{ enemy.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="edit_team2_enemy_id">Team 2</label>
-                    <select id="edit_team2_enemy_id" name="team2_enemy_id" required>
-                        <option value="">Select team 2</option>
-                        {% for enemy in enemy_teams %}
-                            <option value="{{ enemy.id }}" {% if scrim.team2_enemy_id == enemy.id %}selected{% endif %}>{{ enemy.name }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="field field-full">
+                    <label for="edit_tournament_name">Tournament Name</label>
+                    <input type="text" id="edit_tournament_name" name="tournament_name" value="{{ scrim.tournament_name or '' }}" required>
                 </div>
                 {% endif %}
                 <div class="field">
@@ -228,6 +287,44 @@
         </form>
     </div>
 </div>
+
+{% if not show_team_selector %}
+<div id="manageTeamsModal" class="modal-overlay" onclick="closeManageTeamsModal(event)">
+    <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Manage Tournament Teams</h3>
+                <p>These teams and players live only inside this tournament.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeManageTeamsModal()">&times;</button>
+        </div>
+        <form action="{{ url_for('update_tournament_teams', tournament_id=scrim.id) }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="manage_team1_name">Tournament Team 1</label>
+                    <input type="text" id="manage_team1_name" name="team1_name" value="{{ scrim.team1_name or '' }}" placeholder="Enter team name">
+                </div>
+                <div class="field">
+                    <label for="manage_team2_name">Tournament Team 2</label>
+                    <input type="text" id="manage_team2_name" name="team2_name" value="{{ scrim.team2_name or '' }}" placeholder="Enter team name">
+                </div>
+                <div class="field">
+                    <label for="manage_team1_players">{{ scrim.team1_name or 'Team 1' }} Players</label>
+                    <textarea id="manage_team1_players" name="team1_players" rows="8" placeholder="One player per line or comma-separated">{{ (scrim.team1_players or []) | join('\n') }}</textarea>
+                </div>
+                <div class="field">
+                    <label for="manage_team2_players">{{ scrim.team2_name or 'Team 2' }} Players</label>
+                    <textarea id="manage_team2_players" name="team2_players" rows="8" placeholder="One player per line or comma-separated">{{ (scrim.team2_players or []) | join('\n') }}</textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeManageTeamsModal()">Cancel</button>
+                <button type="submit" class="button-small">Save Teams</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <!-- Map Modal -->
 <div id="mapModal" class="modal-overlay" onclick="closeMapModal(event)">
@@ -407,6 +504,14 @@ function openMapModal() { document.getElementById("mapModal").classList.add("sho
 function closeMapModal(e) { if (!e || e.target.id === "mapModal") document.getElementById("mapModal").classList.remove("show"); }
 function openEditScrimModal() { document.getElementById("editScrimModal").classList.add("show"); }
 function closeEditScrimModal(e) { if (!e || e.target.id === "editScrimModal") document.getElementById("editScrimModal").classList.remove("show"); }
+function openManageTeamsModal() {
+    var modal = document.getElementById("manageTeamsModal");
+    if (modal) modal.classList.add("show");
+}
+function closeManageTeamsModal(e) {
+    var modal = document.getElementById("manageTeamsModal");
+    if (modal && (!e || e.target.id === "manageTeamsModal")) modal.classList.remove("show");
+}
 function openEditMapModal(mapId, result, score, ourTeamSlot) {
     var f = document.getElementById("editMapForm");
     f.action = "/scrims/{{ scrim.id }}/maps/" + mapId + "/update-info";
@@ -429,6 +534,8 @@ document.addEventListener("keydown", function(e) {
         document.getElementById("mapModal").classList.remove("show");
         document.getElementById("editScrimModal").classList.remove("show");
         document.getElementById("editMapModal").classList.remove("show");
+        var manageTeamsModal = document.getElementById("manageTeamsModal");
+        if (manageTeamsModal) manageTeamsModal.classList.remove("show");
     }
 });
 

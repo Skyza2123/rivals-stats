@@ -27,61 +27,9 @@
             </select>
         </form>
         <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
-        <a class="button-link" href="#create-scrim">+ New Scrim</a>
+        <button id="openScrimModal" class="button-link" type="button">+ New Scrim</button>
     </div>
 </div>
-
-<section class="panel" id="create-scrim">
-    <div class="panel-header-row">
-        <div>
-            <h3>New Scrim</h3>
-            <p>Create the scrim first, then add maps inside it.</p>
-        </div>
-    </div>
-
-    <form id="createScrimForm" action="{{ url_for('create_scrim') }}" method="post">
-        <div class="form-grid">
-            <div class="field">
-                <label for="create_scrim_team_id">Your Team</label>
-                <select id="create_scrim_team_id" name="team_id" required>
-                    <option value="">Select your team</option>
-                    {% for team in teams %}
-                        <option value="{{ team.id }}">{{ team.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="field">
-                <label for="create_scrim_enemy_team">Enemy Team</label>
-                <select id="create_scrim_enemy_team_select" name="enemy_team_id" style="display: none;">
-                    <option value="">Select a saved enemy team</option>
-                </select>
-                <input type="hidden" id="create_scrim_enemy_team_id_hidden" name="enemy_team_id" value="">
-                <input type="text" id="create_scrim_enemy_team" name="enemy_team_manual" placeholder="Or type opponent name">
-                <small style="display: block; margin-top: 6px; color: var(--muted);">Select from saved teams or type a custom team name</small>
-            </div>
-
-            <div class="field">
-                <label for="create_scrim_date">Date</label>
-                <input type="date" id="create_scrim_date" name="scrim_date" value="{{ today }}" required>
-            </div>
-
-            <div class="field">
-                <label for="create_scrim_season">Season</label>
-                <input type="text" id="create_scrim_season" name="season" placeholder="e.g. 7 or 7.5" required>
-            </div>
-        </div>
-
-        <div class="field">
-            <label for="create_scrim_notes">General Scrim Notes</label>
-            <textarea id="create_scrim_notes" name="notes" rows="6" placeholder="Overall scrim notes, macro notes, opponent tendencies..."></textarea>
-        </div>
-
-        <div class="button-row">
-            <button type="submit">Create Scrim</button>
-        </div>
-    </form>
-</section>
 
 <section class="panel">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -127,6 +75,61 @@
         {% endif %}
     {% endif %}
 </section>
+
+<div id="scrimModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>New Scrim</h3>
+                <p>Create the scrim first, then add maps inside it.</p>
+            </div>
+            <button id="closeScrimModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <form id="createScrimForm" action="{{ url_for('create_scrim') }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="create_scrim_team_id">Your Team</label>
+                    <select id="create_scrim_team_id" name="team_id" required>
+                        <option value="">Select your team</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="create_scrim_enemy_team">Enemy Team</label>
+                    <select id="create_scrim_enemy_team_select" name="enemy_team_id" style="display: none;">
+                        <option value="">Select a saved enemy team</option>
+                    </select>
+                    <input type="hidden" id="create_scrim_enemy_team_id_hidden" name="enemy_team_id" value="">
+                    <input type="text" id="create_scrim_enemy_team" name="enemy_team_manual" placeholder="Or type opponent name">
+                    <small style="display: block; margin-top: 6px; color: var(--muted);">Select from saved teams or type a custom team name</small>
+                </div>
+
+                <div class="field">
+                    <label for="create_scrim_date">Date</label>
+                    <input type="date" id="create_scrim_date" name="scrim_date" value="{{ today }}" required>
+                </div>
+
+                <div class="field">
+                    <label for="create_scrim_season">Season</label>
+                    <input type="text" id="create_scrim_season" name="season" placeholder="e.g. 7 or 7.5" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="create_scrim_notes">General Scrim Notes</label>
+                <textarea id="create_scrim_notes" name="notes" rows="6" placeholder="Overall scrim notes, macro notes, opponent tendencies..."></textarea>
+            </div>
+
+            <div class="button-row">
+                <button type="submit">Create Scrim</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 {# ── CSV Import Modal ─────────────────────────────────────────────────── #}
 <div id="importModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="importModalTitle">
@@ -193,6 +196,9 @@
 
 <script>
 (() => {
+    const scrimModal = document.getElementById('scrimModal');
+    const openScrimButton = document.getElementById('openScrimModal');
+    const closeScrimButton = document.getElementById('closeScrimModal');
     const teamSelect = document.getElementById('create_scrim_team_id');
     const enemyTeamSelect = document.getElementById('create_scrim_enemy_team_select');
     const enemyTeamIdHidden = document.getElementById('create_scrim_enemy_team_id_hidden');
@@ -205,6 +211,15 @@
     const fileInput = document.getElementById("import_csv_file");
     const pickBtn  = document.getElementById("csvPickBtn");
     const fileName = document.getElementById("csvFileName");
+
+    const openScrimModal = () => {
+        scrimModal.classList.add('show');
+        scrimModal.setAttribute('aria-hidden', 'false');
+    };
+    const closeScrimModal = () => {
+        scrimModal.classList.remove('show');
+        scrimModal.setAttribute('aria-hidden', 'true');
+    };
 
     async function loadEnemyTeams() {
         const teamId = teamSelect.value;
@@ -253,6 +268,13 @@
     closeBtn?.addEventListener("click", closeModal);
     cancelBtn?.addEventListener("click", closeModal);
     modal?.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+    openScrimButton?.addEventListener('click', openScrimModal);
+    closeScrimButton?.addEventListener('click', closeScrimModal);
+    scrimModal?.addEventListener('click', (event) => {
+        if (event.target === scrimModal) {
+            closeScrimModal();
+        }
+    });
 
     pickBtn?.addEventListener("click", () => fileInput.click());
     fileInput?.addEventListener("change", () => {
@@ -292,6 +314,16 @@
 
         enemyTeamManual.value = enemyTeamValue;
         enemyTeamIdHidden.value = enemyTeamIdValue;
+    });
+
+    if (window.location.hash === '#create-scrim') {
+        openScrimModal();
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeScrimModal();
+        }
     });
 })();
 </script>

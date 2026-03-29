@@ -6,7 +6,7 @@
 <div class="main-header">
     <div>
         <h2>Tournaments</h2>
-        <p>Track enemy-vs-enemy tournament matches for scouting and comparison.</p>
+        <p>Create named tournaments, then add teams inside the tournament view.</p>
     </div>
     <div class="header-actions">
         <form method="GET" action="{{ url_for('tournaments') }}" style="display:contents">
@@ -34,9 +34,9 @@
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
         <p style="margin: 0; font-size: 0.95rem; color: #555;">
             {% if selected_season == 'all' and not selected_team_id %}
-                Showing all <strong>{{ tournaments|length }}</strong> tournament matches
+                Showing all <strong>{{ tournaments|length }}</strong> tournaments
             {% else %}
-                <strong style="color: var(--accent-color, #0066cc);">{{ tournaments|length }} of {{ total_tournament_count }}</strong> tournament matches
+                <strong style="color: var(--accent-color, #0066cc);">{{ tournaments|length }} of {{ total_tournament_count }}</strong> tournaments
             {% endif %}
         </p>
         {% if selected_season != 'all' or selected_team_id %}
@@ -49,18 +49,18 @@
             {% for match in tournaments %}
                 <a class="scrim-box-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
                     <div class="scrim-box-head">
-                        <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
+                        <div class="list-title">{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</div>
                         <span class="scrim-box-maps">{{ match.maps|length }} maps</span>
                     </div>
                     <div class="list-subtitle">
-                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}
+                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}{% if match.team1_name or match.team2_name %} • {{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}{% endif %}
                     </div>
-                    <div class="scrim-box-cta">Open Match →</div>
+                    <div class="scrim-box-cta">Open Tournament →</div>
                 </a>
             {% endfor %}
         </div>
     {% else %}
-        <p class="empty-text">No tournament matches created yet.</p>
+        <p class="empty-text">No tournaments created yet.</p>
     {% endif %}
 </section>
 
@@ -85,9 +85,9 @@
                     {% for match in all_tournaments %}
                         <a class="list-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
                             <div>
-                                <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
+                                <div class="list-title">{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</div>
                                 <div class="list-subtitle">
-                                    {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}
+                                    {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}{% if match.team1_name or match.team2_name %} • {{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}{% endif %}
                                 </div>
                             </div>
                             <div class="list-meta">
@@ -105,26 +105,17 @@
             <form id="createTournamentForm" action="{{ url_for('create_tournament') }}" method="post">
                 <div class="form-grid">
                     <div class="field">
+                        <label for="create_tournament_name">Tournament Name</label>
+                        <input id="create_tournament_name" name="tournament_name" type="text" placeholder="e.g. Spring Showdown" required>
+                    </div>
+
+                    <div class="field">
                         <label for="create_tournament_team_id">Owner Team</label>
                         <select id="create_tournament_team_id" name="team_id" required>
                             <option value="">Select your team</option>
                             {% for team in teams %}
                                 <option value="{{ team.id }}">{{ team.name }}</option>
                             {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="field">
-                        <label for="create_tournament_team1_enemy_id">Tournament Team 1</label>
-                        <select id="create_tournament_team1_enemy_id" name="team1_enemy_id" required disabled>
-                            <option value="">Select owner team first</option>
-                        </select>
-                    </div>
-
-                    <div class="field">
-                        <label for="create_tournament_team2_enemy_id">Tournament Team 2</label>
-                        <select id="create_tournament_team2_enemy_id" name="team2_enemy_id" required disabled>
-                            <option value="">Select owner team first</option>
                         </select>
                     </div>
 
@@ -144,8 +135,10 @@
                     <textarea id="create_tournament_notes" name="notes" rows="6" placeholder="What you want to compare, meta context, broadcast/VOD references..."></textarea>
                 </div>
 
+                <p class="panel-intro">Teams are added later from inside the tournament page.</p>
+
                 <div class="button-row">
-                    <button type="submit">Create Tournament Match</button>
+                    <button type="submit">Create Tournament</button>
                 </div>
             </form>
         </div>
@@ -161,9 +154,6 @@
     const createTabButton = document.getElementById('tabCreateTournament');
     const openPanel = document.getElementById('tournamentOpenPanel');
     const createPanel = document.getElementById('tournamentCreatePanel');
-    const teamSelect = document.getElementById('create_tournament_team_id');
-    const team1Select = document.getElementById('create_tournament_team1_enemy_id');
-    const team2Select = document.getElementById('create_tournament_team2_enemy_id');
 
     function setTournamentTab(tabName) {
         const showCreate = tabName === 'create';
@@ -183,61 +173,6 @@
         modal.classList.remove('show');
         modal.setAttribute('aria-hidden', 'true');
     }
-
-    function resetSelect(select, placeholder) {
-        select.innerHTML = '<option value="">' + placeholder + '</option>';
-        select.disabled = true;
-    }
-
-    function fillSelect(select, enemies, selectedValue) {
-        select.innerHTML = '<option value="">Select a team</option>';
-        enemies.forEach((enemy) => {
-            const option = document.createElement('option');
-            option.value = enemy.id;
-            option.textContent = enemy.name;
-            if (String(enemy.id) === String(selectedValue || '')) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
-        select.disabled = false;
-    }
-
-    function syncOptions() {
-        const team1Value = team1Select.value;
-        const team2Value = team2Select.value;
-        Array.from(team1Select.options).forEach((option) => {
-            option.hidden = option.value !== '' && option.value === team2Value;
-        });
-        Array.from(team2Select.options).forEach((option) => {
-            option.hidden = option.value !== '' && option.value === team1Value;
-        });
-    }
-
-    async function loadEnemyTeams() {
-        const teamId = teamSelect.value;
-        if (!teamId) {
-            resetSelect(team1Select, 'Select owner team first');
-            resetSelect(team2Select, 'Select owner team first');
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/teams/' + encodeURIComponent(teamId) + '/enemies');
-            const enemies = await response.json();
-            fillSelect(team1Select, enemies);
-            fillSelect(team2Select, enemies);
-            syncOptions();
-        } catch (error) {
-            console.error('Failed to load enemy teams', error);
-            resetSelect(team1Select, 'Failed to load teams');
-            resetSelect(team2Select, 'Failed to load teams');
-        }
-    }
-
-    teamSelect?.addEventListener('change', loadEnemyTeams);
-    team1Select?.addEventListener('change', syncOptions);
-    team2Select?.addEventListener('change', syncOptions);
 
     openModalButton?.addEventListener('click', () => openTournamentModal('open'));
     closeModalButton?.addEventListener('click', closeTournamentModal);
