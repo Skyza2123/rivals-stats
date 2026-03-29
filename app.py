@@ -3551,6 +3551,7 @@ def scrims():
         "scrims.html",
         scrims=list(reversed(filtered)),
         teams=teams,
+        today=date.today().isoformat(),
         season_options=season_options,
         selected_season=selected_season,
         has_unseasoned_scrims=has_unseasoned_scrims,
@@ -4406,8 +4407,7 @@ def api_delete_saved_draft(draft_id: int):
 
 @app.route("/scrims/new")
 def new_scrim():
-    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
-    return render_template("new_scrim.html", today=date.today().isoformat(), teams=teams)
+    return redirect(f"{url_for('scrims')}#create-scrim")
 
 
 @app.route("/tournaments")
@@ -4431,7 +4431,9 @@ def tournaments():
     return render_template(
         "tournaments.html",
         tournaments=filtered_matches,
+        all_tournaments=list(reversed(TOURNAMENT_MATCHES)),
         teams=teams,
+        today=date.today().isoformat(),
         season_options=season_options,
         selected_season=selected_season,
         selected_team_id=selected_team_id,
@@ -4443,8 +4445,7 @@ def tournaments():
 
 @app.route("/tournaments/new")
 def new_tournament():
-    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
-    return render_template("new_tournament.html", today=date.today().isoformat(), teams=teams)
+    return redirect(f"{url_for('tournaments')}#create-tournament")
 
 
 @app.route("/tournaments/create", methods=["POST"])
@@ -4455,7 +4456,7 @@ def create_tournament():
     team_name = get_team_name_by_id(team_id)
     if not team_name:
         flash("Please assign this tournament match to one of your teams.", "error")
-        return redirect(url_for("new_tournament"))
+        return redirect(f"{url_for('tournaments')}#create-tournament")
 
     team1_enemy_id = parse_team_id(request.form.get("team1_enemy_id", ""))
     team2_enemy_id = parse_team_id(request.form.get("team2_enemy_id", ""))
@@ -4463,17 +4464,17 @@ def create_tournament():
     team2_name = get_enemy_team_name_by_id(team_id, team2_enemy_id)
     if not team1_name or not team2_name:
         flash("Please select both tournament teams from your saved enemy teams.", "error")
-        return redirect(url_for("new_tournament"))
+        return redirect(f"{url_for('tournaments')}#create-tournament")
     if team1_enemy_id == team2_enemy_id:
         flash("Tournament teams must be different.", "error")
-        return redirect(url_for("new_tournament"))
+        return redirect(f"{url_for('tournaments')}#create-tournament")
 
     match_date = request.form.get("scrim_date", "").strip()
     season = normalize_season_value(request.form.get("season", ""))
     notes = request.form.get("notes", "").strip()
     if not season:
         flash("Please set a season for this tournament match.", "error")
-        return redirect(url_for("new_tournament"))
+        return redirect(f"{url_for('tournaments')}#create-tournament")
 
     tournament_match = {
         "id": NEXT_TOURNAMENT_ID,
@@ -4503,7 +4504,7 @@ def create_scrim():
     team_name = get_team_name_by_id(team_id)
     if not team_name:
         flash("Please assign this scrim to your team.", "error")
-        return redirect(url_for("new_scrim"))
+        return redirect(f"{url_for('scrims')}#create-scrim")
 
     enemy_team = request.form.get("enemy_team_manual", "").strip() or request.form.get("opponent", "").strip()
     enemy_team_id = request.form.get("enemy_team_id", "").strip()
@@ -4513,7 +4514,7 @@ def create_scrim():
 
     if not season:
         flash("Please set a season for this scrim.", "error")
-        return redirect(url_for("new_scrim"))
+        return redirect(f"{url_for('scrims')}#create-scrim")
 
     scrim = {
         "id": NEXT_SCRIM_ID,

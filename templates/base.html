@@ -16,10 +16,8 @@
 
             <nav class="sidebar-nav">
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="{{ url_for('scrims') }}" class="nav-link {% if request.path.startswith('/scrims') and request.path != '/scrims/new' %}active{% endif %}">Scrims</a>
-                <a href="{{ url_for('new_scrim') }}" class="nav-link {% if request.path == '/scrims/new' %}active{% endif %}">New Scrim</a>
-                <a href="{{ url_for('tournaments') }}" class="nav-link {% if request.path.startswith('/tournaments') and request.path != '/tournaments/new' %}active{% endif %}">Tournaments</a>
-                <a href="{{ url_for('new_tournament') }}" class="nav-link {% if request.path == '/tournaments/new' %}active{% endif %}">New Tournament</a>
+                <a href="{{ url_for('scrims') }}" class="nav-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
+                <a href="{{ url_for('tournaments') }}" class="nav-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
                 <a href="{{ url_for('draft_simulator') }}" class="nav-link {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Simulator</a>
                 <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams & Players</a>
             </nav>
