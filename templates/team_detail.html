@@ -110,15 +110,15 @@
                             {% for row in team_analytics.ban_rows[:12] %}
                                 {% set height = ((row.count / ban_max) * 100) if ban_max else 0 %}
                                 <div class="vbar-container">
-                                    <div class="vbar-hero-image">
-                                        <img src="{{ hero_image_url(row.hero) }}" 
-                                             alt="{{ row.hero }}"
-                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    </div>
                                     <div class="vbar-bar-wrapper">
                                         <div class="vbar-bar vbar-bar-ban" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} bans ({{ row.ban_rate }}%), {{ row.win_rate }}% win rate when banned">
                                             <span class="vbar-label-top">{{ row.count }}</span>
                                         </div>
+                                    </div>
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                     </div>
                                     <div class="vbar-label">
                                         <span class="vbar-rate">{{ row.ban_rate }}%</span>
@@ -140,15 +140,15 @@
                             {% for row in team_analytics.protect_rows[:12] %}
                                 {% set height = ((row.count / protect_max) * 100) if protect_max else 0 %}
                                 <div class="vbar-container">
-                                    <div class="vbar-hero-image">
-                                        <img src="{{ hero_image_url(row.hero) }}" 
-                                             alt="{{ row.hero }}"
-                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    </div>
                                     <div class="vbar-bar-wrapper">
                                         <div class="vbar-bar vbar-bar-protect" data-height="{{ height }}" title="{{ row.hero }}: {{ row.count }} protects ({{ row.protect_rate }}%), {{ row.win_rate }}% win rate when protected">
                                             <span class="vbar-label-top">{{ row.count }}</span>
                                         </div>
+                                    </div>
+                                    <div class="vbar-hero-image">
+                                        <img src="{{ hero_image_url(row.hero) }}" 
+                                             alt="{{ row.hero }}"
+                                             onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                     </div>
                                     <div class="vbar-label">
                                         <span class="vbar-rate">{{ row.protect_rate }}%</span>

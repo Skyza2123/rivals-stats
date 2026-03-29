@@ -469,9 +469,28 @@ def get_scrim_season_options(scrims: list[dict]) -> list[str]:
     return sorted(seasons, key=lambda value: [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)])
 
 
-def get_selected_season(raw_value: str, season_options: list[str], *, allow_unspecified: bool = False) -> str:
+def get_current_season_from_recent_scrim(scrims: list[dict]) -> str:
+    for scrim in reversed(scrims):
+        season = normalize_season_value(scrim.get("season", ""))
+        if season:
+            return season
+    return "all"
+
+
+def get_selected_season(
+    raw_value: str,
+    season_options: list[str],
+    *,
+    allow_unspecified: bool = False,
+    default_season: str = "all",
+) -> str:
     selected = normalize_season_value(raw_value)
     if not selected or selected.lower() == "all":
+        normalized_default = normalize_season_value(default_season)
+        if normalized_default == UNSPECIFIED_SEASON_TOKEN and allow_unspecified:
+            return UNSPECIFIED_SEASON_TOKEN
+        if normalized_default in season_options:
+            return normalized_default
         return "all"
     if selected == UNSPECIFIED_SEASON_TOKEN and allow_unspecified:
         return UNSPECIFIED_SEASON_TOKEN
@@ -2145,11 +2164,13 @@ def teams():
     ).fetchall()
 
     season_options = get_scrim_season_options(SCRIMS)
+    default_season = get_current_season_from_recent_scrim(SCRIMS)
     has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in SCRIMS)
     selected_season = get_selected_season(
-        request.args.get("season", "all"),
+        request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
     )
 
     teams_with_scrim_stats = []
@@ -2270,11 +2291,13 @@ def team_detail(team_id: int):
         )
     ]
     season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
     has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
     selected_season = get_selected_season(
-        request.args.get("season", "all"),
+        request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
     )
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     predictor_inputs = {
@@ -2445,11 +2468,13 @@ def team_draft_predict(team_id: int):
         )
     ]
     season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
     has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
     selected_season = get_selected_season(
-        request.args.get("season", "all"),
+        request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
     )
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     predictor_inputs = {
@@ -2849,13 +2874,15 @@ def enemy_team_detail(enemy_team_id: int):
             all_matched_enemy_scrims.append(scrim)
 
     season_options = get_scrim_season_options(all_matched_enemy_scrims)
+    default_season = get_current_season_from_recent_scrim(all_matched_enemy_scrims)
     has_unseasoned_scrims = any(
         not normalize_season_value(scrim.get("season", "")) for scrim in all_matched_enemy_scrims
     )
     selected_season = get_selected_season(
-        request.args.get("season", "all"),
+        request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
     )
     matched_enemy_scrims = filter_scrims_by_season(all_matched_enemy_scrims, selected_season)
 
@@ -2969,13 +2996,15 @@ def enemy_draft_predict(enemy_team_id: int):
             all_matched_enemy_scrims.append(scrim)
 
     season_options = get_scrim_season_options(all_matched_enemy_scrims)
+    default_season = get_current_season_from_recent_scrim(all_matched_enemy_scrims)
     has_unseasoned_scrims = any(
         not normalize_season_value(scrim.get("season", "")) for scrim in all_matched_enemy_scrims
     )
     selected_season = get_selected_season(
-        request.args.get("season", "all"),
+        request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
     )
 
     matched_enemy_scrims = filter_scrims_by_season(all_matched_enemy_scrims, selected_season)
