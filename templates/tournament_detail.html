@@ -28,6 +28,7 @@
     <section class="stat-card"><strong>Completed Maps</strong><span>{{ completed_maps }}</span></section>
     <section class="stat-card"><strong>Season</strong><span>{{ tournament.season or '—' }}</span></section>
     <section class="stat-card"><strong>Owner Team</strong><span>{{ tournament.team_name or '—' }}</span></section>
+    <section class="stat-card"><strong>Owner Side</strong><span>{{ 'Team 1' if selected_perspective == 'team1' else 'Team 2' }}</span></section>
 </div>
 
 {% if tournament.notes %}
@@ -652,6 +653,13 @@
                 <div class="field">
                     <label for="edit_tournament_season">Season</label>
                     <input type="text" id="edit_tournament_season" name="season" value="{{ tournament.season or '' }}" required>
+                </div>
+                <div class="field">
+                    <label for="edit_tournament_team_slot">Owner Team Is</label>
+                    <select id="edit_tournament_team_slot" name="team_slot">
+                        <option value="team1" {% if (tournament.team_slot or 'team1') == 'team1' %}selected{% endif %}>Team 1</option>
+                        <option value="team2" {% if tournament.team_slot == 'team2' %}selected{% endif %}>Team 2</option>
+                    </select>
                 </div>
                 <div class="field field-full">
                     <label for="edit_tournament_notes">Notes</label>

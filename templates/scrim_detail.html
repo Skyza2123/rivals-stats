@@ -6,9 +6,7 @@
 <div class="main-header">
     <div>
         <h2>
-            {% if show_team_selector %}
-                vs {{ scrim.enemy_team or scrim.opponent }}
-            {% elif scrim.tournament_name %}
+            {% if not show_team_selector and scrim.tournament_name %}
                 {{ scrim.tournament_name }}
             {% else %}
                 {{ participant_one_label }} vs {{ participant_two_label }}
@@ -272,6 +270,13 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="field">
+                    <label for="edit_team_slot">Your Team Is</label>
+                    <select id="edit_team_slot" name="team_slot">
+                        <option value="team1" {% if (scrim.team_slot or 'team1') == 'team1' %}selected{% endif %}>Team 1</option>
+                        <option value="team2" {% if scrim.team_slot == 'team2' %}selected{% endif %}>Team 2</option>
+                    </select>
+                </div>
                 {% endif %}
                 <div class="field field-full">
                     <label for="edit_notes">Notes</label>
@@ -364,8 +369,8 @@
                 <div class="field">
                     <label for="our_team_slot">Result Side</label>
                     <select id="our_team_slot" name="our_team_slot">
-                        <option value="team1" selected>{{ participant_one_label }}</option>
-                        <option value="team2">{{ participant_two_label }}</option>
+                        <option value="team1" {% if (scrim.team_slot or 'team1') == 'team1' %}selected{% endif %}>{{ participant_one_label }}</option>
+                        <option value="team2" {% if scrim.team_slot == 'team2' %}selected{% endif %}>{{ participant_two_label }}</option>
                     </select>
                 </div>
 

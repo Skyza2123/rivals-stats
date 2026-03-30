@@ -497,13 +497,32 @@ def normalize_season_value(raw_value: str) -> str:
     return " ".join((raw_value or "").strip().split())
 
 
+def normalize_match_team_slot(raw_value: str) -> str:
+    value = str(raw_value or "").strip()
+    return value if value in TEAM_SLOTS else "team1"
+
+
+def get_scrim_participant_labels(scrim: dict) -> tuple[str, str]:
+    our_label = str(scrim.get("team_name", "")).strip() or "Your Team"
+    enemy_label = str(scrim.get("enemy_team") or scrim.get("opponent") or "").strip() or "Enemy Team"
+    if normalize_match_team_slot(scrim.get("team_slot", "team1")) == "team2":
+        return enemy_label, our_label
+    return our_label, enemy_label
+
+
 def normalize_scrim_record(scrim: dict) -> dict:
     scrim["season"] = normalize_season_value(scrim.get("season", ""))
+    scrim["team_slot"] = normalize_match_team_slot(scrim.get("team_slot", "team1"))
+    if not scrim.get("enemy_team") and scrim.get("opponent"):
+        scrim["enemy_team"] = scrim.get("opponent", "")
+    if not scrim.get("opponent") and scrim.get("enemy_team"):
+        scrim["opponent"] = scrim.get("enemy_team", "")
     return scrim
 
 
 def normalize_tournament_record(match: dict) -> dict:
     match["season"] = normalize_season_value(match.get("season", ""))
+    match["team_slot"] = normalize_match_team_slot(match.get("team_slot", "team1"))
     match.setdefault("notes", "")
     match.setdefault("maps", [])
     match.setdefault("matches", [])
@@ -1335,6 +1354,9 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
             for player_name in (team2 or {}).get("players", [])
         ]
     else:
+        team1_label, team2_label = get_scrim_participant_labels(match_record)
+        map_entry["team1_name"] = team1_label
+        map_entry["team2_name"] = team2_label
         team_id = match_record.get("team_id")
         if team_id:
             player_rows = db.execute(
@@ -5160,6 +5182,7 @@ def create_tournament():
 
     team_id = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
+    team_slot = normalize_match_team_slot(request.form.get("team_slot", "team1"))
     if not team_name:
         flash("Please assign this tournament to one of your teams.", "error")
         return redirect(f"{url_for('tournaments')}#create-tournament")
@@ -5183,6 +5206,7 @@ def create_tournament():
         "season": season,
         "team_id": team_id,
         "team_name": team_name,
+        "team_slot": team_slot,
         "tournament_teams": [],
         "team1_enemy_id": None,
         "team1_name": "",
@@ -5207,6 +5231,7 @@ def create_scrim():
 
     team_id = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
+    team_slot = normalize_match_team_slot(request.form.get("team_slot", "team1"))
     if not team_name:
         flash("Please assign this scrim to your team.", "error")
         return redirect(f"{url_for('scrims')}#create-scrim")
@@ -5230,6 +5255,7 @@ def create_scrim():
         "season": season,
         "team_id": team_id,
         "team_name": team_name,
+        "team_slot": team_slot,
         "notes": notes,
         "maps": [],
     }
@@ -5245,6 +5271,7 @@ def create_scrim():
 def scrim_detail(scrim_id: int):
     scrim = get_scrim_or_404(scrim_id)
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
 
     wins = sum(1 for m in scrim["maps"] if m["result"] == "Win")
     losses = sum(1 for m in scrim["maps"] if m["result"] == "Loss")
@@ -5271,8 +5298,8 @@ def scrim_detail(scrim_id: int):
         add_map_endpoint="add_map",
         map_detail_endpoint="map_detail",
         delete_map_endpoint="delete_map",
-        participant_one_label=scrim.get("team_name") or "Your Team",
-        participant_two_label=scrim.get("enemy_team") or scrim.get("opponent") or "Enemy Team",
+        participant_one_label=participant_one_label,
+        participant_two_label=participant_two_label,
         opponent_field_label="Enemy Team",
         show_team_selector=True,
     )
@@ -5282,9 +5309,10 @@ def scrim_detail(scrim_id: int):
 def tournament_detail(tournament_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    selected_perspective = normalize_match_team_slot(tournament_record.get("team_slot", "team1"))
     match_summaries = build_tournament_match_summaries(tournament_record)
     overview_analytics = build_tournament_overview_analytics(tournament_record)
-    tournament_ban_analytics = build_scrim_analytics(build_tournament_match_scrims(tournament_record))
+    tournament_ban_analytics = build_scrim_analytics(build_tournament_match_scrims(tournament_record, selected_perspective))
     total_maps = sum(summary["maps"] for summary in match_summaries)
     completed_maps = sum(summary["completed_maps"] for summary in match_summaries)
 
@@ -5295,6 +5323,7 @@ def tournament_detail(tournament_id: int):
         match_summaries=match_summaries,
         overview_analytics=overview_analytics,
         tournament_ban_analytics=tournament_ban_analytics,
+        selected_perspective=selected_perspective,
         total_maps=total_maps,
         completed_maps=completed_maps,
     )
@@ -5461,6 +5490,7 @@ def edit_scrim(scrim_id: int):
     scrim = get_scrim_or_404(scrim_id)
     team_id = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
+    team_slot = normalize_match_team_slot(request.form.get("team_slot", scrim.get("team_slot", "team1")))
     if not team_name:
         flash("Please assign this scrim to your team.", "error")
         return redirect(url_for("scrim_detail", scrim_id=scrim_id))
@@ -5477,6 +5507,7 @@ def edit_scrim(scrim_id: int):
     scrim["season"] = season
     scrim["team_id"] = team_id
     scrim["team_name"] = team_name
+    scrim["team_slot"] = team_slot
     scrim["notes"] = request.form.get("notes", scrim["notes"]).strip()
     save_app_state()
     return redirect(url_for("scrim_detail", scrim_id=scrim_id))
@@ -5486,6 +5517,7 @@ def edit_scrim(scrim_id: int):
 def edit_tournament(tournament_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     tournament_name = request.form.get("tournament_name", tournament_match.get("tournament_name", "")).strip()
+    team_slot = normalize_match_team_slot(request.form.get("team_slot", tournament_match.get("team_slot", "team1")))
     if not tournament_name:
         flash("Please enter a tournament name.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
@@ -5498,6 +5530,7 @@ def edit_tournament(tournament_id: int):
     tournament_match["tournament_name"] = tournament_name
     tournament_match["scrim_date"] = request.form.get("scrim_date", tournament_match.get("scrim_date", "")).strip()
     tournament_match["season"] = season
+    tournament_match["team_slot"] = team_slot
     tournament_match["notes"] = request.form.get("notes", tournament_match.get("notes", "")).strip()
     save_app_state()
     return redirect(url_for("tournament_detail", tournament_id=tournament_id))
