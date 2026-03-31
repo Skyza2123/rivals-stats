@@ -4020,6 +4020,7 @@ def dashboard():
 @app.route("/teams")
 def teams():
     db = get_db()
+    migrate_enemy_teams_to_team_database(db)
     team_rows = db.execute(
         """
         SELECT t.id, t.name, t.notes, t.logo_path, t.is_personal, COUNT(p.id) AS player_count
@@ -4929,6 +4930,7 @@ def player_detail(team_id: int, player_id: int):
 @app.route("/players/compare")
 def player_compare():
     db = get_db()
+    migrate_enemy_teams_to_team_database(db)
     player_rows = db.execute(
         """
         SELECT p.id, p.name, p.role, p.main_hero, p.notes, p.team_id, t.name AS team_name
