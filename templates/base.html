@@ -78,8 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
         badge.textContent = info.text;
         wrap.appendChild(badge);
     }
-    document.querySelectorAll('img.hero-inline-thumb, .vbar-hero-image img').forEach(function (img) {
-            document.querySelectorAll('img.hero-inline-thumb, .vbar-hero-image img, .hero-img-wrap img').forEach(function (img) {
+    document.querySelectorAll('img.hero-inline-thumb, .vbar-hero-image img, .hero-img-wrap img').forEach(function (img) {
         var info = POOL_MAP[img.alt];
         if (info) addBadge(img, info);
     });

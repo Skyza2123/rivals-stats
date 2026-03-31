@@ -168,6 +168,8 @@
                             data-result="{{ map_entry.result }}"
                             data-score="{{ map_entry.score }}"
                             data-our-team-slot="{{ map_slot }}"
+                            data-map-team1-id="{{ map_entry.team1_id or participant_one_id }}"
+                            data-map-team1-tournament-team-id="{{ map_entry.team1_tournament_team_id or '' }}"
                             onclick="openEditMapModalFromButton(this)"
                             title="Edit result"
                         >&#9998;</button>
@@ -223,6 +225,25 @@
                         <option value="team2">{{ participant_two_label }}</option>
                     </select>
                 </div>
+                {% if show_team_selector %}
+                <div class="field">
+                    <label for="em_map_team1_team_id">Team On Side 1</label>
+                    <select id="em_map_team1_team_id" name="map_team1_team_id" required>
+                        <option value="{{ participant_one_id }}">{{ participant_one_label }}</option>
+                        <option value="{{ participant_two_id }}">{{ participant_two_label }}</option>
+                    </select>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Side 2 is automatically the other team.</small>
+                </div>
+                {% else %}
+                <div class="field">
+                    <label for="em_map_team1_tournament_team_id">Team On Side 1</label>
+                    <select id="em_map_team1_tournament_team_id" name="map_team1_tournament_team_id" required>
+                        <option value="{{ scrim.team1_tournament_team_id }}">{{ scrim.team1_name }}</option>
+                        <option value="{{ scrim.team2_tournament_team_id }}">{{ scrim.team2_name }}</option>
+                    </select>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Side 2 is automatically the other team.</small>
+                </div>
+                {% endif %}
             </div>
             <div class="modal-actions">
                 <button type="button" class="button-secondary" onclick="closeEditMapModal()">Cancel</button>
@@ -243,18 +264,18 @@
             <div class="form-grid">
                 {% if show_team_selector %}
                 <div class="field">
-                    <label for="edit_team1_id">Team A</label>
+                    <label for="edit_team1_id">This Team</label>
                     <select id="edit_team1_id" name="team1_id" required>
-                        <option value="">Select Team A</option>
+                        <option value="">Select This Team</option>
                         {% for team in teams %}
                             <option value="{{ team.id }}" {% if (scrim.team1_id or scrim.team_id) == team.id %}selected{% endif %}>{{ team.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="field">
-                    <label for="edit_team2_id">Team B</label>
+                    <label for="edit_team2_id">That Team</label>
                     <select id="edit_team2_id" name="team2_id" required>
-                        <option value="">Select Team B</option>
+                        <option value="">Select That Team</option>
                         {% for team in teams %}
                             <option value="{{ team.id }}" {% if (scrim.team2_id or scrim.enemy_team_id) == team.id %}selected{% endif %}>{{ team.name }}</option>
                         {% endfor %}
@@ -584,12 +605,44 @@ function syncEditScrimTeams() {
         option.hidden = option.value !== "" && option.value === team1Select.value;
     });
 }
-function openEditMapModal(mapId, result, score, ourTeamSlot) {
+function syncEditMapSideTeams() {
+    var side1ScrimSelect = document.getElementById("em_map_team1_team_id");
+    var side1TournamentSelect = document.getElementById("em_map_team1_tournament_team_id");
+    var resultSide = document.getElementById("em_our_team_slot");
+    if (!resultSide || resultSide.options.length < 2) return;
+
+    if (side1ScrimSelect) {
+        var side1Text = side1ScrimSelect.options[side1ScrimSelect.selectedIndex] ? side1ScrimSelect.options[side1ScrimSelect.selectedIndex].text : "Team 1";
+        var side2Text = side1ScrimSelect.value === "{{ participant_one_id }}" ? "{{ participant_two_label }}" : "{{ participant_one_label }}";
+        resultSide.options[0].text = side1Text;
+        resultSide.options[1].text = side2Text;
+        return;
+    }
+
+    if (side1TournamentSelect) {
+        var tournamentSide1Text = side1TournamentSelect.options[side1TournamentSelect.selectedIndex] ? side1TournamentSelect.options[side1TournamentSelect.selectedIndex].text : "Team 1";
+        var team1Id = "{{ scrim.team1_tournament_team_id if scrim.team1_tournament_team_id is not none else '' }}";
+        var side2TournamentText = side1TournamentSelect.value === team1Id ? "{{ scrim.team2_name }}" : "{{ scrim.team1_name }}";
+        resultSide.options[0].text = tournamentSide1Text;
+        resultSide.options[1].text = side2TournamentText;
+    }
+}
+
+function openEditMapModal(mapId, result, score, ourTeamSlot, mapTeam1Id, mapTeam1TournamentTeamId) {
     var f = document.getElementById("editMapForm");
     f.action = "{% if show_team_selector %}/scrims/{{ scrim.id }}/maps/{% else %}/tournaments/{{ scrim.id }}/maps/{% endif %}" + mapId + "/update-info";
     document.getElementById("em_result").value = result;
     document.getElementById("em_score").value = score;
     document.getElementById("em_our_team_slot").value = (ourTeamSlot === "team2") ? "team2" : "team1";
+    var side1ScrimSelect = document.getElementById("em_map_team1_team_id");
+    if (side1ScrimSelect && mapTeam1Id) {
+        side1ScrimSelect.value = mapTeam1Id;
+    }
+    var side1TournamentSelect = document.getElementById("em_map_team1_tournament_team_id");
+    if (side1TournamentSelect && mapTeam1TournamentTeamId) {
+        side1TournamentSelect.value = mapTeam1TournamentTeamId;
+    }
+    syncEditMapSideTeams();
     document.getElementById("editMapModal").classList.add("show");
 }
 function openEditMapModalFromButton(button) {
@@ -597,7 +650,9 @@ function openEditMapModalFromButton(button) {
     var result = button.dataset.result || "";
     var score = button.dataset.score || "";
     var ourTeamSlot = button.dataset.ourTeamSlot || "team1";
-    openEditMapModal(mapId, result, score, ourTeamSlot);
+    var mapTeam1Id = button.dataset.mapTeam1Id || "";
+    var mapTeam1TournamentTeamId = button.dataset.mapTeam1TournamentTeamId || "";
+    openEditMapModal(mapId, result, score, ourTeamSlot, mapTeam1Id, mapTeam1TournamentTeamId);
 }
 function closeEditMapModal(e) { if (!e || e.target.id === "editMapModal") document.getElementById("editMapModal").classList.remove("show"); }
 
@@ -615,8 +670,11 @@ document.getElementById("map_team1_select")?.addEventListener("change", syncTour
 document.getElementById("map_team2_select")?.addEventListener("change", syncTournamentMapTeams);
 document.getElementById("edit_team1_id")?.addEventListener("change", syncEditScrimTeams);
 document.getElementById("edit_team2_id")?.addEventListener("change", syncEditScrimTeams);
+document.getElementById("em_map_team1_team_id")?.addEventListener("change", syncEditMapSideTeams);
+document.getElementById("em_map_team1_tournament_team_id")?.addEventListener("change", syncEditMapSideTeams);
 syncTournamentMapTeams();
 syncEditScrimTeams();
+syncEditMapSideTeams();
 
 /* ── Delete confirmations ── */
 function confirmDeleteScrim() {

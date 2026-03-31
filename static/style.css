@@ -743,6 +743,12 @@ th {
     background: rgba(255, 255, 255, 0.04);
 }
 
+.open-comparison-btn,
+.open-comparison-btn:visited,
+.open-comparison-btn:hover {
+    color: #fff;
+}
+
 .btn-secondary {
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -1884,6 +1890,56 @@ th {
     min-height: 56px;
 }
 
+.comp-pick-slot .slot-hero-sub {
+    font-size: 0.62rem;
+    color: #93c5fd;
+    line-height: 1.1;
+    text-align: center;
+}
+
+.comp-assign-hover {
+    position: absolute;
+    z-index: 2000;
+    display: none;
+    width: 220px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(96, 165, 250, 0.45);
+    background: rgba(10, 16, 26, 0.97);
+    box-shadow: 0 10px 26px rgba(2, 6, 23, 0.55);
+    backdrop-filter: blur(2px);
+}
+
+.comp-assign-hover.show {
+    display: block;
+}
+
+.comp-assign-hover-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #cbd5e1;
+}
+
+.comp-assign-hover-select,
+.comp-assign-hover-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #0f1722;
+    color: var(--text);
+    padding: 8px 9px;
+    font-size: 0.82rem;
+}
+
+.comp-assign-hover-input {
+    margin-top: 8px;
+    display: none;
+}
+
 .comp-player-input {
     width: 100%;
     min-width: 0;
@@ -2667,6 +2723,218 @@ th {
     color: var(--muted);
     font-size: 0.82rem;
     white-space: nowrap;
+}
+
+.matrix-table-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 6px;
+}
+
+.player-matrix-table,
+.hero-heatmap-table {
+    min-width: max-content;
+}
+
+.player-matrix-table thead th,
+.hero-heatmap-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.matrix-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: rgba(9, 14, 24, 0.98);
+}
+
+.player-matrix-table thead .matrix-sticky-col,
+.hero-heatmap-table thead .matrix-sticky-col {
+    z-index: 3;
+}
+
+.matrix-player-cell {
+    min-width: 220px;
+}
+
+.matrix-player-cell a,
+.specialist-head a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.matrix-player-cell a:hover,
+.specialist-head a:hover {
+    color: #93c5fd;
+}
+
+.matrix-player-cell small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.matrix-data-cell,
+.hero-heatmap-cell {
+    min-width: 116px;
+    text-align: center;
+    vertical-align: middle;
+    position: relative;
+}
+
+.matrix-data-cell-empty,
+.hero-heatmap-cell-empty {
+    color: rgba(226, 232, 240, 0.45);
+}
+
+.matrix-data-cell-hot {
+    background: rgba(34, 197, 94, 0.12);
+}
+
+.matrix-data-cell-cold {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.matrix-total-cell {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.matrix-cell-stat,
+.hero-heatmap-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.matrix-cell-stat strong,
+.hero-heatmap-stat strong {
+    font-size: 0.9rem;
+}
+
+.matrix-cell-stat span,
+.hero-heatmap-stat span {
+    font-size: 0.73rem;
+    color: var(--muted);
+}
+
+.matrix-cell-stat small,
+.hero-heatmap-stat small {
+    font-size: 0.7rem;
+    color: #cbd5e1;
+}
+
+.matrix-empty-mark {
+    font-size: 0.82rem;
+    color: rgba(226, 232, 240, 0.5);
+}
+
+.specialist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.specialist-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+}
+
+.specialist-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.specialist-head h4 {
+    margin: 0;
+}
+
+.specialist-role {
+    display: inline-block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.specialist-focus {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.specialist-hero-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.specialist-hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.78rem;
+}
+
+.specialist-hero-pill small {
+    color: #93c5fd;
+    font-size: 0.72rem;
+}
+
+.hero-heatmap-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 92px;
+}
+
+.hero-heatmap-head span {
+    font-size: 0.72rem;
+    line-height: 1.15;
+}
+
+.hero-heatmap-cell::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.18), rgba(59, 130, 246, 0.55));
+    opacity: calc(var(--heat-intensity, 0) / 100);
+}
+
+.hero-heatmap-cell-empty::before {
+    opacity: 0;
+}
+
+@media (max-width: 900px) {
+    .matrix-player-cell {
+        min-width: 180px;
+    }
+
+    .matrix-data-cell,
+    .hero-heatmap-cell {
+        min-width: 100px;
+    }
+
+    .specialist-head,
+    .specialist-focus {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 .prep-flow-grid {

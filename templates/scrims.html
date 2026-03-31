@@ -89,7 +89,7 @@
         <form id="createScrimForm" action="{{ url_for('create_scrim') }}" method="post">
             <div class="form-grid">
                 <div class="field">
-                    <label for="create_scrim_team1_id">Team A</label>
+                    <label for="create_scrim_team1_id">This Team</label>
                     <select id="create_scrim_team1_id" name="team1_id" required>
                         <option value="">Select team</option>
                         {% for team in teams %}
@@ -99,7 +99,7 @@
                 </div>
 
                 <div class="field">
-                    <label for="create_scrim_team2_id">Team B</label>
+                    <label for="create_scrim_team2_id">That Team</label>
                     <select id="create_scrim_team2_id" name="team2_id" required>
                         <option value="">Select team</option>
                         {% for team in teams %}
@@ -266,7 +266,7 @@
         }
         if (team1Value === team2Value) {
             event.preventDefault();
-            alert('Team 1 and Team 2 must be different.');
+            alert('This Team and That Team must be different.');
         }
     });
 

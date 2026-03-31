@@ -47,7 +47,9 @@
 <div class="tab-bar">
     <button class="tab-btn tab-active" data-tab="bans" type="button">Bans</button>
     <button class="tab-btn" data-tab="prep" type="button">Prep</button>
+    <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
     <button class="tab-btn" data-tab="comps" type="button">Comps</button>
+    <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
     <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
     <button class="tab-btn" data-tab="tournaments" type="button">Tournaments</button>
     <button class="tab-btn" data-tab="roster" type="button">Roster</button>
@@ -513,444 +515,6 @@
                 </div>
             </div>
 
-            <div class="panel panel-soft-violet top-gap">
-                <div class="section-kicker">Draft Predictor</div>
-                <h3>Draft Simulator Prediction</h3>
-                <p class="panel-intro">Select slots and heroes to simulate the draft. Start simulation to see live likely responses.</p>
-                <form method="get" class="top-gap" id="draft-predict-form-team">
-                    <input type="hidden" name="season" value="{{ selected_season }}">
-                    <div class="field" style="max-width: 260px;">
-                        <label for="sim-side-team">Simulation Side</label>
-                        <select id="sim-side-team" aria-label="Simulation Side">
-                            <option value="team1" selected>I am Team 1</option>
-                            <option value="team2">I am Team 2</option>
-                        </select>
-                    </div>
-                    <div class="draft-grid" id="draft-predictor-team">
-                        <div class="draft-column">
-                            <h4>Team 1</h4>
-                            <div class="draft-slots">
-                                <div class="draft-slot" data-field="t1_ban1">
-                                    <span class="slot-label ban-label">Ban 1</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t1_ban1" value="{{ draft_predictor.inputs.t1_ban1 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t1_ban2">
-                                    <span class="slot-label ban-label">Ban 2</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t1_ban2" value="{{ draft_predictor.inputs.t1_ban2 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t1_protect1">
-                                    <span class="slot-label protect-label">Protect 1</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t1_protect1" value="{{ draft_predictor.inputs.t1_protect1 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t1_ban3">
-                                    <span class="slot-label ban-label">Ban 3</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t1_ban3" value="{{ draft_predictor.inputs.t1_ban3 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t1_protect2">
-                                    <span class="slot-label protect-label">Protect 2</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t1_protect2" value="{{ draft_predictor.inputs.t1_protect2 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t1_ban4">
-                                    <span class="slot-label ban-label">Ban 4</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t1_ban4" value="{{ draft_predictor.inputs.t1_ban4 }}">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="draft-column">
-                            <h4>Team 2</h4>
-                            <div class="draft-slots">
-                                <div class="draft-slot" data-field="t2_ban1">
-                                    <span class="slot-label ban-label">Ban 1</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t2_ban1" value="{{ draft_predictor.inputs.t2_ban1 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t2_protect1">
-                                    <span class="slot-label protect-label">Protect 1</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t2_protect1" value="{{ draft_predictor.inputs.t2_protect1 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t2_ban2">
-                                    <span class="slot-label ban-label">Ban 2</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t2_ban2" value="{{ draft_predictor.inputs.t2_ban2 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t2_ban3">
-                                    <span class="slot-label ban-label">Ban 3</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t2_ban3" value="{{ draft_predictor.inputs.t2_ban3 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t2_ban4">
-                                    <span class="slot-label ban-label">Ban 4</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t2_ban4" value="{{ draft_predictor.inputs.t2_ban4 }}">
-                                </div>
-                                <div class="draft-slot" data-field="t2_protect2">
-                                    <span class="slot-label protect-label">Protect 2</span>
-                                    <span class="slot-hero"></span>
-                                    <input type="hidden" name="t2_protect2" value="{{ draft_predictor.inputs.t2_protect2 }}">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="draft-hint">Click a slot to select it, then click a hero below. Right-click a slot to clear it.</p>
-                    <div class="hero-picker">
-                        {% for role_name, role_heroes in hero_roles.items() %}
-                        <div class="hero-role-section">
-                            <h5 class="role-heading role-{{ role_name|lower }}">{{ role_name }}</h5>
-                            <div class="hero-icon-grid">
-                                {% for hero in role_heroes %}
-                                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-image="{{ hero_image_url(hero) }}" title="{{ hero }}">
-                                    <div class="hero-img-wrap">
-                                        <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy">
-                                    </div>
-                                    <span class="hero-pick-name">{{ hero }}</span>
-                                </button>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="top-gap">
-                        <button type="button" id="begin-sim-team">Begin Simulation</button>
-                        <button type="button" class="button-secondary" id="clear-sim-team">Clear</button>
-                    </div>
-                </form>
-                <div id="simulation-results-team" class="top-gap"></div>
-                <script>
-                (function () {
-                    const board = document.getElementById('draft-predictor-team');
-                    if (!board) return;
-                    const beginButton = document.getElementById('begin-sim-team');
-                    const clearButton = document.getElementById('clear-sim-team');
-                    const simSideSelect = document.getElementById('sim-side-team');
-                    const resultsContainer = document.getElementById('simulation-results-team');
-                    const team1Heading = board.querySelector('.draft-column:nth-child(1) h4');
-                    const team2Heading = board.querySelector('.draft-column:nth-child(2) h4');
-                    const seasonValue = '{{ selected_season }}';
-                    const endpointUrl = '{{ url_for("team_draft_predict", team_id=team.id) }}';
-
-                    const groups = [
-                        ['t1_ban1', 't2_ban1'],
-                        ['t2_protect1'],
-                        ['t1_ban2', 't1_protect1'],
-                        ['t1_ban3', 't2_ban2'],
-                        ['t1_protect2'],
-                        ['t2_ban3', 't2_ban4', 't2_protect2'],
-                        ['t1_ban4'],
-                    ];
-
-                    let activeField = null;
-                    let simulationStarted = false;
-                    let simulationSide = (simSideSelect && simSideSelect.value) ? simSideSelect.value : 'team1';
-                    const slots = Array.from(board.querySelectorAll('.draft-slot'));
-                    const heroButtons = Array.from(document.querySelectorAll('#draft-predict-form-team .hero-pick-btn'));
-                    const heroImageMap = {};
-                    heroButtons.forEach(btn => {
-                        heroImageMap[btn.dataset.hero] = btn.dataset.image;
-                    });
-
-                    function getSlot(fieldKey) {
-                        return board.querySelector('.draft-slot[data-field="' + fieldKey + '"]');
-                    }
-
-                    function getFieldTeam(fieldKey) {
-                        return fieldKey.startsWith('t1_') ? 'team1' : 'team2';
-                    }
-
-                    function getOpponentSide() {
-                        return simulationSide === 'team1' ? 'team2' : 'team1';
-                    }
-
-                    function getTeamDisplayName(teamKey) {
-                        return teamKey === simulationSide ? 'You' : 'Enemy';
-                    }
-
-                    function mapTeamLabel(label) {
-                        const normalized = String(label || '').trim().toLowerCase();
-                        if (normalized.includes('team 1') || normalized === 'team1') {
-                            return getTeamDisplayName('team1');
-                        }
-                        if (normalized.includes('team 2') || normalized === 'team2') {
-                            return getTeamDisplayName('team2');
-                        }
-                        return label || '';
-                    }
-
-                    function updateDraftHeadings() {
-                        if (team1Heading) {
-                            team1Heading.textContent = getTeamDisplayName('team1');
-                        }
-                        if (team2Heading) {
-                            team2Heading.textContent = getTeamDisplayName('team2');
-                        }
-                    }
-
-                    function collectInputs() {
-                        const payload = {};
-                        slots.forEach(slot => {
-                            const input = slot.querySelector('input[type="hidden"]');
-                            payload[slot.dataset.field] = (input.value || '').trim();
-                        });
-                        return payload;
-                    }
-
-                    function renderSuggestionTable(target, matchingMaps) {
-                        const rows = target.options.map(option => {
-                            return '<tr>'
-                                + '<td><span class="hero-inline-cell"><img src="' + (heroImageMap[option.hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(option.hero))) + '" alt="' + option.hero + '" class="hero-inline-thumb"><span>' + option.hero + '</span></span></td>'
-                                + '<td>' + option.rate + '% (' + option.count + '/' + matchingMaps + ')</td>'
-                                + '</tr>';
-                        }).join('');
-                        return '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Likely Next Hero</th><th>Likelihood</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-                    }
-
-                    function renderLikelyCompSection(data) {
-                        if (!Array.isArray(data.likely_comps) || !data.likely_comps.length) {
-                            return '';
-                        }
-
-                        const compRows = data.likely_comps.map(comp => {
-                            const heroes = Array.isArray(comp.heroes) ? comp.heroes : [];
-                            const heroLine = heroes.map(hero => {
-                                const img = heroImageMap[hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero));
-                                return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + hero + '" class="hero-inline-thumb"><span>' + hero + '</span></span>';
-                            }).join(' ');
-                            return '<tr>'
-                                + '<td>' + mapTeamLabel(comp.team_label) + '</td>'
-                                + '<td>' + (heroLine || '--') + '</td>'
-                                + '<td>' + comp.rate + '% (' + comp.count + '/' + data.matching_maps + ')</td>'
-                                + '</tr>';
-                        }).join('');
-
-                        return '<h4 class="top-gap">Most Likely Comp To Be Played</h4>'
-                            + '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Side</th><th>Likely Comp</th><th>Likelihood</th></tr></thead><tbody>'
-                            + compRows
-                            + '</tbody></table></div>';
-                    }
-
-                    function renderSimulationResults(data) {
-                        if (!resultsContainer) return;
-                        if (data.status === 'complete') {
-                            resultsContainer.innerHTML = '<p class="empty-text">All draft slots are filled. Clear one slot to continue simulation.</p>';
-                            return;
-                        }
-                        if (!data.matching_maps) {
-                            resultsContainer.innerHTML = '<p class="empty-text">No matching drafts for this simulation state yet.</p>';
-                            return;
-                        }
-
-                        let html = '<p class="panel-intro">Matched maps: <strong>' + data.matching_maps + '</strong>.</p><h4 class="top-gap">Upcoming Picks</h4>';
-                        if (Array.isArray(data.targets) && data.targets.length) {
-                            data.targets.forEach(target => {
-                                html += '<p class="panel-intro top-gap"><strong>' + mapTeamLabel(target.team_label) + ' ' + target.slot_label + '</strong></p>';
-                                if (target.options && target.options.length) {
-                                    html += renderSuggestionTable(target, data.matching_maps);
-                                } else {
-                                    html += '<p class="empty-text top-gap">Matched maps exist, but this slot was blank in those drafts.</p>';
-                                }
-                            });
-                        }
-                        html += renderLikelyCompSection(data);
-                        resultsContainer.innerHTML = html;
-                    }
-
-                    async function fetchSimulationPrediction(triggerField) {
-                        const query = new URLSearchParams();
-                        if (seasonValue && seasonValue !== 'all') {
-                            query.set('season', seasonValue);
-                        }
-                        const payload = collectInputs();
-                        Object.entries(payload).forEach(([key, value]) => query.set(key, value));
-
-                        const response = await fetch(endpointUrl + '?' + query.toString(), {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' },
-                        });
-                        if (!response.ok) {
-                            return;
-                        }
-                        const data = await response.json();
-                        renderSimulationResults(data);
-
-                        if (!triggerField || !Array.isArray(data.targets)) {
-                            return;
-                        }
-
-                        const autoTarget = data.targets.find(target => {
-                            if (!target || !target.field_key || !target.options || !target.options.length) {
-                                return false;
-                            }
-                            if (getFieldTeam(target.field_key) !== getOpponentSide()) {
-                                return false;
-                            }
-                            const slot = getSlot(target.field_key);
-                            if (!slot) {
-                                return false;
-                            }
-                            const input = slot.querySelector('input[type="hidden"]');
-                            return !(input.value || '').trim();
-                        });
-
-                        if (autoTarget) {
-                            setSlotValue(autoTarget.field_key, autoTarget.options[0].hero);
-                            setPreferredActiveTarget();
-                            await fetchSimulationPrediction(null);
-                        }
-                    }
-
-                    function renderSlot(slot) {
-                        const input = slot.querySelector('input[type="hidden"]');
-                        const heroName = (input.value || '').trim();
-                        const existing = slot.querySelector('.slot-img-wrap');
-                        if (existing) existing.remove();
-                        slot.classList.remove('slot-filled');
-                        if (!heroName) return;
-
-                        const imgWrap = document.createElement('span');
-                        imgWrap.className = 'slot-img-wrap';
-                        const img = document.createElement('img');
-                        img.className = 'slot-img';
-                        img.alt = heroName;
-                        img.src = heroImageMap[heroName] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName));
-                        img.onerror = function () {
-                            this.src = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName);
-                        };
-                        imgWrap.appendChild(img);
-                        slot.appendChild(imgWrap);
-                        slot.classList.add('slot-filled');
-                    }
-
-                    function refreshAllSlots() {
-                        slots.forEach(renderSlot);
-                    }
-
-                    function setActive(fieldKey) {
-                        activeField = fieldKey;
-                        slots.forEach(slot => {
-                            slot.classList.toggle('slot-active', slot.dataset.field === fieldKey);
-                        });
-                    }
-
-                    function getNextTargets() {
-                        for (const group of groups) {
-                            const missing = group.filter(field => {
-                                const slot = getSlot(field);
-                                if (!slot) return false;
-                                const input = slot.querySelector('input[type="hidden"]');
-                                return !(input.value || '').trim();
-                            });
-                            if (missing.length) return missing;
-                        }
-                        return [];
-                    }
-
-                    function setPreferredActiveTarget() {
-                        const targets = getNextTargets();
-                        if (!targets.length) {
-                            setActive(null);
-                            return;
-                        }
-                        const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
-                        setActive(preferred || targets[0]);
-                    }
-
-                    function setSlotValue(fieldKey, heroName) {
-                        const slot = getSlot(fieldKey);
-                        if (!slot) return;
-                        const input = slot.querySelector('input[type="hidden"]');
-                        input.value = heroName;
-                        renderSlot(slot);
-                    }
-
-                    function clearSlot(slot) {
-                        const input = slot.querySelector('input[type="hidden"]');
-                        input.value = '';
-                        renderSlot(slot);
-                        setPreferredActiveTarget();
-                        if (simulationStarted) {
-                            fetchSimulationPrediction(null);
-                        }
-                    }
-
-                    slots.forEach(slot => {
-                        slot.addEventListener('click', function () {
-                            setActive(slot.dataset.field);
-                        });
-                        slot.addEventListener('contextmenu', function (event) {
-                            event.preventDefault();
-                            clearSlot(slot);
-                        });
-                    });
-
-                    heroButtons.forEach(btn => {
-                        btn.addEventListener('click', function () {
-                            const hero = btn.dataset.hero;
-                            const targets = getNextTargets();
-                            const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
-                            const targetField = (activeField && targets.includes(activeField) && getFieldTeam(activeField) === simulationSide)
-                                ? activeField
-                                : (preferred || targets[0]);
-                            if (!targetField) return;
-                            setSlotValue(targetField, hero);
-                            setPreferredActiveTarget();
-                            if (simulationStarted) {
-                                fetchSimulationPrediction(targetField);
-                            }
-                        });
-                    });
-
-                    if (beginButton) {
-                        beginButton.addEventListener('click', function () {
-                            simulationStarted = true;
-                            beginButton.textContent = 'Simulation Running';
-                            beginButton.disabled = true;
-                            fetchSimulationPrediction(null);
-                        });
-                    }
-
-                    if (clearButton) {
-                        clearButton.addEventListener('click', function () {
-                            slots.forEach(slot => {
-                                const input = slot.querySelector('input[type="hidden"]');
-                                input.value = '';
-                                renderSlot(slot);
-                            });
-                            simulationStarted = false;
-                            if (beginButton) {
-                                beginButton.textContent = 'Begin Simulation';
-                                beginButton.disabled = false;
-                            }
-                            if (resultsContainer) {
-                                resultsContainer.innerHTML = '';
-                            }
-                            setPreferredActiveTarget();
-                        });
-                    }
-
-                    if (simSideSelect) {
-                        simSideSelect.addEventListener('change', function () {
-                            simulationSide = simSideSelect.value || 'team1';
-                            updateDraftHeadings();
-                            setPreferredActiveTarget();
-                            if (simulationStarted) {
-                                fetchSimulationPrediction(null);
-                            }
-                        });
-                    }
-
-                    refreshAllSlots();
-                    updateDraftHeadings();
-                    setPreferredActiveTarget();
-                })();
-                </script>
-            </div>
-
             <div class="form-grid top-gap">
                 <div class="panel panel-soft-red">
                     <div class="section-kicker">Ban Phase</div>
@@ -1232,7 +796,577 @@
     </div>
 </div>
 
+<div class="tab-content tab-hidden" id="tab-simulator">
+    <section class="panel panel-soft-violet">
+        <div class="section-kicker">Draft Predictor</div>
+        <h3>Draft Simulator Prediction</h3>
+        <p class="panel-intro">Select slots and heroes to simulate the draft. Start simulation to see live likely responses.</p>
+        <form method="get" class="top-gap" id="draft-predict-form-team">
+            <input type="hidden" name="season" value="{{ selected_season }}">
+            <div class="field" style="max-width: 260px;">
+                <label for="sim-side-team">Simulation Side</label>
+                <select id="sim-side-team" aria-label="Simulation Side">
+                    <option value="team1" selected>I am Team 1</option>
+                    <option value="team2">I am Team 2</option>
+                </select>
+            </div>
+            <div class="draft-grid" id="draft-predictor-team">
+                <div class="draft-column">
+                    <h4>Team 1</h4>
+                    <div class="draft-slots">
+                        <div class="draft-slot" data-field="t1_ban1">
+                            <span class="slot-label ban-label">Ban 1</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t1_ban1" value="{{ draft_predictor.inputs.t1_ban1 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t1_ban2">
+                            <span class="slot-label ban-label">Ban 2</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t1_ban2" value="{{ draft_predictor.inputs.t1_ban2 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t1_protect1">
+                            <span class="slot-label protect-label">Protect 1</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t1_protect1" value="{{ draft_predictor.inputs.t1_protect1 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t1_ban3">
+                            <span class="slot-label ban-label">Ban 3</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t1_ban3" value="{{ draft_predictor.inputs.t1_ban3 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t1_protect2">
+                            <span class="slot-label protect-label">Protect 2</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t1_protect2" value="{{ draft_predictor.inputs.t1_protect2 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t1_ban4">
+                            <span class="slot-label ban-label">Ban 4</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t1_ban4" value="{{ draft_predictor.inputs.t1_ban4 }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="draft-column">
+                    <h4>Team 2</h4>
+                    <div class="draft-slots">
+                        <div class="draft-slot" data-field="t2_ban1">
+                            <span class="slot-label ban-label">Ban 1</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t2_ban1" value="{{ draft_predictor.inputs.t2_ban1 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t2_protect1">
+                            <span class="slot-label protect-label">Protect 1</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t2_protect1" value="{{ draft_predictor.inputs.t2_protect1 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t2_ban2">
+                            <span class="slot-label ban-label">Ban 2</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t2_ban2" value="{{ draft_predictor.inputs.t2_ban2 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t2_ban3">
+                            <span class="slot-label ban-label">Ban 3</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t2_ban3" value="{{ draft_predictor.inputs.t2_ban3 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t2_ban4">
+                            <span class="slot-label ban-label">Ban 4</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t2_ban4" value="{{ draft_predictor.inputs.t2_ban4 }}">
+                        </div>
+                        <div class="draft-slot" data-field="t2_protect2">
+                            <span class="slot-label protect-label">Protect 2</span>
+                            <span class="slot-hero"></span>
+                            <input type="hidden" name="t2_protect2" value="{{ draft_predictor.inputs.t2_protect2 }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="draft-hint">Click a slot to select it, then click a hero below. Right-click a slot to clear it.</p>
+            <div class="hero-picker">
+                {% for role_name, role_heroes in hero_roles.items() %}
+                <div class="hero-role-section">
+                    <h5 class="role-heading role-{{ role_name|lower }}">{{ role_name }}</h5>
+                    <div class="hero-icon-grid">
+                        {% for hero in role_heroes %}
+                        <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-image="{{ hero_image_url(hero) }}" title="{{ hero_display_name(hero) }}">
+                            <div class="hero-img-wrap">
+                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy">
+                            </div>
+                            <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="top-gap">
+                <button type="button" id="begin-sim-team">Begin Simulation</button>
+                <button type="button" class="button-secondary" id="clear-sim-team">Clear</button>
+            </div>
+        </form>
+        <div id="simulation-results-team" class="top-gap"></div>
+        <script>
+        (function () {
+            const board = document.getElementById('draft-predictor-team');
+            if (!board) return;
+            const beginButton = document.getElementById('begin-sim-team');
+            const clearButton = document.getElementById('clear-sim-team');
+            const simSideSelect = document.getElementById('sim-side-team');
+            const resultsContainer = document.getElementById('simulation-results-team');
+            const team1Heading = board.querySelector('.draft-column:nth-child(1) h4');
+            const team2Heading = board.querySelector('.draft-column:nth-child(2) h4');
+            const seasonValue = '{{ selected_season }}';
+            const endpointUrl = '{{ url_for("team_draft_predict", team_id=team.id) }}';
+
+            const groups = [
+                ['t1_ban1', 't2_ban1'],
+                ['t2_protect1'],
+                ['t1_ban2', 't1_protect1'],
+                ['t1_ban3', 't2_ban2'],
+                ['t1_protect2'],
+                ['t2_ban3', 't2_ban4', 't2_protect2'],
+                ['t1_ban4'],
+            ];
+
+            let activeField = null;
+            let simulationStarted = false;
+            let simulationSide = (simSideSelect && simSideSelect.value) ? simSideSelect.value : 'team1';
+            const slots = Array.from(board.querySelectorAll('.draft-slot'));
+            const heroButtons = Array.from(document.querySelectorAll('#draft-predict-form-team .hero-pick-btn'));
+            const heroImageMap = {};
+            heroButtons.forEach(btn => {
+                heroImageMap[btn.dataset.hero] = btn.dataset.image;
+            });
+
+            function getSlot(fieldKey) {
+                return board.querySelector('.draft-slot[data-field="' + fieldKey + '"]');
+            }
+
+            function getFieldTeam(fieldKey) {
+                return fieldKey.startsWith('t1_') ? 'team1' : 'team2';
+            }
+
+            function getOpponentSide() {
+                return simulationSide === 'team1' ? 'team2' : 'team1';
+            }
+
+            function getTeamDisplayName(teamKey) {
+                return teamKey === simulationSide ? 'You' : 'Enemy';
+            }
+
+            function mapTeamLabel(label) {
+                const normalized = String(label || '').trim().toLowerCase();
+                if (normalized.includes('team 1') || normalized === 'team1') {
+                    return getTeamDisplayName('team1');
+                }
+                if (normalized.includes('team 2') || normalized === 'team2') {
+                    return getTeamDisplayName('team2');
+                }
+                return label || '';
+            }
+
+            function updateDraftHeadings() {
+                if (team1Heading) {
+                    team1Heading.textContent = getTeamDisplayName('team1');
+                }
+                if (team2Heading) {
+                    team2Heading.textContent = getTeamDisplayName('team2');
+                }
+            }
+
+            function collectInputs() {
+                const payload = {};
+                slots.forEach(slot => {
+                    const input = slot.querySelector('input[type="hidden"]');
+                    payload[slot.dataset.field] = (input.value || '').trim();
+                });
+                return payload;
+            }
+
+            function renderSuggestionTable(target, matchingMaps) {
+                const rows = target.options.map(option => {
+                    return '<tr>'
+                        + '<td><span class="hero-inline-cell"><img src="' + (heroImageMap[option.hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(option.hero))) + '" alt="' + option.hero + '" class="hero-inline-thumb"><span>' + option.hero + '</span></span></td>'
+                        + '<td>' + option.rate + '% (' + option.count + '/' + matchingMaps + ')</td>'
+                        + '</tr>';
+                }).join('');
+                return '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Likely Next Hero</th><th>Likelihood</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+            }
+
+            function renderLikelyCompSection(data) {
+                if (!Array.isArray(data.likely_comps) || !data.likely_comps.length) {
+                    return '';
+                }
+
+                const compRows = data.likely_comps.map(comp => {
+                    const heroes = Array.isArray(comp.heroes) ? comp.heroes : [];
+                    const heroLine = heroes.map(hero => {
+                        const img = heroImageMap[hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero));
+                        return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + hero + '" class="hero-inline-thumb"><span>' + hero + '</span></span>';
+                    }).join(' ');
+                    return '<tr>'
+                        + '<td>' + mapTeamLabel(comp.team_label) + '</td>'
+                        + '<td>' + (heroLine || '--') + '</td>'
+                        + '<td>' + comp.rate + '% (' + comp.count + '/' + data.matching_maps + ')</td>'
+                        + '</tr>';
+                }).join('');
+
+                return '<h4 class="top-gap">Most Likely Comp To Be Played</h4>'
+                    + '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Side</th><th>Likely Comp</th><th>Likelihood</th></tr></thead><tbody>'
+                    + compRows
+                    + '</tbody></table></div>';
+            }
+
+            function renderSimulationResults(data) {
+                if (!resultsContainer) return;
+                if (data.status === 'complete') {
+                    resultsContainer.innerHTML = '<p class="empty-text">All draft slots are filled. Clear one slot to continue simulation.</p>';
+                    return;
+                }
+                if (!data.matching_maps) {
+                    resultsContainer.innerHTML = '<p class="empty-text">No matching drafts for this simulation state yet.</p>';
+                    return;
+                }
+
+                let html = '<p class="panel-intro">Matched maps: <strong>' + data.matching_maps + '</strong>.</p><h4 class="top-gap">Upcoming Picks</h4>';
+                if (Array.isArray(data.targets) && data.targets.length) {
+                    data.targets.forEach(target => {
+                        html += '<p class="panel-intro top-gap"><strong>' + mapTeamLabel(target.team_label) + ' ' + target.slot_label + '</strong></p>';
+                        if (target.options && target.options.length) {
+                            html += renderSuggestionTable(target, data.matching_maps);
+                        } else {
+                            html += '<p class="empty-text top-gap">Matched maps exist, but this slot was blank in those drafts.</p>';
+                        }
+                    });
+                }
+                html += renderLikelyCompSection(data);
+                resultsContainer.innerHTML = html;
+            }
+
+            async function fetchSimulationPrediction(triggerField) {
+                const query = new URLSearchParams();
+                if (seasonValue && seasonValue !== 'all') {
+                    query.set('season', seasonValue);
+                }
+                const payload = collectInputs();
+                Object.entries(payload).forEach(([key, value]) => query.set(key, value));
+
+                const response = await fetch(endpointUrl + '?' + query.toString(), {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                });
+                if (!response.ok) {
+                    return;
+                }
+                const data = await response.json();
+                renderSimulationResults(data);
+
+                if (!triggerField || !Array.isArray(data.targets)) {
+                    return;
+                }
+
+                const autoTarget = data.targets.find(target => {
+                    if (!target || !target.field_key || !target.options || !target.options.length) {
+                        return false;
+                    }
+                    if (getFieldTeam(target.field_key) !== getOpponentSide()) {
+                        return false;
+                    }
+                    const slot = getSlot(target.field_key);
+                    if (!slot) {
+                        return false;
+                    }
+                    const input = slot.querySelector('input[type="hidden"]');
+                    return !(input.value || '').trim();
+                });
+
+                if (autoTarget) {
+                    setSlotValue(autoTarget.field_key, autoTarget.options[0].hero);
+                    setPreferredActiveTarget();
+                    await fetchSimulationPrediction(null);
+                }
+            }
+
+            function renderSlot(slot) {
+                const input = slot.querySelector('input[type="hidden"]');
+                const heroName = (input.value || '').trim();
+                const existing = slot.querySelector('.slot-img-wrap');
+                if (existing) existing.remove();
+                slot.classList.remove('slot-filled');
+                if (!heroName) return;
+
+                const imgWrap = document.createElement('span');
+                imgWrap.className = 'slot-img-wrap';
+                const img = document.createElement('img');
+                img.className = 'slot-img';
+                img.alt = heroName;
+                img.src = heroImageMap[heroName] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName));
+                img.onerror = function () {
+                    this.src = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName);
+                };
+                imgWrap.appendChild(img);
+                slot.appendChild(imgWrap);
+                slot.classList.add('slot-filled');
+            }
+
+            function refreshAllSlots() {
+                slots.forEach(renderSlot);
+            }
+
+            function setActive(fieldKey) {
+                activeField = fieldKey;
+                slots.forEach(slot => {
+                    slot.classList.toggle('slot-active', slot.dataset.field === fieldKey);
+                });
+            }
+
+            function getNextTargets() {
+                for (const group of groups) {
+                    const missing = group.filter(field => {
+                        const slot = getSlot(field);
+                        if (!slot) return false;
+                        const input = slot.querySelector('input[type="hidden"]');
+                        return !(input.value || '').trim();
+                    });
+                    if (missing.length) return missing;
+                }
+                return [];
+            }
+
+            function setPreferredActiveTarget() {
+                const targets = getNextTargets();
+                if (!targets.length) {
+                    setActive(null);
+                    return;
+                }
+                const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
+                setActive(preferred || targets[0]);
+            }
+
+            function setSlotValue(fieldKey, heroName) {
+                const slot = getSlot(fieldKey);
+                if (!slot) return;
+                const input = slot.querySelector('input[type="hidden"]');
+                input.value = heroName;
+                renderSlot(slot);
+            }
+
+            function clearSlot(slot) {
+                const input = slot.querySelector('input[type="hidden"]');
+                input.value = '';
+                renderSlot(slot);
+                setPreferredActiveTarget();
+                if (simulationStarted) {
+                    fetchSimulationPrediction(null);
+                }
+            }
+
+            slots.forEach(slot => {
+                slot.addEventListener('click', function () {
+                    setActive(slot.dataset.field);
+                });
+                slot.addEventListener('contextmenu', function (event) {
+                    event.preventDefault();
+                    clearSlot(slot);
+                });
+            });
+
+            heroButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const hero = btn.dataset.hero;
+                    const targets = getNextTargets();
+                    const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
+                    const targetField = (activeField && targets.includes(activeField) && getFieldTeam(activeField) === simulationSide)
+                        ? activeField
+                        : (preferred || targets[0]);
+                    if (!targetField) return;
+                    setSlotValue(targetField, hero);
+                    setPreferredActiveTarget();
+                    if (simulationStarted) {
+                        fetchSimulationPrediction(targetField);
+                    }
+                });
+            });
+
+            if (beginButton) {
+                beginButton.addEventListener('click', function () {
+                    simulationStarted = true;
+                    beginButton.textContent = 'Simulation Running';
+                    beginButton.disabled = true;
+                    fetchSimulationPrediction(null);
+                });
+            }
+
+            if (clearButton) {
+                clearButton.addEventListener('click', function () {
+                    slots.forEach(slot => {
+                        const input = slot.querySelector('input[type="hidden"]');
+                        input.value = '';
+                        renderSlot(slot);
+                    });
+                    simulationStarted = false;
+                    if (beginButton) {
+                        beginButton.textContent = 'Begin Simulation';
+                        beginButton.disabled = false;
+                    }
+                    if (resultsContainer) {
+                        resultsContainer.innerHTML = '';
+                    }
+                    setPreferredActiveTarget();
+                });
+            }
+
+            if (simSideSelect) {
+                simSideSelect.addEventListener('change', function () {
+                    simulationSide = simSideSelect.value || 'team1';
+                    updateDraftHeadings();
+                    setPreferredActiveTarget();
+                    if (simulationStarted) {
+                        fetchSimulationPrediction(null);
+                    }
+                });
+            }
+
+            refreshAllSlots();
+            updateDraftHeadings();
+            setPreferredActiveTarget();
+        })();
+        </script>
+    </section>
+</div>
+
 <div class="tab-content tab-hidden" id="tab-comps">
+    <section class="panel panel-soft-violet">
+        <div class="section-kicker">Player Matrix</div>
+        <h3>Player Map Performance Matrix</h3>
+        <p class="panel-intro">Each cell shows wins-losses, maps played, and win rate for that player on that map. Scroll horizontally if needed.</p>
+        {% if player_map_matrix_columns and player_map_matrix_rows %}
+            <div class="table-wrap matrix-table-wrap top-gap">
+                <table class="stats-table stats-table-compare player-matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="matrix-sticky-col">Player</th>
+                            {% for map_name in player_map_matrix_columns %}
+                                <th>{{ map_name }}</th>
+                            {% endfor %}
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in player_map_matrix_rows %}
+                            <tr>
+                                <td class="matrix-sticky-col matrix-player-cell">
+                                    <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">
+                                        {{ row.player_name }}{% if row.role %} ({{ row.role }}){% endif %}
+                                    </a>
+                                </td>
+                                {% for cell in row.cells %}
+                                    <td class="matrix-data-cell{% if not cell %} matrix-data-cell-empty{% elif cell.win_rate >= 60 %} matrix-data-cell-hot{% elif cell.win_rate < 40 %} matrix-data-cell-cold{% endif %}">
+                                        {% if cell %}
+                                            <div class="matrix-cell-stat">
+                                                <strong>{{ cell.wins }}-{{ cell.losses }}</strong>
+                                                <span>{{ cell.maps }} map{% if cell.maps != 1 %}s{% endif %}</span>
+                                                <small>WR {{ cell.win_rate }}%</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="matrix-empty-mark">--</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="matrix-data-cell matrix-total-cell{% if row.summary.win_rate >= 60 %} matrix-data-cell-hot{% elif row.summary.maps and row.summary.win_rate < 40 %} matrix-data-cell-cold{% endif %}">
+                                    <div class="matrix-cell-stat">
+                                        <strong>{{ row.summary.wins }}-{{ row.summary.losses }}</strong>
+                                        <span>{{ row.summary.maps }} map{% if row.summary.maps != 1 %}s{% endif %}</span>
+                                        <small>WR {{ row.summary.win_rate }}%</small>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No player map performance data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel panel-soft-blue">
+        <div class="section-kicker">Matchup Summary</div>
+        <h3>Comp Matchups</h3>
+        <p class="panel-intro">All map-level matchup results with our lineup and enemy lineup sorted by Tanks, DPS, then Supports.</p>
+
+        <div class="summary-grid top-gap">
+            <section class="stat-card"><strong>Maps</strong><span>{{ matchup_summary.total_maps }}</span></section>
+            <section class="stat-card"><strong>Wins</strong><span>{{ matchup_summary.wins }}</span></section>
+            <section class="stat-card"><strong>Losses</strong><span>{{ matchup_summary.losses }}</span></section>
+            <section class="stat-card"><strong>Win Rate</strong><span>{{ matchup_summary.win_rate }}%</span></section>
+            <section class="stat-card"><strong>Opponents</strong><span>{{ matchup_summary.unique_opponents }}</span></section>
+            <section class="stat-card"><strong>Maps Pool</strong><span>{{ matchup_summary.unique_maps }}</span></section>
+        </div>
+
+        {% if matchup_rows %}
+            <div class="table-wrap top-gap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Scrim</th>
+                            <th>Map</th>
+                            <th>Result</th>
+                            <th>Our Heroes</th>
+                            <th>Enemy Heroes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in matchup_rows %}
+                            <tr>
+                                <td>{{ row.scrim_date or '--' }}</td>
+                                <td>{{ row.opponent_name }}</td>
+                                <td>{{ row.map_name }}</td>
+                                <td>
+                                    {% if row.result == 'Win' %}
+                                        <span class="compare-tag compare-tag-positive">Win</span>
+                                    {% elif row.result == 'Loss' %}
+                                        <span class="compare-tag compare-tag-negative">Loss</span>
+                                    {% else %}
+                                        <span class="compare-tag compare-tag-neutral">{{ row.result or '--' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.our_heroes %}
+                                        {% for hero_name in row.our_heroes %}
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
+                                                <span>{{ hero_display_name(hero_name) }}</span>
+                                            </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="empty-text">No lineup data</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.enemy_heroes %}
+                                        {% for hero_name in row.enemy_heroes %}
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
+                                                <span>{{ hero_display_name(hero_name) }}</span>
+                                            </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="empty-text">No lineup data</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text top-gap">No matchup map results available yet.</p>
+        {% endif %}
+    </section>
+
     <section class="panel">
         <div class="section-kicker">Mirror Rates</div>
         <h3>Mirror Drafts and Comps</h3>
@@ -1329,8 +1463,116 @@
         </p>
     </section>
 
-    <section class="panel">
-        <h3>Hero Usage Graph</h3>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-heroes">
+    <section class="panel panel-soft-gold">
+        <div class="section-kicker">Hero Profile</div>
+        <h3>{{ team.name }} Hero Identity</h3>
+        <p class="panel-intro">Effective Pool counts heroes played on at least {{ team_hero_profile.summary.effective_pool_threshold }} map{% if team_hero_profile.summary.effective_pool_threshold != 1 %}s{% endif %}. Diversity Score is a 0-100 spread score based on how evenly the team distributes hero usage.</p>
+        <div class="summary-grid top-gap">
+            <section class="stat-card"><strong>Total Heroes</strong><span>{{ team_hero_profile.summary.total_heroes }}</span></section>
+            <section class="stat-card"><strong>Effective Pool</strong><span>{{ team_hero_profile.summary.effective_pool }}</span></section>
+            <section class="stat-card"><strong>Diversity Score</strong><span>{{ team_hero_profile.summary.diversity_score }}</span></section>
+            <section class="stat-card"><strong>Specialists</strong><span>{{ team_hero_profile.summary.specialist_count }}</span></section>
+            <section class="stat-card"><strong>Tracked Maps</strong><span>{{ team_hero_profile.summary.tracked_maps }}</span></section>
+            <section class="stat-card"><strong>Most Played</strong><span>{% if team_hero_profile.top_heroes %}{{ hero_display_name(team_hero_profile.top_heroes[0].hero) }}{% else %}--{% endif %}</span></section>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Specialists</div>
+        <h3>Specialists</h3>
+        <p class="panel-intro">Players are flagged here when one hero or hero pair dominates their recorded map usage.</p>
+        {% if team_hero_profile.specialists %}
+            <div class="specialist-grid top-gap">
+                {% for row in team_hero_profile.specialists %}
+                    <article class="specialist-card">
+                        <div class="specialist-head">
+                            <div>
+                                <h4>{% if row.player_id %}<a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">{{ row.player_name }}</a>{% else %}{{ row.player_name }}{% endif %}</h4>
+                                {% if row.role %}<span class="specialist-role">{{ row.role }}</span>{% endif %}
+                            </div>
+                            <span class="compare-tag compare-tag-neutral">{{ row.maps }} maps</span>
+                        </div>
+                        <div class="specialist-focus top-gap">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.focus_hero) }}" alt="{{ row.focus_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.focus_hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.focus_hero) }}</span>
+                            </span>
+                            <span class="compare-tag compare-tag-positive">{{ row.focus_rate }}%</span>
+                        </div>
+                        <p class="panel-intro top-gap">Top two heroes cover {{ row.top_two_rate }}% of recorded maps. {{ row.unique_heroes }} unique heroes tracked.</p>
+                        <div class="specialist-hero-list">
+                            {% for hero_row in row.hero_rows %}
+                                <span class="specialist-hero-pill">
+                                    <img src="{{ hero_image_url(hero_row.hero) }}" alt="{{ hero_row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(hero_row.hero) }}</span>
+                                    <small>{{ hero_row.rate }}%</small>
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No strong specialist patterns yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Heatmap</div>
+        <h3>Hero Pickrate Heatmap</h3>
+        <p class="panel-intro">Rows are players. Columns are the 15 most-played heroes across the team. Each cell shows how often that player appeared on the hero across their recorded maps.</p>
+        {% if team_hero_profile.heatmap_columns and team_hero_profile.heatmap_rows %}
+            <div class="table-wrap matrix-table-wrap top-gap">
+                <table class="stats-table stats-table-compare hero-heatmap-table">
+                    <thead>
+                        <tr>
+                            <th class="matrix-sticky-col">Player</th>
+                            {% for hero_name in team_hero_profile.heatmap_columns %}
+                                <th>
+                                    <span class="hero-heatmap-head">
+                                        <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
+                                        <span>{{ hero_display_name(hero_name) }}</span>
+                                    </span>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in team_hero_profile.heatmap_rows %}
+                            <tr>
+                                <td class="matrix-sticky-col matrix-player-cell">
+                                    {% if row.player_id %}<a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">{{ row.player_name }}</a>{% else %}{{ row.player_name }}{% endif %}
+                                    {% if row.role %}<small>{{ row.role }}</small>{% endif %}
+                                </td>
+                                {% for cell in row.cells %}
+                                    <td class="hero-heatmap-cell{% if not cell.count %} hero-heatmap-cell-empty{% endif %}" style="--heat-intensity: {{ cell.intensity }}%;">
+                                        {% if cell.count %}
+                                            <div class="hero-heatmap-stat">
+                                                <strong>{{ cell.rate }}%</strong>
+                                                <span>{{ cell.count }} map{% if cell.count != 1 %}s{% endif %}</span>
+                                                <small>WR {{ cell.win_rate }}%</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="matrix-empty-mark">--</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No heatmap data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Usage</div>
+        <h3>Top 15 Most Played Heroes Across The Team</h3>
         {% if hero_graph_rows %}
             {% set usage_max = hero_graph_rows[0].maps %}
             <div class="hero-usage-list top-gap">
@@ -1344,7 +1586,7 @@
                         <span class="hero-usage-bar-wrap">
                             <span class="hero-usage-bar" data-width="{{ width }}"></span>
                         </span>
-                        <span class="hero-usage-meta">{{ row.maps }} maps • {{ row.win_rate }}%</span>
+                        <span class="hero-usage-meta">{{ row.maps }} maps • {{ row.usage_rate }}% pick rate • {{ row.win_rate }}% WR</span>
                     </a>
                 {% endfor %}
             </div>
@@ -1353,14 +1595,15 @@
         {% endif %}
     </section>
 
-    <section class="panel">
+    <section class="panel top-gap">
+        <div class="section-kicker">Usage Trend</div>
         <h3>Hero Usage Over Time</h3>
         {% if hero_usage_timeline.labels and hero_usage_timeline.series %}
             <div class="chart-legend hero-usage-legend top-gap">
                 {% for line in hero_usage_timeline.series %}
                     <span class="chart-legend-item">
                         <img src="{{ hero_image_url(line.hero) }}" alt="{{ line.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ line.hero | urlencode }}'">
-                        <span>{{ line.hero }}</span>
+                        <span>{{ hero_display_name(line.hero) }}</span>
                     </span>
                 {% endfor %}
             </div>
@@ -1612,7 +1855,7 @@
         <div class="panel-header-row">
             <h3>Roster & Stats</h3>
             <div class="inline-actions">
-                <a href="{{ url_for('player_compare') }}" class="button-secondary button-small">Open Comparison</a>
+                <a href="{{ url_for('player_compare') }}" class="button-secondary button-small open-comparison-btn">Open Comparison</a>
                 <button id="openPlayerModal" type="button" class="button-small">Add / Edit Player</button>
             </div>
         </div>
@@ -1781,7 +2024,7 @@
 (() => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-content");
-    const validTabs = new Set(["bans", "prep", "comps", "maps", "roster"]);
+    const validTabs = new Set(["bans", "prep", "simulator", "comps", "heroes", "maps", "tournaments", "roster"]);
 
     const switchTeamTab = (tabName) => {
         const nextTab = validTabs.has(tabName) ? tabName : "bans";

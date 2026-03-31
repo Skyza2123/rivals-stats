@@ -63,7 +63,7 @@
     </div>
     <div class="draft-grid">
         <div class="draft-column draft-display">
-            <h4>{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+            <h4>{{ team1_label }}</h4>
             <div class="draft-slots">
                 {% for slot in team1_draft_slots %}
                 {% set hero = map_entry.draft.team1[slot[0]] %}
@@ -78,7 +78,7 @@
             </div>
         </div>
         <div class="draft-column draft-display">
-            <h4>{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+            <h4>{{ team2_label }}</h4>
             <div class="draft-slots">
                 {% for slot in team2_draft_slots %}
                 {% set hero = map_entry.draft.team2[slot[0]] %}
@@ -110,7 +110,7 @@
         </div>
         <div class="comp-grid">
             <div class="comp-team">
-                <h4 class="comp-team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+                <h4 class="comp-team-label team1-label">{{ team1_label }}</h4>
                 <div class="comp-slots">
                     {% for entry in sec.team1 %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
@@ -128,7 +128,7 @@
                 </div>
             </div>
             <div class="comp-team">
-                <h4 class="comp-team-label team2-label">{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+                <h4 class="comp-team-label team2-label">{{ team2_label }}</h4>
                 <div class="comp-slots">
                     {% for entry in sec.team2 %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
@@ -263,6 +263,15 @@
                     </select>
                 </div>
                 {% endif %}
+                {% if not is_tournament and participant_one_id and participant_two_id %}
+                <div class="field">
+                    <label for="edit_map_team1_team_id">Team On Side 1</label>
+                    <select id="edit_map_team1_team_id" name="map_team1_team_id" required>
+                        <option value="{{ participant_one_id }}" {% if map_entry.team1_id == participant_one_id %}selected{% endif %}>{{ map_entry.team1_name or team1_label }}</option>
+                        <option value="{{ participant_two_id }}" {% if map_entry.team1_id == participant_two_id %}selected{% endif %}>{{ map_entry.team2_name or team2_label }}</option>
+                    </select>
+                </div>
+                {% endif %}
             </div>
             <div class="button-row">
                 <button type="submit">Save Changes</button>
@@ -298,34 +307,38 @@
             <!-- Hero pick slots -->
             <div class="draft-grid">
                 <div class="draft-column">
-                    <h4 class="team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+                    <h4 class="team-label team1-label">{{ team1_label }}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team1[i] %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
+                             data-player-slot="team1_player_{{ i }}"
                              onclick="activateCompSlot(this)">
                             {% if entry.hero and entry.hero in hero_transformations %}
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if entry.player else '' }}">{{ entry.player or 'Hover hero to assign player' }}</span>
                             <input type="hidden" name="team1_hero_{{ i }}" value="{{ entry.hero or '' }}">
                         </div>
                         {% endfor %}
                     </div>
                 </div>
                 <div class="draft-column">
-                    <h4 class="team-label team2-label">{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+                    <h4 class="team-label team2-label">{{ team2_label }}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team2[i] %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
+                             data-player-slot="team2_player_{{ i }}"
                              onclick="activateCompSlot(this)">
                             {% if entry.hero and entry.hero in hero_transformations %}
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if entry.player else '' }}">{{ entry.player or 'Hover hero to assign player' }}</span>
                             <input type="hidden" name="team2_hero_{{ i }}" value="{{ entry.hero or '' }}">
                         </div>
                         {% endfor %}
@@ -334,6 +347,7 @@
             </div>
 
             <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
+            <p class="draft-hint">After a hero is selected, hover that hero slot to assign a player.</p>
 
             <!-- Hero portrait picker -->
             <div class="hero-picker">
@@ -447,7 +461,7 @@
         <form action="{{ url_for(update_draft_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
             <div class="draft-grid">
                 <div class="draft-column">
-                    <h4 class="team-label team1-label">{{ team1_label }}{% if not is_tournament and our_slot == 'team1' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+                    <h4 class="team-label team1-label">{{ team1_label }}</h4>
                     <div class="draft-slots">
                         {% for slot_key, slot_label in team1_draft_slots %}
                         {% set hero = map_entry.draft.team1[slot_key] %}
@@ -463,7 +477,7 @@
                     </div>
                 </div>
                 <div class="draft-column">
-                    <h4 class="team-label team2-label">{{ team2_label }}{% if not is_tournament and our_slot == 'team2' %} (Your Team){% elif not is_tournament %} (Enemy){% endif %}</h4>
+                    <h4 class="team-label team2-label">{{ team2_label }}</h4>
                     <div class="draft-slots">
                         {% for slot_key, slot_label in team2_draft_slots %}
                         {% set hero = map_entry.draft.team2[slot_key] %}
@@ -601,6 +615,9 @@ function openModal(id) {
 }
 function closeModal(id) {
     document.getElementById(id).classList.remove('show');
+    if (typeof hideCompAssignHover === 'function') {
+        hideCompAssignHover();
+    }
 }
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -633,6 +650,22 @@ function syncTournamentEditMapTeams() {
     pickedBySelect.options[2].text = side2Name;
 }
 
+function syncScrimEditMapTeams() {
+    const side1Select = document.getElementById('edit_map_team1_team_id');
+    const resultSideSelect = document.getElementById('edit_our_team_slot');
+    if (!side1Select || !resultSideSelect) return;
+
+    const participantOneId = '{{ participant_one_id if participant_one_id is not none else "" }}';
+    const participantOneName = '{{ map_entry.team1_name or team1_label }}';
+    const participantTwoName = '{{ map_entry.team2_name or team2_label }}';
+    const side1IsParticipantOne = side1Select.value === participantOneId;
+    const side1Name = side1IsParticipantOne ? participantOneName : participantTwoName;
+    const side2Name = side1IsParticipantOne ? participantTwoName : participantOneName;
+
+    resultSideSelect.options[0].text = side1Name;
+    resultSideSelect.options[1].text = side2Name;
+}
+
 /* ── Delete Map ── */
 function confirmDeleteMap() {
     if (confirm('Delete this map? This cannot be undone.')) {
@@ -656,7 +689,9 @@ function confirmDeleteMap() {
 })();
 
 document.getElementById('edit_map_team1_tournament_team_id')?.addEventListener('change', syncTournamentEditMapTeams);
+document.getElementById('edit_map_team1_team_id')?.addEventListener('change', syncScrimEditMapTeams);
 syncTournamentEditMapTeams();
+syncScrimEditMapTeams();
 
 /* ══════════════════════════════════════
    DRAFT EDITOR — click-slot-then-pick
@@ -788,6 +823,7 @@ document.querySelectorAll('.comp-player-select').forEach(select => {
             }
             select.style.display = 'block';
         }
+        syncCompSlotPlayerBadge(form, slot);
     };
 
     // When form is about to submit, update the hidden input with the correct value
@@ -815,7 +851,42 @@ document.querySelectorAll('.comp-player-select').forEach(select => {
         select.value = 'custom';
         updateInput();
     }
+
+    if (inputField) {
+        inputField.addEventListener('input', () => syncCompSlotPlayerBadge(form, slot));
+        inputField.addEventListener('blur', () => syncCompSlotPlayerBadge(form, slot));
+    }
+
+    syncCompSlotPlayerBadge(form, slot);
 });
+
+function syncCompSlotPlayerBadge(form, slotName) {
+    if (!form || !slotName) return;
+    const compSlot = form.querySelector(`.comp-pick-slot[data-player-slot="${slotName}"]`);
+    if (!compSlot) return;
+    const sub = compSlot.querySelector('.slot-hero-sub');
+    if (!sub) return;
+
+    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
+    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
+    let value = '';
+
+    if (select) {
+        if (select.style.display === 'none' || select.value === 'custom') {
+            value = input ? (input.value || '').trim() : '';
+        } else {
+            value = (select.value || '').trim();
+        }
+    }
+
+    if (value) {
+        sub.textContent = value;
+        sub.classList.add('show');
+    } else {
+        sub.textContent = 'Hover hero to assign player';
+        sub.classList.remove('show');
+    }
+}
 
 function applyPlayerValueToControls(form, slotName, value) {
     const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
@@ -831,6 +902,7 @@ function applyPlayerValueToControls(form, slotName, value) {
         select.value = normalizedValue;
         input.style.display = 'none';
         input.value = normalizedValue;
+        syncCompSlotPlayerBadge(form, slotName);
         return;
     }
 
@@ -839,6 +911,7 @@ function applyPlayerValueToControls(form, slotName, value) {
         select.value = '';
         input.style.display = 'none';
         input.value = '';
+        syncCompSlotPlayerBadge(form, slotName);
         return;
     }
 
@@ -846,6 +919,169 @@ function applyPlayerValueToControls(form, slotName, value) {
     select.style.display = 'none';
     input.style.display = 'block';
     input.value = normalizedValue;
+    syncCompSlotPlayerBadge(form, slotName);
+}
+
+let compAssignHover = null;
+let compAssignHoverHideTimer = null;
+let compAssignHoverSlot = null;
+
+function ensureCompAssignHover() {
+    if (compAssignHover) return compAssignHover;
+
+    const container = document.createElement('div');
+    container.className = 'comp-assign-hover';
+    container.innerHTML = [
+        '<label class="comp-assign-hover-label">Assign Player</label>',
+        '<select class="comp-assign-hover-select"></select>',
+        '<input type="text" class="comp-assign-hover-input" placeholder="Player name">'
+    ].join('');
+    document.body.appendChild(container);
+
+    const hoverSelect = container.querySelector('.comp-assign-hover-select');
+    const hoverInput = container.querySelector('.comp-assign-hover-input');
+
+    container.addEventListener('mouseenter', () => {
+        if (compAssignHoverHideTimer) {
+            clearTimeout(compAssignHoverHideTimer);
+            compAssignHoverHideTimer = null;
+        }
+    });
+    container.addEventListener('mouseleave', scheduleHideCompAssignHover);
+
+    hoverSelect.addEventListener('change', () => {
+        if (!compAssignHoverSlot) return;
+        const form = compAssignHoverSlot.closest('form');
+        const slotName = compAssignHoverSlot.dataset.playerSlot;
+        if (!form || !slotName) return;
+
+        if (hoverSelect.value === 'custom') {
+            hoverInput.style.display = 'block';
+            hoverInput.focus();
+            return;
+        }
+
+        hoverInput.style.display = 'none';
+        applyPlayerValueToControls(form, slotName, hoverSelect.value || '');
+    });
+
+    const commitHoverCustom = () => {
+        if (!compAssignHoverSlot) return;
+        const form = compAssignHoverSlot.closest('form');
+        const slotName = compAssignHoverSlot.dataset.playerSlot;
+        if (!form || !slotName) return;
+        applyPlayerValueToControls(form, slotName, (hoverInput.value || '').trim());
+    };
+
+    hoverInput.addEventListener('input', commitHoverCustom);
+    hoverInput.addEventListener('blur', commitHoverCustom);
+    hoverInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            commitHoverCustom();
+            hideCompAssignHover();
+        }
+    });
+
+    compAssignHover = container;
+    return container;
+}
+
+function getCompPlayerValueFromControls(form, slotName) {
+    if (!form || !slotName) return '';
+    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
+    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
+    if (!select) return '';
+    if (select.style.display === 'none' || select.value === 'custom') {
+        return input ? (input.value || '').trim() : '';
+    }
+    return (select.value || '').trim();
+}
+
+function populateCompAssignHover(slot) {
+    const hover = ensureCompAssignHover();
+    const hoverSelect = hover.querySelector('.comp-assign-hover-select');
+    const hoverInput = hover.querySelector('.comp-assign-hover-input');
+    const form = slot.closest('form');
+    const slotName = slot.dataset.playerSlot;
+    const sourceSelect = form ? form.querySelector(`.comp-player-select[name="${slotName}"]`) : null;
+
+    if (!form || !slotName || !sourceSelect) return false;
+
+    hoverSelect.innerHTML = '';
+    Array.from(sourceSelect.options).forEach((option) => {
+        if (option.disabled) return;
+        const clone = document.createElement('option');
+        clone.value = option.value;
+        clone.textContent = option.textContent;
+        hoverSelect.appendChild(clone);
+    });
+
+    if (!Array.from(hoverSelect.options).some(opt => opt.value === 'custom')) {
+        const customOption = document.createElement('option');
+        customOption.value = 'custom';
+        customOption.textContent = 'Type manually...';
+        hoverSelect.appendChild(customOption);
+    }
+
+    const currentValue = getCompPlayerValueFromControls(form, slotName);
+    const matched = Array.from(hoverSelect.options).some(opt => opt.value === currentValue);
+    if (currentValue && matched) {
+        hoverSelect.value = currentValue;
+        hoverInput.style.display = 'none';
+        hoverInput.value = currentValue;
+    } else if (currentValue) {
+        hoverSelect.value = 'custom';
+        hoverInput.style.display = 'block';
+        hoverInput.value = currentValue;
+    } else {
+        hoverSelect.value = '';
+        hoverInput.style.display = 'none';
+        hoverInput.value = '';
+    }
+
+    return true;
+}
+
+function placeCompAssignHover(slot) {
+    const hover = ensureCompAssignHover();
+    const rect = slot.getBoundingClientRect();
+    const pad = 10;
+    const maxLeft = window.innerWidth - hover.offsetWidth - 8;
+    let left = rect.left + window.scrollX;
+    if (left > maxLeft + window.scrollX) {
+        left = Math.max(8 + window.scrollX, maxLeft + window.scrollX);
+    }
+
+    const top = rect.bottom + window.scrollY + pad;
+    hover.style.left = `${left}px`;
+    hover.style.top = `${top}px`;
+}
+
+function showCompAssignHover(slot) {
+    if (!slot) return;
+    const heroInput = slot.querySelector('input[type=hidden]');
+    if (!heroInput || !heroInput.value) {
+        hideCompAssignHover();
+        return;
+    }
+
+    if (!populateCompAssignHover(slot)) return;
+    compAssignHoverSlot = slot;
+    const hover = ensureCompAssignHover();
+    hover.classList.add('show');
+    placeCompAssignHover(slot);
+}
+
+function hideCompAssignHover() {
+    if (!compAssignHover) return;
+    compAssignHover.classList.remove('show');
+    compAssignHoverSlot = null;
+}
+
+function scheduleHideCompAssignHover() {
+    if (compAssignHoverHideTimer) clearTimeout(compAssignHoverHideTimer);
+    compAssignHoverHideTimer = setTimeout(hideCompAssignHover, 120);
 }
 
 /* ══════════════════════════════════════
@@ -866,6 +1102,7 @@ function activateCompSlot(el) {
     });
     el.classList.add('slot-active');
     activeCompSlot = el;
+    showCompAssignHover(el);
 }
 
 function clearCompSlot(el) {
@@ -873,10 +1110,16 @@ function clearCompSlot(el) {
     if (inp) inp.value = '';
     var textEl = el.querySelector('.slot-hero');
     if (textEl) textEl.textContent = '\u2014';
+    var subEl = el.querySelector('.slot-hero-sub');
+    if (subEl) {
+        subEl.textContent = 'Hover hero to assign player';
+        subEl.classList.remove('show');
+    }
     var wrap = el.querySelector('.slot-img-wrap');
     if (wrap) wrap.remove();
     el.classList.remove('slot-filled', 'slot-active');
     if (activeCompSlot === el) activeCompSlot = null;
+    hideCompAssignHover();
 }
 
 function pickCompHero(btn) {
@@ -902,6 +1145,13 @@ function pickCompHero(btn) {
     wrap.querySelector('img').alt = hero;
     activeCompSlot.classList.remove('slot-active');
     activeCompSlot.classList.add('slot-filled');
+    var subEl = activeCompSlot.querySelector('.slot-hero-sub');
+    if (subEl) {
+        if (!subEl.textContent || subEl.textContent === 'Hover hero to assign player') {
+            subEl.textContent = 'Hover hero to assign player';
+            subEl.classList.remove('show');
+        }
+    }
     // Auto-advance to next empty slot in same modal
     var modalId = activeCompSlot.dataset.compModal;
     var allSlots = Array.from(document.querySelectorAll('.comp-pick-slot[data-comp-modal="' + modalId + '"]'));
@@ -911,6 +1161,10 @@ function pickCompHero(btn) {
         var nextInp = allSlots[i].querySelector('input[type=hidden]');
         if (!nextInp || !nextInp.value) { activateCompSlot(allSlots[i]); break; }
     }
+
+    if (activeCompSlot) {
+        showCompAssignHover(activeCompSlot);
+    }
 }
 
 // Right-click to clear comp slots
@@ -918,6 +1172,24 @@ document.addEventListener('contextmenu', function(e) {
     var compSlot = e.target.closest('.comp-pick-slot');
     if (compSlot) { e.preventDefault(); clearCompSlot(compSlot); }
 });
+
+document.querySelectorAll('.comp-pick-slot').forEach(function(slot) {
+    slot.addEventListener('mouseenter', function() {
+        if (compAssignHoverHideTimer) {
+            clearTimeout(compAssignHoverHideTimer);
+            compAssignHoverHideTimer = null;
+        }
+        showCompAssignHover(slot);
+    });
+    slot.addEventListener('mouseleave', scheduleHideCompAssignHover);
+});
+
+window.addEventListener('resize', function() {
+    if (compAssignHoverSlot) placeCompAssignHover(compAssignHoverSlot);
+});
+window.addEventListener('scroll', function() {
+    if (compAssignHoverSlot) placeCompAssignHover(compAssignHoverSlot);
+}, true);
 
 function copyPreviousCompSection(sectionIndex) {
     sectionIndex = Number(sectionIndex);
