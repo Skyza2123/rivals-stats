@@ -679,19 +679,28 @@
         <div class="modal-header">
             <div>
                 <h3>Add Tournament Team</h3>
-                <p>These teams only exist inside this tournament.</p>
+                <p>Pull a team from your database, or add a custom tournament-only team.</p>
             </div>
             <button type="button" class="modal-close" onclick="closeModal('addTeamModal')">&times;</button>
         </div>
         <form action="{{ url_for('add_tournament_team', tournament_id=tournament.id) }}" method="post">
             <div class="form-grid">
+                <div class="field field-full">
+                    <label for="source_team_id">Team Database</label>
+                    <select id="source_team_id" name="source_team_id">
+                        <option value="">Custom tournament team</option>
+                        {% for source_team in teams %}
+                            <option value="{{ source_team.id }}">{{ source_team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="field">
                     <label for="new_team_name">Team Name</label>
-                    <input type="text" id="new_team_name" name="team_name" required>
+                    <input type="text" id="new_team_name" name="team_name" placeholder="Used for custom teams">
                 </div>
                 <div class="field field-full">
                     <label for="new_team_players">Players</label>
-                    <textarea id="new_team_players" name="players" rows="8" placeholder="One player per line or comma-separated"></textarea>
+                    <textarea id="new_team_players" name="players" rows="8" placeholder="Used for custom teams only (one per line or comma-separated)"></textarea>
                 </div>
             </div>
             <div class="modal-actions">

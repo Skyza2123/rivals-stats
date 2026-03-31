@@ -49,7 +49,7 @@
     <button class="tab-btn" data-tab="prep" type="button">Prep</button>
     <button class="tab-btn" data-tab="comps" type="button">Comps</button>
     <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
-    <button class="tab-btn" data-tab="matchups" type="button">Matchups</button>
+    <button class="tab-btn" data-tab="tournaments" type="button">Tournaments</button>
     <button class="tab-btn" data-tab="roster" type="button">Roster</button>
 </div>
 
@@ -168,6 +168,7 @@
                 <div class="section-kicker">Open Hero Impact</div>
                 <h3>When Heroes Are Open, Do We Play Them?</h3>
                 <p class="panel-intro">Open means the enemy did not ban that hero on the map. This compares how often the hero is played when open, whether playing it improves win rate when open, and how open outcomes compare to banned outcomes.</p>
+                <p class="panel-intro">Banned Maps means maps where that hero was banned by the enemy team.</p>
                 {% if team_analytics.hero_open_rows %}
                     <div class="table-wrap">
                         <table class="stats-table stats-table-compare">
@@ -1474,52 +1475,52 @@
     </section>
 </div>
 
-<div class="tab-content tab-hidden" id="tab-matchups">
-    <section class="panel">
-        <div class="panel-header-row">
-            <h3>Enemy Teams & Matchups</h3>
-            <button id="openEnemyTeamModal" type="button" class="button-small">Add Enemy Team</button>
-        </div>
-        {% if enemy_teams %}
-            <div class="enemy-teams-grid">
-                {% for enemy in enemy_teams %}
-                    {% set enemy_detail_url = url_for('enemy_team_detail', enemy_team_id=enemy.id, season=selected_season) if selected_season != 'all' else url_for('enemy_team_detail', enemy_team_id=enemy.id) %}
-                    <article class="team-dash-card enemy-dash-card">
-                        <a class="team-dash-main" href="{{ enemy_detail_url }}">
-                            <img
-                                class="team-dash-logo"
-                                src="{{ url_for('static', filename=enemy.logo_path) if enemy.logo_path else 'https://avatar.vercel.sh/' ~ (enemy.name | urlencode) ~ '.png?size=140' }}"
-                                alt="{{ enemy.name }} logo"
-                            >
-                            <div class="team-dash-title">{{ enemy.name }}</div>
-                            <div class="team-dash-note">{{ enemy.notes or 'No notes yet.' }}</div>
-                            <div class="team-dash-stats">
-                                <span>{{ enemy.players|length }} players</span>
-                                <span>Enemy roster</span>
-                            </div>
-                        </a>
+<div class="tab-content tab-hidden" id="tab-tournaments">
+    <section class="panel panel-soft-blue">
+        <div class="section-kicker">Tournament History</div>
+        <h3>{{ team.name }} in Tournaments</h3>
+        <p class="panel-intro">Performance snapshot across tournaments where this team appears.</p>
 
-                        <a class="team-dash-stats-link" href="{{ enemy_detail_url }}">View matchup →</a>
-
-                        {% if enemy.players %}
-                            <div class="enemy-dash-roster">
-                                {% for player in enemy.players[:3] %}
-                                    <span class="enemy-dash-player-pill">
-                                        {{ player.name }}
-                                    </span>
-                                {% endfor %}
-                                {% if enemy.players|length > 3 %}
-                                    <span class="enemy-dash-more">+{{ enemy.players|length - 3 }} more</span>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-
-                        <div class="team-dash-players">{{ enemy.players|length }} players</div>
-                    </article>
-                {% endfor %}
+        {% if team_tournament_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Tournament</th>
+                            <th>Date</th>
+                            <th>Season</th>
+                            <th>Maps</th>
+                            <th>Wins</th>
+                            <th>Losses</th>
+                            <th>Win Rate</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in team_tournament_rows %}
+                            <tr>
+                                <td>{{ row.tournament_name }}</td>
+                                <td>{{ row.scrim_date or '-' }}</td>
+                                <td>{{ row.season or '-' }}</td>
+                                <td>{{ row.maps }}</td>
+                                <td>{{ row.wins }}</td>
+                                <td>{{ row.losses }}</td>
+                                <td>{{ row.win_rate }}%</td>
+                                <td>
+                                    <div class="inline-actions">
+                                        <a href="{{ url_for('tournament_detail', tournament_id=row.tournament_id) }}" class="button-secondary button-small">Tournament</a>
+                                        {% if row.tournament_team_id %}
+                                            <a href="{{ url_for('tournament_team_detail', tournament_id=row.tournament_id, tournament_team_id=row.tournament_team_id) }}" class="button-secondary button-small">Team Page</a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         {% else %}
-            <p class="empty-text">No enemy teams added yet. Add enemy rosters to track matchup stats and compare performance.</p>
+            <p class="empty-text">No tournament entries found for this team yet.</p>
         {% endif %}
     </section>
 </div>
@@ -1735,161 +1736,11 @@
     </div>
 </div>
 
-<!-- ENEMY TEAM MODAL -->
-<div id="enemyTeamModal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-card">
-        <div class="modal-header">
-            <div>
-                <h3>Enemy Team Management</h3>
-                <p>Add or edit an enemy team and their roster.</p>
-            </div>
-            <button id="closeEnemyTeamModal" class="modal-close" type="button" aria-label="Close">&times;</button>
-        </div>
-
-        <div class="tab-row">
-            <button id="tabEnemyAdd" type="button" class="button-secondary button-small tab-button tab-active">Add Enemy Team</button>
-            <button id="tabEnemyEdit" type="button" class="button-secondary button-small tab-button">Edit Team</button>
-        </div>
-
-        <div id="tabEnemyAddPanel" class="tab-panel tab-panel-active top-gap">
-            <form id="addEnemyTeamForm" method="post" action="{{ url_for('create_enemy_team', team_id=team.id) }}" class="form-grid" enctype="multipart/form-data">
-                <div class="field">
-                    <label for="add_enemy_name">Team Name</label>
-                    <input id="add_enemy_name" name="name" type="text" placeholder="Enemy team name" required>
-                </div>
-                <div class="field">
-                    <label for="add_enemy_notes">Notes</label>
-                    <input id="add_enemy_notes" name="notes" type="text" placeholder="Optional notes">
-                </div>
-                <div class="field">
-                    <label for="add_enemy_logo">Team Logo</label>
-                    <input id="add_enemy_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg">
-                </div>
-                <div class="button-row field-full">
-                    <button type="submit">Add Enemy Team</button>
-                </div>
-            </form>
-        </div>
-
-        <div id="tabEnemyEditPanel" class="tab-panel top-gap">
-            <form id="editEnemyTeamForm" method="post" action="{{ url_for('edit_enemy_team', enemy_team_id=0) }}" class="form-grid" enctype="multipart/form-data">
-                <div class="field">
-                    <label for="edit_enemy_name">Team Name</label>
-                    <input id="edit_enemy_name" name="name" type="text" required>
-                </div>
-                <div class="field">
-                    <label for="edit_enemy_notes">Notes</label>
-                    <input id="edit_enemy_notes" name="notes" type="text">
-                </div>
-                <div class="field">
-                    <label for="edit_enemy_logo">Replace Team Logo</label>
-                    <input id="edit_enemy_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg">
-                </div>
-                <div class="field">
-                    <label class="checkbox-inline" for="edit_enemy_remove_logo">
-                        <input id="edit_enemy_remove_logo" name="remove_logo" type="checkbox" value="1">
-                        Remove current logo
-                    </label>
-                </div>
-                <div class="button-row field-full">
-                    <button type="submit">Save Enemy Team</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ENEMY PLAYER MODAL -->
-<div id="enemyPlayerModal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-card">
-        <div class="modal-header">
-            <div>
-                <h3>Enemy Player Management</h3>
-                <p id="enemyPlayerModalTeamName">Add or edit an enemy player.</p>
-            </div>
-            <button id="closeEnemyPlayerModal" class="modal-close" type="button" aria-label="Close">&times;</button>
-        </div>
-
-        <div class="tab-row">
-            <button id="tabEnemyPlayerAdd" type="button" class="button-secondary button-small tab-button tab-active">Add Player</button>
-            <button id="tabEnemyPlayerEdit" type="button" class="button-secondary button-small tab-button">Edit Player</button>
-        </div>
-
-        <div id="tabEnemyPlayerAddPanel" class="tab-panel tab-panel-active top-gap">
-            <form id="addEnemyPlayerForm" method="post" action="{{ url_for('create_enemy_player', enemy_team_id=0) }}" class="form-grid">
-                <div class="field">
-                    <label for="add_enemy_player_name">Player Name</label>
-                    <input id="add_enemy_player_name" name="name" type="text" placeholder="Player name" required>
-                </div>
-                <div class="field">
-                    <label for="add_enemy_player_role">Role</label>
-                    <select id="add_enemy_player_role" name="role">
-                        <option value="">Select role</option>
-                        {% for role in player_roles %}
-                            <option value="{{ role }}">{{ role }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="add_enemy_player_hero">Main Hero</label>
-                    <select id="add_enemy_player_hero" name="main_hero">
-                        <option value="">Select hero</option>
-                        {% for hero in heroes %}
-                            <option value="{{ hero }}">{{ hero }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="add_enemy_player_notes">Notes</label>
-                    <input id="add_enemy_player_notes" name="notes" type="text" placeholder="Optional notes">
-                </div>
-                <div class="button-row field-full">
-                    <button type="submit">Add Player</button>
-                </div>
-            </form>
-        </div>
-
-        <div id="tabEnemyPlayerEditPanel" class="tab-panel top-gap">
-            <form id="editEnemyPlayerForm" method="post" action="{{ url_for('edit_enemy_player', enemy_player_id=0) }}" class="form-grid">
-                <div class="field">
-                    <label for="edit_enemy_player_name">Player Name</label>
-                    <input id="edit_enemy_player_name" name="name" type="text" required>
-                </div>
-                <div class="field">
-                    <label for="edit_enemy_player_role">Role</label>
-                    <select id="edit_enemy_player_role" name="role">
-                        <option value="">Select role</option>
-                        {% for role in player_roles %}
-                            <option value="{{ role }}">{{ role }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="edit_enemy_player_hero">Main Hero</label>
-                    <select id="edit_enemy_player_hero" name="main_hero">
-                        <option value="">Select hero</option>
-                        {% for hero in heroes %}
-                            <option value="{{ hero }}">{{ hero }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="edit_enemy_player_notes">Notes</label>
-                    <input id="edit_enemy_player_notes" name="notes" type="text">
-                </div>
-                <div class="button-row field-full">
-                    <button type="submit">Save Player</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <script>
 (() => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-content");
-    const validTabs = new Set(["bans", "prep", "comps", "maps", "matchups", "roster"]);
+    const validTabs = new Set(["bans", "prep", "comps", "maps", "roster"]);
 
     const switchTeamTab = (tabName) => {
         const nextTab = validTabs.has(tabName) ? tabName : "bans";
@@ -2319,306 +2170,6 @@ if (document.readyState !== 'complete') {
     });
 
     drawChart();
-})();
-
-// Enemy Team Modal Management
-(() => {
-    const enemyTeamModal = document.getElementById("enemyTeamModal");
-    const enemyPlayerModal = document.getElementById("enemyPlayerModal");
-    const openEnemyTeamBtn = document.getElementById("openEnemyTeamModal");
-    const closeEnemyTeamBtn = document.getElementById("closeEnemyTeamModal");
-    const closeEnemyPlayerBtn = document.getElementById("closeEnemyPlayerModal");
-
-    const tabEnemyAdd = document.getElementById("tabEnemyAdd");
-    const tabEnemyEdit = document.getElementById("tabEnemyEdit");
-    const panelEnemyAdd = document.getElementById("tabEnemyAddPanel");
-    const panelEnemyEdit = document.getElementById("tabEnemyEditPanel");
-    const editEnemyTeamForm = document.getElementById("editEnemyTeamForm");
-    const editEnemyName = document.getElementById("edit_enemy_name");
-    const editEnemyNotes = document.getElementById("edit_enemy_notes");
-    const editEnemyRemoveLogo = document.getElementById("edit_enemy_remove_logo");
-
-    const tabEnemyPlayerAdd = document.getElementById("tabEnemyPlayerAdd");
-    const tabEnemyPlayerEdit = document.getElementById("tabEnemyPlayerEdit");
-    const panelEnemyPlayerAdd = document.getElementById("tabEnemyPlayerAddPanel");
-    const panelEnemyPlayerEdit = document.getElementById("tabEnemyPlayerEditPanel");
-    const addEnemyPlayerForm = document.getElementById("addEnemyPlayerForm");
-    const editEnemyPlayerForm = document.getElementById("editEnemyPlayerForm");
-    const editEnemyPlayerName = document.getElementById("edit_enemy_player_name");
-    const editEnemyPlayerRole = document.getElementById("edit_enemy_player_role");
-    const editEnemyPlayerHero = document.getElementById("edit_enemy_player_hero");
-    const editEnemyPlayerNotes = document.getElementById("edit_enemy_player_notes");
-    const enemyPlayerModalTeamName = document.getElementById("enemyPlayerModalTeamName");
-
-    const setEnemyTeamTab = (tabName) => {
-        const isAdd = tabName === "add";
-        tabEnemyAdd.classList.toggle("tab-active", isAdd);
-        tabEnemyEdit.classList.toggle("tab-active", !isAdd);
-        panelEnemyAdd.classList.toggle("tab-panel-active", isAdd);
-        panelEnemyEdit.classList.toggle("tab-panel-active", !isAdd);
-    };
-
-    const setEnemyPlayerTab = (tabName) => {
-        const isAdd = tabName === "add";
-        tabEnemyPlayerAdd.classList.toggle("tab-active", isAdd);
-        tabEnemyPlayerEdit.classList.toggle("tab-active", !isAdd);
-        panelEnemyPlayerAdd.classList.toggle("tab-panel-active", isAdd);
-        panelEnemyPlayerEdit.classList.toggle("tab-panel-active", !isAdd);
-    };
-
-    const openEnemyTeamModal = () => {
-        enemyTeamModal.classList.add("show");
-        enemyTeamModal.setAttribute("aria-hidden", "false");
-    };
-
-    const closeEnemyTeamModal = () => {
-        enemyTeamModal.classList.remove("show");
-        enemyTeamModal.setAttribute("aria-hidden", "true");
-    };
-
-    const openEnemyPlayerModal = () => {
-        enemyPlayerModal.classList.add("show");
-        enemyPlayerModal.setAttribute("aria-hidden", "false");
-    };
-
-    const closeEnemyPlayerModal = () => {
-        enemyPlayerModal.classList.remove("show");
-        enemyPlayerModal.setAttribute("aria-hidden", "true");
-    };
-
-    openEnemyTeamBtn.addEventListener("click", () => {
-        setEnemyTeamTab("add");
-        openEnemyTeamModal();
-    });
-
-    closeEnemyTeamBtn.addEventListener("click", closeEnemyTeamModal);
-    closeEnemyPlayerBtn.addEventListener("click", closeEnemyPlayerModal);
-
-    enemyTeamModal.addEventListener("click", (event) => {
-        if (event.target === enemyTeamModal) {
-            closeEnemyTeamModal();
-        }
-    });
-
-    enemyPlayerModal.addEventListener("click", (event) => {
-        if (event.target === enemyPlayerModal) {
-            closeEnemyPlayerModal();
-        }
-    });
-
-    tabEnemyAdd.addEventListener("click", () => setEnemyTeamTab("add"));
-    tabEnemyEdit.addEventListener("click", () => setEnemyTeamTab("edit"));
-    tabEnemyPlayerAdd.addEventListener("click", () => setEnemyPlayerTab("add"));
-    tabEnemyPlayerEdit.addEventListener("click", () => setEnemyPlayerTab("edit"));
-
-    // Handle add enemy team form submission via AJAX
-    const addEnemyTeamForm = document.getElementById("addEnemyTeamForm");
-    if (addEnemyTeamForm) {
-        addEnemyTeamForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const name = document.getElementById('add_enemy_name').value.trim();
-            
-            if (!name) {
-                alert('Please enter a team name.');
-                return;
-            }
-            
-            const formData = new FormData(this);
-            formData.set('name', name);
-            const action = this.action;
-            
-            try {
-                const response = await fetch(action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                if (response.ok) {
-                    // Clear form and close modal
-                    addEnemyTeamForm.reset();
-                    closeEnemyTeamModal();
-                    // Reload the page to show new team
-                    setTimeout(() => window.location.reload(), 300);
-                } else {
-                    alert('Failed to create enemy team. Status: ' + response.status);
-                }
-            } catch (error) {
-                console.error('Error creating enemy team:', error);
-                alert('An error occurred while creating the enemy team: ' + error.message);
-            }
-        });
-    } else {
-        console.error('addEnemyTeamForm not found in DOM');
-    }
-
-    // Handle add enemy player form submission via AJAX
-    if (addEnemyPlayerForm) {
-        addEnemyPlayerForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const name = document.getElementById('add_enemy_player_name').value.trim();
-            
-            if (!name) {
-                alert('Please enter a player name.');
-                return;
-            }
-            
-            const formData = new FormData(this);
-            const action = this.action;
-            
-            try {
-                const response = await fetch(action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                if (response.ok) {
-                    this.reset();
-                    closeEnemyPlayerModal();
-                    setTimeout(() => window.location.reload(), 300);
-                } else {
-                    alert('Failed to add player. Status: ' + response.status);
-                }
-            } catch (error) {
-                console.error('Error adding enemy player:', error);
-                alert('An error occurred while adding the player: ' + error.message);
-            }
-        });
-    }
-
-    // Handle edit enemy player form submission via AJAX
-    if (editEnemyPlayerForm) {
-        editEnemyPlayerForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const name = document.getElementById('edit_enemy_player_name').value.trim();
-            
-            if (!name) {
-                alert('Please enter a player name.');
-                return;
-            }
-            
-            const formData = new FormData(this);
-            const action = this.action;
-            
-            try {
-                const response = await fetch(action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                if (response.ok) {
-                    this.reset();
-                    closeEnemyPlayerModal();
-                    setTimeout(() => window.location.reload(), 300);
-                } else {
-                    alert('Failed to save player. Status: ' + response.status);
-                }
-            } catch (error) {
-                console.error('Error editing enemy player:', error);
-                alert('An error occurred while saving the player: ' + error.message);
-            }
-        });
-    }
-
-    // Handle edit enemy team form submission via AJAX
-    if (editEnemyTeamForm) {
-        editEnemyTeamForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const name = document.getElementById('edit_enemy_name').value.trim();
-            
-            if (!name) {
-                alert('Please enter a team name.');
-                return;
-            }
-            
-            const formData = new FormData(this);
-            formData.set('name', name);
-            if (!editEnemyRemoveLogo.checked) {
-                formData.delete('remove_logo');
-            }
-            const action = this.action;
-            
-            try {
-                const response = await fetch(action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                if (response.ok) {
-                    this.reset();
-                    editEnemyRemoveLogo.checked = false;
-                    closeEnemyTeamModal();
-                    setTimeout(() => window.location.reload(), 300);
-                } else {
-                    alert('Failed to update team. Status: ' + response.status);
-                }
-            } catch (error) {
-                console.error('Error editing enemy team:', error);
-                alert('An error occurred while updating the team: ' + error.message);
-            }
-        });
-    }
-
-    // Edit enemy team button
-    document.querySelectorAll(".open-edit-enemy-team").forEach((button) => {
-        button.addEventListener("click", () => {
-            setEnemyTeamTab("edit");
-            const enemyId = button.dataset.enemyId;
-            const enemyName = button.dataset.enemyName;
-            const enemyNotes = button.dataset.enemyNotes;
-            editEnemyTeamForm.action = "{{ url_for('edit_enemy_team', enemy_team_id=0) }}".replace("/0/edit", `/${enemyId}/edit`);
-            editEnemyName.value = enemyName;
-            editEnemyNotes.value = enemyNotes;
-            editEnemyRemoveLogo.checked = false;
-            openEnemyTeamModal();
-        });
-    });
-
-    // Add enemy player button
-    document.querySelectorAll(".open-add-enemy-player").forEach((button) => {
-        button.addEventListener("click", () => {
-            setEnemyPlayerTab("add");
-            const enemyTeamId = button.dataset.enemyId;
-            const enemyTeamName = button.dataset.enemyName;
-            addEnemyPlayerForm.action = "{{ url_for('create_enemy_player', enemy_team_id=0) }}".replace("/0/players", `/${enemyTeamId}/players`);
-            enemyPlayerModalTeamName.textContent = `Add a player to "${enemyTeamName}"`;
-            document.getElementById("add_enemy_player_name").value = "";
-            document.getElementById("add_enemy_player_role").value = "";
-            document.getElementById("add_enemy_player_hero").value = "";
-            document.getElementById("add_enemy_player_notes").value = "";
-            openEnemyPlayerModal();
-        });
-    });
-
-    // Edit enemy player button
-    document.querySelectorAll(".open-edit-enemy-player").forEach((button) => {
-        button.addEventListener("click", () => {
-            setEnemyPlayerTab("edit");
-            const enemyPlayerId = button.dataset.enemyPlayerId;
-            const playerName = button.dataset.playerName;
-            const playerRole = button.dataset.playerRole;
-            const playerHero = button.dataset.playerHero;
-            const playerNotes = button.dataset.playerNotes;
-            editEnemyPlayerForm.action = "{{ url_for('edit_enemy_player', enemy_player_id=0) }}".replace("/0/edit", `/${enemyPlayerId}/edit`);
-            editEnemyPlayerName.value = playerName;
-            editEnemyPlayerRole.value = playerRole;
-            editEnemyPlayerHero.value = playerHero;
-            editEnemyPlayerNotes.value = playerNotes;
-            enemyPlayerModalTeamName.textContent = `Edit "${playerName}"`;
-            openEnemyPlayerModal();
-        });
-    });
 })();
 
 </script>

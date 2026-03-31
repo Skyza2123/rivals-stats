@@ -2623,6 +2623,88 @@ th {
     white-space: nowrap;
 }
 
+.prep-flow-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr) auto minmax(220px, 1fr);
+    gap: 10px;
+    align-items: stretch;
+}
+
+.prep-flow-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--panel-2);
+}
+
+.prep-flow-card h4 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+}
+
+.prep-flow-arrow {
+    align-self: center;
+    justify-self: center;
+    color: #fda4af;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.prep-chip-list,
+.prep-adjust-list,
+.prep-comp-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.prep-hero-chip,
+.prep-adjust-row,
+.prep-comp-slot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.prep-adjust-row .prep-flow-arrow {
+    font-size: 1rem;
+}
+
+.prep-chip-meta {
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.prep-comp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.prep-comp-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--panel-2);
+}
+
+@media (max-width: 1120px) {
+    .prep-flow-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .prep-flow-arrow {
+        transform: rotate(90deg);
+        margin: 4px 0;
+    }
+}
+
 .comp-usage-list {
     display: grid;
     grid-template-columns: 1fr;

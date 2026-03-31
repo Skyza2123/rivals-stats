@@ -7,7 +7,7 @@
     <div class="team-hero-left">
         <div>
             <h2>Team Comparison</h2>
-            <p>Compare two teams from your database across maps, win rate, top heroes, and top maps.</p>
+            <p>Compare two teams from your database across maps, win rate, top heroes, and top maps in scrims or tournaments.</p>
         </div>
     </div>
 </div>
@@ -33,6 +33,13 @@
                 {% endfor %}
             </select>
         </div>
+        <div class="field">
+            <label for="mode">Mode</label>
+            <select id="mode" name="mode">
+                <option value="scrims" {% if selected_mode == 'scrims' %}selected{% endif %}>Scrims</option>
+                <option value="tournaments" {% if selected_mode == 'tournaments' %}selected{% endif %}>Tournaments</option>
+            </select>
+        </div>
         <div class="button-row field-full">
             <button type="submit">Compare Teams</button>
         </div>
@@ -53,7 +60,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>Total Maps</td>
+                    <td>{% if selected_mode == 'tournaments' %}Tournament Maps{% else %}Total Maps{% endif %}</td>
                     <td>{{ team_a.analytics.summary.total_maps }}</td>
                     <td>{{ team_b.analytics.summary.total_maps }}</td>
                 </tr>

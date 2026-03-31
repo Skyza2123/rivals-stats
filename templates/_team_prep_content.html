@@ -64,6 +64,112 @@
     </div>
 </section>
 
+<section class="panel panel-soft-blue top-gap">
+    <div class="section-kicker">Quick Plan</div>
+    <h3>Ban Pressure → Expected Core → Player Swaps</h3>
+    <p class="panel-intro">Fast visual draft plan based on current sample. Arrows show likely flow from enemy bans into your expected lineup and adjustment choices.</p>
+
+    <div class="prep-flow-grid top-gap">
+        <article class="prep-flow-card">
+            <h4>Enemy Likely Bans</h4>
+            {% if prep_expected_plan.suggested_adjustments %}
+                <div class="prep-chip-list">
+                    {% for row in prep_expected_plan.suggested_adjustments %}
+                        <div class="prep-hero-chip">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.banned_hero) }}" alt="{{ row.banned_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.banned_hero | urlencode }}'">
+                                <span>{{ row.banned_hero }}</span>
+                            </span>
+                            <span class="prep-chip-meta">{{ row.ban_rate }}%</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No enemy ban pressure data yet.</p>
+            {% endif %}
+        </article>
+
+        <div class="prep-flow-arrow">→</div>
+
+        <article class="prep-flow-card">
+            <h4>Expected Core Comp</h4>
+            {% if prep_expected_plan.expected_core %}
+                <div class="prep-chip-list">
+                    {% for slot in prep_expected_plan.expected_core %}
+                        <div class="prep-hero-chip">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(slot.hero) }}" alt="{{ slot.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.hero | urlencode }}'">
+                                <span>{{ slot.hero }}</span>
+                            </span>
+                            <span class="prep-chip-meta">{{ slot.player.name }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No expected core comp yet.</p>
+            {% endif %}
+        </article>
+
+        <div class="prep-flow-arrow">→</div>
+
+        <article class="prep-flow-card">
+            <h4>Swap If Banned</h4>
+            {% if prep_expected_plan.suggested_adjustments %}
+                <div class="prep-adjust-list">
+                    {% for row in prep_expected_plan.suggested_adjustments %}
+                        <div class="prep-adjust-row">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.banned_hero) }}" alt="{{ row.banned_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.banned_hero | urlencode }}'">
+                                <span>{{ row.banned_hero }}</span>
+                            </span>
+                            <span class="prep-flow-arrow">→</span>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.replacement_hero) }}" alt="{{ row.replacement_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.replacement_hero | urlencode }}'">
+                                <span>{{ row.replacement_hero }}</span>
+                            </span>
+                            <span class="prep-chip-meta">{{ row.replacement_player_name }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No swap suggestions yet.</p>
+            {% endif %}
+        </article>
+    </div>
+</section>
+
+<section class="panel panel-soft-gold top-gap">
+    <div class="section-kicker">Expected Comps</div>
+    <h3>Potential Comps + Assigned Players</h3>
+    <p class="panel-intro">These are the most likely full comps from your sample, including who is most likely to pilot each hero.</p>
+
+    {% if prep_expected_plan.expected_comp_variants %}
+        <div class="prep-comp-grid top-gap">
+            {% for comp in prep_expected_plan.expected_comp_variants %}
+                <article class="prep-comp-card">
+                    <div class="panel-header-row">
+                        <h4>{{ comp.label }}</h4>
+                        <span class="compare-tag compare-tag-neutral">{{ comp.maps }} maps • {{ comp.win_rate }}% WR</span>
+                    </div>
+                    <div class="prep-comp-slots">
+                        {% for slot in comp.heroes %}
+                            <div class="prep-comp-slot">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(slot.hero) }}" alt="{{ slot.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.hero | urlencode }}'">
+                                    <span>{{ slot.hero }}</span>
+                                </span>
+                                <span class="prep-chip-meta">{{ slot.player.name }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">Not enough comp data to estimate expected comps yet.</p>
+    {% endif %}
+</section>
+
 <section class="panel panel-soft-green top-gap">
     <div class="section-kicker">Ban Value</div>
     <h3>Ban Value / Pivot Analysis</h3>

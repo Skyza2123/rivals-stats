@@ -871,6 +871,74 @@ def build_player_hero_map_breakdown(player_name: str, scrims: list[dict]) -> dic
     }
 
 
+def build_team_tournament_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
+    team_id = int(team_row["id"])
+    team_name = (team_row["name"] or "").strip().lower()
+    tournament_scrims: list[dict] = []
+
+    for tournament_record in TOURNAMENT_MATCHES:
+        for tournament_team in tournament_record.get("tournament_teams", []):
+            if not isinstance(tournament_team, dict):
+                continue
+
+            source_team_id = tournament_team.get("source_team_id")
+            tournament_team_name = (tournament_team.get("name") or "").strip().lower()
+            matches_team = (
+                (isinstance(source_team_id, int) and source_team_id == team_id)
+                or (not source_team_id and tournament_team_name and tournament_team_name == team_name)
+            )
+            if not matches_team:
+                continue
+
+            tournament_scrims.extend(build_tournament_team_scrims(tournament_record, tournament_team))
+
+    return tournament_scrims
+
+
+def build_team_tournament_rows(team_row: sqlite3.Row | dict) -> list[dict]:
+    team_id = int(team_row["id"])
+    team_name = (team_row["name"] or "").strip().lower()
+    rows: list[dict] = []
+
+    for tournament_record in TOURNAMENT_MATCHES:
+        selected_tournament_team: dict | None = None
+        for tournament_team in tournament_record.get("tournament_teams", []):
+            if not isinstance(tournament_team, dict):
+                continue
+
+            source_team_id = tournament_team.get("source_team_id")
+            tournament_team_name = (tournament_team.get("name") or "").strip().lower()
+            matches_team = (
+                (isinstance(source_team_id, int) and source_team_id == team_id)
+                or (not source_team_id and tournament_team_name and tournament_team_name == team_name)
+            )
+            if matches_team:
+                selected_tournament_team = tournament_team
+                break
+
+        if selected_tournament_team is None:
+            continue
+
+        team_scrims = build_tournament_team_scrims(tournament_record, selected_tournament_team)
+        analytics = build_scrim_analytics(team_scrims)
+        rows.append(
+            {
+                "tournament_id": tournament_record.get("id"),
+                "tournament_name": tournament_record.get("tournament_name") or "Tournament",
+                "scrim_date": tournament_record.get("scrim_date", ""),
+                "season": tournament_record.get("season", ""),
+                "maps": analytics["summary"].get("total_maps", 0),
+                "wins": analytics["summary"].get("total_wins", 0),
+                "losses": analytics["summary"].get("total_losses", 0),
+                "win_rate": analytics["summary"].get("overall_win_rate", 0),
+                "tournament_team_id": selected_tournament_team.get("id"),
+            }
+        )
+
+    rows.sort(key=lambda row: ((row.get("scrim_date") or ""), int(row.get("tournament_id") or 0)), reverse=True)
+    return rows
+
+
 def get_scrim_or_404(scrim_id: int) -> dict:
     for scrim in SCRIMS:
         if scrim["id"] == scrim_id:
@@ -1334,6 +1402,78 @@ def get_enemy_team_name_by_id(team_id: int | None, enemy_team_id: int | None) ->
         (enemy_team_id, team_id),
     ).fetchone()
     return row["name"] if row else ""
+
+
+def migrate_enemy_teams_to_team_database(db: sqlite3.Connection) -> int:
+    """Move legacy enemy-team records into the main team database tables."""
+    enemy_rows = db.execute(
+        "SELECT id, name, notes, logo_path FROM enemy_teams ORDER BY id"
+    ).fetchall()
+    if not enemy_rows:
+        return 0
+
+    moved_count = 0
+    migrated_enemy_ids: list[int] = []
+
+    for enemy_row in enemy_rows:
+        enemy_name = (enemy_row["name"] or "").strip()
+        if not enemy_name:
+            continue
+
+        target_row = db.execute(
+            "SELECT id FROM teams WHERE lower(name) = lower(?)",
+            (enemy_name,),
+        ).fetchone()
+        if target_row is None:
+            try:
+                db.execute(
+                    "INSERT INTO teams (name, notes, logo_path, is_personal) VALUES (?, ?, ?, 0)",
+                    (enemy_name, enemy_row["notes"] or "", enemy_row["logo_path"] or ""),
+                )
+            except sqlite3.IntegrityError:
+                pass
+            target_row = db.execute(
+                "SELECT id FROM teams WHERE lower(name) = lower(?)",
+                (enemy_name,),
+            ).fetchone()
+
+        if target_row is None:
+            continue
+
+        target_team_id = target_row["id"]
+        player_rows = db.execute(
+            "SELECT name, role, main_hero, notes FROM enemy_players WHERE enemy_team_id = ?",
+            (enemy_row["id"],),
+        ).fetchall()
+        for player_row in player_rows:
+            player_name = (player_row["name"] or "").strip()
+            if not player_name:
+                continue
+            try:
+                db.execute(
+                    """
+                    INSERT INTO players (team_id, name, role, main_hero, notes)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        target_team_id,
+                        player_name,
+                        player_row["role"] or "",
+                        player_row["main_hero"] or "",
+                        player_row["notes"] or "",
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                continue
+
+        migrated_enemy_ids.append(enemy_row["id"])
+        moved_count += 1
+
+    if migrated_enemy_ids:
+        db.executemany("DELETE FROM enemy_teams WHERE id = ?", [(enemy_id,) for enemy_id in migrated_enemy_ids])
+        db.commit()
+
+    return moved_count
 
 
 def build_match_map_entry_from_form() -> dict:
@@ -2778,9 +2918,223 @@ def filter_team_scrims_for_enemy(team_scrims: list[dict], enemy_team_id: int | N
     return filtered
 
 
+def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sqlite3.Row | dict], prep_analytics: dict) -> dict:
+    pair_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    hero_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    comp_variant_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+
+    players = [
+        {
+            "name": (row["name"] if isinstance(row, sqlite3.Row) else row.get("name", "")).strip(),
+            "role": (row["role"] if isinstance(row, sqlite3.Row) else row.get("role", "")).strip(),
+            "main_hero": (row["main_hero"] if isinstance(row, sqlite3.Row) else row.get("main_hero", "")).strip(),
+        }
+        for row in team_players
+        if (row["name"] if isinstance(row, sqlite3.Row) else row.get("name", "")).strip()
+    ]
+
+    player_by_main_hero = defaultdict(list)
+    for player in players:
+        main_hero = _canonical_draft_hero(player["main_hero"])
+        if main_hero:
+            player_by_main_hero[main_hero].append(player)
+
+    for scrim in prep_scrims:
+        for map_entry in scrim.get("maps", []):
+            result = map_entry.get("result", "")
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+
+            map_pairs = set()
+            map_heroes = set()
+            largest_lineup: list[str] = []
+
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+
+                lineup = []
+                for slot in section.get(our_team_slot, []):
+                    if not isinstance(slot, dict):
+                        continue
+                    hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                    if not hero_name:
+                        continue
+
+                    lineup.append(hero_name)
+                    map_heroes.add(hero_name)
+
+                    player_name = (slot.get("player", "") or "").strip()
+                    if player_name:
+                        map_pairs.add((hero_name, player_name))
+
+                if len(lineup) > len(largest_lineup):
+                    largest_lineup = lineup
+
+            for hero_name in map_heroes:
+                hero_counts[hero_name]["count"] += 1
+                if result == "Win":
+                    hero_counts[hero_name]["wins"] += 1
+                elif result == "Loss":
+                    hero_counts[hero_name]["losses"] += 1
+
+            for hero_name, player_name in map_pairs:
+                pair_counts[(hero_name, player_name)]["count"] += 1
+                if result == "Win":
+                    pair_counts[(hero_name, player_name)]["wins"] += 1
+                elif result == "Loss":
+                    pair_counts[(hero_name, player_name)]["losses"] += 1
+
+            if largest_lineup:
+                lineup_key = tuple(sorted(set(largest_lineup)))
+                comp_variant_counts[lineup_key]["count"] += 1
+                if result == "Win":
+                    comp_variant_counts[lineup_key]["wins"] += 1
+                elif result == "Loss":
+                    comp_variant_counts[lineup_key]["losses"] += 1
+
+    def choose_player_for_hero(hero_name: str, used_names: set[str] | None = None) -> dict:
+        used_names = used_names or set()
+        candidates = [
+            (player_name, stats)
+            for (pair_hero, player_name), stats in pair_counts.items()
+            if pair_hero == hero_name and player_name not in used_names
+        ]
+        candidates.sort(key=lambda row: (row[1]["count"], row[1]["wins"]), reverse=True)
+        if candidates:
+            top_name, top_stats = candidates[0]
+            return {
+                "name": top_name,
+                "maps": top_stats["count"],
+                "win_rate": round((top_stats["wins"] / top_stats["count"]) * 100, 1) if top_stats["count"] else 0,
+                "source": "history",
+            }
+
+        hero_main_candidates = [player for player in player_by_main_hero.get(hero_name, []) if player["name"] not in used_names]
+        if hero_main_candidates:
+            pick = hero_main_candidates[0]
+            return {
+                "name": pick["name"],
+                "maps": 0,
+                "win_rate": 0,
+                "source": "main_hero",
+            }
+
+        role_name = _hero_role(hero_name)
+        role_candidates = [
+            player for player in players
+            if player["name"] not in used_names and role_name and player["role"].lower() == role_name.lower()
+        ]
+        if role_candidates:
+            pick = role_candidates[0]
+            return {
+                "name": pick["name"],
+                "maps": 0,
+                "win_rate": 0,
+                "source": "role_fit",
+            }
+
+        fallback = next((player for player in players if player["name"] not in used_names), None)
+        if fallback is not None:
+            return {
+                "name": fallback["name"],
+                "maps": 0,
+                "win_rate": 0,
+                "source": "fallback",
+            }
+
+        return {
+            "name": "TBD",
+            "maps": 0,
+            "win_rate": 0,
+            "source": "unassigned",
+        }
+
+    expected_hero_pool = [row["hero"] for row in prep_analytics.get("hero_rows", []) if row.get("hero")]
+    if not expected_hero_pool:
+        expected_hero_pool = [hero for hero, _stats in sorted(hero_counts.items(), key=lambda item: item[1]["count"], reverse=True)]
+    expected_hero_pool = expected_hero_pool[:6]
+
+    expected_core = []
+    used_names = set()
+    for hero_name in expected_hero_pool:
+        hero_stats = hero_counts.get(hero_name, {"count": 0, "wins": 0, "losses": 0})
+        assignment = choose_player_for_hero(hero_name, used_names)
+        if assignment.get("name") and assignment["name"] != "TBD":
+            used_names.add(assignment["name"])
+
+        expected_core.append(
+            {
+                "hero": hero_name,
+                "role": _hero_role(hero_name),
+                "maps": hero_stats["count"],
+                "win_rate": round((hero_stats["wins"] / hero_stats["count"]) * 100, 1) if hero_stats["count"] else 0,
+                "player": assignment,
+            }
+        )
+
+    expected_comp_variants = []
+    sorted_variants = sorted(comp_variant_counts.items(), key=lambda row: (row[1]["count"], row[1]["wins"]), reverse=True)
+    for idx, (heroes, stats) in enumerate(sorted_variants[:3]):
+        used_variant_names = set()
+        slots = []
+        for hero_name in heroes:
+            assignment = choose_player_for_hero(hero_name, used_variant_names)
+            if assignment.get("name") and assignment["name"] != "TBD":
+                used_variant_names.add(assignment["name"])
+            slots.append(
+                {
+                    "hero": hero_name,
+                    "role": _hero_role(hero_name),
+                    "player": assignment,
+                }
+            )
+
+        expected_comp_variants.append(
+            {
+                "label": f"Expected Comp {idx + 1}",
+                "heroes": slots,
+                "maps": stats["count"],
+                "win_rate": round((stats["wins"] / stats["count"]) * 100, 1) if stats["count"] else 0,
+            }
+        )
+
+    top_enemy_bans = prep_analytics.get("enemy_ban_rows", [])[:4]
+    suggested_adjustments = []
+    banned_set = {_canonical_draft_hero(row.get("hero", "")) for row in top_enemy_bans}
+    fallback_pool = [item for item in expected_core if _canonical_draft_hero(item["hero"]) not in banned_set]
+    for row in top_enemy_bans:
+        banned_hero = row.get("hero", "")
+        banned_key = _canonical_draft_hero(banned_hero)
+        impacted_slot = next((item for item in expected_core if _canonical_draft_hero(item["hero"]) == banned_key), None)
+
+        replacement = None
+        if fallback_pool:
+            replacement = fallback_pool[0]
+            fallback_pool = fallback_pool[1:] + fallback_pool[:1]
+
+        suggested_adjustments.append(
+            {
+                "banned_hero": banned_hero,
+                "ban_rate": row.get("ban_rate", 0),
+                "impacted_player_name": impacted_slot.get("player", {}).get("name") if impacted_slot else "TBD",
+                "replacement_hero": replacement.get("hero") if replacement else "TBD",
+                "replacement_player_name": replacement.get("player", {}).get("name") if replacement else "TBD",
+            }
+        )
+
+    return {
+        "expected_core": expected_core,
+        "expected_comp_variants": expected_comp_variants,
+        "suggested_adjustments": suggested_adjustments,
+    }
+
+
 def build_team_prep_context(
     *,
     team_scrims: list[dict],
+    team_players: list[sqlite3.Row | dict],
     enemy_teams: list[dict],
     selected_enemy_id_raw: str,
     compare_map_a_raw: str,
@@ -2798,6 +3152,7 @@ def build_team_prep_context(
 
     prep_analytics = build_scrim_analytics(prep_scrims)
     draft_phase_timeline = build_draft_phase_timeline(prep_scrims)
+    prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics)
 
     compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
     compare_map_a = (compare_map_a_raw or "").strip()
@@ -2825,6 +3180,7 @@ def build_team_prep_context(
         "compare_map_b": compare_map_b,
         "compare_map_rows": compare_map_rows,
         "draft_phase_timeline": draft_phase_timeline,
+        "prep_expected_plan": prep_expected_plan,
     }
 
 
@@ -3469,12 +3825,15 @@ def teams_compare():
 
     selected_team_a_id = (request.args.get("team_a") or "").strip()
     selected_team_b_id = (request.args.get("team_b") or "").strip()
+    selected_mode = (request.args.get("mode") or "scrims").strip().lower()
+    if selected_mode not in {"scrims", "tournaments"}:
+        selected_mode = "scrims"
 
     def load_team_payload(team_row: dict | None) -> dict | None:
         if team_row is None:
             return None
 
-        team_scrims = [
+        scrim_pool = [
             scrim
             for scrim in SCRIMS
             if scrim.get("team_id") == team_row["id"]
@@ -3483,6 +3842,8 @@ def teams_compare():
                 and (scrim.get("team_name", "") or "").strip().lower() == team_row["name"].strip().lower()
             )
         ]
+        tournament_pool = build_team_tournament_scrims(team_row)
+        team_scrims = tournament_pool if selected_mode == "tournaments" else scrim_pool
         analytics = build_scrim_analytics(team_scrims)
         return {
             "team": team_row,
@@ -3499,6 +3860,7 @@ def teams_compare():
         team_options=team_options,
         selected_team_a_id=selected_team_a_id,
         selected_team_b_id=selected_team_b_id,
+        selected_mode=selected_mode,
         team_a=team_a,
         team_b=team_b,
     )
@@ -3599,6 +3961,7 @@ def toggle_team_quick_access(team_id: int):
 @app.route("/teams/<int:team_id>")
 def team_detail(team_id: int):
     db = get_db()
+    migrate_enemy_teams_to_team_database(db)
     team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
     if team is None:
         abort(404)
@@ -3627,6 +3990,7 @@ def team_detail(team_id: int):
         for field_key in PREDICTOR_INPUT_ORDER
     }
     draft_predictor = build_draft_predictor(team_scrims, predictor_inputs)
+    team_tournament_rows = build_team_tournament_rows(team)
 
     team_analytics = build_scrim_analytics(team_scrims)
     hero_graph_rows = [
@@ -3724,16 +4088,15 @@ def team_detail(team_id: int):
             "stats": stats,
         })
 
-    # Get enemy teams for this team
     enemy_team_rows = db.execute(
-        "SELECT id, name, notes, logo_path, created_at FROM enemy_teams WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        "SELECT id, name, notes, logo_path, created_at FROM teams WHERE id != ? ORDER BY name COLLATE NOCASE",
         (team_id,),
     ).fetchall()
 
     enemy_teams = []
     for enemy_row in enemy_team_rows:
         enemy_players = db.execute(
-            "SELECT id, name, role, main_hero, notes FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+            "SELECT id, name, role, main_hero, notes FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
             (enemy_row["id"],),
         ).fetchall()
         enemy_teams.append({
@@ -3747,6 +4110,7 @@ def team_detail(team_id: int):
 
     prep_context = build_team_prep_context(
         team_scrims=team_scrims,
+        team_players=player_rows,
         enemy_teams=enemy_teams,
         selected_enemy_id_raw=request.args.get("prep_enemy_id", ""),
         compare_map_a_raw=request.args.get("compare_map_a", ""),
@@ -3758,6 +4122,7 @@ def team_detail(team_id: int):
         team=team,
         players=players,
         enemy_teams=enemy_teams,
+        team_tournament_rows=team_tournament_rows,
         player_roles=PLAYER_ROLES,
         team_analytics=team_analytics,
         season_options=season_options,
@@ -3924,6 +4289,7 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
 @app.route("/teams/<int:team_id>/prep-fragment")
 def team_prep_fragment(team_id: int):
     db = get_db()
+    migrate_enemy_teams_to_team_database(db)
     team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
     if team is None:
         abort(404)
@@ -3949,13 +4315,18 @@ def team_prep_fragment(team_id: int):
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
 
     enemy_team_rows = db.execute(
-        "SELECT id, name, notes, logo_path, created_at FROM enemy_teams WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        "SELECT id, name, notes, logo_path, created_at FROM teams WHERE id != ? ORDER BY name COLLATE NOCASE",
         (team_id,),
     ).fetchall()
     enemy_teams = [dict(row) for row in enemy_team_rows]
+    player_rows = db.execute(
+        "SELECT id, name, role, main_hero, notes FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        (team_id,),
+    ).fetchall()
 
     prep_context = build_team_prep_context(
         team_scrims=team_scrims,
+        team_players=player_rows,
         enemy_teams=enemy_teams,
         selected_enemy_id_raw=request.args.get("prep_enemy_id", ""),
         compare_map_a_raw=request.args.get("compare_map_a", ""),
@@ -5398,10 +5769,11 @@ def import_csv_scrims():
         flash("No scrims could be imported from that CSV. " + " ".join(warnings), "error")
         return redirect(url_for("scrims"))
 
-    # Try to match enemy team names to existing enemy_team records
+    # Try to match enemy team names to existing teams in the global team database
     db = get_db()
+    migrate_enemy_teams_to_team_database(db)
     enemy_rows = db.execute(
-        "SELECT id, name FROM enemy_teams WHERE team_id = ?", (team_id,)
+        "SELECT id, name FROM teams WHERE id != ?", (team_id,)
     ).fetchall() if team_id else []
     enemy_lookup = {r["name"].lower(): r["id"] for r in enemy_rows}
 
@@ -5439,14 +5811,15 @@ def import_csv_scrims():
 
 @app.route("/api/teams/<int:team_id>/enemies")
 def api_get_enemy_teams(team_id: int):
-    """API endpoint to get enemy teams for a specific team"""
+    """API endpoint to get opponent teams for a specific team from global teams db."""
     db = get_db()
+    migrate_enemy_teams_to_team_database(db)
     team = db.execute("SELECT id FROM teams WHERE id = ?", (team_id,)).fetchone()
     if team is None:
         abort(404)
 
     enemy_team_rows = db.execute(
-        "SELECT id, name FROM enemy_teams WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        "SELECT id, name FROM teams WHERE id != ? ORDER BY name COLLATE NOCASE",
         (team_id,),
     ).fetchall()
 
@@ -5974,23 +6347,46 @@ def update_tournament_teams(tournament_id: int):
 @app.route("/tournaments/<int:tournament_id>/teams/add", methods=["POST"])
 def add_tournament_team(tournament_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
-    team_name = request.form.get("team_name", "").strip()
-    if not team_name:
-        flash("Please enter a tournament team name.", "error")
-        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+    source_team_id = parse_team_id(request.form.get("source_team_id", ""))
+
+    if source_team_id is not None:
+        source_team = get_db().execute(
+            "SELECT id, name FROM teams WHERE id = ?",
+            (source_team_id,),
+        ).fetchone()
+        if source_team is None:
+            flash("Selected database team could not be found.", "error")
+            return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+        team_name = (source_team["name"] or "").strip()
+        players = [
+            row["name"]
+            for row in get_db().execute(
+                "SELECT name FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+                (source_team_id,),
+            ).fetchall()
+        ]
+    else:
+        team_name = request.form.get("team_name", "").strip()
+        if not team_name:
+            flash("Please enter a tournament team name.", "error")
+            return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+        players = parse_name_list(request.form.get("players", ""))
 
     existing_names = {str(team.get("name", "")).strip().lower() for team in tournament_match.get("tournament_teams", [])}
     if team_name.lower() in existing_names:
         flash("That tournament team already exists.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
-    tournament_match.setdefault("tournament_teams", []).append(
-        {
-            "id": next_tournament_team_id(tournament_match),
-            "name": team_name,
-            "players": parse_name_list(request.form.get("players", "")),
-        }
-    )
+    new_tournament_team = {
+        "id": next_tournament_team_id(tournament_match),
+        "name": team_name,
+        "players": players,
+    }
+    if source_team_id is not None:
+        new_tournament_team["source_team_id"] = source_team_id
+
+    tournament_match.setdefault("tournament_teams", []).append(new_tournament_team)
     save_app_state()
     return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
