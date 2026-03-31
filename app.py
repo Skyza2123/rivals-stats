@@ -5748,13 +5748,7 @@ def _hero_image_url(hero_name: str) -> str:
 
 
 def _hero_pool_label(hero_name: str) -> str:
-    canonical = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
-    if canonical == "Tankpool":
-        return "Tank"
-    if canonical == "DpsPool":
-        return "DPS"
-    if canonical == "SupportPool":
-        return "Supp"
+    # Pool identity is shown via image badges; suppress subtitle labels.
     return ""
 
 

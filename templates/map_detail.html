@@ -365,7 +365,7 @@
                                 <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
-                            <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
+                            <span class="hero-pick-name {% if hero in ['Tankpool', 'DpsPool', 'SupportPool'] %}pool-name-hidden{% endif %}">{{ hero_display_name(hero) }}</span>
                         </button>
                         {% endfor %}
                     </div>
@@ -508,7 +508,7 @@
                                 <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
-                            <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
+                            <span class="hero-pick-name {% if hero in ['Tankpool', 'DpsPool', 'SupportPool'] %}pool-name-hidden{% endif %}">{{ hero_display_name(hero) }}</span>
                         </button>
                         {% endfor %}
                     </div>

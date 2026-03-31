@@ -1086,9 +1086,9 @@ th {
 
 .slot-img-wrap .pool-tag {
     position: absolute;
-    bottom: 1px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 2px;
+    left: 2px;
+    transform: none;
 }
 
 .slot-img-wrap {
@@ -1101,9 +1101,9 @@ th {
 
 .slot-img-wrap .pool-tag {
     position: absolute;
-    bottom: 1px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 2px;
+    left: 2px;
+    transform: none;
 }
 
 .slot-img {
@@ -1307,14 +1307,15 @@ th {
 .pool-tag {
     position: absolute;
     bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.52rem;
+    left: 2px;
+    transform: none;
+    font-size: 0.45rem;
     font-weight: 800;
-    letter-spacing: 0.04em;
-    padding: 1px 5px;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+    padding: 1px 4px;
     border-radius: 4px;
-    line-height: 1.3;
+    line-height: 1.15;
     white-space: nowrap;
 }
 
@@ -1342,6 +1343,10 @@ th {
     text-overflow: ellipsis;
     white-space: nowrap;
     width: 100%;
+}
+
+.hero-pick-name.pool-name-hidden {
+    display: none;
 }
 
 @media (max-width: 760px) {
@@ -2639,14 +2644,15 @@ th {
     position: absolute;
     bottom: 0;
     left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 7px;
+    right: auto;
+    text-align: left;
+    font-size: 6px;
     font-weight: 800;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
     padding: 1px 2px;
-    border-radius: 0 0 4px 4px;
-    line-height: 1.4;
+    border-radius: 0 4px 0 4px;
+    line-height: 1.15;
     white-space: nowrap;
     pointer-events: none;
 }
@@ -2656,8 +2662,8 @@ th {
 .hero-pool-badge-supp { background: rgba(74, 222, 128, 0.85); color: #fff; }
 
 .vbar-hero-image .hero-pool-badge {
-    font-size: 9px;
-    padding: 2px 4px;
+    font-size: 8px;
+    padding: 2px 3px;
 }
 
 .hero-inline-link {

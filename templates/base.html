@@ -42,9 +42,9 @@
 /* Global: inject pool-role badge on every hero image for Deadpool variants */
 document.addEventListener('DOMContentLoaded', function () {
     var POOL_MAP = {
-        'Tankpool':    { text: 'Tank', cls: 'hero-pool-badge-tank' },
-        'DpsPool':     { text: 'DPS',  cls: 'hero-pool-badge-dps'  },
-        'SupportPool': { text: 'Supp', cls: 'hero-pool-badge-supp' },
+        'Tankpool':    { text: 't', cls: 'hero-pool-badge-tank' },
+        'DpsPool':     { text: 'd', cls: 'hero-pool-badge-dps'  },
+        'SupportPool': { text: 's', cls: 'hero-pool-badge-supp' },
     };
     function addBadge(img, info) {
         var vbar = img.closest('.vbar-hero-image');
