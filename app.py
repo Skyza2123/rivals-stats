@@ -784,6 +784,90 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
     }
 
 
+def build_player_hero_map_breakdown(player_name: str, scrims: list[dict]) -> dict:
+    target_name = (player_name or "").strip().lower()
+    if not target_name:
+        return {
+            "hero_rows": [],
+            "map_rows": [],
+        }
+
+    hero_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    map_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+
+            player_found = False
+            heroes_for_player_in_map = set()
+            for section in map_entry.get("comp", []):
+                for slot in section.get(our_team_slot, []):
+                    if (slot.get("player", "") or "").strip().lower() != target_name:
+                        continue
+                    player_found = True
+                    hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                    if hero_name:
+                        heroes_for_player_in_map.add(hero_name)
+
+            if not player_found:
+                continue
+
+            map_name = (map_entry.get("map_name", "") or "").strip()
+            result = map_entry.get("result", "")
+
+            if map_name:
+                map_stats[map_name]["maps"] += 1
+                if result == "Win":
+                    map_stats[map_name]["wins"] += 1
+                elif result == "Loss":
+                    map_stats[map_name]["losses"] += 1
+
+            for hero_name in heroes_for_player_in_map:
+                hero_stats[hero_name]["maps"] += 1
+                if result == "Win":
+                    hero_stats[hero_name]["wins"] += 1
+                elif result == "Loss":
+                    hero_stats[hero_name]["losses"] += 1
+
+    hero_rows = []
+    for hero_name, stats in hero_stats.items():
+        maps_played = stats["maps"]
+        hero_rows.append(
+            {
+                "hero": hero_name,
+                "maps": maps_played,
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "win_rate": round((stats["wins"] / maps_played) * 100, 1) if maps_played else 0,
+            }
+        )
+    hero_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+    map_rows = []
+    for map_name, stats in map_stats.items():
+        maps_played = stats["maps"]
+        map_rows.append(
+            {
+                "map_name": map_name,
+                "mode": MAP_MODES.get(map_name, "Other"),
+                "maps": maps_played,
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "win_rate": round((stats["wins"] / maps_played) * 100, 1) if maps_played else 0,
+                "image": MAP_IMAGES.get(map_name, ""),
+            }
+        )
+    map_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+    return {
+        "hero_rows": hero_rows,
+        "map_rows": map_rows,
+    }
+
+
 def get_scrim_or_404(scrim_id: int) -> dict:
     for scrim in SCRIMS:
         if scrim["id"] == scrim_id:
@@ -1472,7 +1556,12 @@ def build_default_comp_sections(map_name: str, first_submap: str = "") -> list[d
     ]
 
 
-def build_scrim_analytics(scrims: list[dict]) -> dict:
+def build_scrim_analytics(
+    scrims: list[dict],
+    *,
+    perspective_label: str = "Team",
+    opponent_label: str = "Opponent",
+) -> dict:
     ban_slot_keys = ("ban1", "ban2", "ban3", "ban4")
     ban_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     enemy_ban_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
@@ -1526,6 +1615,19 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             "totals": {"ban2": 0, "ban3": 0, "protect2": 0, "ban4": 0},
         }
     )
+    hero_open_stats = defaultdict(
+        lambda: {
+            "open_maps": 0,
+            "open_wins": 0,
+            "open_losses": 0,
+            "played_when_open": 0,
+            "played_wins": 0,
+            "played_losses": 0,
+            "closed_maps": 0,
+            "closed_wins": 0,
+            "closed_losses": 0,
+        }
+    )
 
     total_maps = 0
     total_wins = 0
@@ -1566,6 +1668,12 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             return f"Protect {slot_key[-1]}"
         return slot_key
 
+    hero_pool = {
+        canonical_hero(hero_name)
+        for hero_name in HEROES
+        if canonical_hero(hero_name)
+    }
+
     for scrim in scrims:
         for map_entry in scrim.get("maps", []):
             total_maps += 1
@@ -1602,6 +1710,11 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             our_protect_slots = {
                 slot: canonical_hero(our_draft.get(slot, ""))
                 for slot in ("protect1", "protect2")
+            }
+            enemy_banned_heroes = {
+                hero_name
+                for hero_name in enemy_ban_slots.values()
+                if hero_name
             }
 
             # Ban response likelihood: when we ban X in a slot, what the enemy bans
@@ -1775,6 +1888,35 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
                         comp_hard_mirror_count += 1
                     elif shared_comp_heroes >= 3:
                         comp_soft_mirror_count += 1
+
+            canonical_heroes_in_map = {
+                canonical_hero(hero_name)
+                for hero_name in heroes_in_map
+                if canonical_hero(hero_name)
+            }
+            tracked_heroes = hero_pool | enemy_banned_heroes | canonical_heroes_in_map
+            for hero_name in tracked_heroes:
+                is_open = hero_name not in enemy_banned_heroes
+                is_played = hero_name in canonical_heroes_in_map
+                if is_open:
+                    hero_open_stats[hero_name]["open_maps"] += 1
+                    if is_win:
+                        hero_open_stats[hero_name]["open_wins"] += 1
+                    elif is_loss:
+                        hero_open_stats[hero_name]["open_losses"] += 1
+
+                    if is_played:
+                        hero_open_stats[hero_name]["played_when_open"] += 1
+                        if is_win:
+                            hero_open_stats[hero_name]["played_wins"] += 1
+                        elif is_loss:
+                            hero_open_stats[hero_name]["played_losses"] += 1
+                else:
+                    hero_open_stats[hero_name]["closed_maps"] += 1
+                    if is_win:
+                        hero_open_stats[hero_name]["closed_wins"] += 1
+                    elif is_loss:
+                        hero_open_stats[hero_name]["closed_losses"] += 1
 
             # Determine if draft is unmirrored (1-2 shared heroes)
             is_draft_unmirrored = False
@@ -2199,8 +2341,8 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             "message": message,
         }
 
-    main_ban_variation = build_ban_phase_variation_summary(ban_position_rows, "Main team")
-    enemy_ban_variation = build_ban_phase_variation_summary(enemy_ban_position_rows, "Enemy team")
+    main_ban_variation = build_ban_phase_variation_summary(ban_position_rows, perspective_label)
+    enemy_ban_variation = build_ban_phase_variation_summary(enemy_ban_position_rows, opponent_label)
 
     protect_rows = []
     for hero, stats in protect_stats.items():
@@ -2300,6 +2442,44 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
             }
         )
     map_draft_rows.sort(key=lambda r: (r["skip_flag"], r["top_ban_rate"], r["top_ban_count"]), reverse=True)
+
+    hero_open_rows = []
+    for hero_name, stats in hero_open_stats.items():
+        open_maps = stats["open_maps"]
+        if not open_maps:
+            continue
+
+        played_when_open = stats["played_when_open"]
+        closed_maps = stats["closed_maps"]
+        win_rate_when_open = pct(stats["open_wins"], open_maps)
+        win_rate_when_open_played = pct(stats["played_wins"], played_when_open)
+        win_rate_when_closed = pct(stats["closed_wins"], closed_maps)
+        open_vs_closed_delta = round(win_rate_when_open - win_rate_when_closed, 1) if closed_maps else None
+        open_vs_overall_delta = round(win_rate_when_open - overall_win_rate, 1)
+        play_when_open_rate = pct(played_when_open, open_maps)
+
+        hero_open_rows.append(
+            {
+                "hero": _resolve_hero_transform_key(hero_name) or hero_name,
+                "open_maps": open_maps,
+                "open_rate": pct(open_maps, total_maps),
+                "played_when_open": played_when_open,
+                "play_when_open_rate": play_when_open_rate,
+                "win_rate_when_open": win_rate_when_open,
+                "win_rate_when_open_played": win_rate_when_open_played,
+                "win_rate_when_closed": win_rate_when_closed,
+                "open_vs_closed_delta": open_vs_closed_delta,
+                "open_vs_overall_delta": open_vs_overall_delta,
+            }
+        )
+    hero_open_rows.sort(
+        key=lambda row: (
+            row["open_maps"],
+            row["play_when_open_rate"],
+            row["played_when_open"],
+        ),
+        reverse=True,
+    )
 
     mirror_rates = {
         "draft": {
@@ -2411,6 +2591,7 @@ def build_scrim_analytics(scrims: list[dict]) -> dict:
         "lead_to_ban_rows": lead_to_ban_rows[:12],
         "lead_to_protect_rows": lead_to_protect_rows[:12],
         "ban_protect_rows": ban_protect_rows[:12],
+        "hero_open_rows": hero_open_rows[:16],
         "protect_rows": protect_rows[:12],
         "hero_rows": hero_rows[:12],
         "map_rows": map_rows[:12],
@@ -3752,6 +3933,141 @@ def team_hero_detail(team_id: int, hero_name: str):
         team=team,
         hero_insights=hero_insights,
         map_images=MAP_IMAGES,
+    )
+
+
+@app.route("/teams/<int:team_id>/players/<int:player_id>")
+def player_detail(team_id: int, player_id: int):
+    db = get_db()
+    team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    player = db.execute(
+        "SELECT * FROM players WHERE id = ? AND team_id = ?",
+        (player_id, team_id),
+    ).fetchone()
+    if player is None:
+        abort(404)
+
+    all_team_scrims = [
+        scrim
+        for scrim in SCRIMS
+        if scrim.get("team_id") == team["id"]
+        or (
+            not scrim.get("team_id")
+            and (scrim.get("team_name", "") or "").strip().lower() == team["name"].strip().lower()
+        )
+    ]
+    season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+
+    player_stats = compute_player_stats(player["name"], team_scrims)
+    breakdown = build_player_hero_map_breakdown(player["name"], team_scrims)
+
+    return render_template(
+        "player_detail.html",
+        team=team,
+        player=player,
+        player_stats=player_stats,
+        player_hero_rows=breakdown["hero_rows"],
+        player_map_rows=breakdown["map_rows"],
+        selected_season=selected_season,
+        season_options=season_options,
+        has_unseasoned_scrims=has_unseasoned_scrims,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+    )
+
+
+@app.route("/players/compare")
+def player_compare():
+    db = get_db()
+    player_rows = db.execute(
+        """
+        SELECT p.id, p.name, p.role, p.main_hero, p.notes, p.team_id, t.name AS team_name
+        FROM players p
+        JOIN teams t ON t.id = p.team_id
+        ORDER BY p.name COLLATE NOCASE
+        """
+    ).fetchall()
+
+    options = [dict(row) for row in player_rows]
+    option_lookup = {str(row["id"]): dict(row) for row in player_rows}
+
+    player_a_id = (request.args.get("player_a") or "").strip()
+    player_b_id = (request.args.get("player_b") or "").strip()
+    player_a = option_lookup.get(player_a_id)
+    player_b = option_lookup.get(player_b_id)
+
+    def load_player_payload(player_row: dict | None) -> dict | None:
+        if player_row is None:
+            return None
+
+        team_scrims = [
+            scrim
+            for scrim in SCRIMS
+            if scrim.get("team_id") == player_row["team_id"]
+            or (
+                not scrim.get("team_id")
+                and (scrim.get("team_name", "") or "").strip().lower() == (player_row.get("team_name", "") or "").strip().lower()
+            )
+        ]
+        stats = compute_player_stats(player_row["name"], team_scrims)
+        breakdown = build_player_hero_map_breakdown(player_row["name"], team_scrims)
+        return {
+            "profile": player_row,
+            "stats": stats,
+            "hero_rows": breakdown["hero_rows"][:8],
+            "map_rows": breakdown["map_rows"][:8],
+        }
+
+    payload_a = load_player_payload(player_a)
+    payload_b = load_player_payload(player_b)
+
+    shared_heroes = []
+    shared_maps = []
+    if payload_a and payload_b:
+        hero_lookup_a = {row["hero"]: row for row in payload_a["hero_rows"]}
+        hero_lookup_b = {row["hero"]: row for row in payload_b["hero_rows"]}
+        for hero_name in sorted(set(hero_lookup_a) & set(hero_lookup_b)):
+            shared_heroes.append(
+                {
+                    "hero": hero_name,
+                    "player_a_maps": hero_lookup_a[hero_name]["maps"],
+                    "player_b_maps": hero_lookup_b[hero_name]["maps"],
+                }
+            )
+        shared_heroes.sort(key=lambda row: row["player_a_maps"] + row["player_b_maps"], reverse=True)
+
+        map_lookup_a = {row["map_name"]: row for row in payload_a["map_rows"]}
+        map_lookup_b = {row["map_name"]: row for row in payload_b["map_rows"]}
+        for map_name in sorted(set(map_lookup_a) & set(map_lookup_b)):
+            shared_maps.append(
+                {
+                    "map_name": map_name,
+                    "player_a_maps": map_lookup_a[map_name]["maps"],
+                    "player_b_maps": map_lookup_b[map_name]["maps"],
+                }
+            )
+        shared_maps.sort(key=lambda row: row["player_a_maps"] + row["player_b_maps"], reverse=True)
+
+    return render_template(
+        "player_compare.html",
+        player_options=options,
+        selected_player_a_id=player_a_id,
+        selected_player_b_id=player_b_id,
+        player_a=payload_a,
+        player_b=payload_b,
+        shared_heroes=shared_heroes[:10],
+        shared_maps=shared_maps[:10],
     )
 
 
