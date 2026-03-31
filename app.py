@@ -68,6 +68,8 @@ SIMULATOR_SLOT_ORDER = (
     "team2_ban4",
     "team1_ban4",
     "team2_protect2",
+    "team1_ban4",   
+   
 )
 PREDICTOR_GROUPS = (
     (("team1", "ban1", "t1_ban1"), ("team2", "ban1", "t2_ban1")),
