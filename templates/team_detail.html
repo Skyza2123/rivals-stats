@@ -113,10 +113,11 @@
                                 <tr>
                                     <th>Hero</th>
                                     <th>Open Maps</th>
-                                    <th>Played When Open</th>
-                                    <th>Play Rate (Open)</th>
+                                    <th>Banned Maps</th>
                                     <th>WR When Open</th>
-                                    <th>WR When Open + Played</th>
+                                    <th>WR When Banned</th>
+                                    <th>Open - Banned</th>
+                                    <th>Play Rate (Open)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -129,10 +130,23 @@
                                             </span>
                                         </td>
                                         <td>{{ row.open_maps }}</td>
-                                        <td>{{ row.played_when_open }}</td>
-                                        <td>{{ row.play_when_open_rate }}%</td>
+                                        <td>{{ row.banned_maps }}</td>
                                         <td>{{ row.win_rate_when_open }}%</td>
-                                        <td>{{ row.win_rate_when_open_played }}%</td>
+                                        <td>
+                                            {% if row.banned_maps %}
+                                                {{ row.win_rate_when_banned }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if row.open_vs_banned_delta is not none %}
+                                                {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ row.play_when_open_rate }}%</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -1495,6 +1509,12 @@
             <div class="field">
                 <label for="team_notes">Team Notes</label>
                 <input id="team_notes" name="notes" type="text" value="{{ team.notes }}">
+            </div>
+            <div class="field field-full">
+                <label>
+                    <input type="checkbox" name="is_personal" value="1" {% if team.is_personal %}checked{% endif %}>
+                    Show this team in Personal quick access
+                </label>
             </div>
             <div class="field field-full">
                 <label for="team_logo">Team Logo</label>

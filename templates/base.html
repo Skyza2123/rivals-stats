@@ -20,6 +20,7 @@
                 <a href="{{ url_for('tournaments') }}" class="nav-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
                 <a href="{{ url_for('draft_simulator') }}" class="nav-link {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Simulator</a>
                 <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams & Players</a>
+                <a href="{{ url_for('teams_compare') }}" class="nav-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Comparison</a>
                 <a href="{{ url_for('player_compare') }}" class="nav-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Comparison</a>
             </nav>
         </aside>

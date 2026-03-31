@@ -9,7 +9,7 @@
         <p>
             {{ tournament.scrim_date or 'No date set' }}
             {% if tournament.season %} &bull; Season {{ tournament.season }}{% endif %}
-            {% if tournament.team_name %} &bull; {{ tournament.team_name }} scouting{% endif %}
+            {% if tournament.team_name %} &bull; Focus Team: {{ tournament.team_name }}{% endif %}
         </p>
     </div>
     <div class="header-actions">
@@ -27,8 +27,8 @@
     <section class="stat-card"><strong>Maps</strong><span>{{ total_maps }}</span></section>
     <section class="stat-card"><strong>Completed Maps</strong><span>{{ completed_maps }}</span></section>
     <section class="stat-card"><strong>Season</strong><span>{{ tournament.season or '—' }}</span></section>
-    <section class="stat-card"><strong>Owner Team</strong><span>{{ tournament.team_name or '—' }}</span></section>
-    <section class="stat-card"><strong>Owner Side</strong><span>{{ 'Team 1' if selected_perspective == 'team1' else 'Team 2' }}</span></section>
+    <section class="stat-card"><strong>Focus Team</strong><span>{{ tournament.team_name or 'None (third-party)' }}</span></section>
+    <section class="stat-card"><strong>Default Analysis Side</strong><span>{{ 'Team 1' if selected_perspective == 'team1' else 'Team 2' }}</span></section>
 </div>
 
 {% if tournament.notes %}
@@ -655,7 +655,7 @@
                     <input type="text" id="edit_tournament_season" name="season" value="{{ tournament.season or '' }}" required>
                 </div>
                 <div class="field">
-                    <label for="edit_tournament_team_slot">Owner Team Is</label>
+                    <label for="edit_tournament_team_slot">Default Analysis Side</label>
                     <select id="edit_tournament_team_slot" name="team_slot">
                         <option value="team1" {% if (tournament.team_slot or 'team1') == 'team1' %}selected{% endif %}>Team 1</option>
                         <option value="team2" {% if tournament.team_slot == 'team2' %}selected{% endif %}>Team 2</option>

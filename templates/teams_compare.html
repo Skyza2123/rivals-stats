@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Team Comparison{% endblock %}
+
+{% block content %}
+<div class="team-hero">
+    <div class="team-hero-left">
+        <div>
+            <h2>Team Comparison</h2>
+            <p>Compare two teams from your database across maps, win rate, top heroes, and top maps.</p>
+        </div>
+    </div>
+</div>
+
+<section class="panel">
+    <h3>Select Teams</h3>
+    <form method="GET" action="{{ url_for('teams_compare') }}" class="form-grid top-gap">
+        <div class="field">
+            <label for="team_a">Team A</label>
+            <select id="team_a" name="team_a" required>
+                <option value="">Choose team</option>
+                {% for option in team_options %}
+                    <option value="{{ option.id }}" {% if selected_team_a_id == option.id|string %}selected{% endif %}>{{ option.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="team_b">Team B</label>
+            <select id="team_b" name="team_b" required>
+                <option value="">Choose team</option>
+                {% for option in team_options %}
+                    <option value="{{ option.id }}" {% if selected_team_b_id == option.id|string %}selected{% endif %}>{{ option.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="button-row field-full">
+            <button type="submit">Compare Teams</button>
+        </div>
+    </form>
+</section>
+
+{% if team_a and team_b %}
+<section class="panel panel-soft-blue top-gap">
+    <h3>Overview</h3>
+    <div class="table-wrap">
+        <table class="stats-table stats-table-compare">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>{{ team_a.team.name }}</th>
+                    <th>{{ team_b.team.name }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Total Maps</td>
+                    <td>{{ team_a.analytics.summary.total_maps }}</td>
+                    <td>{{ team_b.analytics.summary.total_maps }}</td>
+                </tr>
+                <tr>
+                    <td>Wins</td>
+                    <td>{{ team_a.analytics.summary.total_wins }}</td>
+                    <td>{{ team_b.analytics.summary.total_wins }}</td>
+                </tr>
+                <tr>
+                    <td>Losses</td>
+                    <td>{{ team_a.analytics.summary.total_losses }}</td>
+                    <td>{{ team_b.analytics.summary.total_losses }}</td>
+                </tr>
+                <tr>
+                    <td>Win Rate</td>
+                    <td>{{ team_a.analytics.summary.overall_win_rate }}%</td>
+                    <td>{{ team_b.analytics.summary.overall_win_rate }}%</td>
+                </tr>
+                <tr>
+                    <td>Unique Heroes Used</td>
+                    <td>{{ team_a.analytics.summary.unique_heroes }}</td>
+                    <td>{{ team_b.analytics.summary.unique_heroes }}</td>
+                </tr>
+                <tr>
+                    <td>Unique Maps</td>
+                    <td>{{ team_a.analytics.summary.unique_maps }}</td>
+                    <td>{{ team_b.analytics.summary.unique_maps }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel panel-soft-green top-gap">
+    <h3>Top Heroes</h3>
+    <div class="form-grid">
+        <div class="panel">
+            <h4>{{ team_a.team.name }}</h4>
+            {% if team_a.top_heroes %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Maps</th>
+                                <th>WR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in team_a.top_heroes %}
+                                <tr>
+                                    <td>{{ row.hero }}</td>
+                                    <td>{{ row.maps }}</td>
+                                    <td>{{ row.win_rate }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No hero data.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel">
+            <h4>{{ team_b.team.name }}</h4>
+            {% if team_b.top_heroes %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Maps</th>
+                                <th>WR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in team_b.top_heroes %}
+                                <tr>
+                                    <td>{{ row.hero }}</td>
+                                    <td>{{ row.maps }}</td>
+                                    <td>{{ row.win_rate }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No hero data.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="panel panel-soft-violet top-gap">
+    <h3>Top Maps</h3>
+    <div class="form-grid">
+        <div class="panel">
+            <h4>{{ team_a.team.name }}</h4>
+            {% if team_a.top_maps %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Map</th>
+                                <th>Maps</th>
+                                <th>WR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in team_a.top_maps %}
+                                <tr>
+                                    <td>{{ row.map_name }}</td>
+                                    <td>{{ row.maps }}</td>
+                                    <td>{{ row.win_rate }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No map data.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel">
+            <h4>{{ team_b.team.name }}</h4>
+            {% if team_b.top_maps %}
+                <div class="table-wrap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Map</th>
+                                <th>Maps</th>
+                                <th>WR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in team_b.top_maps %}
+                                <tr>
+                                    <td>{{ row.map_name }}</td>
+                                    <td>{{ row.maps }}</td>
+                                    <td>{{ row.win_rate }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No map data.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

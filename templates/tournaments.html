@@ -53,7 +53,7 @@
                         <span class="scrim-box-maps">{{ match.matches|length }} matches</span>
                     </div>
                     <div class="list-subtitle">
-                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %} • {{ match.tournament_teams|length }} teams
+                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • Focus: {{ match.team_name }}{% endif %} • {{ match.tournament_teams|length }} teams
                     </div>
                     <div class="scrim-box-cta">Open Tournament →</div>
                 </a>
@@ -87,7 +87,7 @@
                             <div>
                                 <div class="list-title">{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</div>
                                 <div class="list-subtitle">
-                                    {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %} • {{ match.tournament_teams|length }} teams
+                                    {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • Focus: {{ match.team_name }}{% endif %} • {{ match.tournament_teams|length }} teams
                                 </div>
                             </div>
                             <div class="list-meta">
@@ -110,9 +110,9 @@
                     </div>
 
                     <div class="field">
-                        <label for="create_tournament_team_id">Owner Team</label>
-                        <select id="create_tournament_team_id" name="team_id" required>
-                            <option value="">Select your team</option>
+                        <label for="create_tournament_team_id">Affiliated Team (Optional)</label>
+                        <select id="create_tournament_team_id" name="team_id">
+                            <option value="">None (third-party tracking)</option>
                             {% for team in teams %}
                                 <option value="{{ team.id }}">{{ team.name }}</option>
                             {% endfor %}
@@ -120,7 +120,7 @@
                     </div>
 
                     <div class="field">
-                        <label for="create_tournament_team_slot">Owner Team Is</label>
+                        <label for="create_tournament_team_slot">Default Analysis Side</label>
                         <select id="create_tournament_team_slot" name="team_slot">
                             <option value="team1" selected>Team 1</option>
                             <option value="team2">Team 2</option>
@@ -139,7 +139,7 @@
                 </div>
 
                 <div class="field">
-                    <label for="create_tournament_notes">Scouting Notes</label>
+                    <label for="create_tournament_notes">Tournament Notes</label>
                     <textarea id="create_tournament_notes" name="notes" rows="6" placeholder="What you want to compare, meta context, broadcast/VOD references..."></textarea>
                 </div>
 

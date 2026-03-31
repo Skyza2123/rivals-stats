@@ -142,6 +142,7 @@ def init_db() -> None:
                 name TEXT NOT NULL UNIQUE,
                 notes TEXT NOT NULL DEFAULT '',
                 logo_path TEXT NOT NULL DEFAULT '',
+                is_personal INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -219,6 +220,8 @@ def init_db() -> None:
         team_columns = {row[1] for row in conn.execute("PRAGMA table_info(teams)").fetchall()}
         if "logo_path" not in team_columns:
             conn.execute("ALTER TABLE teams ADD COLUMN logo_path TEXT NOT NULL DEFAULT ''")
+        if "is_personal" not in team_columns:
+            conn.execute("ALTER TABLE teams ADD COLUMN is_personal INTEGER NOT NULL DEFAULT 0")
 
         enemy_team_columns = {row[1] for row in conn.execute("PRAGMA table_info(enemy_teams)").fetchall()}
         if "logo_path" not in enemy_team_columns:
@@ -2463,12 +2466,15 @@ def build_scrim_analytics(
                 "hero": _resolve_hero_transform_key(hero_name) or hero_name,
                 "open_maps": open_maps,
                 "open_rate": pct(open_maps, total_maps),
+                "banned_maps": closed_maps,
                 "played_when_open": played_when_open,
                 "play_when_open_rate": play_when_open_rate,
                 "win_rate_when_open": win_rate_when_open,
                 "win_rate_when_open_played": win_rate_when_open_played,
                 "win_rate_when_closed": win_rate_when_closed,
+                "win_rate_when_banned": win_rate_when_closed,
                 "open_vs_closed_delta": open_vs_closed_delta,
+                "open_vs_banned_delta": open_vs_closed_delta,
                 "open_vs_overall_delta": open_vs_overall_delta,
             }
         )
@@ -3375,7 +3381,7 @@ def teams():
     db = get_db()
     team_rows = db.execute(
         """
-        SELECT t.id, t.name, t.notes, t.logo_path, COUNT(p.id) AS player_count
+        SELECT t.id, t.name, t.notes, t.logo_path, t.is_personal, COUNT(p.id) AS player_count
         FROM teams t
         LEFT JOIN players p ON p.team_id = t.id
         GROUP BY t.id
@@ -3420,6 +3426,7 @@ def teams():
                 "name": row["name"],
                 "notes": row["notes"],
                 "logo_path": row["logo_path"],
+                "is_personal": bool(row["is_personal"]),
                 "player_count": row["player_count"],
                 "scrim_count": len(team_scrims),
                 "map_count": team_maps,
@@ -3427,13 +3434,62 @@ def teams():
             }
         )
 
+    personal_teams = [team for team in teams_with_scrim_stats if team["is_personal"]]
+
     return render_template(
         "teams.html",
         teams=teams_with_scrim_stats,
+        personal_teams=personal_teams,
         season_options=season_options,
         selected_season=selected_season,
         has_unseasoned_scrims=has_unseasoned_scrims,
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+    )
+
+
+@app.route("/teams/compare")
+def teams_compare():
+    db = get_db()
+    team_rows = db.execute(
+        "SELECT id, name, notes, logo_path, is_personal FROM teams ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    team_options = [dict(row) for row in team_rows]
+    team_lookup = {str(row["id"]): dict(row) for row in team_rows}
+
+    selected_team_a_id = (request.args.get("team_a") or "").strip()
+    selected_team_b_id = (request.args.get("team_b") or "").strip()
+
+    def load_team_payload(team_row: dict | None) -> dict | None:
+        if team_row is None:
+            return None
+
+        team_scrims = [
+            scrim
+            for scrim in SCRIMS
+            if scrim.get("team_id") == team_row["id"]
+            or (
+                not scrim.get("team_id")
+                and (scrim.get("team_name", "") or "").strip().lower() == team_row["name"].strip().lower()
+            )
+        ]
+        analytics = build_scrim_analytics(team_scrims)
+        return {
+            "team": team_row,
+            "analytics": analytics,
+            "top_heroes": analytics.get("hero_rows", [])[:6],
+            "top_maps": analytics.get("map_rows", [])[:6],
+        }
+
+    team_a = load_team_payload(team_lookup.get(selected_team_a_id))
+    team_b = load_team_payload(team_lookup.get(selected_team_b_id))
+
+    return render_template(
+        "teams_compare.html",
+        team_options=team_options,
+        selected_team_a_id=selected_team_a_id,
+        selected_team_b_id=selected_team_b_id,
+        team_a=team_a,
+        team_b=team_b,
     )
 
 
@@ -3443,13 +3499,17 @@ def create_team():
     name = request.form.get("name", "").strip()
     notes = request.form.get("notes", "").strip()
     logo_path = save_team_logo(request.files.get("logo"), name)
+    is_personal = 1 if request.form.get("is_personal", "").strip() == "1" else 0
 
     if not name:
         flash("Team name is required.", "error")
         return redirect(url_for("teams"))
 
     try:
-        db.execute("INSERT INTO teams (name, notes, logo_path) VALUES (?, ?, ?)", (name, notes, logo_path))
+        db.execute(
+            "INSERT INTO teams (name, notes, logo_path, is_personal) VALUES (?, ?, ?, ?)",
+            (name, notes, logo_path, is_personal),
+        )
         db.commit()
     except sqlite3.IntegrityError:
         flash("A team with that name already exists.", "error")
@@ -3470,6 +3530,11 @@ def edit_team(team_id: int):
     notes = request.form.get("notes", "").strip()
     remove_logo = request.form.get("remove_logo", "").strip() == "1"
     new_logo_path = save_team_logo(request.files.get("logo"), name)
+    raw_personal = request.form.get("is_personal")
+    if raw_personal is None:
+        is_personal = int(current["is_personal"] or 0)
+    else:
+        is_personal = 1 if (raw_personal or "").strip() == "1" else 0
     if not name:
         flash("Team name is required.", "error")
         return redirect(url_for("team_detail", team_id=team_id))
@@ -3484,7 +3549,10 @@ def edit_team(team_id: int):
         elif remove_logo and current_logo_path:
             logo_path = ""
             delete_team_logo_file(current_logo_path)
-        db.execute("UPDATE teams SET name = ?, notes = ?, logo_path = ? WHERE id = ?", (name, notes, logo_path, team_id))
+        db.execute(
+            "UPDATE teams SET name = ?, notes = ?, logo_path = ?, is_personal = ? WHERE id = ?",
+            (name, notes, logo_path, is_personal, team_id),
+        )
         db.commit()
     except sqlite3.IntegrityError:
         flash("A team with that name already exists.", "error")
@@ -3492,6 +3560,29 @@ def edit_team(team_id: int):
 
     flash("Team updated.", "success")
     return redirect(url_for("team_detail", team_id=team_id))
+
+
+@app.route("/teams/<int:team_id>/quick-access", methods=["POST"])
+def toggle_team_quick_access(team_id: int):
+    db = get_db()
+    team = db.execute("SELECT id, is_personal FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    action = (request.form.get("action") or "toggle").strip().lower()
+    current_value = 1 if team["is_personal"] else 0
+    if action == "add":
+        next_value = 1
+    elif action == "remove":
+        next_value = 0
+    else:
+        next_value = 0 if current_value else 1
+
+    db.execute("UPDATE teams SET is_personal = ? WHERE id = ?", (next_value, team_id))
+    db.commit()
+
+    flash("Quick access updated.", "success")
+    return redirect(url_for("teams", season=request.form.get("season", "all")))
 
 
 @app.route("/teams/<int:team_id>")
@@ -5499,9 +5590,6 @@ def create_tournament():
     team_id = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
     team_slot = normalize_match_team_slot(request.form.get("team_slot", "team1"))
-    if not team_name:
-        flash("Please assign this tournament to one of your teams.", "error")
-        return redirect(f"{url_for('tournaments')}#create-tournament")
 
     tournament_name = request.form.get("tournament_name", "").strip()
     if not tournament_name:

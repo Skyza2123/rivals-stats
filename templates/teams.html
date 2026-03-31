@@ -5,8 +5,8 @@
 {% block content %}
 <div class="main-header">
     <div>
-        <h2>View Your Teams</h2>
-        <p>Create teams and jump into stats quickly.</p>
+        <h2>Team Database</h2>
+        <p>Store every team in one database, then pin favorites to Personal for quick access.</p>
         {% if selected_season != 'all' %}
             <p style="margin-top: 0.4rem; margin-bottom: 0;">
                 <strong style="color: var(--accent-color, #0066cc);">
@@ -38,33 +38,83 @@
 </div>
 
 <section class="panel">
-    <h3>All Teams</h3>
-    {% if teams %}
-        <div class="teams-card-grid">
-            {% for team in teams %}
-                <article class="team-dash-card">
-                    <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
-                        <img
-                            class="team-dash-logo"
-                            src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
-                            alt="{{ team.name }} logo"
-                        >
-                        <div class="team-dash-title">{{ team.name }}</div>
-                        <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
-                        <div class="team-dash-stats">
-                            <span>{{ team.scrim_count }} scrims</span>
-                            <span>{{ team.map_count }} maps</span>
-                            <span>{{ team.map_win_rate }}% WR</span>
-                        </div>
-                    </a>
-                    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
-                    <div class="team-dash-players">{{ team.player_count }} players</div>
-                </article>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="empty-text">No teams yet. Create your first team above.</p>
-    {% endif %}
+    <div class="tab-bar">
+        <button class="tab-btn tab-active" data-tab="all" type="button">All Teams ({{ teams|length }})</button>
+        <button class="tab-btn" data-tab="personal" type="button">Personal Quick Access ({{ personal_teams|length }})</button>
+    </div>
+
+    <div class="tab-content" id="tab-all">
+        {% if teams %}
+            <div class="teams-card-grid">
+                {% for team in teams %}
+                    <article class="team-dash-card">
+                        <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
+                            <img
+                                class="team-dash-logo"
+                                src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                                alt="{{ team.name }} logo"
+                            >
+                            <div class="team-dash-title">{{ team.name }}</div>
+                            <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
+                            <div class="team-dash-stats">
+                                <span>{{ team.scrim_count }} scrims</span>
+                                <span>{{ team.map_count }} maps</span>
+                                <span>{{ team.map_win_rate }}% WR</span>
+                            </div>
+                        </a>
+                        <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
+                        <div class="team-dash-players">{{ team.player_count }} players</div>
+                        <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
+                            <input type="hidden" name="season" value="{{ selected_season }}">
+                            {% if team.is_personal %}
+                                <input type="hidden" name="action" value="remove">
+                                <button type="submit" class="button-secondary button-small">Remove From Personal</button>
+                            {% else %}
+                                <input type="hidden" name="action" value="add">
+                                <button type="submit" class="button-secondary button-small">Add To Personal</button>
+                            {% endif %}
+                        </form>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No teams yet. Create your first team above.</p>
+        {% endif %}
+    </div>
+
+    <div class="tab-content tab-hidden" id="tab-personal">
+        {% if personal_teams %}
+            <div class="teams-card-grid">
+                {% for team in personal_teams %}
+                    <article class="team-dash-card">
+                        <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
+                            <img
+                                class="team-dash-logo"
+                                src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                                alt="{{ team.name }} logo"
+                            >
+                            <div class="team-dash-title">{{ team.name }}</div>
+                            <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
+                            <div class="team-dash-stats">
+                                <span>{{ team.scrim_count }} scrims</span>
+                                <span>{{ team.map_count }} maps</span>
+                                <span>{{ team.map_win_rate }}% WR</span>
+                            </div>
+                        </a>
+                        <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
+                        <div class="team-dash-players">{{ team.player_count }} players</div>
+                        <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
+                            <input type="hidden" name="season" value="{{ selected_season }}">
+                            <input type="hidden" name="action" value="remove">
+                            <button type="submit" class="button-secondary button-small">Remove From Personal</button>
+                        </form>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No teams in Personal yet. Add any team from the All Teams tab.</p>
+        {% endif %}
+    </div>
 </section>
 
 <div id="addTeamModal" class="modal-overlay" aria-hidden="true">
@@ -84,6 +134,12 @@
             <div class="field">
                 <label for="modal_team_notes">Notes</label>
                 <input id="modal_team_notes" name="notes" type="text" placeholder="Optional context">
+            </div>
+            <div class="field field-full">
+                <label>
+                    <input type="checkbox" name="is_personal" value="1">
+                    Add this team to Personal quick access
+                </label>
             </div>
             <div class="field field-full">
                 <label for="modal_team_logo">Team Logo</label>
@@ -166,6 +222,30 @@
     });
 
     updateLogoPreview();
+
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-content');
+    const validTabs = new Set(['all', 'personal']);
+
+    const switchTab = (tabName) => {
+        const nextTab = validTabs.has(tabName) ? tabName : 'all';
+        tabButtons.forEach((button) => {
+            button.classList.toggle('tab-active', button.dataset.tab === nextTab);
+        });
+        tabPanels.forEach((panel) => {
+            panel.classList.toggle('tab-hidden', panel.id !== `tab-${nextTab}`);
+        });
+        window.history.replaceState(null, '', `#${nextTab}`);
+    };
+
+    tabButtons.forEach((button) => {
+        button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+
+    const hashTab = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+    if (validTabs.has(hashTab)) {
+        switchTab(hashTab);
+    }
 })();
 </script>
 {% endblock %}
