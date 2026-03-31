@@ -65,31 +65,37 @@
                 <div class="draft-slot" data-slot="team1_ban1" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 1</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team1_ban1" value="">
                 </div>
                 <div class="draft-slot" data-slot="team1_ban2" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 2</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team1_ban2" value="">
                 </div>
                 <div class="draft-slot" data-slot="team1_protect1" onclick="activateSlot(this)">
                     <span class="slot-label protect-label">Protect 1</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team1_protect1" value="">
                 </div>
                 <div class="draft-slot" data-slot="team1_ban3" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 3</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team1_ban3" value="">
                 </div>
                 <div class="draft-slot" data-slot="team1_protect2" onclick="activateSlot(this)">
                     <span class="slot-label protect-label">Protect 2</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team1_protect2" value="">
                 </div>
                 <div class="draft-slot" data-slot="team1_ban4" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 4</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team1_ban4" value="">
                 </div>
             </div>
@@ -101,31 +107,37 @@
                 <div class="draft-slot" data-slot="team2_ban1" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 1</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team2_ban1" value="">
                 </div>
                 <div class="draft-slot" data-slot="team2_protect1" onclick="activateSlot(this)">
                     <span class="slot-label protect-label">Protect 1</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team2_protect1" value="">
                 </div>
                 <div class="draft-slot" data-slot="team2_ban2" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 2</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team2_ban2" value="">
                 </div>
                 <div class="draft-slot" data-slot="team2_ban3" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 3</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team2_ban3" value="">
                 </div>
                 <div class="draft-slot" data-slot="team2_ban4" onclick="activateSlot(this)">
                     <span class="slot-label ban-label">Ban 4</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team2_ban4" value="">
                 </div>
                 <div class="draft-slot" data-slot="team2_protect2" onclick="activateSlot(this)">
                     <span class="slot-label protect-label">Protect 2</span>
                     <span class="slot-hero"></span>
+                    <span class="slot-hero-sub"></span>
                     <input type="hidden" name="team2_protect2" value="">
                 </div>
             </div>
@@ -166,9 +178,9 @@
             <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
             <div class="hero-icon-grid">
                 {% for hero in hero_roles[role] %}
-                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}"
+                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-display="{{ hero_display_name(hero) }}" data-pool="{{ hero_pool_label(hero) }}"
                         onclick="pickHero(this)"
-                        title="{{ hero }}">
+                    title="{{ hero_display_name(hero) }}{% if hero_pool_label(hero) %} ({{ hero_pool_label(hero) }}){% endif %}">
                     <div class="hero-img-wrap">
                         <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
                              alt="{{ hero }}" loading="lazy">
@@ -176,7 +188,10 @@
                         {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
                         {% if hero == 'SupportPool' %}<span class="pool-tag tag-sup">SUP</span>{% endif %}
                     </div>
-                    <span class="hero-pick-name">{{ hero }}</span>
+                    <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
+                    {% if hero_pool_label(hero) %}
+                        <span class="hero-pool-sub">{{ hero_pool_label(hero) }}</span>
+                    {% endif %}
                 </button>
                 {% endfor %}
             </div>
@@ -218,11 +233,15 @@ let countdownSeconds = 0;
 let savedDrafts = [];
 
 const HERO_IMAGE_BY_NAME = {};
+const HERO_DISPLAY_BY_NAME = {};
+const HERO_POOL_BY_NAME = {};
 document.querySelectorAll('.hero-pick-btn').forEach(btn => {
     const hero = btn.dataset.hero;
     const img = btn.querySelector('img');
     if (hero && img) {
         HERO_IMAGE_BY_NAME[hero] = img.src;
+        HERO_DISPLAY_BY_NAME[hero] = btn.dataset.display || hero;
+        HERO_POOL_BY_NAME[hero] = btn.dataset.pool || '';
     }
 });
 
@@ -234,18 +253,27 @@ function setSlotHero(slot, hero) {
     const value = (hero || '').trim();
     const hidden = slot.querySelector('input');
     const heroLabel = slot.querySelector('.slot-hero');
+    const heroSub = slot.querySelector('.slot-hero-sub');
     let slotWrap = slot.querySelector('.slot-img-wrap');
 
     hidden.value = value;
 
     if (!value) {
         heroLabel.textContent = '';
+        if (heroSub) {
+            heroSub.textContent = '';
+            heroSub.classList.remove('show');
+        }
         if (slotWrap) slotWrap.remove();
         slot.classList.remove('slot-filled');
         return;
     }
 
-    heroLabel.textContent = value;
+    heroLabel.textContent = HERO_DISPLAY_BY_NAME[value] || value;
+    if (heroSub) {
+        heroSub.textContent = HERO_POOL_BY_NAME[value] || '';
+        heroSub.classList.toggle('show', !!heroSub.textContent);
+    }
     if (!slotWrap) {
         slotWrap = document.createElement('div');
         slotWrap.className = 'slot-img-wrap';

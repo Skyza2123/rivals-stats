@@ -61,7 +61,7 @@
                         <span class="scrim-box-maps">{{ scrim.maps|length }} maps</span>
                     </div>
                     <div class="list-subtitle">
-                        {{ scrim.scrim_date }}{% if scrim.season %} • Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
+                        {{ scrim.scrim_date }}{% if scrim.season %} • Season {{ scrim.season }}{% endif %}{% if scrim.team1_name and scrim.team2_name %} • {{ scrim.team1_name }} vs {{ scrim.team2_name }}{% elif scrim.team_name %} • {{ scrim.team_name }}{% endif %}
                     </div>
                     <div class="scrim-box-cta">Open Scrim →</div>
                 </a>
@@ -89,9 +89,9 @@
         <form id="createScrimForm" action="{{ url_for('create_scrim') }}" method="post">
             <div class="form-grid">
                 <div class="field">
-                    <label for="create_scrim_team_id">Your Team</label>
-                    <select id="create_scrim_team_id" name="team_id" required>
-                        <option value="">Select your team</option>
+                    <label for="create_scrim_team1_id">Team 1</label>
+                    <select id="create_scrim_team1_id" name="team1_id" required>
+                        <option value="">Select team</option>
                         {% for team in teams %}
                             <option value="{{ team.id }}">{{ team.name }}</option>
                         {% endfor %}
@@ -99,20 +99,12 @@
                 </div>
 
                 <div class="field">
-                    <label for="create_scrim_enemy_team">Enemy Team</label>
-                    <select id="create_scrim_enemy_team_select" name="enemy_team_id" style="display: none;">
-                        <option value="">Select a saved enemy team</option>
-                    </select>
-                    <input type="hidden" id="create_scrim_enemy_team_id_hidden" name="enemy_team_id" value="">
-                    <input type="text" id="create_scrim_enemy_team" name="enemy_team_manual" placeholder="Or type opponent name">
-                    <small style="display: block; margin-top: 6px; color: var(--muted);">Select from saved teams or type a custom team name</small>
-                </div>
-
-                <div class="field">
-                    <label for="create_scrim_team_slot">Your Team Is</label>
-                    <select id="create_scrim_team_slot" name="team_slot">
-                        <option value="team1" selected>Team 1</option>
-                        <option value="team2">Team 2</option>
+                    <label for="create_scrim_team2_id">Team 2</label>
+                    <select id="create_scrim_team2_id" name="team2_id" required>
+                        <option value="">Select team</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -207,10 +199,8 @@
     const scrimModal = document.getElementById('scrimModal');
     const openScrimButton = document.getElementById('openScrimModal');
     const closeScrimButton = document.getElementById('closeScrimModal');
-    const teamSelect = document.getElementById('create_scrim_team_id');
-    const enemyTeamSelect = document.getElementById('create_scrim_enemy_team_select');
-    const enemyTeamIdHidden = document.getElementById('create_scrim_enemy_team_id_hidden');
-    const enemyTeamManual = document.getElementById('create_scrim_enemy_team');
+    const team1Select = document.getElementById('create_scrim_team1_id');
+    const team2Select = document.getElementById('create_scrim_team2_id');
     const createForm = document.getElementById('createScrimForm');
     const modal    = document.getElementById("importModal");
     const openBtn  = document.getElementById("openImportModal");
@@ -229,44 +219,17 @@
         scrimModal.setAttribute('aria-hidden', 'true');
     };
 
-    async function loadEnemyTeams() {
-        const teamId = teamSelect.value;
-        if (!teamId) {
-            enemyTeamSelect.style.display = 'none';
-            enemyTeamManual.style.display = 'block';
-            enemyTeamManual.required = true;
-            enemyTeamIdHidden.value = '';
-            return;
-        }
+    function syncScrimTeamOptions() {
+        if (!team1Select || !team2Select) return;
+        const team1Value = team1Select.value;
+        const team2Value = team2Select.value;
 
-        try {
-            const response = await fetch(`/api/teams/${teamId}/enemies`);
-            const enemies = await response.json();
-
-            if (enemies.length > 0) {
-                enemyTeamSelect.innerHTML = '<option value="">Select a saved enemy team</option>';
-                enemies.forEach((enemy) => {
-                    const option = document.createElement('option');
-                    option.value = enemy.id;
-                    option.textContent = enemy.name;
-                    option.dataset.enemyId = enemy.id;
-                    option.dataset.enemyName = enemy.name;
-                    enemyTeamSelect.appendChild(option);
-                });
-                enemyTeamSelect.style.display = 'block';
-                enemyTeamManual.style.display = 'none';
-                enemyTeamManual.required = false;
-            } else {
-                enemyTeamSelect.style.display = 'none';
-                enemyTeamManual.style.display = 'block';
-                enemyTeamManual.required = true;
-            }
-        } catch (error) {
-            console.error('Failed to load enemy teams:', error);
-            enemyTeamSelect.style.display = 'none';
-            enemyTeamManual.style.display = 'block';
-            enemyTeamManual.required = true;
-        }
+        Array.from(team1Select.options).forEach((option) => {
+            option.hidden = option.value !== '' && option.value === team2Value;
+        });
+        Array.from(team2Select.options).forEach((option) => {
+            option.hidden = option.value !== '' && option.value === team1Value;
+        });
     }
 
     const openModal  = () => { modal.classList.add("show"); modal.setAttribute("aria-hidden","false"); };
@@ -289,39 +252,22 @@
         fileName.textContent = fileInput.files[0]?.name || "No file chosen";
     });
 
-    enemyTeamSelect?.addEventListener('change', () => {
-        if (enemyTeamSelect.value) {
-            const selectedOption = enemyTeamSelect.options[enemyTeamSelect.selectedIndex];
-            enemyTeamIdHidden.value = selectedOption.value;
-            enemyTeamManual.value = selectedOption.dataset.enemyName;
-        } else {
-            enemyTeamIdHidden.value = '';
-            enemyTeamManual.value = '';
-        }
-    });
-
-    teamSelect?.addEventListener('change', loadEnemyTeams);
+    team1Select?.addEventListener('change', syncScrimTeamOptions);
+    team2Select?.addEventListener('change', syncScrimTeamOptions);
+    syncScrimTeamOptions();
 
     createForm?.addEventListener('submit', (event) => {
-        let enemyTeamValue = '';
-        let enemyTeamIdValue = '';
-
-        if (enemyTeamSelect.style.display !== 'none' && enemyTeamSelect.value) {
-            enemyTeamIdValue = enemyTeamSelect.value;
-            const selectedOption = enemyTeamSelect.options[enemyTeamSelect.selectedIndex];
-            enemyTeamValue = selectedOption.dataset.enemyName;
-        } else {
-            enemyTeamValue = enemyTeamManual.value;
-        }
-
-        if (!enemyTeamValue.trim()) {
+        const team1Value = (team1Select?.value || '').trim();
+        const team2Value = (team2Select?.value || '').trim();
+        if (!team1Value || !team2Value) {
             event.preventDefault();
-            alert('Please select or enter an enemy team name.');
+            alert('Please select both teams.');
             return;
         }
-
-        enemyTeamManual.value = enemyTeamValue;
-        enemyTeamIdHidden.value = enemyTeamIdValue;
+        if (team1Value === team2Value) {
+            event.preventDefault();
+            alert('Team 1 and Team 2 must be different.');
+        }
     });
 
     if (window.location.hash === '#create-scrim') {

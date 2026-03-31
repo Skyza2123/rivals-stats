@@ -246,6 +246,45 @@
                 {% endif %}
             </div>
 
+            <section class="panel panel-soft-gold top-gap">
+                <div class="section-kicker">Flow Board</div>
+                <h3>Draft Flowboard (Ban → Response → Protect)</h3>
+                <p class="panel-intro">Visual chain of the most likely draft reactions from your sample.</p>
+                {% if team_analytics.ban_next_rows and team_analytics.ban_to_protect_rows %}
+                    <div class="draft-flow-stack top-gap">
+                        {% for row in team_analytics.ban_next_rows[:5] %}
+                            {% set linked_protect = none %}
+                            {% for protect_row in team_analytics.ban_to_protect_rows %}
+                                {% if protect_row.ban_hero == row.ban_hero %}
+                                    {% set linked_protect = protect_row %}
+                                {% endif %}
+                            {% endfor %}
+                            <div class="draft-flow-card draft-flow-card-wide">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
+                                </span>
+                                <span class="prep-flow-arrow">→</span>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
+                                </span>
+                                {% if linked_protect and linked_protect.top_protect %}
+                                    <span class="prep-flow-arrow">→</span>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(linked_protect.top_protect) }}" alt="{{ linked_protect.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ linked_protect.top_protect | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(linked_protect.top_protect) }}</span>{% if hero_pool_label(linked_protect.top_protect) %}<small class="hero-sub-label">{{ hero_pool_label(linked_protect.top_protect) }}</small>{% endif %}</span>
+                                    </span>
+                                {% endif %}
+                                <span class="prep-chip-meta">Resp {{ row.top_rate }}%</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">Not enough draft flow data to build flowboard yet.</p>
+                {% endif %}
+            </section>
+
             <div class="form-grid top-gap">
                 <div class="panel panel-soft-blue">
                     <div class="section-kicker">Draft Flow</div>
@@ -266,13 +305,13 @@
                                             <td>
                                                 <span class="hero-inline-cell">
                                                     <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                                    <span>{{ row.ban_hero }}</span>
+                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
                                                 </span>
                                             </td>
                                             <td>
                                                 <span class="hero-inline-cell">
                                                     <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
-                                                    <span>{{ row.top_enemy_ban }}</span>
+                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
                                                 </span>
                                             </td>
                                             <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
@@ -305,13 +344,13 @@
                                             <td>
                                                 <span class="hero-inline-cell">
                                                     <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                                    <span>{{ row.ban_hero }}</span>
+                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
                                                 </span>
                                             </td>
                                             <td>
                                                 <span class="hero-inline-cell">
                                                     <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
-                                                    <span>{{ row.top_protect }}</span>
+                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span>{% if hero_pool_label(row.top_protect) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_protect) }}</small>{% endif %}</span>
                                                 </span>
                                             </td>
                                             <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>

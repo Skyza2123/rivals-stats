@@ -2549,6 +2549,19 @@ th {
     gap: 8px;
 }
 
+.hero-inline-meta {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.05;
+}
+
+.hero-sub-label {
+    font-size: 0.64rem;
+    color: #93c5fd;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
 .hero-inline-thumb {
     width: 28px;
     height: 28px;
@@ -2694,6 +2707,63 @@ th {
     background: var(--panel-2);
 }
 
+.draft-route-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.draft-route-node {
+    font-size: 0.72rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.draft-flow-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.draft-flow-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    flex-wrap: wrap;
+}
+
+.draft-flow-card-wide {
+    justify-content: flex-start;
+}
+
+.hero-pool-sub {
+    font-size: 0.64rem;
+    color: #93c5fd;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.slot-hero-sub {
+    display: none;
+    margin-top: 2px;
+    font-size: 0.64rem;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.slot-hero-sub.show {
+    display: inline-block;
+}
+
 @media (max-width: 1120px) {
     .prep-flow-grid {
         grid-template-columns: 1fr;
@@ -2702,6 +2772,11 @@ th {
     .prep-flow-arrow {
         transform: rotate(90deg);
         margin: 4px 0;
+    }
+
+    .draft-flow-card .prep-flow-arrow {
+        transform: none;
+        margin: 0;
     }
 }
 

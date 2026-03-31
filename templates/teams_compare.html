@@ -49,6 +49,11 @@
 {% if team_a and team_b %}
 <section class="panel panel-soft-blue top-gap">
     <h3>Overview</h3>
+    <p class="panel-intro">
+        Using latest season data:
+        {{ team_a.team.name }} = {{ team_a.latest_season if team_a.latest_season != 'all' else 'All Seasons' }},
+        {{ team_b.team.name }} = {{ team_b.latest_season if team_b.latest_season != 'all' else 'All Seasons' }}.
+    </p>
     <div class="table-wrap">
         <table class="stats-table stats-table-compare">
             <thead>
@@ -150,6 +155,120 @@
                 </div>
             {% else %}
                 <p class="empty-text">No hero data.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="panel panel-soft-gold top-gap">
+    <h3>Ban Matchup Matrix</h3>
+    <p class="panel-intro">Compare ban pressure, protect preference, and open-vs-banned outcomes on shared priority heroes.</p>
+    {% if ban_matchup_rows %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>{{ team_a.team.name }} Ban%</th>
+                        <th>{{ team_b.team.name }} Ban%</th>
+                        <th>Ban Edge</th>
+                        <th>{{ team_a.team.name }} Protect%</th>
+                        <th>{{ team_b.team.name }} Protect%</th>
+                        <th>{{ team_a.team.name }} Open/Banned WR</th>
+                        <th>{{ team_b.team.name }} Open/Banned WR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in ban_matchup_rows %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.hero) }}</span>{% if hero_pool_label(row.hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.hero) }}</small>{% endif %}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.a_ban_rate }}%</td>
+                            <td>{{ row.b_ban_rate }}%</td>
+                            <td>
+                                {% if row.ban_rate_diff > 0 %}
+                                    <span class="compare-tag compare-tag-positive">{{ team_a.team.name }} +{{ row.ban_rate_diff }}%</span>
+                                {% elif row.ban_rate_diff < 0 %}
+                                    <span class="compare-tag compare-tag-negative">{{ team_b.team.name }} +{{ (-row.ban_rate_diff)|round(1) }}%</span>
+                                {% else %}
+                                    <span class="compare-tag compare-tag-neutral">Even</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.a_protect_rate }}%</td>
+                            <td>{{ row.b_protect_rate }}%</td>
+                            <td>
+                                {% if row.a_open_wr is not none %}{{ row.a_open_wr }}%{% else %}--{% endif %}
+                                /
+                                {% if row.a_banned_wr is not none %}{{ row.a_banned_wr }}%{% else %}--{% endif %}
+                            </td>
+                            <td>
+                                {% if row.b_open_wr is not none %}{{ row.b_open_wr }}%{% else %}--{% endif %}
+                                /
+                                {% if row.b_banned_wr is not none %}{{ row.b_banned_wr }}%{% else %}--{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No ban matchup data available yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-blue top-gap">
+    <h3>Draft Response Flow</h3>
+    <p class="panel-intro">Most common first response patterns when each team bans a hero.</p>
+    <div class="form-grid top-gap">
+        <div class="panel">
+            <h4>{{ team_a.team.name }}</h4>
+            {% if team_a.flow_rows %}
+                <div class="draft-flow-stack">
+                    {% for row in team_a.flow_rows %}
+                        <div class="draft-flow-card">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
+                            </span>
+                            <span class="prep-flow-arrow">→</span>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
+                                <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
+                            </span>
+                            <span class="prep-chip-meta">{{ row.top_rate }}%</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No response flow data.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel">
+            <h4>{{ team_b.team.name }}</h4>
+            {% if team_b.flow_rows %}
+                <div class="draft-flow-stack">
+                    {% for row in team_b.flow_rows %}
+                        <div class="draft-flow-card">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
+                            </span>
+                            <span class="prep-flow-arrow">→</span>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
+                                <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
+                            </span>
+                            <span class="prep-chip-meta">{{ row.top_rate }}%</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No response flow data.</p>
             {% endif %}
         </div>
     </div>

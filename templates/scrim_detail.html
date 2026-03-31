@@ -13,7 +13,7 @@
             {% endif %}
         </h2>
         <p>
-            {{ scrim.scrim_date }}{% if scrim.season %} &bull; Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} &bull; {{ scrim.team_name }}{% endif %}
+            {{ scrim.scrim_date }}{% if scrim.season %} &bull; Season {{ scrim.season }}{% endif %}{% if participant_one_label and participant_two_label %} &bull; {{ participant_one_label }} vs {{ participant_two_label }}{% endif %}
             {% if not show_team_selector and scrim.tournament_name %}
                 &bull; {{ scrim.tournament_teams|length }} teams in this tournament
             {% endif %}
@@ -47,7 +47,7 @@
         <strong>{% if show_team_selector %}Team{% elif scrim.tournament_name %}Tournament Teams{% else %}Matchup{% endif %}</strong>
         <span>
             {% if show_team_selector %}
-                {{ scrim.team_name or "—" }}
+                {{ participant_one_label }} vs {{ participant_two_label }}
             {% elif scrim.tournament_teams %}
                 {{ scrim.tournament_teams|length }} teams added
             {% else %}
@@ -135,7 +135,7 @@
                             <div class="map-card-bottom">
                                 <div class="map-card-title">{{ map_entry.map_name }}</div>
                                 <div class="map-card-sub">
-                                    {% if not show_team_selector and (map_entry.team1_name or map_entry.team2_name) %}
+                                    {% if map_entry.team1_name or map_entry.team2_name %}
                                         {{ map_entry.team1_name or 'Team 1' }} vs {{ map_entry.team2_name or 'Team 2' }} &bull;
                                     {% endif %}
                                     {% if map_entry.score %}
@@ -243,8 +243,22 @@
             <div class="form-grid">
                 {% if show_team_selector %}
                 <div class="field">
-                    <label for="edit_enemy_team">Enemy Team</label>
-                    <input type="text" id="edit_enemy_team" name="enemy_team" value="{{ scrim.enemy_team or scrim.opponent }}" required>
+                    <label for="edit_team1_id">Team 1</label>
+                    <select id="edit_team1_id" name="team1_id" required>
+                        <option value="">Select Team 1</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}" {% if (scrim.team1_id or scrim.team_id) == team.id %}selected{% endif %}>{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_team2_id">Team 2</label>
+                    <select id="edit_team2_id" name="team2_id" required>
+                        <option value="">Select Team 2</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}" {% if (scrim.team2_id or scrim.enemy_team_id) == team.id %}selected{% endif %}>{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 {% else %}
                 <div class="field field-full">
@@ -260,24 +274,6 @@
                     <label for="edit_season">Season</label>
                     <input type="text" id="edit_season" name="season" value="{{ scrim.season or '' }}" placeholder="e.g. 7 or 7.5" required>
                 </div>
-                {% if show_team_selector %}
-                <div class="field">
-                    <label for="edit_team_id">Your Team</label>
-                    <select id="edit_team_id" name="team_id" required>
-                        <option value="">Select your team</option>
-                        {% for team in teams %}
-                            <option value="{{ team.id }}" {% if scrim.team_id == team.id %}selected{% endif %}>{{ team.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="edit_team_slot">Your Team Is</label>
-                    <select id="edit_team_slot" name="team_slot">
-                        <option value="team1" {% if (scrim.team_slot or 'team1') == 'team1' %}selected{% endif %}>Team 1</option>
-                        <option value="team2" {% if scrim.team_slot == 'team2' %}selected{% endif %}>Team 2</option>
-                    </select>
-                </div>
-                {% endif %}
                 <div class="field field-full">
                     <label for="edit_notes">Notes</label>
                     <textarea id="edit_notes" name="notes" rows="3">{{ scrim.notes }}</textarea>
@@ -374,7 +370,17 @@
                     </select>
                 </div>
 
-                {% if not show_team_selector %}
+                {% if show_team_selector %}
+                <div class="field">
+                    <label for="map_team1_select">Team On Side 1</label>
+                    <select id="map_team1_select" name="map_team1_team_id" required>
+                        <option value="{{ participant_one_id }}">{{ participant_one_label }}</option>
+                        <option value="{{ participant_two_id }}">{{ participant_two_label }}</option>
+                    </select>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Side 2 is automatically the other team.</small>
+                </div>
+
+                {% elif not show_team_selector %}
                 <div class="field">
                     <label for="map_team1_select">Map Team 1</label>
                     <select id="map_team1_select" name="team1_tournament_team_id" required>
@@ -532,17 +538,26 @@ function closeManageTeamsModal(e) {
 function syncTournamentMapTeams() {
     var team1Select = document.getElementById("map_team1_select");
     var team2Select = document.getElementById("map_team2_select");
-    if (!team1Select || !team2Select) return;
-
-    Array.from(team1Select.options).forEach(function(option) {
-        option.hidden = option.value !== "" && option.value === team2Select.value;
-    });
-    Array.from(team2Select.options).forEach(function(option) {
-        option.hidden = option.value !== "" && option.value === team1Select.value;
-    });
+    if (!team1Select) return;
 
     var team1Text = team1Select.options[team1Select.selectedIndex] ? team1Select.options[team1Select.selectedIndex].text : "Team 1";
-    var team2Text = team2Select.options[team2Select.selectedIndex] ? team2Select.options[team2Select.selectedIndex].text : "Team 2";
+    var team2Text = "Team 2";
+
+    if (team2Select) {
+        Array.from(team1Select.options).forEach(function(option) {
+            option.hidden = option.value !== "" && option.value === team2Select.value;
+        });
+        Array.from(team2Select.options).forEach(function(option) {
+            option.hidden = option.value !== "" && option.value === team1Select.value;
+        });
+        team2Text = team2Select.options[team2Select.selectedIndex] ? team2Select.options[team2Select.selectedIndex].text : "Team 2";
+    } else {
+        Array.from(team1Select.options).forEach(function(option) {
+            if (option.value === "") return;
+            option.hidden = false;
+        });
+        team2Text = team1Select.value === "{{ participant_one_id }}" ? "{{ participant_two_label }}" : "{{ participant_one_label }}";
+    }
 
     var resultSide = document.getElementById("our_team_slot");
     if (resultSide && resultSide.options.length >= 2) {
@@ -555,6 +570,19 @@ function syncTournamentMapTeams() {
         mapHeadings[0].textContent = team1Text;
         mapHeadings[1].textContent = team2Text;
     }
+}
+
+function syncEditScrimTeams() {
+    var team1Select = document.getElementById("edit_team1_id");
+    var team2Select = document.getElementById("edit_team2_id");
+    if (!team1Select || !team2Select) return;
+
+    Array.from(team1Select.options).forEach(function(option) {
+        option.hidden = option.value !== "" && option.value === team2Select.value;
+    });
+    Array.from(team2Select.options).forEach(function(option) {
+        option.hidden = option.value !== "" && option.value === team1Select.value;
+    });
 }
 function openEditMapModal(mapId, result, score, ourTeamSlot) {
     var f = document.getElementById("editMapForm");
@@ -585,7 +613,10 @@ document.addEventListener("keydown", function(e) {
 
 document.getElementById("map_team1_select")?.addEventListener("change", syncTournamentMapTeams);
 document.getElementById("map_team2_select")?.addEventListener("change", syncTournamentMapTeams);
+document.getElementById("edit_team1_id")?.addEventListener("change", syncEditScrimTeams);
+document.getElementById("edit_team2_id")?.addEventListener("change", syncEditScrimTeams);
 syncTournamentMapTeams();
+syncEditScrimTeams();
 
 /* ── Delete confirmations ── */
 function confirmDeleteScrim() {
