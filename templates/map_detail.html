@@ -616,7 +616,7 @@ function openModal(id) {
 function closeModal(id) {
     document.getElementById(id).classList.remove('show');
     if (typeof hideCompAssignHover === 'function') {
-        hideCompAssignHover();
+        hideCompAssignHover(true);
     }
 }
 document.addEventListener('keydown', function(e) {
@@ -624,6 +624,9 @@ document.addEventListener('keydown', function(e) {
         document.querySelectorAll('.modal-backdrop.show').forEach(function(el) {
             el.classList.remove('show');
         });
+        if (typeof hideCompAssignHover === 'function') {
+            hideCompAssignHover(true);
+        }
     }
 });
 
@@ -925,6 +928,7 @@ function applyPlayerValueToControls(form, slotName, value) {
 let compAssignHover = null;
 let compAssignHoverHideTimer = null;
 let compAssignHoverSlot = null;
+let compAssignPinned = false;
 
 function ensureCompAssignHover() {
     if (compAssignHover) return compAssignHover;
@@ -1058,28 +1062,36 @@ function placeCompAssignHover(slot) {
     hover.style.top = `${top}px`;
 }
 
-function showCompAssignHover(slot) {
+function showCompAssignHover(slot, keepOpen) {
     if (!slot) return;
     const heroInput = slot.querySelector('input[type=hidden]');
     if (!heroInput || !heroInput.value) {
-        hideCompAssignHover();
+        hideCompAssignHover(true);
         return;
     }
 
     if (!populateCompAssignHover(slot)) return;
     compAssignHoverSlot = slot;
+    if (keepOpen) {
+        compAssignPinned = true;
+    }
     const hover = ensureCompAssignHover();
     hover.classList.add('show');
     placeCompAssignHover(slot);
 }
 
-function hideCompAssignHover() {
+function hideCompAssignHover(forceClose) {
+    if (!forceClose && compAssignPinned) {
+        return;
+    }
     if (!compAssignHover) return;
     compAssignHover.classList.remove('show');
     compAssignHoverSlot = null;
+    compAssignPinned = false;
 }
 
 function scheduleHideCompAssignHover() {
+    if (compAssignPinned) return;
     if (compAssignHoverHideTimer) clearTimeout(compAssignHoverHideTimer);
     compAssignHoverHideTimer = setTimeout(hideCompAssignHover, 120);
 }
@@ -1102,7 +1114,7 @@ function activateCompSlot(el) {
     });
     el.classList.add('slot-active');
     activeCompSlot = el;
-    showCompAssignHover(el);
+    showCompAssignHover(el, true);
 }
 
 function clearCompSlot(el) {
@@ -1119,7 +1131,7 @@ function clearCompSlot(el) {
     if (wrap) wrap.remove();
     el.classList.remove('slot-filled', 'slot-active');
     if (activeCompSlot === el) activeCompSlot = null;
-    hideCompAssignHover();
+    hideCompAssignHover(true);
 }
 
 function pickCompHero(btn) {
