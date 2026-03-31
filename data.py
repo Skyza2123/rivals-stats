@@ -144,6 +144,7 @@ MAP_IMAGES = {
     "Symbiotic Surface": "/maps/large/map_1290.png",
     "Throne of Knull": "/maps/large/map_1320.png",
     "Yggdrasill Path": "/maps/large/map_1231.png",
+    "Museum of Contemplation": "/maps/large/map_1418.png",
     # Submaps
     "Frozen Airfield": "/maps/large/map_1243.png",
     "Super-Soldier Factory": "/maps/large/map_1244.png",

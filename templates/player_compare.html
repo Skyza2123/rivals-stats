@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Player Comparison{% endblock %}
 
@@ -116,7 +116,7 @@
                 <tbody>
                     {% for row in shared_heroes %}
                         <tr>
-                            <td>{{ row.hero }}</td>
+                            <td>{{ hero_display_name(row.hero) }}</td>
                             <td>{{ row.player_a_maps }}</td>
                             <td>{{ row.player_b_maps }}</td>
                         </tr>

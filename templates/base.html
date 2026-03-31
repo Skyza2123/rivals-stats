@@ -38,5 +38,52 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+<script>
+/* Global: inject pool-role badge on every hero image for Deadpool variants */
+document.addEventListener('DOMContentLoaded', function () {
+    var POOL_MAP = {
+        'Tankpool':    { text: 'Tank', cls: 'hero-pool-badge-tank' },
+        'DpsPool':     { text: 'DPS',  cls: 'hero-pool-badge-dps'  },
+        'SupportPool': { text: 'Supp', cls: 'hero-pool-badge-supp' },
+    };
+    function addBadge(img, info) {
+        var vbar = img.closest('.vbar-hero-image');
+        if (vbar) {
+            if (!vbar.querySelector('.hero-pool-badge')) {
+                var b = document.createElement('span');
+                b.className = 'hero-pool-badge ' + info.cls;
+                b.textContent = info.text;
+                vbar.appendChild(b);
+            }
+            return;
+        }
+        var heroImgWrap = img.closest('.hero-img-wrap');
+        if (heroImgWrap) {
+            if (!heroImgWrap.querySelector('.pool-tag')) {
+                var tagCls = info.cls === 'hero-pool-badge-tank' ? 'tag-tank' : info.cls === 'hero-pool-badge-dps' ? 'tag-dps' : 'tag-sup';
+                var b2 = document.createElement('span');
+                b2.className = 'pool-tag ' + tagCls;
+                b2.textContent = info.text;
+                heroImgWrap.appendChild(b2);
+            }
+            return;
+        }
+        if (!img.parentElement || img.parentElement.classList.contains('hero-thumb-wrap')) return;
+        var wrap = document.createElement('span');
+        wrap.className = 'hero-thumb-wrap';
+        img.parentNode.insertBefore(wrap, img);
+        wrap.appendChild(img);
+        var badge = document.createElement('span');
+        badge.className = 'hero-pool-badge ' + info.cls;
+        badge.textContent = info.text;
+        wrap.appendChild(badge);
+    }
+    document.querySelectorAll('img.hero-inline-thumb, .vbar-hero-image img').forEach(function (img) {
+            document.querySelectorAll('img.hero-inline-thumb, .vbar-hero-image img, .hero-img-wrap img').forEach(function (img) {
+        var info = POOL_MAP[img.alt];
+        if (info) addBadge(img, info);
+    });
+});
+</script>
 </body>
 </html>

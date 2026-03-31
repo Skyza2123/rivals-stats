@@ -89,7 +89,7 @@
         <form id="createScrimForm" action="{{ url_for('create_scrim') }}" method="post">
             <div class="form-grid">
                 <div class="field">
-                    <label for="create_scrim_team1_id">Team 1</label>
+                    <label for="create_scrim_team1_id">Team A</label>
                     <select id="create_scrim_team1_id" name="team1_id" required>
                         <option value="">Select team</option>
                         {% for team in teams %}
@@ -99,7 +99,7 @@
                 </div>
 
                 <div class="field">
-                    <label for="create_scrim_team2_id">Team 2</label>
+                    <label for="create_scrim_team2_id">Team B</label>
                     <select id="create_scrim_team2_id" name="team2_id" required>
                         <option value="">Select team</option>
                         {% for team in teams %}

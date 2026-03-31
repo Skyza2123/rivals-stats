@@ -346,12 +346,12 @@
                                 data-hero="{{ hero }}"
                                 data-comp-modal="{{ s }}"
                                 onclick="pickCompHero(this)"
-                                title="{{ hero }}">
+                                title="{{ hero_display_name(hero) }}">
                             <div class="hero-img-wrap">
                                 <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
-                            <span class="hero-pick-name">{{ hero }}</span>
+                            <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
                         </button>
                         {% endfor %}
                     </div>
@@ -489,12 +489,12 @@
                     <div class="hero-icon-grid">
                         {% for hero in hero_roles[role] %}
                         <button type="button" class="hero-pick-btn draft-hero-btn" data-hero="{{ hero }}"
-                                onclick="pickDraftHero(this)" title="{{ hero }}">
+                                onclick="pickDraftHero(this)" title="{{ hero_display_name(hero) }}">
                             <div class="hero-img-wrap">
                                 <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
-                            <span class="hero-pick-name">{{ hero }}</span>
+                            <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
                         </button>
                         {% endfor %}
                     </div>

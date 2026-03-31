@@ -243,18 +243,18 @@
             <div class="form-grid">
                 {% if show_team_selector %}
                 <div class="field">
-                    <label for="edit_team1_id">Team 1</label>
+                    <label for="edit_team1_id">Team A</label>
                     <select id="edit_team1_id" name="team1_id" required>
-                        <option value="">Select Team 1</option>
+                        <option value="">Select Team A</option>
                         {% for team in teams %}
                             <option value="{{ team.id }}" {% if (scrim.team1_id or scrim.team_id) == team.id %}selected{% endif %}>{{ team.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="field">
-                    <label for="edit_team2_id">Team 2</label>
+                    <label for="edit_team2_id">Team B</label>
                     <select id="edit_team2_id" name="team2_id" required>
-                        <option value="">Select Team 2</option>
+                        <option value="">Select Team B</option>
                         {% for team in teams %}
                             <option value="{{ team.id }}" {% if (scrim.team2_id or scrim.enemy_team_id) == team.id %}selected{% endif %}>{{ team.name }}</option>
                         {% endfor %}

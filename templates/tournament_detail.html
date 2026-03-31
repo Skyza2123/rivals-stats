@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}{{ tournament.tournament_name or 'Tournament' }}{% endblock %}
 
@@ -83,7 +83,7 @@
                                     <td>
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                            <span>{{ row.hero }}</span>
+                                            <span>{{ hero_display_name(row.hero) }}</span>
                                         </span>
                                     </td>
                                     <td>{{ row.count }}</td>
@@ -117,7 +117,7 @@
                                     <td>
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                            <span>{{ row.hero }}</span>
+                                            <span>{{ hero_display_name(row.hero) }}</span>
                                         </span>
                                     </td>
                                     <td>{{ row.count }}</td>
@@ -209,7 +209,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.count }}</td>
@@ -243,7 +243,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.count }}</td>
@@ -280,7 +280,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.count }}</td>
@@ -398,7 +398,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.our_rate }}%</td>
@@ -451,7 +451,7 @@
                                         <div class="ban-position-row">
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                             <span>{{ row.count }} • {{ row.rate }}%</span>
                                         </div>
@@ -491,7 +491,7 @@
                                         <div class="ban-position-row">
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                             <span>{{ row.count }} • {{ row.rate }}%</span>
                                         </div>

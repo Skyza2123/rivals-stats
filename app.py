@@ -3799,10 +3799,15 @@ def teams():
         all_team_scrims = [
             scrim
             for scrim in SCRIMS
-            if scrim.get("team_id") == row["id"]
-            or (
-                not scrim.get("team_id")
-                and (scrim.get("team_name", "") or "").strip().lower() == row["name"].strip().lower()
+            if (
+                scrim.get("team1_id") == row["id"]
+                or scrim.get("team2_id") == row["id"]
+                or scrim.get("team_id") == row["id"]
+                or (
+                    not scrim.get("team_id")
+                    and not scrim.get("team1_id")
+                    and (scrim.get("team_name", "") or "").strip().lower() == row["name"].strip().lower()
+                )
             )
         ]
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
@@ -5142,7 +5147,12 @@ def scrims():
     if selected_team_id:
         try:
             tid = int(selected_team_id)
-            filtered = [s for s in filtered if s.get("team_id") == tid]
+            filtered = [
+                s for s in filtered
+                if s.get("team_id") == tid
+                or s.get("team1_id") == tid
+                or s.get("team2_id") == tid
+            ]
         except (ValueError, TypeError):
             selected_team_id = ""
 
@@ -5367,18 +5377,22 @@ def _hero_image_url(hero_name: str) -> str:
 def _hero_pool_label(hero_name: str) -> str:
     canonical = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
     if canonical == "Tankpool":
-        return "Tank Pool"
+        return "Tank"
     if canonical == "DpsPool":
-        return "DPS Pool"
+        return "DPS"
     if canonical == "SupportPool":
-        return "Support Pool"
+        return "Supp"
     return ""
 
 
 def _hero_display_name(hero_name: str) -> str:
     canonical = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
-    if canonical in {"Tankpool", "DpsPool", "SupportPool"}:
-        return "Deadpool"
+    if canonical == "Tankpool":
+        return "Tankpool"
+    if canonical == "DpsPool":
+        return "Dpspool"
+    if canonical == "SupportPool":
+        return "Supportpool"
     return canonical or (hero_name or "")
 
 

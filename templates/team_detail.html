@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}{{ team.name }}{% endblock %}
 
@@ -120,6 +120,7 @@
                                         <img src="{{ hero_image_url(row.hero) }}" 
                                              alt="{{ row.hero }}"
                                              onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        {% if hero_pool_label(row.hero) %}<span class="hero-pool-badge hero-pool-badge-{{ hero_pool_label(row.hero)|lower }}">{{ hero_pool_label(row.hero) }}</span>{% endif %}
                                     </div>
                                     <div class="vbar-label">
                                         <span class="vbar-rate">{{ row.ban_rate }}%</span>
@@ -150,6 +151,7 @@
                                         <img src="{{ hero_image_url(row.hero) }}" 
                                              alt="{{ row.hero }}"
                                              onerror="this.src='https://via.placeholder.com/80/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        {% if hero_pool_label(row.hero) %}<span class="hero-pool-badge hero-pool-badge-{{ hero_pool_label(row.hero)|lower }}">{{ hero_pool_label(row.hero) }}</span>{% endif %}
                                     </div>
                                     <div class="vbar-label">
                                         <span class="vbar-rate">{{ row.protect_rate }}%</span>
@@ -193,7 +195,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.open_maps }}</td>
@@ -1003,7 +1005,7 @@
                                             <div class="ban-position-row">
                                                 <span class="hero-inline-cell">
                                                     <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                    <span>{{ row.hero }}</span>
+                                                    <span>{{ hero_display_name(row.hero) }}</span>
                                                 </span>
                                                 <span>{{ row.count }} • {{ row.rate }}%</span>
                                             </div>
@@ -1070,7 +1072,7 @@
                                             <div class="ban-position-row">
                                                 <span class="hero-inline-cell">
                                                     <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                    <span>{{ row.hero }}</span>
+                                                    <span>{{ hero_display_name(row.hero) }}</span>
                                                 </span>
                                                 <span>{{ row.count }} • {{ row.rate }}%</span>
                                             </div>
@@ -1118,7 +1120,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.ban_rate }}%</td>
@@ -1194,7 +1196,7 @@
                                         <td>
                                             <span class="hero-inline-cell">
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
+                                                <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
                                         </td>
                                         <td>{{ row.our_rate }}%</td>
@@ -1337,7 +1339,7 @@
                     <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero) }}">
                         <span class="hero-usage-name">
                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                            {{ row.hero }}
+                            {{ hero_display_name(row.hero) }}
                         </span>
                         <span class="hero-usage-bar-wrap">
                             <span class="hero-usage-bar" data-width="{{ width }}"></span>

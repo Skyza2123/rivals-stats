@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Team Comparison{% endblock %}
 
@@ -117,7 +117,7 @@
                         <tbody>
                             {% for row in team_a.top_heroes %}
                                 <tr>
-                                    <td>{{ row.hero }}</td>
+                                    <td>{{ hero_display_name(row.hero) }}</td>
                                     <td>{{ row.maps }}</td>
                                     <td>{{ row.win_rate }}%</td>
                                 </tr>
@@ -145,7 +145,7 @@
                         <tbody>
                             {% for row in team_b.top_heroes %}
                                 <tr>
-                                    <td>{{ row.hero }}</td>
+                                    <td>{{ hero_display_name(row.hero) }}</td>
                                     <td>{{ row.maps }}</td>
                                     <td>{{ row.win_rate }}%</td>
                                 </tr>

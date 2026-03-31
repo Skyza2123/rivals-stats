@@ -1,4 +1,4 @@
-<section class="panel">
+﻿<section class="panel">
     <div class="panel-header-row">
         <div>
             <div class="section-kicker">Opponent Prep Report</div>
@@ -222,7 +222,7 @@
                             <td>
                                 <span class="hero-inline-cell">
                                     <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    <span>{{ row.hero }}</span>
+                                    <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
                             <td>{{ row.ban_rate }}%</td>
