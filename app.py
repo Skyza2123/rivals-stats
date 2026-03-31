@@ -2453,11 +2453,19 @@ def build_scrim_analytics(
             continue
 
         played_when_open = stats["played_when_open"]
+        not_played_when_open = max(0, open_maps - played_when_open)
         closed_maps = stats["closed_maps"]
         win_rate_when_open = pct(stats["open_wins"], open_maps)
         win_rate_when_open_played = pct(stats["played_wins"], played_when_open)
+        open_not_played_wins = max(0, stats["open_wins"] - stats["played_wins"])
+        win_rate_when_open_not_played = pct(open_not_played_wins, not_played_when_open)
         win_rate_when_closed = pct(stats["closed_wins"], closed_maps)
         open_vs_closed_delta = round(win_rate_when_open - win_rate_when_closed, 1) if closed_maps else None
+        played_vs_not_played_open_delta = (
+            round(win_rate_when_open_played - win_rate_when_open_not_played, 1)
+            if played_when_open and not_played_when_open
+            else None
+        )
         open_vs_overall_delta = round(win_rate_when_open - overall_win_rate, 1)
         play_when_open_rate = pct(played_when_open, open_maps)
 
@@ -2468,9 +2476,12 @@ def build_scrim_analytics(
                 "open_rate": pct(open_maps, total_maps),
                 "banned_maps": closed_maps,
                 "played_when_open": played_when_open,
+                "not_played_when_open": not_played_when_open,
                 "play_when_open_rate": play_when_open_rate,
                 "win_rate_when_open": win_rate_when_open,
                 "win_rate_when_open_played": win_rate_when_open_played,
+                "win_rate_when_open_not_played": win_rate_when_open_not_played,
+                "played_vs_not_played_open_delta": played_vs_not_played_open_delta,
                 "win_rate_when_closed": win_rate_when_closed,
                 "win_rate_when_banned": win_rate_when_closed,
                 "open_vs_closed_delta": open_vs_closed_delta,

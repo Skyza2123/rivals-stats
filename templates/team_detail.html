@@ -102,61 +102,6 @@
                 </article>
             </div>
 
-            <div class="panel panel-soft-blue top-gap">
-                <div class="section-kicker">Open Hero Impact</div>
-                <h3>When Heroes Are Open, Do We Play Them?</h3>
-                <p class="panel-intro">Open means the enemy did not ban that hero on the map. This shows play rate and outcomes when that hero is open.</p>
-                {% if team_analytics.hero_open_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Open Maps</th>
-                                    <th>Banned Maps</th>
-                                    <th>WR When Open</th>
-                                    <th>WR When Banned</th>
-                                    <th>Open - Banned</th>
-                                    <th>Play Rate (Open)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in team_analytics.hero_open_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ row.hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.open_maps }}</td>
-                                        <td>{{ row.banned_maps }}</td>
-                                        <td>{{ row.win_rate_when_open }}%</td>
-                                        <td>
-                                            {% if row.banned_maps %}
-                                                {{ row.win_rate_when_banned }}%
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if row.open_vs_banned_delta is not none %}
-                                                {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ row.play_when_open_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">Not enough draft data to calculate open hero rates yet.</p>
-                {% endif %}
-            </div>
-
             <div class="ban-visual-grid">
                 <div class="panel ban-chart-panel">
                     <h3>Ban Distribution + Ban Win Rate</h3>
@@ -217,6 +162,87 @@
                         <p class="empty-text">No protect data yet.</p>
                     {% endif %}
                 </div>
+            </div>
+
+            <div class="panel panel-soft-blue top-gap">
+                <div class="section-kicker">Open Hero Impact</div>
+                <h3>When Heroes Are Open, Do We Play Them?</h3>
+                <p class="panel-intro">Open means the enemy did not ban that hero on the map. This compares how often the hero is played when open, whether playing it improves win rate when open, and how open outcomes compare to banned outcomes.</p>
+                {% if team_analytics.hero_open_rows %}
+                    <div class="table-wrap">
+                        <table class="stats-table stats-table-compare">
+                            <thead>
+                                <tr>
+                                    <th>Hero</th>
+                                    <th>Open Maps</th>
+                                    <th>Played If Open</th>
+                                    <th>Play Rate (Open)</th>
+                                    <th>WR Open + Played</th>
+                                    <th>WR Open + Not Played</th>
+                                    <th>Played - Not Played</th>
+                                    <th>Banned Maps</th>
+                                    <th>WR When Banned</th>
+                                    <th>WR When Open</th>
+                                    <th>Open - Banned</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in team_analytics.hero_open_rows %}
+                                    <tr>
+                                        <td>
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                                <span>{{ row.hero }}</span>
+                                            </span>
+                                        </td>
+                                        <td>{{ row.open_maps }}</td>
+                                        <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
+                                        <td>{{ row.play_when_open_rate }}%</td>
+                                        <td>
+                                            {% if row.played_when_open %}
+                                                {{ row.win_rate_when_open_played }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if row.not_played_when_open %}
+                                                {{ row.win_rate_when_open_not_played }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if row.played_vs_not_played_open_delta is not none %}
+                                                {% if row.played_vs_not_played_open_delta > 0 %}+{% endif %}{{ row.played_vs_not_played_open_delta }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ row.banned_maps }}</td>
+                                        <td>
+                                            {% if row.banned_maps %}
+                                                {{ row.win_rate_when_banned }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ row.win_rate_when_open }}%</td>
+                                        <td>
+                                            {% if row.open_vs_banned_delta is not none %}
+                                                {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
+                                            {% else %}
+                                                --
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">Not enough draft data to calculate open hero rates yet.</p>
+                {% endif %}
             </div>
 
             <div class="form-grid top-gap">
