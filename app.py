@@ -5148,7 +5148,23 @@ def create_player(team_id: int):
         )
         db.commit()
     except sqlite3.IntegrityError:
-        flash("A player with that name already exists on this team.", "error")
+        existing = db.execute(
+            "SELECT id FROM players WHERE team_id = ? AND lower(name) = lower(?)",
+            (team_id, name),
+        ).fetchone()
+        if existing is None:
+            flash("A player with that name already exists on this team.", "error")
+            return redirect(url_for("team_detail", team_id=team_id) + "#roster")
+        db.execute(
+            """
+            UPDATE players
+            SET role = ?, main_hero = ?, notes = ?
+            WHERE id = ?
+            """,
+            (role, main_hero, notes, existing["id"]),
+        )
+        db.commit()
+        flash("Player already existed, so their details were updated.", "success")
         return redirect(url_for("team_detail", team_id=team_id) + "#roster")
 
     flash("Player added.", "success")
@@ -5354,10 +5370,28 @@ def create_enemy_player(enemy_team_id: int):
             return jsonify({"success": f"Player '{name}' added to enemy team."}), 200
         flash(f"Player '{name}' added to enemy team.", "success")
     except sqlite3.IntegrityError:
-        msg = "This player already exists on this enemy team."
-        if is_ajax:
-            return jsonify({"error": msg}), 400
-        flash(msg, "error")
+        existing = db.execute(
+            "SELECT id FROM enemy_players WHERE enemy_team_id = ? AND lower(name) = lower(?)",
+            (enemy_team_id, name),
+        ).fetchone()
+        if existing is None:
+            msg = "This player already exists on this enemy team."
+            if is_ajax:
+                return jsonify({"error": msg}), 400
+            flash(msg, "error")
+        else:
+            db.execute(
+                """
+                UPDATE enemy_players
+                SET role = ?, main_hero = ?, notes = ?
+                WHERE id = ?
+                """,
+                (role, main_hero, notes, existing["id"]),
+            )
+            db.commit()
+            if is_ajax:
+                return jsonify({"success": f"Player '{name}' already existed, details updated."}), 200
+            flash(f"Player '{name}' already existed, details updated.", "success")
 
     if not is_ajax:
         return redirect(url_for("enemy_team_detail", enemy_team_id=enemy_team_id) + "#roster")
