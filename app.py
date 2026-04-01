@@ -108,6 +108,10 @@ LAST_SCRIMS_ETAG = ""
 MAX_SCRIM_BACKUPS = 100
 
 
+def is_persistent_db_configured() -> bool:
+    return bool((os.environ.get("DATABASE_PATH") or "").strip() or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip())
+
+
 def ensure_state_defaults() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID
     if not isinstance(SCRIMS, list):
@@ -6203,11 +6207,29 @@ def manual_db_save():
     try:
         save_app_state()
         backup_path = create_manual_db_backup()
-        flash(f"Manual save complete. Backup written to {backup_path}.", "success")
+        flash(f"Manual save complete. DB path: {DB_PATH}. Backup written to {backup_path}.", "success")
+        if (os.environ.get("RENDER") or "").strip().lower() == "true" and not is_persistent_db_configured():
+            flash("Warning: persistent disk env vars are not configured on Render. Data may reset on redeploy.", "warning")
     except Exception as exc:
         flash(f"Manual save failed: {exc}", "error")
 
     return redirect(next_url)
+
+
+@app.route("/debug/storage")
+def debug_storage():
+    return jsonify(
+        {
+            "db_path": str(DB_PATH),
+            "db_exists": DB_PATH.exists(),
+            "db_parent": str(DB_PATH.parent),
+            "db_parent_writable": os.access(DB_PATH.parent, os.W_OK),
+            "on_render": (os.environ.get("RENDER") or "").strip().lower() == "true",
+            "database_path_env": bool((os.environ.get("DATABASE_PATH") or "").strip()),
+            "render_disk_mount_env": (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip(),
+            "persistent_configured": is_persistent_db_configured(),
+        }
+    )
 
 
 # ── CSV column indices ──────────────────────────────────────────────────────
@@ -8675,6 +8697,13 @@ def draft_simulator():
 
 init_db()
 load_app_state()
+
+if (os.environ.get("RENDER") or "").strip().lower() == "true" and not is_persistent_db_configured():
+    app.logger.warning(
+        "Render persistent storage is not configured (DATABASE_PATH/RENDER_DISK_MOUNT_PATH missing). "
+        "Data can be lost on redeploy. Current DB path: %s",
+        DB_PATH,
+    )
 
 
 if __name__ == "__main__":

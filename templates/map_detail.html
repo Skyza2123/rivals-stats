@@ -337,8 +337,9 @@
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
-                            <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Assign player below' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Hover to assign player' }}</span>
                             <input type="hidden" name="team1_hero_{{ i }}" value="{{ entry.hero or '' }}">
+                            <input type="hidden" name="team1_player_{{ i }}" value="{{ team1_selected_player }}">
                         </div>
                         {% endfor %}
                     </div>
@@ -357,65 +358,16 @@
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
-                            <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Assign player below' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Hover to assign player' }}</span>
                             <input type="hidden" name="team2_hero_{{ i }}" value="{{ entry.hero or '' }}">
+                            <input type="hidden" name="team2_player_{{ i }}" value="{{ team2_selected_player }}">
                         </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
 
-            <p class="draft-hint">Main roster players auto-fill by role slot when roster data exists. Click a slot to switch the assigned player, then choose the hero. Right-click a slot to clear it.</p>
-
-            <!-- Player assignment (players first) -->
-            <div class="draft-grid top-gap">
-                <div class="draft-column">
-                    <h4 class="team-label team1-label">Team 1 Players</h4>
-                    <div class="draft-slots comp-pick-slots">
-                        {% for i in range(6) %}
-                        <div class="comp-slot-wrap">
-                            <div class="field">
-                                <label>Slot {{ i + 1 }}</label>
-                                {% set team1_selected_player = sec.team1[i].player or ((team1_default_players[i] if i < (team1_default_players|length) else '') if (team1_player_options|length) else '') %}
-                                <select class="comp-player-select" name="team1_player_{{ i }}">
-                                    <option value="">Select player</option>
-                                    {% for player in team1_player_options %}
-                                    <option value="{{ player.name }}" {% if team1_selected_player == player.name %}selected{% endif %}>{{ player.name }}{% if player.is_sub %} [Sub]{% endif %}{% if player.role %} ({{ player.role }}){% endif %}</option>
-                                    {% endfor %}
-                                    <option value="" disabled>---</option>
-                                    <option value="custom">Type manually...</option>
-                                </select>
-                                <input type="text" class="comp-player-input" data-slot="team1_{{ i }}" value="{{ team1_selected_player }}" placeholder="Player name" style="display: none;">
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="draft-column">
-                    <h4 class="team-label team2-label">Team 2 Players</h4>
-                    <div class="draft-slots comp-pick-slots">
-                        {% for i in range(6) %}
-                        <div class="comp-slot-wrap">
-                            <div class="field">
-                                <label>Slot {{ i + 1 }}</label>
-                                {% set team2_selected_player = sec.team2[i].player or ((team2_default_players[i] if i < (team2_default_players|length) else '') if (team2_player_options|length) else '') %}
-                                <select class="comp-player-select" name="team2_player_{{ i }}">
-                                    <option value="">Select player</option>
-                                    {% for player in team2_player_options %}
-                                    <option value="{{ player.name }}" {% if team2_selected_player == player.name %}selected{% endif %}>{{ player.name }}{% if player.is_sub %} [Sub]{% endif %}{% if player.role %} ({{ player.role }}){% endif %}</option>
-                                    {% endfor %}
-                                    <option value="" disabled>---</option>
-                                    <option value="custom">Type manually...</option>
-                                </select>
-                                <input type="text" class="comp-player-input" data-slot="team2_{{ i }}" value="{{ team2_selected_player }}" placeholder="Player name" style="display: none;">
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <p class="draft-hint">After players are set, click a slot and pick a hero below.</p>
+            <p class="draft-hint">Hover a slot to switch the player, then click the slot and pick a hero. Right-click a slot to clear.</p>
 
             <!-- Hero portrait picker -->
             <div class="hero-picker">
@@ -599,6 +551,10 @@
         </form>
     </div>
 </div>
+
+<script id="compPlayerOptionsData" type="application/json">
+{{ {'team1': team1_player_options, 'team2': team2_player_options}|tojson }}
+</script>
 
 <script>
 /* ── Tab Switching ── */
@@ -866,7 +822,10 @@ document.addEventListener('contextmenu', function(e) {
     if (slot) { e.preventDefault(); clearDraftSlot(slot); }
 });
 
-// Player selection dropdown management
+const COMP_TEAM_PLAYER_OPTIONS = JSON.parse(
+    document.getElementById('compPlayerOptionsData')?.textContent || '{"team1": [], "team2": []}'
+);
+
 function getCompTeamFromSlotName(slotName) {
     if (!slotName) return '';
     if (slotName.startsWith('team1_')) return 'team1';
@@ -874,89 +833,10 @@ function getCompTeamFromSlotName(slotName) {
     return '';
 }
 
-function refreshTeamPlayerSelectAvailability(form, teamKey) {
-    if (!form || !teamKey) return;
-    const selects = Array.from(form.querySelectorAll(`.comp-player-select[name^="${teamKey}_player_"]`));
-    if (!selects.length) return;
-
-    const selectedValues = new Set();
-    selects.forEach((select) => {
-        const value = (select.value || '').trim();
-        if (value && value !== 'custom') {
-            selectedValues.add(value);
-        }
-    });
-
-    selects.forEach((select) => {
-        const current = (select.value || '').trim();
-        Array.from(select.options).forEach((option) => {
-            const optionValue = (option.value || '').trim();
-            if (!optionValue || optionValue === 'custom') {
-                option.disabled = false;
-                return;
-            }
-            option.disabled = selectedValues.has(optionValue) && optionValue !== current;
-        });
-    });
+function getCompPlayerHiddenInput(form, slotName) {
+    if (!form || !slotName) return null;
+    return form.querySelector(`input[type="hidden"][name="${slotName}"]`);
 }
-
-document.querySelectorAll('.comp-player-select').forEach(select => {
-    const slot = select.getAttribute('name');
-    const inputField = document.querySelector(`.comp-player-input[data-slot="${slot.replace('_player_', '_')}"]`);
-    const form = select.closest('form');
-    const teamKey = getCompTeamFromSlotName(slot);
-    
-    // Keep exactly one active form control for each slot name.
-    const updateInput = () => {
-        const value = select.value;
-        if (value === 'custom') {
-            if (inputField) {
-                inputField.style.display = 'block';
-                inputField.setAttribute('name', slot);
-                inputField.focus();
-            }
-            select.setAttribute('name', '');
-            select.style.display = 'none';
-        } else {
-            if (inputField) {
-                inputField.style.display = 'none';
-                inputField.setAttribute('name', '');
-                inputField.value = value;
-            }
-            select.setAttribute('name', slot);
-            select.style.display = 'block';
-        }
-        syncCompSlotPlayerBadge(form, slot);
-        refreshTeamPlayerSelectAvailability(form, teamKey);
-    };
-
-    // Ensure no stale dynamically-added hidden values remain from older versions.
-    if (form) {
-        form.addEventListener('submit', function() {
-            form.querySelectorAll(`input[type="hidden"][name="${slot}"]`).forEach((hidden) => {
-                if (!hidden.closest('.comp-pick-slot')) {
-                    hidden.remove();
-                }
-            });
-        });
-    }
-    
-    select.addEventListener('change', updateInput);
-    
-    // Initialize on page load
-    if (select.value === 'custom' || (inputField && inputField.value && !Array.from(select.options).some(opt => opt.value === inputField.value))) {
-        select.value = 'custom';
-        updateInput();
-    }
-
-    if (inputField) {
-        inputField.addEventListener('input', () => syncCompSlotPlayerBadge(form, slot));
-        inputField.addEventListener('blur', () => syncCompSlotPlayerBadge(form, slot));
-    }
-
-    syncCompSlotPlayerBadge(form, slot);
-    refreshTeamPlayerSelectAvailability(form, teamKey);
-});
 
 function syncCompSlotPlayerBadge(form, slotName) {
     if (!form || !slotName) return;
@@ -965,62 +845,26 @@ function syncCompSlotPlayerBadge(form, slotName) {
     const sub = compSlot.querySelector('.slot-hero-sub');
     if (!sub) return;
 
-    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
-    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
-    let value = '';
-
-    if (select) {
-        if (select.style.display === 'none' || select.value === 'custom') {
-            value = input ? (input.value || '').trim() : '';
-        } else {
-            value = (select.value || '').trim();
-        }
-    }
+    const input = getCompPlayerHiddenInput(form, slotName);
+    const value = input ? (input.value || '').trim() : '';
 
     if (value) {
         sub.textContent = value;
         sub.classList.add('show');
     } else {
-        sub.textContent = 'Assign player below';
+        sub.textContent = 'Hover to assign player';
         sub.classList.remove('show');
     }
 }
 
 function applyPlayerValueToControls(form, slotName, value) {
-    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
-    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
-    if (!select || !input) {
+    const input = getCompPlayerHiddenInput(form, slotName);
+    if (!input) {
         return;
     }
 
-    const normalizedValue = value || '';
-    const matchingOption = Array.from(select.options).find(opt => opt.value === normalizedValue);
-    if (normalizedValue && matchingOption && normalizedValue !== 'custom') {
-        select.style.display = 'block';
-        select.value = normalizedValue;
-        input.style.display = 'none';
-        input.value = normalizedValue;
-        syncCompSlotPlayerBadge(form, slotName);
-        refreshTeamPlayerSelectAvailability(form, getCompTeamFromSlotName(slotName));
-        return;
-    }
-
-    if (!normalizedValue) {
-        select.style.display = 'block';
-        select.value = '';
-        input.style.display = 'none';
-        input.value = '';
-        syncCompSlotPlayerBadge(form, slotName);
-        refreshTeamPlayerSelectAvailability(form, getCompTeamFromSlotName(slotName));
-        return;
-    }
-
-    select.value = 'custom';
-    select.style.display = 'none';
-    input.style.display = 'block';
-    input.value = normalizedValue;
+    input.value = (value || '').trim();
     syncCompSlotPlayerBadge(form, slotName);
-    refreshTeamPlayerSelectAvailability(form, getCompTeamFromSlotName(slotName));
 }
 
 let compAssignHover = null;
@@ -1090,14 +934,8 @@ function ensureCompAssignHover() {
 }
 
 function getCompPlayerValueFromControls(form, slotName) {
-    if (!form || !slotName) return '';
-    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
-    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
-    if (!select) return '';
-    if (select.style.display === 'none' || select.value === 'custom') {
-        return input ? (input.value || '').trim() : '';
-    }
-    return (select.value || '').trim();
+    const input = getCompPlayerHiddenInput(form, slotName);
+    return input ? (input.value || '').trim() : '';
 }
 
 function populateCompAssignHover(slot) {
@@ -1106,17 +944,38 @@ function populateCompAssignHover(slot) {
     const hoverInput = hover.querySelector('.comp-assign-hover-input');
     const form = slot.closest('form');
     const slotName = slot.dataset.playerSlot;
-    const sourceSelect = form ? form.querySelector(`.comp-player-select[name="${slotName}"]`) : null;
+    if (!form || !slotName) return false;
 
-    if (!form || !slotName || !sourceSelect) return false;
+    const teamKey = getCompTeamFromSlotName(slotName);
+    const options = Array.isArray(COMP_TEAM_PLAYER_OPTIONS[teamKey]) ? COMP_TEAM_PLAYER_OPTIONS[teamKey] : [];
+
+    const siblingAssigned = new Set();
+    form.querySelectorAll(`.comp-pick-slot[data-player-slot^="${teamKey}_player_"]`).forEach((teamSlot) => {
+        const teamSlotName = teamSlot.dataset.playerSlot;
+        if (!teamSlotName || teamSlotName === slotName) return;
+        const teamInput = getCompPlayerHiddenInput(form, teamSlotName);
+        const value = teamInput ? (teamInput.value || '').trim() : '';
+        if (value) siblingAssigned.add(value.toLowerCase());
+    });
 
     hoverSelect.innerHTML = '';
-    Array.from(sourceSelect.options).forEach((option) => {
-        if (option.disabled) return;
-        const clone = document.createElement('option');
-        clone.value = option.value;
-        clone.textContent = option.textContent;
-        hoverSelect.appendChild(clone);
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'No player';
+    hoverSelect.appendChild(emptyOption);
+
+    options.forEach((option) => {
+        const name = (option.name || '').trim();
+        if (!name) return;
+        const role = (option.role || '').trim();
+        const isSub = Boolean(option.is_sub || option.isSub);
+        const item = document.createElement('option');
+        item.value = name;
+        item.textContent = `${name}${isSub ? ' [Sub]' : ''}${role ? ` (${role})` : ''}`;
+        if (siblingAssigned.has(name.toLowerCase())) {
+            item.disabled = true;
+        }
+        hoverSelect.appendChild(item);
     });
 
     if (!Array.from(hoverSelect.options).some(opt => opt.value === 'custom')) {
@@ -1162,11 +1021,6 @@ function placeCompAssignHover(slot) {
 
 function showCompAssignHover(slot, keepOpen) {
     if (!slot) return;
-    const heroInput = slot.querySelector('input[type=hidden]');
-    if (!heroInput || !heroInput.value) {
-        hideCompAssignHover(true);
-        return;
-    }
 
     if (!populateCompAssignHover(slot)) return;
     compAssignHoverSlot = slot;
@@ -1212,35 +1066,6 @@ function activateCompSlot(el) {
     });
     el.classList.add('slot-active');
     activeCompSlot = el;
-    focusCompPlayerControl(el);
-}
-
-function focusCompPlayerControl(slotEl) {
-    if (!slotEl) return;
-    const form = slotEl.closest('form');
-    const slotName = slotEl.dataset.playerSlot;
-    if (!form || !slotName) return;
-
-    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
-    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
-    if (!select) return;
-
-    if (select.style.display === 'none' || select.value === 'custom') {
-        if (input) {
-            input.focus();
-            input.select?.();
-        }
-        return;
-    }
-
-    select.focus();
-    if (typeof select.showPicker === 'function') {
-        try {
-            select.showPicker();
-        } catch (_err) {
-            // Some browsers may block programmatic picker opening.
-        }
-    }
 }
 
 function clearCompSlot(el) {
@@ -1249,9 +1074,17 @@ function clearCompSlot(el) {
     var textEl = el.querySelector('.slot-hero');
     if (textEl) textEl.textContent = '\u2014';
     var subEl = el.querySelector('.slot-hero-sub');
+    const form = el.closest('form');
+    const slotName = el.dataset.playerSlot;
+    const playerValue = (form && slotName) ? getCompPlayerValueFromControls(form, slotName) : '';
     if (subEl) {
-        subEl.textContent = 'Assign player below';
-        subEl.classList.remove('show');
+        if (playerValue) {
+            subEl.textContent = playerValue;
+            subEl.classList.add('show');
+        } else {
+            subEl.textContent = 'Hover to assign player';
+            subEl.classList.remove('show');
+        }
     }
     var wrap = el.querySelector('.slot-img-wrap');
     if (wrap) wrap.remove();
@@ -1284,9 +1117,15 @@ function pickCompHero(btn) {
     activeCompSlot.classList.remove('slot-active');
     activeCompSlot.classList.add('slot-filled');
     var subEl = activeCompSlot.querySelector('.slot-hero-sub');
+    const form = activeCompSlot.closest('form');
+    const slotName = activeCompSlot.dataset.playerSlot;
+    const playerValue = (form && slotName) ? getCompPlayerValueFromControls(form, slotName) : '';
     if (subEl) {
-        if (!subEl.textContent || subEl.textContent === 'Assign player below') {
-            subEl.textContent = 'Assign player below';
+        if (playerValue) {
+            subEl.textContent = playerValue;
+            subEl.classList.add('show');
+        } else {
+            subEl.textContent = 'Hover to assign player';
             subEl.classList.remove('show');
         }
     }
@@ -1316,6 +1155,24 @@ document.addEventListener('contextmenu', function(e) {
     var compSlot = e.target.closest('.comp-pick-slot');
     if (compSlot) { e.preventDefault(); clearCompSlot(compSlot); }
 });
+
+document.querySelectorAll('.comp-pick-slot').forEach(function(slot) {
+    slot.addEventListener('mouseenter', function() {
+        if (compAssignHoverHideTimer) {
+            clearTimeout(compAssignHoverHideTimer);
+            compAssignHoverHideTimer = null;
+        }
+        showCompAssignHover(slot);
+    });
+    slot.addEventListener('mouseleave', scheduleHideCompAssignHover);
+});
+
+window.addEventListener('resize', function() {
+    if (compAssignHoverSlot) placeCompAssignHover(compAssignHoverSlot);
+});
+window.addEventListener('scroll', function() {
+    if (compAssignHoverSlot) placeCompAssignHover(compAssignHoverSlot);
+}, true);
 
 function copyPreviousCompSection(sectionIndex) {
     sectionIndex = Number(sectionIndex);
@@ -1372,16 +1229,8 @@ function copyPreviousCompSection(sectionIndex) {
                 }
             }
 
-            const fromPlayerSelect = prevForm.querySelector(`.comp-player-select[name="${playerName}"]`);
-            const fromPlayerInput = prevForm.querySelector(`.comp-player-input[data-slot="${team}_${i}"]`);
-            let fromPlayerValue = '';
-            if (fromPlayerSelect) {
-                if (fromPlayerSelect.style.display === 'none' || fromPlayerSelect.value === 'custom') {
-                    fromPlayerValue = fromPlayerInput ? fromPlayerInput.value : '';
-                } else {
-                    fromPlayerValue = fromPlayerSelect.value || '';
-                }
-            }
+            const fromPlayerInput = prevForm.querySelector(`input[type=hidden][name="${playerName}"]`);
+            const fromPlayerValue = fromPlayerInput ? fromPlayerInput.value : '';
             applyPlayerValueToControls(currentForm, playerName, fromPlayerValue);
         }
     });
