@@ -1128,6 +1128,17 @@ def get_result_for_slot(map_entry: dict, slot: str) -> str:
     return "Loss" if result == "Win" else "Win"
 
 
+def get_map_outcome_for_slot(map_entry: dict, slot: str) -> str:
+    left_score, right_score = split_score_pair(map_entry.get("score", ""))
+    if left_score.isdigit() and right_score.isdigit():
+        left_value = int(left_score)
+        right_value = int(right_score)
+        if left_value != right_value:
+            winner_slot = "team1" if left_value > right_value else "team2"
+            return "Win" if winner_slot == slot else "Loss"
+    return get_result_for_slot(map_entry, slot)
+
+
 def get_tournament_team_slot_for_map(map_entry: dict, tournament_team_id: int | None) -> str | None:
     if tournament_team_id is None:
         return None
@@ -1240,7 +1251,7 @@ def build_tournament_team_pick_rows(tournament_record: dict, tournament_team: di
             if not map_name:
                 continue
             pick_stats[map_name]["maps"] += 1
-            result = get_result_for_slot(map_entry, team_slot)
+            result = get_map_outcome_for_slot(map_entry, team_slot)
             if result == "Win":
                 pick_stats[map_name]["wins"] += 1
             elif result == "Loss":
@@ -1956,8 +1967,9 @@ def build_scrim_analytics(
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
-            is_win = map_entry.get("result") == "Win"
-            is_loss = map_entry.get("result") == "Loss"
+            map_outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
+            is_win = map_outcome == "Win"
+            is_loss = map_outcome == "Loss"
             if is_win:
                 total_wins += 1
             elif is_loss:
@@ -3939,7 +3951,7 @@ def build_team_hero_profile(team_scrims: list[dict], players: list[dict]) -> dic
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
 
-            result = get_result_for_slot(map_entry, our_team_slot)
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
             map_hero_players = defaultdict(set)
             map_player_heroes = defaultdict(set)
 
@@ -4175,27 +4187,14 @@ def teams():
 
     teams_with_scrim_stats = []
     for row in team_rows:
-        all_team_scrims = [
-            scrim
-            for scrim in SCRIMS
-            if (
-                scrim.get("team1_id") == row["id"]
-                or scrim.get("team2_id") == row["id"]
-                or scrim.get("team_id") == row["id"]
-                or (
-                    not scrim.get("team_id")
-                    and not scrim.get("team1_id")
-                    and (scrim.get("team_name", "") or "").strip().lower() == row["name"].strip().lower()
-                )
-            )
-        ]
+        all_team_scrims = get_scrims_for_team(row["id"], row["name"])
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
         team_maps = sum(len(scrim.get("maps", [])) for scrim in team_scrims)
         team_wins = sum(
             1
             for scrim in team_scrims
             for map_entry in scrim.get("maps", [])
-            if map_entry.get("result") == "Win"
+            if get_map_outcome_for_slot(map_entry, map_entry.get("our_team_slot", "team1")) == "Win"
         )
         team_win_rate = round((team_wins / team_maps) * 100, 1) if team_maps else 0
 
@@ -4458,15 +4457,15 @@ def team_detail(team_id: int):
                 map_timeline_targets[map_name] = scrim.get("id")
 
             mode_name = MAP_MODES.get(map_name, "Other")
-            result = map_entry.get("result")
+            outcome = get_map_outcome_for_slot(map_entry, map_entry.get("our_team_slot", "team1"))
 
             map_records[map_name]["maps"] += 1
             mode_records[mode_name]["maps"] += 1
 
-            if result == "Win":
+            if outcome == "Win":
                 map_records[map_name]["wins"] += 1
                 mode_records[mode_name]["wins"] += 1
-            elif result == "Loss":
+            elif outcome == "Loss":
                 map_records[map_name]["losses"] += 1
                 mode_records[mode_name]["losses"] += 1
 
@@ -4578,7 +4577,7 @@ def team_detail(team_id: int):
             enemy_team_slot = opposite_team_slot(our_team_slot)
 
             map_name = (map_entry.get("map_name", "") or "").strip() or "Unknown Map"
-            result = get_result_for_slot(map_entry, our_team_slot)
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
 
             if result == "Win":
                 matchup_wins += 1
@@ -4667,7 +4666,7 @@ def team_detail(team_id: int):
                     continue
 
                 map_name = (map_entry.get("map_name", "") or "").strip() or "Unknown Map"
-                result = get_result_for_slot(map_entry, our_team_slot)
+                result = get_map_outcome_for_slot(map_entry, our_team_slot)
                 per_map[map_name]["maps"] += 1
                 if result == "Win":
                     per_map[map_name]["wins"] += 1
@@ -4835,7 +4834,7 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
                 if map_name not in map_timeline_targets and tournament_match.get("id") is not None:
                     map_timeline_targets[map_name] = tournament_match.get("id")
 
-            result = get_result_for_slot(map_entry, team_slot)
+            result = get_map_outcome_for_slot(map_entry, team_slot)
             if result == "Win":
                 wins += 1
                 if map_name:
@@ -7348,7 +7347,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
                     our_team_slot = "team1"
                 enemy_team_slot = opposite_team_slot(our_team_slot)
 
-                result = get_result_for_slot(map_entry, our_team_slot)
+                result = get_map_outcome_for_slot(map_entry, our_team_slot)
                 is_win = result == "Win"
                 if is_win:
                     win_count += 1
@@ -7441,7 +7440,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
                 our_team_slot = "team1"
             enemy_team_slot = opposite_team_slot(our_team_slot)
 
-            result = get_result_for_slot(map_entry, our_team_slot)
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
             is_win = result == "Win"
             if is_win:
                 win_count += 1
