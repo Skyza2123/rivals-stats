@@ -7405,21 +7405,9 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
     else:
         map_entry["score"] = score
     
-    # Auto-calculate result from score (higher number = win)
+    # Manual result selection (no auto-calculation from score)
     result = request.form.get("result", "").strip()
-    if not result or result not in RESULTS:
-        # Try to parse score and auto-determine result
-        score_parts = [int(s.strip()) for s in score.split('-') if s.strip() and s.strip().isdigit()]
-        if len(score_parts) == 2 and score_parts[0] != score_parts[1]:
-            result = "Win" if score_parts[0] > score_parts[1] else "Loss"
-        else:
-            result = ""
-    
     map_entry["result"] = result if result in RESULTS else ""
-    
-    # Remove our_team_slot since result is now auto-determined
-    if "our_team_slot" in map_entry:
-        del map_entry["our_team_slot"]
 
     raw_map_team1_id = request.form.get("map_team1_tournament_team_id", "")
     if raw_map_team1_id:
@@ -7795,22 +7783,9 @@ def update_map_info(scrim_id: int, map_id: int):
     else:
         map_entry["score"] = score
     
-    # Auto-calculate result from score (higher number = win)
+    # Manual result selection (no auto-calculation from score)
     result = request.form.get("result", "").strip()
-    if not result or result not in RESULTS:
-        # Try to parse score and auto-determine result
-        score_val = map_entry["score"]
-        score_parts = [int(s.strip()) for s in score_val.split('-') if s.strip() and s.strip().isdigit()]
-        if len(score_parts) == 2 and score_parts[0] != score_parts[1]:
-            result = "Win" if score_parts[0] > score_parts[1] else "Loss"
-        else:
-            result = ""
-    
     map_entry["result"] = result if result in RESULTS else ""
-    
-    # Remove our_team_slot since result is now auto-determined
-    if "our_team_slot" in map_entry:
-        del map_entry["our_team_slot"]
     
     participant_one, participant_two = get_scrim_participants(scrim)
     valid_team_ids = {

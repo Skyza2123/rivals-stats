@@ -241,19 +241,18 @@
             <div class="form-grid">
                 <div class="field">
                     <label for="edit_score_team1">{{ team1_label }} Score</label>
-                    <input type="text" id="edit_score_team1" name="score_team1" value="{{ split_score_pair(map_entry.get('score', ''))[0] }}" placeholder="e.g. 3" onchange="updateResultFromTeamScores()" oninput="updateResultFromTeamScores()">
+                    <input type="text" id="edit_score_team1" name="score_team1" value="{{ split_score_pair(map_entry.get('score', ''))[0] }}" placeholder="e.g. 3">
                 </div>
                 <div class="field">
                     <label for="edit_score_team2">{{ team2_label }} Score</label>
-                    <input type="text" id="edit_score_team2" name="score_team2" value="{{ split_score_pair(map_entry.get('score', ''))[1] }}" placeholder="e.g. 2" onchange="updateResultFromTeamScores()" oninput="updateResultFromTeamScores()">
+                    <input type="text" id="edit_score_team2" name="score_team2" value="{{ split_score_pair(map_entry.get('score', ''))[1] }}" placeholder="e.g. 2">
                 </div>
                 <div class="field">
-                    <label for="edit_result">Result (Auto-calculated)</label>
-                    <select id="edit_result" name="result" disabled>
-                        <option value="">Pending score</option>
+                    <label for="edit_result">Result</label>
+                    <select id="edit_result" name="result">
+                        <option value="">Not Set</option>
                         {% for r in results %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
                     </select>
-                    <small style="display:block; margin-top:6px; color:var(--muted);">Automatically set based on scores.</small>
                 </div>
                 {% if is_tournament %}
                 <div class="field">
@@ -680,31 +679,6 @@ function syncScrimEditMapTeams() {
     const participantOneName = '{{ map_entry.team1_name or team1_label }}';
     const participantTwoName = '{{ map_entry.team2_name or team2_label }}';
     const side1IsParticipantOne = side1Select.value === participantOneId;
-}
-
-function updateResultFromTeamScores() {
-    const scoreTeam1Input = document.getElementById('edit_score_team1');
-    const scoreTeam2Input = document.getElementById('edit_score_team2');
-    const resultSelect = document.getElementById('edit_result');
-    if (!scoreTeam1Input || !scoreTeam2Input || !resultSelect) return;
-
-    const team1Score = parseInt(scoreTeam1Input.value.trim(), 10);
-    const team2Score = parseInt(scoreTeam2Input.value.trim(), 10);
-    
-    let result = '';
-    if (!isNaN(team1Score) && !isNaN(team2Score)) {
-        if (team1Score > team2Score) {
-            result = 'Win';
-        } else if (team2Score > team1Score) {
-            result = 'Loss';
-        }
-    }
-    
-    if (result && resultSelect.querySelector(`option[value="${result}"]`)) {
-        resultSelect.value = result;
-    } else {
-        resultSelect.value = '';
-    }
 }
 
 function applyMapMetricHighlights() {
@@ -1390,33 +1364,5 @@ function copyPreviousCompSection(sectionIndex) {
     });
 }
 
-// Initialize score-to-result calculator for Edit Map Info modal
-document.addEventListener('DOMContentLoaded', function() {
-    const scoreTeam1Input = document.getElementById('edit_score_team1');
-    const scoreTeam2Input = document.getElementById('edit_score_team2');
-    
-    if (scoreTeam1Input && scoreTeam2Input) {
-        scoreTeam1Input.addEventListener('input', updateResultFromTeamScores);
-        scoreTeam1Input.addEventListener('change', updateResultFromTeamScores);
-        scoreTeam2Input.addEventListener('input', updateResultFromTeamScores);
-        scoreTeam2Input.addEventListener('change', updateResultFromTeamScores);
-        
-        // Also calculate on modal open
-        const editInfoModal = document.getElementById('editInfoModal');
-        if (editInfoModal) {
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.attributeName === 'class' && editInfoModal.classList.contains('show')) {
-                        updateResultFromTeamScores();
-                    }
-                });
-            });
-            observer.observe(editInfoModal, { attributes: true, attributeFilter: ['class'] });
-        }
-        
-        // Initial calculation
-        updateResultFromTeamScores();
-    }
-});
 </script>
 {% endblock %}
