@@ -1896,6 +1896,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     team2_label = match_record.get("enemy_team") or match_record.get("opponent") or match_record.get("team2_name") or "Team 2"
     participant_one_id = None
     participant_two_id = None
+    participant_one_label = ""
+    participant_two_label = ""
     picked_by_label = ""
 
     db = get_db()
@@ -1935,15 +1937,19 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         team2_player_options = [{"name": player_name, "role": "", "is_sub": False} for player_name in (team2 or {}).get("players", [])]
     else:
         participant_one, participant_two = get_scrim_participants(match_record)
-        team1_label, team2_label = get_scrim_participant_labels(match_record)
+        participant_one_label, participant_two_label = get_scrim_participant_labels(match_record)
         participant_one_id = participant_one.get("id")
         participant_two_id = participant_two.get("id")
         if not map_entry.get("team1_id") and participant_one_id:
             map_entry["team1_id"] = participant_one_id
         if not map_entry.get("team2_id") and participant_two_id:
             map_entry["team2_id"] = participant_two_id
-        map_entry["team1_name"] = team1_label
-        map_entry["team2_name"] = team2_label
+        if not (map_entry.get("team1_name") or "").strip():
+            map_entry["team1_name"] = participant_one_label
+        if not (map_entry.get("team2_name") or "").strip():
+            map_entry["team2_name"] = participant_two_label
+        team1_label = (map_entry.get("team1_name") or "").strip() or participant_one_label
+        team2_label = (map_entry.get("team2_name") or "").strip() or participant_two_label
         team_id = match_record.get("team_id")
         player_rows = []
 
@@ -2133,6 +2139,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "team2_label": team2_label,
         "participant_one_id": participant_one_id,
         "participant_two_id": participant_two_id,
+        "participant_one_label": participant_one_label,
+        "participant_two_label": participant_two_label,
         "picked_by_label": picked_by_label,
         "map_draft_timeline_row": map_draft_timeline_row,
         "split_score_pair": split_score_pair,

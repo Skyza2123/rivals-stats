@@ -274,8 +274,8 @@
                 <div class="field">
                     <label for="edit_map_team1_team_id">Team On Side 1</label>
                     <select id="edit_map_team1_team_id" name="map_team1_team_id" required>
-                        <option value="{{ participant_one_id }}" {% if map_entry.team1_id == participant_one_id %}selected{% endif %}>{{ map_entry.team1_name or team1_label }}</option>
-                        <option value="{{ participant_two_id }}" {% if map_entry.team1_id == participant_two_id %}selected{% endif %}>{{ map_entry.team2_name or team2_label }}</option>
+                        <option value="{{ participant_one_id }}" {% if map_entry.team1_id == participant_one_id %}selected{% endif %}>{{ participant_one_label or team1_label }}</option>
+                        <option value="{{ participant_two_id }}" {% if map_entry.team1_id == participant_two_id %}selected{% endif %}>{{ participant_two_label or team2_label }}</option>
                     </select>
                 </div>
                 {% endif %}
