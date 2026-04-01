@@ -5,8 +5,16 @@
 }
 
 a,
-a:visited {
+a:visited,
+a:hover,
+a:active,
+a:focus {
     color: inherit;
+    text-decoration: none;
+}
+
+a:hover {
+    opacity: 0.8;
 }
 
 :root {
@@ -194,7 +202,7 @@ button:hover {
 }
 
 .panel-header-row a {
-    color: var(--accent);
+    color: inherit;
     text-decoration: none;
     font-weight: 600;
 }
