@@ -45,8 +45,8 @@
 </div>
 
 <div class="tab-bar">
-    <button class="tab-btn tab-active" data-tab="bans" type="button">Bans</button>
-    <button class="tab-btn" data-tab="prep" type="button">Prep</button>
+    <button class="tab-btn tab-active" data-tab="prep" type="button">Prep</button>
+    <button class="tab-btn" data-tab="bans" type="button">Bans</button>
     <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
     <button class="tab-btn" data-tab="comps" type="button">Comps</button>
     <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
@@ -55,9 +55,9 @@
     <button class="tab-btn" data-tab="roster" type="button">Roster</button>
 </div>
 
-<div class="tab-content" id="tab-bans">
+<div class="tab-content tab-hidden" id="tab-bans">
     <section class="panel">
-        <div class="section-kicker">Draft Overview</div>
+        <div class="section-kicker">Ban/Protect Deep Dive</div>
         <h3>{{ team.name }} Ban & Protect Stats</h3>
         <p class="panel-intro">Draft flow, target priorities, and where your team differs from the enemy in ban behavior.</p>
         <p class="panel-intro">
@@ -166,106 +166,6 @@
                         <p class="empty-text">No protect data yet.</p>
                     {% endif %}
                 </div>
-            </div>
-
-            <div class="panel panel-soft-blue top-gap">
-                <div class="section-kicker">Open Hero Impact</div>
-                <h3>When Heroes Are Open, Do We Play Them?</h3>
-                <p class="panel-intro">Open means the enemy did not ban that hero on the map. This compares how often the hero is played when open, whether playing it improves win rate when open, and how open outcomes compare to banned outcomes.</p>
-                <p class="panel-intro">Banned Maps means maps where that hero was banned by the enemy team.</p>
-                {% if team_analytics.hero_open_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Open Maps</th>
-                                    <th>Played If Open</th>
-                                    <th>Play Rate (Open)</th>
-                                    <th>WR Open + Played</th>
-                                    <th>WR Open + Not Played</th>
-                                    <th>Played - Not Played</th>
-                                    <th>Banned Maps</th>
-                                    <th>WR When Banned</th>
-                                    <th>WR When Open</th>
-                                    <th>Open - Banned</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in team_analytics.hero_open_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.open_maps }}</td>
-                                        <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
-                                        <td>
-                                            <span class="metric-text {% if row.play_when_open_rate >= 60 %}metric-good{% elif row.play_when_open_rate >= 40 %}metric-warn{% else %}metric-bad{% endif %}">
-                                                {{ row.play_when_open_rate }}%
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {% if row.played_when_open %}
-                                                <span class="metric-text {% if row.win_rate_when_open_played >= 55 %}metric-good{% elif row.win_rate_when_open_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                                    {{ row.win_rate_when_open_played }}%
-                                                </span>
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if row.not_played_when_open %}
-                                                <span class="metric-text {% if row.win_rate_when_open_not_played >= 55 %}metric-good{% elif row.win_rate_when_open_not_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                                    {{ row.win_rate_when_open_not_played }}%
-                                                </span>
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if row.played_vs_not_played_open_delta is not none %}
-                                                <span class="metric-text {% if row.played_vs_not_played_open_delta > 1 %}metric-good{% elif row.played_vs_not_played_open_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
-                                                    {% if row.played_vs_not_played_open_delta > 0 %}+{% endif %}{{ row.played_vs_not_played_open_delta }}%
-                                                </span>
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ row.banned_maps }}</td>
-                                        <td>
-                                            {% if row.banned_maps %}
-                                                <span class="metric-text {% if row.win_rate_when_banned >= 55 %}metric-good{% elif row.win_rate_when_banned >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                                    {{ row.win_rate_when_banned }}%
-                                                </span>
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <span class="metric-text {% if row.win_rate_when_open >= 55 %}metric-good{% elif row.win_rate_when_open >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                                {{ row.win_rate_when_open }}%
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {% if row.open_vs_banned_delta is not none %}
-                                                <span class="metric-text {% if row.open_vs_banned_delta > 1 %}metric-good{% elif row.open_vs_banned_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
-                                                    {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
-                                                </span>
-                                            {% else %}
-                                                --
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">Not enough draft data to calculate open hero rates yet.</p>
-                {% endif %}
             </div>
 
             <section class="panel panel-soft-gold top-gap">
@@ -723,7 +623,130 @@
     </section>
 </div>
 
-<div class="tab-content tab-hidden" id="tab-prep">
+<div class="tab-content" id="tab-prep">
+    <section class="panel">
+        <div class="section-kicker">Draft Overview</div>
+        <h3>{{ team.name }} Quick Draft Snapshot</h3>
+        <p class="panel-intro">High-level draft health before diving into detailed ban analytics.</p>
+        <div class="summary-grid">
+            <section class="stat-card">
+                <strong>Total Maps</strong>
+                <span>{{ team_analytics.summary.total_maps }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Overall Win Rate</strong>
+                <span>{{ team_analytics.summary.overall_win_rate }}%</span>
+            </section>
+            <section class="stat-card">
+                <strong>Unique Bans</strong>
+                <span>{{ team_analytics.summary.unique_bans }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Unique Protects</strong>
+                <span>{{ team_analytics.summary.unique_protects }}</span>
+            </section>
+        </div>
+    </section>
+
+    <section class="panel panel-soft-blue top-gap">
+        <div class="section-kicker">Open Hero Impact</div>
+        <h3>When Heroes Are Open, Do We Play Them?</h3>
+        <p class="panel-intro">Open means the enemy did not ban that hero on the map. This compares play rate and win-rate outcomes when open vs banned.</p>
+        {% if team_analytics.hero_open_rows %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Hero</th>
+                            <th>Open Maps</th>
+                            <th>Played If Open</th>
+                            <th>Play Rate (Open)</th>
+                            <th>WR Open + Played</th>
+                            <th>WR Open + Not Played</th>
+                            <th>Played - Not Played</th>
+                            <th>Banned Maps</th>
+                            <th>WR When Banned</th>
+                            <th>WR When Open</th>
+                            <th>Open - Banned</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in team_analytics.hero_open_rows %}
+                            <tr>
+                                <td>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ hero_display_name(row.hero) }}</span>
+                                    </span>
+                                </td>
+                                <td>{{ row.open_maps }}</td>
+                                <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
+                                <td>
+                                    <span class="metric-text {% if row.play_when_open_rate >= 60 %}metric-good{% elif row.play_when_open_rate >= 40 %}metric-warn{% else %}metric-bad{% endif %}">
+                                        {{ row.play_when_open_rate }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if row.played_when_open %}
+                                        <span class="metric-text {% if row.win_rate_when_open_played >= 55 %}metric-good{% elif row.win_rate_when_open_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                            {{ row.win_rate_when_open_played }}%
+                                        </span>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.not_played_when_open %}
+                                        <span class="metric-text {% if row.win_rate_when_open_not_played >= 55 %}metric-good{% elif row.win_rate_when_open_not_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                            {{ row.win_rate_when_open_not_played }}%
+                                        </span>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.played_vs_not_played_open_delta is not none %}
+                                        <span class="metric-text {% if row.played_vs_not_played_open_delta > 1 %}metric-good{% elif row.played_vs_not_played_open_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
+                                            {% if row.played_vs_not_played_open_delta > 0 %}+{% endif %}{{ row.played_vs_not_played_open_delta }}%
+                                        </span>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.banned_maps }}</td>
+                                <td>
+                                    {% if row.banned_maps %}
+                                        <span class="metric-text {% if row.win_rate_when_banned >= 55 %}metric-good{% elif row.win_rate_when_banned >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                            {{ row.win_rate_when_banned }}%
+                                        </span>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="metric-text {% if row.win_rate_when_open >= 55 %}metric-good{% elif row.win_rate_when_open >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                        {{ row.win_rate_when_open }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if row.open_vs_banned_delta is not none %}
+                                        <span class="metric-text {% if row.open_vs_banned_delta > 1 %}metric-good{% elif row.open_vs_banned_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
+                                            {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
+                                        </span>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">Not enough draft data to calculate open hero rates yet.</p>
+        {% endif %}
+    </section>
+
     <div id="teamPrepContent">
         {% include '_team_prep_content.html' %}
     </div>
@@ -1954,10 +1977,10 @@
 (() => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-content");
-    const validTabs = new Set(["bans", "prep", "simulator", "comps", "heroes", "maps", "tournaments", "roster"]);
+    const validTabs = new Set(["prep", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster"]);
 
     const switchTeamTab = (tabName) => {
-        const nextTab = validTabs.has(tabName) ? tabName : "bans";
+        const nextTab = validTabs.has(tabName) ? tabName : "prep";
         tabButtons.forEach((button) => {
             button.classList.toggle("tab-active", button.dataset.tab === nextTab);
         });
