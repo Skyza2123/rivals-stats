@@ -3068,10 +3068,7 @@ th {
     min-width: 0;
 }
 
-.prep-hero-chip .hero-inline-meta {
-    display: none;
-}
-
+.prep-hero-chip .hero-inline-meta > span,
 .prep-adjust-row .hero-inline-meta > span,
 .prep-comp-slot .hero-inline-meta > span {
     font-size: 0.8rem;
@@ -3082,11 +3079,13 @@ th {
     white-space: nowrap;
 }
 
+.prep-hero-chip .hero-inline-meta .hero-sub-label,
 .prep-adjust-row .hero-inline-meta .hero-sub-label,
 .prep-comp-slot .hero-inline-meta .hero-sub-label {
     font-size: 0.68rem;
     color: var(--muted);
 }
+
 
 .prep-comp-grid {
     display: grid;
@@ -3102,20 +3101,35 @@ th {
 }
 
 .prep-combo4-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .prep-combo4-card {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.05);
-    padding: 12px;
+    padding: 12px 14px;
+}
+
+.prep-combo4-rank {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.8rem;
+    color: #bfdbfe;
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(96, 165, 250, 0.28);
+    flex-shrink: 0;
 }
 
 .prep-combo4-heroes {
@@ -3125,17 +3139,36 @@ th {
 }
 
 .prep-combo4-heroes .hero-inline-thumb {
-    width: 52px;
-    height: 52px;
-    border-radius: 10px;
+    width: 46px;
+    height: 46px;
+    border-radius: 9px;
     border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
+.prep-combo4-meta {
+    margin-left: auto;
+    text-align: right;
+    min-width: 220px;
+}
+
 .prep-combo4-names {
-    font-size: 0.86rem;
+    font-size: 0.84rem;
     font-weight: 700;
     color: var(--text);
     margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+    .prep-combo4-card {
+        flex-wrap: wrap;
+    }
+
+    .prep-combo4-meta {
+        margin-left: 0;
+        text-align: left;
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 .draft-route-flow {

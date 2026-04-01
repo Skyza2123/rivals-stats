@@ -1115,7 +1115,7 @@
         <h3>Hero Win Rate</h3>
         {% if enemy_analytics.hero_rows %}
             <div class="table-wrap">
-                <table>
+                <table class="stats-table stats-table-compare">
                     <thead>
                         <tr>
                             <th>Hero</th>
@@ -1211,7 +1211,7 @@
             </div>
             <script id="enemyTimelineData" type="application/json">{{ enemy_timeline_points | tojson }}</script>
             <div class="table-wrap top-gap">
-                <table>
+                <table class="stats-table stats-table-timeline">
                     <thead>
                         <tr>
                             <th>Scrim</th>
@@ -1365,7 +1365,7 @@
         </div>
         {% if players %}
             <div class="table-wrap">
-                <table>
+                <table class="stats-table stats-table-compare">
                     <thead>
                         <tr>
                             <th>Player</th>

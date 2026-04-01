@@ -180,6 +180,7 @@
         <div class="prep-combo4-grid top-gap">
             {% for row in prep_expected_plan.four_hero_combos[:6] %}
                 <article class="prep-combo4-card">
+                    <div class="prep-combo4-rank">#{{ loop.index }}</div>
                     <div class="prep-combo4-heroes">
                         {% for hero in row.heroes %}
                             <span class="hero-inline-cell">
@@ -187,7 +188,7 @@
                             </span>
                         {% endfor %}
                     </div>
-                    <div>
+                    <div class="prep-combo4-meta">
                         <div class="prep-combo4-names">{{ row.heroes|join(' + ') }}</div>
                         <span class="prep-chip-meta">{{ row.maps }} maps • {{ row.win_rate }}% WR</span>
                     </div>
@@ -390,50 +391,6 @@
         <p class="empty-text top-gap">Choose two maps to compare their draft timelines.</p>
     {% else %}
         <p class="empty-text top-gap">Need at least two maps in the current filter to compare timelines.</p>
-    {% endif %}
-</section>
-
-<section class="panel top-gap">
-    <div class="section-kicker">Per-Map Timeline</div>
-    <h3>Draft Phase Timeline For Each Map</h3>
-    {% if draft_phase_timeline.maps %}
-        <div class="form-grid top-gap">
-            {% for map_row in draft_phase_timeline.maps %}
-                <section class="panel panel-soft-blue">
-                    <div class="panel-header-row">
-                        <h3>{{ map_row.map_name }}</h3>
-                        <span class="compare-tag compare-tag-neutral">{{ map_row.maps }} maps</span>
-                    </div>
-                    {% set map_main_lookup = {} %}
-                    {% for row in map_row.main_rows %}
-                        {% set _ = map_main_lookup.update({row.slot_key: row}) %}
-                    {% endfor %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Slot</th>
-                                    <th>Main Team</th>
-                                    <th>Enemy Team</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in map_row.enemy_rows %}
-                                    {% set main_row = map_main_lookup[row.slot_key] %}
-                                    <tr>
-                                        <td>{{ row.slot_label }}</td>
-                                        <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
-                                        <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="empty-text">No per-map draft timeline data yet.</p>
     {% endif %}
 </section>
  </div>

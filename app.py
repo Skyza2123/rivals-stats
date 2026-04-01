@@ -1669,6 +1669,36 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 ).fetchall()
                 enemy_players = [dict(row) for row in enemy_player_rows]
 
+    map_draft_timeline_row = None
+    target_map_name = (map_entry.get("map_name") or "").strip()
+    if target_map_name:
+        source_scrims: list[dict] = []
+        if is_tournament:
+            perspective = map_entry.get("our_team_slot", "team1") if map_entry.get("our_team_slot", "team1") in TEAM_SLOTS else "team1"
+            if tournament_record is not None:
+                source_scrims = build_tournament_match_scrims(tournament_record, perspective=perspective)
+        else:
+            team_id = match_record.get("team_id")
+            team_name = (match_record.get("team_name") or match_record.get("team1_name") or "").strip()
+            if team_id and team_name:
+                source_scrims = get_scrims_for_team(team_id, team_name)
+
+        filtered_scrims: list[dict] = []
+        for scrim in source_scrims:
+            matching_maps = [m for m in scrim.get("maps", []) if (m.get("map_name") or "").strip() == target_map_name]
+            if not matching_maps:
+                continue
+            scrim_copy = copy.deepcopy(scrim)
+            scrim_copy["maps"] = matching_maps
+            filtered_scrims.append(scrim_copy)
+
+        if filtered_scrims:
+            map_timeline = build_draft_phase_timeline(filtered_scrims)
+            map_draft_timeline_row = next(
+                (row for row in map_timeline.get("maps", []) if row.get("map_name") == target_map_name),
+                None,
+            )
+
     return {
         "match_record": match_record,
         "map_entry": map_entry,
@@ -1689,6 +1719,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "participant_one_id": participant_one_id,
         "participant_two_id": participant_two_id,
         "picked_by_label": picked_by_label,
+        "map_draft_timeline_row": map_draft_timeline_row,
         "split_score_pair": split_score_pair,
     }
 
