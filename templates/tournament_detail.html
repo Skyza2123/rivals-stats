@@ -300,35 +300,21 @@
                 <div class="section-kicker">Draft Flow</div>
                 <h3>When Match Team 1 Bans, Match Team 2 Is Likely To Ban</h3>
                 {% if tournament_ban_analytics.ban_next_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Match Team 1 Ban</th>
-                                    <th>Likely Match Team 2 Next Ban</th>
-                                    <th>Likelihood</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in tournament_ban_analytics.ban_next_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                                <span>{{ row.ban_hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
-                                                <span>{{ row.top_enemy_ban }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="draft-flow-stack">
+                        {% for row in tournament_ban_analytics.ban_next_rows %}
+                            <div class="draft-flow-card">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
+                                </span>
+                                <span class="prep-flow-arrow">→</span>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span></span>
+                                </span>
+                                <span class="prep-chip-meta">{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</span>
+                            </div>
+                        {% endfor %}
                     </div>
                 {% else %}
                     <p class="empty-text">No ban response sequence data yet.</p>
@@ -341,35 +327,21 @@
                 <div class="section-kicker">Draft Flow</div>
                 <h3>Which Bans Reach Into Protects</h3>
                 {% if tournament_ban_analytics.ban_to_protect_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Match Team 1 Ban</th>
-                                    <th>Most Linked Protect</th>
-                                    <th>Link Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in tournament_ban_analytics.ban_to_protect_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                                <span>{{ row.ban_hero }}</span>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
-                                                <span>{{ row.top_protect }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="draft-flow-stack">
+                        {% for row in tournament_ban_analytics.ban_to_protect_rows %}
+                            <div class="draft-flow-card">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
+                                </span>
+                                <span class="prep-flow-arrow">→</span>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span></span>
+                                </span>
+                                <span class="prep-chip-meta">{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</span>
+                            </div>
+                        {% endfor %}
                     </div>
                 {% else %}
                     <p class="empty-text">No ban-to-protect link data yet.</p>

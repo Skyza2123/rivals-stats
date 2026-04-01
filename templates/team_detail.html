@@ -312,35 +312,21 @@
                     <div class="section-kicker">Draft Flow</div>
                     <h3>When Main Team Bans, Enemy Is Likely To Ban</h3>
                     {% if team_analytics.ban_next_rows %}
-                        <div class="table-wrap">
-                            <table class="stats-table stats-table-compare">
-                                <thead>
-                                    <tr>
-                                        <th>Main Team Ban</th>
-                                        <th>Likely Enemy Next Ban</th>
-                                        <th>Likelihood</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in team_analytics.ban_next_rows %}
-                                        <tr>
-                                            <td>
-                                                <span class="hero-inline-cell">
-                                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="hero-inline-cell">
-                                                    <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
-                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
-                                                </span>
-                                            </td>
-                                            <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="draft-flow-stack">
+                            {% for row in team_analytics.ban_next_rows %}
+                                <div class="draft-flow-card">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
+                                    </span>
+                                    <span class="prep-flow-arrow">→</span>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span></span>
+                                    </span>
+                                    <span class="prep-chip-meta">{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</span>
+                                </div>
+                            {% endfor %}
                         </div>
                     {% else %}
                         <p class="empty-text">No ban response sequence data yet.</p>
@@ -351,35 +337,21 @@
                     <div class="section-kicker">Draft Flow</div>
                     <h3>Which Bans Reach Into Protects</h3>
                     {% if team_analytics.ban_to_protect_rows %}
-                        <div class="table-wrap">
-                            <table class="stats-table stats-table-compare">
-                                <thead>
-                                    <tr>
-                                        <th>Main Team Ban</th>
-                                        <th>Most Linked Protect</th>
-                                        <th>Link Rate</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in team_analytics.ban_to_protect_rows %}
-                                        <tr>
-                                            <td>
-                                                <span class="hero-inline-cell">
-                                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="hero-inline-cell">
-                                                    <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
-                                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span>{% if hero_pool_label(row.top_protect) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_protect) }}</small>{% endif %}</span>
-                                                </span>
-                                            </td>
-                                            <td>{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="draft-flow-stack">
+                            {% for row in team_analytics.ban_to_protect_rows %}
+                                <div class="draft-flow-card">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
+                                    </span>
+                                    <span class="prep-flow-arrow">→</span>
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span></span>
+                                    </span>
+                                    <span class="prep-chip-meta">{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</span>
+                                </div>
+                            {% endfor %}
                         </div>
                     {% else %}
                         <p class="empty-text">No ban-to-protect link data yet.</p>
@@ -392,62 +364,36 @@
                     <div class="section-kicker">Draft Flow</div>
                     <h3>Second-Order Ban Routes (Ban 2 Into Ban 3 / Protect 2 / Ban 4)</h3>
                     {% if team_analytics.second_order_ban_rows %}
-                        <div class="table-wrap">
-                            <table class="stats-table stats-table-compare">
-                                <thead>
-                                    <tr>
-                                        <th>Ban 2 Hero</th>
-                                        <th>Likely Ban 3</th>
-                                        <th>Likely Protect 2</th>
-                                        <th>Likely Ban 4</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in team_analytics.second_order_ban_rows %}
-                                        <tr>
-                                            <td>
-                                                <span class="hero-inline-cell">
-                                                    <img src="{{ hero_image_url(row.ban2_hero) }}" alt="{{ row.ban2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2_hero | urlencode }}'">
-                                                    <span>{{ row.ban2_hero }}</span>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if row.ban3_hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.ban3_hero) }}" alt="{{ row.ban3_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3_hero | urlencode }}'">
-                                                        <span>{{ row.ban3_hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.ban3_rate }}% ({{ row.ban3_count }}/{{ row.ban3_total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if row.protect2_hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.protect2_hero) }}" alt="{{ row.protect2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2_hero | urlencode }}'">
-                                                        <span>{{ row.protect2_hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.protect2_rate }}% ({{ row.protect2_count }}/{{ row.protect2_total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if row.ban4_hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.ban4_hero) }}" alt="{{ row.ban4_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4_hero | urlencode }}'">
-                                                        <span>{{ row.ban4_hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.ban4_rate }}% ({{ row.ban4_count }}/{{ row.ban4_total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="draft-flow-stack">
+                            {% for row in team_analytics.second_order_ban_rows %}
+                                <div class="draft-flow-card draft-flow-card-wide">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.ban2_hero) }}" alt="{{ row.ban2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2_hero | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban2_hero) }}</span><small class="prep-chip-meta">Ban 2</small></span>
+                                    </span>
+                                    {% if row.ban3_hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.ban3_hero) }}" alt="{{ row.ban3_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3_hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban3_hero) }}</span><small class="prep-chip-meta">Ban 3 · {{ row.ban3_rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                    {% if row.protect2_hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.protect2_hero) }}" alt="{{ row.protect2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2_hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.protect2_hero) }}</span><small class="prep-chip-meta">P2 · {{ row.protect2_rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                    {% if row.ban4_hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.ban4_hero) }}" alt="{{ row.ban4_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4_hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban4_hero) }}</span><small class="prep-chip-meta">Ban 4 · {{ row.ban4_rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
                         </div>
                     {% else %}
                         <p class="empty-text">No second-order ban route data yet.</p>
@@ -458,74 +404,43 @@
                     <div class="section-kicker">Draft Flow</div>
                     <h3>Protect 1 Influence On Later Bans / Protects</h3>
                     {% if team_analytics.protect1_influence_rows %}
-                        <div class="table-wrap">
-                            <table class="stats-table stats-table-compare">
-                                <thead>
-                                    <tr>
-                                        <th>Protect 1</th>
-                                        <th>Likely Ban 2</th>
-                                        <th>Likely Ban 3</th>
-                                        <th>Likely Protect 2</th>
-                                        <th>Likely Ban 4</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in team_analytics.protect1_influence_rows %}
-                                        <tr>
-                                            <td>
-                                                <span class="hero-inline-cell">
-                                                    <img src="{{ hero_image_url(row.protect1_hero) }}" alt="{{ row.protect1_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect1_hero | urlencode }}'">
-                                                    <span>{{ row.protect1_hero }}</span>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% if row.ban2.hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.ban2.hero) }}" alt="{{ row.ban2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2.hero | urlencode }}'">
-                                                        <span>{{ row.ban2.hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.ban2.rate }}% ({{ row.ban2.count }}/{{ row.ban2.total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if row.ban3.hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.ban3.hero) }}" alt="{{ row.ban3.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3.hero | urlencode }}'">
-                                                        <span>{{ row.ban3.hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.ban3.rate }}% ({{ row.ban3.count }}/{{ row.ban3.total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if row.protect2.hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.protect2.hero) }}" alt="{{ row.protect2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2.hero | urlencode }}'">
-                                                        <span>{{ row.protect2.hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.protect2.rate }}% ({{ row.protect2.count }}/{{ row.protect2.total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if row.ban4.hero %}
-                                                    <span class="hero-inline-cell">
-                                                        <img src="{{ hero_image_url(row.ban4.hero) }}" alt="{{ row.ban4.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4.hero | urlencode }}'">
-                                                        <span>{{ row.ban4.hero }}</span>
-                                                    </span>
-                                                    <span> {{ row.ban4.rate }}% ({{ row.ban4.count }}/{{ row.ban4.total }})</span>
-                                                {% else %}
-                                                    --
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="draft-flow-stack">
+                            {% for row in team_analytics.protect1_influence_rows %}
+                                <div class="draft-flow-card draft-flow-card-wide">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.protect1_hero) }}" alt="{{ row.protect1_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect1_hero | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.protect1_hero) }}</span><small class="prep-chip-meta">Protect 1</small></span>
+                                    </span>
+                                    {% if row.ban2.hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.ban2.hero) }}" alt="{{ row.ban2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2.hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban2.hero) }}</span><small class="prep-chip-meta">Ban 2 · {{ row.ban2.rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                    {% if row.ban3.hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.ban3.hero) }}" alt="{{ row.ban3.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3.hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban3.hero) }}</span><small class="prep-chip-meta">Ban 3 · {{ row.ban3.rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                    {% if row.protect2.hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.protect2.hero) }}" alt="{{ row.protect2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2.hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.protect2.hero) }}</span><small class="prep-chip-meta">P2 · {{ row.protect2.rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                    {% if row.ban4.hero %}
+                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.ban4.hero) }}" alt="{{ row.ban4.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4.hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban4.hero) }}</span><small class="prep-chip-meta">Ban 4 · {{ row.ban4.rate }}%</small></span>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
                         </div>
                     {% else %}
                         <p class="empty-text">No protect influence data yet.</p>
