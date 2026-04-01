@@ -1707,6 +1707,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "hero_transformations": HERO_TRANSFORMATIONS,
         "map_images": MAP_IMAGES,
         "map_submaps": MAP_SUBMAPS,
+        "map_mode": MAP_MODES.get(map_entry.get("map_name", ""), "Other"),
         "maps": MAPS,
         "sides": SIDES,
         "results": RESULTS,
@@ -5685,6 +5686,7 @@ def scrims():
         "scrims.html",
         scrims=list(reversed(filtered)),
         teams=teams,
+        map_modes=MAP_MODES,
         today=date.today().isoformat(),
         season_options=season_options,
         selected_season=selected_season,
@@ -6703,8 +6705,41 @@ def scrim_detail(scrim_id: int):
     participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
     participant_one, participant_two = get_scrim_participants(scrim)
 
-    wins = sum(1 for m in scrim["maps"] if m["result"] == "Win")
-    losses = sum(1 for m in scrim["maps"] if m["result"] == "Loss")
+    team1_id = participant_one.get("id")
+    team2_id = participant_two.get("id")
+    team1_score = 0
+    team2_score = 0
+    for map_entry in scrim.get("maps", []):
+        winner_team_id = None
+        left_raw, right_raw = split_score_pair(map_entry.get("score", ""))
+        if left_raw and right_raw:
+            try:
+                left_score = float(left_raw)
+                right_score = float(right_raw)
+            except ValueError:
+                left_score = right_score = 0.0
+            if left_score > right_score:
+                winner_team_id = map_entry.get("team1_id")
+            elif right_score > left_score:
+                winner_team_id = map_entry.get("team2_id")
+
+        if winner_team_id is None:
+            map_result = str(map_entry.get("result", "")).strip()
+            if map_result == "Win":
+                winner_team_id = map_entry.get("team1_id") or team1_id
+            elif map_result == "Loss":
+                winner_team_id = map_entry.get("team2_id") or team2_id
+
+        if winner_team_id == team1_id:
+            team1_score += 1
+        elif winner_team_id == team2_id:
+            team2_score += 1
+
+    winner_label = "Tie"
+    if team1_score > team2_score:
+        winner_label = participant_one_label
+    elif team2_score > team1_score:
+        winner_label = participant_two_label
 
     return render_template(
         "scrim_detail.html",
@@ -6718,8 +6753,9 @@ def scrim_detail(scrim_id: int):
         hero_roles=HERO_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
         teams=teams,
-        wins=wins,
-        losses=losses,
+        team1_score=team1_score,
+        team2_score=team2_score,
+        winner_label=winner_label,
         match_label="Scrim",
         match_list_endpoint="scrims",
         match_detail_endpoint="scrim_detail",
@@ -6795,22 +6831,41 @@ def add_tournament_match(tournament_id: int):
 def tournament_match_detail(tournament_id: int, match_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
-    team1_map_wins = sum(
-        1
-        for map_entry in tournament_match.get("maps", [])
-        if get_result_for_slot(
-            map_entry,
-            get_tournament_team_slot_for_map(map_entry, tournament_match.get("team1_tournament_team_id")) or "team1",
-        ) == "Win"
-    )
-    team2_map_wins = sum(
-        1
-        for map_entry in tournament_match.get("maps", [])
-        if get_result_for_slot(
-            map_entry,
-            get_tournament_team_slot_for_map(map_entry, tournament_match.get("team2_tournament_team_id")) or "team2",
-        ) == "Win"
-    )
+    team1_map_wins = 0
+    team2_map_wins = 0
+    team1_tournament_team_id = tournament_match.get("team1_tournament_team_id")
+    team2_tournament_team_id = tournament_match.get("team2_tournament_team_id")
+    for map_entry in tournament_match.get("maps", []):
+        winner_tournament_team_id = None
+        left_raw, right_raw = split_score_pair(map_entry.get("score", ""))
+        if left_raw and right_raw:
+            try:
+                left_score = float(left_raw)
+                right_score = float(right_raw)
+            except ValueError:
+                left_score = right_score = 0.0
+            if left_score > right_score:
+                winner_tournament_team_id = map_entry.get("team1_tournament_team_id")
+            elif right_score > left_score:
+                winner_tournament_team_id = map_entry.get("team2_tournament_team_id")
+
+        if winner_tournament_team_id is None:
+            map_result = str(map_entry.get("result", "")).strip()
+            if map_result == "Win":
+                winner_tournament_team_id = map_entry.get("team1_tournament_team_id")
+            elif map_result == "Loss":
+                winner_tournament_team_id = map_entry.get("team2_tournament_team_id")
+
+        if winner_tournament_team_id == team1_tournament_team_id:
+            team1_map_wins += 1
+        elif winner_tournament_team_id == team2_tournament_team_id:
+            team2_map_wins += 1
+
+    winner_label = "Tie"
+    if team1_map_wins > team2_map_wins:
+        winner_label = tournament_match.get("team1_name") or "Team 1"
+    elif team2_map_wins > team1_map_wins:
+        winner_label = tournament_match.get("team2_name") or "Team 2"
 
     return render_template(
         "tournament_match_detail.html",
@@ -6818,6 +6873,7 @@ def tournament_match_detail(tournament_id: int, match_id: int):
         match=tournament_match,
         team1_map_wins=team1_map_wins,
         team2_map_wins=team2_map_wins,
+        winner_label=winner_label,
         maps=MAPS,
         map_images=MAP_IMAGES,
         map_submaps=MAP_SUBMAPS,
@@ -7208,67 +7264,69 @@ def tournament_match_map_detail(tournament_id: int, match_id: int, map_id: int):
 
 @app.route("/scrims/<int:scrim_id>/timelines")
 def scrim_timelines(scrim_id: int):
-    """Display draft phase timelines for all maps in a scrim."""
-    scrim = get_scrim_or_404(scrim_id)
-    participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
-    
-    # Build timeline for each map
-    map_timelines = {}
-    team_id = scrim.get("team_id")
-    team_name = (scrim.get("team_name") or scrim.get("team1_name") or "").strip()
-    
-    if team_id and team_name:
-        source_scrims = get_scrims_for_team(team_id, team_name)
-        draft_timeline = build_draft_phase_timeline(source_scrims)
-        map_timelines = {row.get("map_name"): row for row in draft_timeline.get("maps", [])}
-    
-    # Get unique map names from this scrim
-    map_names = sorted(set(m.get("map_name", "") for m in scrim.get("maps", []) if m.get("map_name")))
-    
-    return render_template(
-        "map_timelines.html",
-        scrim=scrim,
-        map_timelines=map_timelines,
-        map_names=map_names,
-        participant_one_label=participant_one_label,
-        participant_two_label=participant_two_label,
-        is_tournament=False,
-        back_to_detail_endpoint="scrim_detail",
-        scrim_id=scrim_id,
-    )
+    return redirect(url_for("scrim_detail", scrim_id=scrim_id))
 
 
 @app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/timelines")
 def tournament_match_timelines(tournament_id: int, match_id: int):
-    """Display draft phase timelines for all maps in a tournament match."""
+    return redirect(url_for("tournament_match_detail", tournament_id=tournament_id, match_id=match_id))
+
+
+@app.route("/scrims/<int:scrim_id>/timelines/<path:map_name>")
+def scrim_map_timeline(scrim_id: int, map_name: str):
+    scrim = get_scrim_or_404(scrim_id)
+    participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
+
+    team_id = scrim.get("team_id")
+    team_name = (scrim.get("team_name") or scrim.get("team1_name") or "").strip()
+    map_timeline_row = None
+    if team_id and team_name:
+        source_scrims = get_scrims_for_team(team_id, team_name)
+        draft_timeline = build_draft_phase_timeline(source_scrims)
+        map_timeline_row = next(
+            (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
+            None,
+        )
+
+    return render_template(
+        "map_timeline_detail.html",
+        map_name=map_name,
+        map_timeline_row=map_timeline_row,
+        participant_one_label=participant_one_label,
+        participant_two_label=participant_two_label,
+        is_tournament=False,
+        back_to_maps_url=(url_for("team_detail", team_id=scrim.get("team_id")) + "#maps") if scrim.get("team_id") else url_for("teams"),
+    )
+
+
+@app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/timelines/<path:map_name>")
+def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: str):
     tournament_record = get_tournament_or_404(tournament_id)
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
-    
-    # Build timeline for each map
-    map_timelines = {}
+
     perspective = tournament_match.get("our_team_slot", "team1") if tournament_match.get("our_team_slot", "team1") in TEAM_SLOTS else "team1"
     source_scrims = build_tournament_match_scrims(tournament_record, perspective=perspective)
     draft_timeline = build_draft_phase_timeline(source_scrims)
-    map_timelines = {row.get("map_name"): row for row in draft_timeline.get("maps", [])}
-    
-    # Get unique map names from this match
-    map_names = sorted(set(m.get("map_name", "") for m in tournament_match.get("maps", []) if m.get("map_name")))
-    
+    map_timeline_row = next(
+        (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
+        None,
+    )
+
     team1_label = (get_tournament_team_by_id(tournament_record, tournament_match.get("team1_tournament_team_id")) or {}).get("name") or tournament_match.get("team1_name") or "Team 1"
     team2_label = (get_tournament_team_by_id(tournament_record, tournament_match.get("team2_tournament_team_id")) or {}).get("name") or tournament_match.get("team2_name") or "Team 2"
-    
+
     return render_template(
-        "map_timelines.html",
-        scrim=tournament_match,
-        tournament=tournament_record,
-        map_timelines=map_timelines,
-        map_names=map_names,
+        "map_timeline_detail.html",
+        map_name=map_name,
+        map_timeline_row=map_timeline_row,
         participant_one_label=team1_label,
         participant_two_label=team2_label,
         is_tournament=True,
-        back_to_detail_endpoint="tournament_match_detail",
-        tournament_id=tournament_id,
-        match_id=match_id,
+        back_to_maps_url=(
+            url_for("tournament_team_detail", tournament_id=tournament_id, tournament_team_id=parse_team_id(request.args.get("tournament_team_id", ""))) + "#maps"
+            if parse_team_id(request.args.get("tournament_team_id", "")) is not None
+            else url_for("tournament_detail", tournament_id=tournament_id)
+        ),
     )
 
 

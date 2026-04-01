@@ -1,3 +1,9 @@
+.team-map-card:visited,
+.scrim-box-card:visited,
+.timeline-back-link:visited {
+    color: inherit;
+}
+
 :root {
     --bg: #010409;
     --panel: rgba(13, 17, 23, 0.88);

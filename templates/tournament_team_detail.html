@@ -120,9 +120,8 @@
         {% if team_map_cards %}
             <div class="scrim-box-grid">
                 {% for map_row in team_map_cards %}
-                    {% set map_anchor = 'map-' ~ (map_row.map_name|lower|replace(' ', '-')|replace('/', '-')|replace("'", '')|replace('.', '')|replace(':', '')) %}
                     {% if map_row.timeline_match_id %}
-                    <a class="scrim-box-card" href="{{ url_for('tournament_match_timelines', tournament_id=tournament.id, match_id=map_row.timeline_match_id) }}#{{ map_anchor }}">
+                    <a class="scrim-box-card" href="{{ url_for('tournament_match_map_timeline', tournament_id=tournament.id, match_id=map_row.timeline_match_id, map_name=map_row.map_name, tournament_team_id=tournament_team.id) }}">
                         <div class="scrim-box-head">
                             <div class="list-title">{{ map_row.map_name }}</div>
                             <span class="scrim-box-maps">{{ map_row.maps }} maps</span>

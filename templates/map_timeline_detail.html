@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ map_name }} Draft Timeline{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div>
+        <h2>{{ map_name }} Draft Timeline</h2>
+        <p>{{ participant_one_label }} vs {{ participant_two_label }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ back_to_maps_url }}" class="button-secondary timeline-back-link">Back to Map Stats</a>
+    </div>
+</div>
+
+<section class="panel panel-soft-violet top-gap">
+    <div class="section-kicker">Map Draft Timeline</div>
+    <h3>Draft Phase Timeline For {{ map_name }}</h3>
+
+    {% if map_timeline_row %}
+        {% set map_main_lookup = {} %}
+        {% for row in map_timeline_row.main_rows %}
+            {% set _ = map_main_lookup.update({row.slot_key: row}) %}
+        {% endfor %}
+
+        <div class="panel-intro">Based on {{ map_timeline_row.maps }} map sample{% if map_timeline_row.maps != 1 %}s{% endif %}.</div>
+
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Draft Slot</th>
+                        <th>{{ participant_one_label }}</th>
+                        <th>{{ participant_two_label }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in map_timeline_row.enemy_rows %}
+                        {% set main_row = map_main_lookup[row.slot_key] %}
+                        <tr>
+                            <td>{{ row.slot_label }}</td>
+                            <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
+                            <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No draft timeline data available for this map yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

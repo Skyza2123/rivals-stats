@@ -32,7 +32,6 @@
         {% set winner_label = 'Tie' %}
     {% endif %}
 {% endif %}
-{% set map_anchor = 'map-' ~ (map_entry.map_name|lower|replace(' ', '-')|replace('/', '-')|replace("'", '')|replace('.', '')|replace(':', '')) %}
 <!-- Header with map image banner -->
 <div class="map-banner" {% if map_entry.map_name in map_images %}style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"{% endif %}>
     <div class="map-banner-overlay">
@@ -53,16 +52,7 @@
 
 <div class="summary-grid">
     <section class="stat-card"><strong>Winner</strong><span class="metric-text">{{ winner_label }}</span></section>
-    <section class="stat-card">
-        <strong>Map Draft Timeline</strong>
-        <span>
-            {% if is_tournament %}
-                <a href="{{ url_for('tournament_match_timelines', tournament_id=detail_parent_id, match_id=detail_match_id) }}#{{ map_anchor }}">Open Timeline</a>
-            {% else %}
-                <a href="{{ url_for('scrim_timelines', scrim_id=detail_match_id) }}#{{ map_anchor }}">Open Timeline</a>
-            {% endif %}
-        </span>
-    </section>
+    <section class="stat-card"><strong>Map Type</strong><span>{{ map_mode }}</span></section>
 </div>
 
 <!-- Tabs -->
