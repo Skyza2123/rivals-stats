@@ -36,12 +36,12 @@
 </div>
 
 <div class="summary-grid">
-    <section class="stat-card"><strong>Score</strong><span>{{ summary_score or "---" }}</span></section>
-    <section class="stat-card"><strong>Result</strong><span>{{ map_entry.result or 'Not Set' }}</span></section>
+    <section class="stat-card"><strong>Score</strong><span class="metric-text js-score-text">{{ summary_score or "---" }}</span></section>
+    <section class="stat-card"><strong>Result</strong><span class="metric-text js-result-text">{{ map_entry.result or 'Not Set' }}</span></section>
     {% if is_tournament %}
     <section class="stat-card"><strong>Picked By</strong><span>{{ picked_by_label or 'Not Set' }}</span></section>
     {% endif %}
-    <section class="stat-card"><strong>Events</strong><span>{{ map_entry.events|length }}</span></section>
+    <section class="stat-card"><strong>Events</strong><span class="metric-text js-events-count" data-count="{{ map_entry.events|length }}">{{ map_entry.events|length }}</span></section>
 </div>
 
 <!-- Tabs -->
@@ -147,7 +147,7 @@
             </div>
         </div>
         {% if sec.score %}
-        <div class="summary-box top-gap">Score: {{ sec.score }}</div>
+        <div class="summary-box top-gap">Score: <span class="metric-text js-score-text">{{ sec.score }}</span></div>
         {% endif %}
     </div>
     {% endfor %}
@@ -669,6 +669,73 @@ function syncScrimEditMapTeams() {
     resultSideSelect.options[1].text = side2Name;
 }
 
+function applyMapMetricHighlights() {
+    function clearMetricClasses(el) {
+        el.classList.remove('metric-good', 'metric-warn', 'metric-bad');
+    }
+
+    function escapeHtml(raw) {
+        return String(raw || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function colorizedScoreHtml(rawText) {
+        var safe = escapeHtml(rawText);
+        return safe.replace(/(\d+)\s*([-:])\s*(\d+)/g, function(_, left, sep, right) {
+            var a = parseInt(left, 10);
+            var b = parseInt(right, 10);
+            if (Number.isNaN(a) || Number.isNaN(b)) {
+                return left + sep + right;
+            }
+            if (a > b) {
+                return '<span class="metric-good">' + left + '</span>' + sep + '<span class="metric-bad">' + right + '</span>';
+            }
+            if (a < b) {
+                return '<span class="metric-bad">' + left + '</span>' + sep + '<span class="metric-good">' + right + '</span>';
+            }
+            return '<span class="metric-warn">' + left + '</span>' + sep + '<span class="metric-warn">' + right + '</span>';
+        });
+    }
+
+    document.querySelectorAll('.js-score-text').forEach(function(el) {
+        var raw = (el.textContent || '').trim();
+        if (!raw || raw === '---') {
+            return;
+        }
+        el.innerHTML = colorizedScoreHtml(raw);
+    });
+
+    var resultEl = document.querySelector('.js-result-text');
+    if (resultEl) {
+        clearMetricClasses(resultEl);
+        var resultText = (resultEl.textContent || '').trim().toLowerCase();
+        if (resultText === 'win') {
+            resultEl.classList.add('metric-good');
+        } else if (resultText === 'loss') {
+            resultEl.classList.add('metric-bad');
+        } else {
+            resultEl.classList.add('metric-warn');
+        }
+    }
+
+    var eventsEl = document.querySelector('.js-events-count');
+    if (eventsEl) {
+        clearMetricClasses(eventsEl);
+        var count = Number(eventsEl.dataset.count || eventsEl.textContent || 0);
+        if (count >= 5) {
+            eventsEl.classList.add('metric-good');
+        } else if (count >= 1) {
+            eventsEl.classList.add('metric-warn');
+        } else {
+            eventsEl.classList.add('metric-bad');
+        }
+    }
+}
+
 /* ── Delete Map ── */
 function confirmDeleteMap() {
     if (confirm('Delete this map? This cannot be undone.')) {
@@ -695,6 +762,7 @@ document.getElementById('edit_map_team1_tournament_team_id')?.addEventListener('
 document.getElementById('edit_map_team1_team_id')?.addEventListener('change', syncScrimEditMapTeams);
 syncTournamentEditMapTeams();
 syncScrimEditMapTeams();
+applyMapMetricHighlights();
 
 /* ══════════════════════════════════════
    DRAFT EDITOR — click-slot-then-pick

@@ -218,6 +218,22 @@ button:hover {
     letter-spacing: 0.04em;
 }
 
+.metric-text {
+    font-weight: 800;
+}
+
+.metric-good {
+    color: #4ade80;
+}
+
+.metric-warn {
+    color: #facc15;
+}
+
+.metric-bad {
+    color: #f87171;
+}
+
 .stat-card span,
 .result-card span {
     display: block;

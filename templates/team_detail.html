@@ -202,24 +202,34 @@
                                         </td>
                                         <td>{{ row.open_maps }}</td>
                                         <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
-                                        <td>{{ row.play_when_open_rate }}%</td>
+                                        <td>
+                                            <span class="metric-text {% if row.play_when_open_rate >= 60 %}metric-good{% elif row.play_when_open_rate >= 40 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                {{ row.play_when_open_rate }}%
+                                            </span>
+                                        </td>
                                         <td>
                                             {% if row.played_when_open %}
-                                                {{ row.win_rate_when_open_played }}%
+                                                <span class="metric-text {% if row.win_rate_when_open_played >= 55 %}metric-good{% elif row.win_rate_when_open_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                    {{ row.win_rate_when_open_played }}%
+                                                </span>
                                             {% else %}
                                                 --
                                             {% endif %}
                                         </td>
                                         <td>
                                             {% if row.not_played_when_open %}
-                                                {{ row.win_rate_when_open_not_played }}%
+                                                <span class="metric-text {% if row.win_rate_when_open_not_played >= 55 %}metric-good{% elif row.win_rate_when_open_not_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                    {{ row.win_rate_when_open_not_played }}%
+                                                </span>
                                             {% else %}
                                                 --
                                             {% endif %}
                                         </td>
                                         <td>
                                             {% if row.played_vs_not_played_open_delta is not none %}
-                                                {% if row.played_vs_not_played_open_delta > 0 %}+{% endif %}{{ row.played_vs_not_played_open_delta }}%
+                                                <span class="metric-text {% if row.played_vs_not_played_open_delta > 1 %}metric-good{% elif row.played_vs_not_played_open_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
+                                                    {% if row.played_vs_not_played_open_delta > 0 %}+{% endif %}{{ row.played_vs_not_played_open_delta }}%
+                                                </span>
                                             {% else %}
                                                 --
                                             {% endif %}
@@ -227,15 +237,23 @@
                                         <td>{{ row.banned_maps }}</td>
                                         <td>
                                             {% if row.banned_maps %}
-                                                {{ row.win_rate_when_banned }}%
+                                                <span class="metric-text {% if row.win_rate_when_banned >= 55 %}metric-good{% elif row.win_rate_when_banned >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                    {{ row.win_rate_when_banned }}%
+                                                </span>
                                             {% else %}
                                                 --
                                             {% endif %}
                                         </td>
-                                        <td>{{ row.win_rate_when_open }}%</td>
+                                        <td>
+                                            <span class="metric-text {% if row.win_rate_when_open >= 55 %}metric-good{% elif row.win_rate_when_open >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                {{ row.win_rate_when_open }}%
+                                            </span>
+                                        </td>
                                         <td>
                                             {% if row.open_vs_banned_delta is not none %}
-                                                {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
+                                                <span class="metric-text {% if row.open_vs_banned_delta > 1 %}metric-good{% elif row.open_vs_banned_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
+                                                    {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
+                                                </span>
                                             {% else %}
                                                 --
                                             {% endif %}
