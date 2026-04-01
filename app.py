@@ -5136,7 +5136,7 @@ def create_player(team_id: int):
 
     if not name:
         flash("Player name is required.", "error")
-        return redirect(url_for("team_detail", team_id=team_id))
+        return redirect(url_for("team_detail", team_id=team_id) + "#roster")
 
     try:
         db.execute(
@@ -5149,10 +5149,10 @@ def create_player(team_id: int):
         db.commit()
     except sqlite3.IntegrityError:
         flash("A player with that name already exists on this team.", "error")
-        return redirect(url_for("team_detail", team_id=team_id))
+        return redirect(url_for("team_detail", team_id=team_id) + "#roster")
 
     flash("Player added.", "success")
-    return redirect(url_for("team_detail", team_id=team_id))
+    return redirect(url_for("team_detail", team_id=team_id) + "#roster")
 
 
 @app.route("/players/<int:player_id>/edit", methods=["POST"])
@@ -5169,7 +5169,7 @@ def edit_player(player_id: int):
 
     if not name:
         flash("Player name is required.", "error")
-        return redirect(url_for("team_detail", team_id=row["team_id"]))
+        return redirect(url_for("team_detail", team_id=row["team_id"]) + "#roster")
 
     try:
         db.execute(
@@ -5183,10 +5183,10 @@ def edit_player(player_id: int):
         db.commit()
     except sqlite3.IntegrityError:
         flash("A player with that name already exists on this team.", "error")
-        return redirect(url_for("team_detail", team_id=row["team_id"]))
+        return redirect(url_for("team_detail", team_id=row["team_id"]) + "#roster")
 
     flash("Player updated.", "success")
-    return redirect(url_for("team_detail", team_id=row["team_id"]))
+    return redirect(url_for("team_detail", team_id=row["team_id"]) + "#roster")
 
 
 @app.route("/players/<int:player_id>/delete", methods=["POST"])
@@ -5199,7 +5199,7 @@ def delete_player(player_id: int):
     db.execute("DELETE FROM players WHERE id = ?", (player_id,))
     db.commit()
     flash("Player removed.", "success")
-    return redirect(url_for("team_detail", team_id=row["team_id"]))
+    return redirect(url_for("team_detail", team_id=row["team_id"]) + "#roster")
 
 
 @app.route("/teams/<int:team_id>/delete", methods=["POST"])
@@ -5339,7 +5339,7 @@ def create_enemy_player(enemy_team_id: int):
         if is_ajax:
             return jsonify({"error": msg}), 400
         flash(msg, "error")
-        return redirect(url_for("team_detail", team_id=row["team_id"]))
+        return redirect(url_for("enemy_team_detail", enemy_team_id=enemy_team_id) + "#roster")
 
     try:
         db.execute(
@@ -5360,7 +5360,7 @@ def create_enemy_player(enemy_team_id: int):
         flash(msg, "error")
 
     if not is_ajax:
-        return redirect(url_for("team_detail", team_id=row["team_id"]))
+        return redirect(url_for("enemy_team_detail", enemy_team_id=enemy_team_id) + "#roster")
     return jsonify({"success": "Player added."}), 200
 
 
@@ -5390,7 +5390,7 @@ def edit_enemy_player(enemy_player_id: int):
         if is_ajax:
             return jsonify({"error": msg}), 400
         flash(msg, "error")
-        return redirect(url_for("team_detail", team_id=enemy_team_row["team_id"]))
+        return redirect(url_for("enemy_team_detail", enemy_team_id=row["enemy_team_id"]) + "#roster")
 
     try:
         db.execute(
@@ -5412,7 +5412,7 @@ def edit_enemy_player(enemy_player_id: int):
         flash(msg, "error")
 
     if not is_ajax:
-        return redirect(url_for("team_detail", team_id=enemy_team_row["team_id"]))
+        return redirect(url_for("enemy_team_detail", enemy_team_id=row["enemy_team_id"]) + "#roster")
     return jsonify({"success": "Enemy player updated."}), 200
 
 
@@ -5438,7 +5438,7 @@ def delete_enemy_player(enemy_player_id: int):
     if is_ajax:
         return jsonify({"success": "Enemy player removed."}), 200
     flash("Enemy player removed.", "success")
-    return redirect(url_for("team_detail", team_id=enemy_team_row["team_id"]))
+    return redirect(url_for("enemy_team_detail", enemy_team_id=row["enemy_team_id"]) + "#roster")
 
 
 @app.route("/enemies/<int:enemy_team_id>")
