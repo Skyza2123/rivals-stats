@@ -328,7 +328,7 @@
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team1[i] %}
-                            {% set team1_selected_player = sec.team1[i].player or (team1_default_players[i] if i < (team1_default_players|length) else '') %}
+                            {% set team1_selected_player = sec.team1[i].player or ((team1_default_players[i] if i < (team1_default_players|length) else '') if (team1_player_options|length) else '') %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
                              data-player-slot="team1_player_{{ i }}"
@@ -348,7 +348,7 @@
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team2[i] %}
-                            {% set team2_selected_player = sec.team2[i].player or (team2_default_players[i] if i < (team2_default_players|length) else '') %}
+                            {% set team2_selected_player = sec.team2[i].player or ((team2_default_players[i] if i < (team2_default_players|length) else '') if (team2_player_options|length) else '') %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
                              data-player-slot="team2_player_{{ i }}"
@@ -365,7 +365,7 @@
                 </div>
             </div>
 
-            <p class="draft-hint">Main roster players are auto-filled by slot. Swap in any [Sub] as needed, then click a slot and choose the hero. Right-click a slot to clear it.</p>
+            <p class="draft-hint">Main roster players auto-fill by role slot when roster data exists. Click a slot to switch the assigned player, then choose the hero. Right-click a slot to clear it.</p>
 
             <!-- Player assignment (players first) -->
             <div class="draft-grid top-gap">
@@ -376,7 +376,7 @@
                         <div class="comp-slot-wrap">
                             <div class="field">
                                 <label>Slot {{ i + 1 }}</label>
-                                {% set team1_selected_player = sec.team1[i].player or (team1_default_players[i] if i < (team1_default_players|length) else '') %}
+                                {% set team1_selected_player = sec.team1[i].player or ((team1_default_players[i] if i < (team1_default_players|length) else '') if (team1_player_options|length) else '') %}
                                 <select class="comp-player-select" name="team1_player_{{ i }}">
                                     <option value="">Select player</option>
                                     {% for player in team1_player_options %}
@@ -398,7 +398,7 @@
                         <div class="comp-slot-wrap">
                             <div class="field">
                                 <label>Slot {{ i + 1 }}</label>
-                                {% set team2_selected_player = sec.team2[i].player or (team2_default_players[i] if i < (team2_default_players|length) else '') %}
+                                {% set team2_selected_player = sec.team2[i].player or ((team2_default_players[i] if i < (team2_default_players|length) else '') if (team2_player_options|length) else '') %}
                                 <select class="comp-player-select" name="team2_player_{{ i }}">
                                     <option value="">Select player</option>
                                     {% for player in team2_player_options %}
@@ -1217,6 +1217,35 @@ function activateCompSlot(el) {
     });
     el.classList.add('slot-active');
     activeCompSlot = el;
+    focusCompPlayerControl(el);
+}
+
+function focusCompPlayerControl(slotEl) {
+    if (!slotEl) return;
+    const form = slotEl.closest('form');
+    const slotName = slotEl.dataset.playerSlot;
+    if (!form || !slotName) return;
+
+    const select = form.querySelector(`.comp-player-select[name="${slotName}"]`);
+    const input = form.querySelector(`.comp-player-input[data-slot="${slotName.replace('_player_', '_')}"]`);
+    if (!select) return;
+
+    if (select.style.display === 'none' || select.value === 'custom') {
+        if (input) {
+            input.focus();
+            input.select?.();
+        }
+        return;
+    }
+
+    select.focus();
+    if (typeof select.showPicker === 'function') {
+        try {
+            select.showPicker();
+        } catch (_err) {
+            // Some browsers may block programmatic picker opening.
+        }
+    }
 }
 
 function clearCompSlot(el) {
