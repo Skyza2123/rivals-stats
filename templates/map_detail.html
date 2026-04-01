@@ -1240,6 +1240,7 @@ function clearCompSlot(el) {
 function pickCompHero(btn) {
     if (!activeCompSlot) return;
     if (btn.dataset.compModal !== activeCompSlot.dataset.compModal) return;
+    var selectedSlot = activeCompSlot;
     var hero = btn.dataset.hero;
     var imgSrc = btn.querySelector('img').src;
     var inp = activeCompSlot.querySelector('input[type=hidden]');
@@ -1267,6 +1268,7 @@ function pickCompHero(btn) {
             subEl.classList.remove('show');
         }
     }
+    showCompAssignHover(selectedSlot, true);
     // Auto-advance to next empty slot in same modal
     var modalId = activeCompSlot.dataset.compModal;
     var allSlots = Array.from(document.querySelectorAll('.comp-pick-slot[data-comp-modal="' + modalId + '"]'));
