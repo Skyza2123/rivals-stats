@@ -1845,6 +1845,7 @@
                     <thead>
                         <tr>
                             <th>Player</th>
+                            <th>Status</th>
                             <th>Role</th>
                             <th>Main Hero</th>
                             <th>Maps</th>
@@ -1861,6 +1862,7 @@
                                 <td>
                                     <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season) }}">{{ player.name }}</a>
                                 </td>
+                                <td>{{ 'Sub' if player.is_sub else 'Main' }}</td>
                                 <td>{{ player.role or '-' }}</td>
                                 <td>{{ player.main_hero or '-' }}</td>
                                 <td>{{ player.stats.maps_played }}</td>
@@ -1876,6 +1878,7 @@
                                             data-player-id="{{ player.id }}"
                                             data-player-name="{{ player.name }}"
                                             data-player-role="{{ player.role }}"
+                                            data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
                                             data-player-hero="{{ player.main_hero }}"
                                             data-player-notes="{{ player.notes }}"
                                         >
@@ -1890,7 +1893,7 @@
                             </tr>
                             {% if player.notes %}
                                 <tr class="notes-row">
-                                    <td colspan="9"><strong>Notes:</strong> {{ player.notes }}</td>
+                                    <td colspan="10"><strong>Notes:</strong> {{ player.notes }}</td>
                                 </tr>
                             {% endif %}
                         {% endfor %}
@@ -1938,6 +1941,12 @@
                     </select>
                 </div>
                 <div class="field">
+                    <label>
+                        <input id="add_player_is_sub" name="is_sub" type="checkbox" value="1">
+                        Mark as Sub
+                    </label>
+                </div>
+                <div class="field">
                     <label for="add_player_hero">Main Hero</label>
                     <input id="add_player_hero" name="main_hero" type="text" placeholder="Optional main hero">
                 </div>
@@ -1962,6 +1971,7 @@
                                 value="{{ player.id }}"
                                 data-player-name="{{ player.name }}"
                                 data-player-role="{{ player.role }}"
+                                data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
                                 data-player-hero="{{ player.main_hero }}"
                                 data-player-notes="{{ player.notes }}"
                             >
@@ -1983,6 +1993,12 @@
                             <option value="{{ role }}">{{ role }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="field">
+                    <label>
+                        <input id="edit_player_is_sub" name="is_sub" type="checkbox" value="1">
+                        Mark as Sub
+                    </label>
                 </div>
                 <div class="field">
                     <label for="edit_player_hero">Main Hero</label>
@@ -2111,6 +2127,7 @@
     const editForm = document.getElementById("editPlayerForm");
     const editName = document.getElementById("edit_player_name");
     const editRole = document.getElementById("edit_player_role");
+    const editIsSub = document.getElementById("edit_player_is_sub");
     const editHero = document.getElementById("edit_player_hero");
     const editNotes = document.getElementById("edit_player_notes");
     const quickEditButtons = document.querySelectorAll(".open-edit-player");
@@ -2146,6 +2163,7 @@
         editForm.action = "{{ url_for('edit_player', player_id=0) }}".replace("/0/edit", `/${player.id}/edit`);
         editName.value = player.name || "";
         editRole.value = player.role || "";
+        editIsSub.checked = Boolean(Number(player.isSub || 0));
         editHero.value = player.hero || "";
         editNotes.value = player.notes || "";
         editSelect.value = String(player.id);
@@ -2176,6 +2194,7 @@
             id: option.value,
             name: option.dataset.playerName,
             role: option.dataset.playerRole,
+            isSub: option.dataset.playerIsSub,
             hero: option.dataset.playerHero,
             notes: option.dataset.playerNotes,
         });
@@ -2188,6 +2207,7 @@
                 id: button.dataset.playerId,
                 name: button.dataset.playerName,
                 role: button.dataset.playerRole,
+                isSub: button.dataset.playerIsSub,
                 hero: button.dataset.playerHero,
                 notes: button.dataset.playerNotes,
             });

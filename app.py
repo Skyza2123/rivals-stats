@@ -33,12 +33,25 @@ if _whitenoise_module is not None:
 
     app.wsgi_app = WhiteNoise(app.wsgi_app, root=str(Path(app.root_path) / "static"), prefix="static/")
 
-DB_PATH = Path(
-    os.environ.get(
-        "DATABASE_PATH",
-        str(Path(app.root_path) / "rivals_stats.db"),
-    )
-)
+def _default_database_path() -> Path:
+    configured = (os.environ.get("DATABASE_PATH") or "").strip()
+    if configured:
+        return Path(configured)
+
+    # Render filesystem is ephemeral unless writing to mounted disk.
+    render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
+    if render_mount:
+        return Path(render_mount) / "rivals_stats.db"
+
+    if (os.environ.get("RENDER") or "").strip().lower() == "true":
+        render_default_mount = Path("/var/data")
+        if render_default_mount.exists():
+            return render_default_mount / "rivals_stats.db"
+
+    return Path(app.root_path) / "rivals_stats.db"
+
+
+DB_PATH = _default_database_path()
 TEAM_LOGO_DIR = Path(app.static_folder) / "uploads" / "team_logos"
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
@@ -154,6 +167,7 @@ def init_db() -> None:
                 team_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT '',
+                is_sub INTEGER NOT NULL DEFAULT 0,
                 main_hero TEXT NOT NULL DEFAULT '',
                 notes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -176,6 +190,7 @@ def init_db() -> None:
                 enemy_team_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT '',
+                is_sub INTEGER NOT NULL DEFAULT 0,
                 main_hero TEXT NOT NULL DEFAULT '',
                 notes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -226,9 +241,17 @@ def init_db() -> None:
         if "is_personal" not in team_columns:
             conn.execute("ALTER TABLE teams ADD COLUMN is_personal INTEGER NOT NULL DEFAULT 0")
 
+        player_columns = {row[1] for row in conn.execute("PRAGMA table_info(players)").fetchall()}
+        if "is_sub" not in player_columns:
+            conn.execute("ALTER TABLE players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
+
         enemy_team_columns = {row[1] for row in conn.execute("PRAGMA table_info(enemy_teams)").fetchall()}
         if "logo_path" not in enemy_team_columns:
             conn.execute("ALTER TABLE enemy_teams ADD COLUMN logo_path TEXT NOT NULL DEFAULT ''")
+
+        enemy_player_columns = {row[1] for row in conn.execute("PRAGMA table_info(enemy_players)").fetchall()}
+        if "is_sub" not in enemy_player_columns:
+            conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
         conn.commit()
@@ -535,6 +558,50 @@ def get_scrim_participants(scrim: dict) -> tuple[dict, dict]:
         {"id": team1_id, "name": team1_name},
         {"id": team2_id, "name": team2_name},
     )
+
+
+def get_map_side_default_players(
+    match_record: dict,
+    map_entry: dict,
+    *,
+    is_tournament: bool,
+    tournament_record: dict | None = None,
+) -> dict[str, list[str]]:
+    defaults = {"team1": [], "team2": []}
+
+    if is_tournament:
+        source = tournament_record if tournament_record is not None else match_record
+        team1 = get_tournament_team_by_id(source, map_entry.get("team1_tournament_team_id"))
+        team2 = get_tournament_team_by_id(source, map_entry.get("team2_tournament_team_id"))
+        defaults["team1"] = build_comp_slot_player_order(
+            [{"name": str(name).strip(), "role": ""} for name in (team1 or {}).get("players", []) if str(name).strip()],
+            slot_count=6,
+        )
+        defaults["team2"] = build_comp_slot_player_order(
+            [{"name": str(name).strip(), "role": ""} for name in (team2 or {}).get("players", []) if str(name).strip()],
+            slot_count=6,
+        )
+        return defaults
+
+    db = get_db()
+    for side in TEAM_SLOTS:
+        side_team_id = map_entry.get(f"{side}_id")
+        if not side_team_id:
+            continue
+        player_rows = db.execute(
+            "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+            (side_team_id,),
+        ).fetchall()
+        defaults[side] = build_comp_slot_player_order(
+            [
+                {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                for row in player_rows
+                if (row["name"] or "").strip()
+            ],
+            slot_count=6,
+        )
+
+    return defaults
 
 
 def scrim_involves_team(scrim: dict, team_id: int | None, team_name: str = "") -> bool:
@@ -1479,6 +1546,65 @@ def normalize_player_role(raw_role: str) -> str:
     return ""
 
 
+def build_comp_slot_player_order(player_pool: list[dict], slot_count: int = 6) -> list[str]:
+    cleaned: list[dict] = []
+    seen_names: set[str] = set()
+    for row in player_pool:
+        name = str((row or {}).get("name", "")).strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen_names:
+            continue
+        seen_names.add(key)
+        cleaned.append({
+            "name": name,
+            "role": normalize_player_role(str((row or {}).get("role", ""))),
+        })
+
+    desired_roles = ["Vanguard", "Vanguard", "Duelist", "Duelist", "Strategist", "Strategist"]
+    if slot_count > len(desired_roles):
+        desired_roles.extend([""] * (slot_count - len(desired_roles)))
+
+    buckets = {
+        "Vanguard": [row["name"] for row in cleaned if row["role"] == "Vanguard"],
+        "Duelist": [row["name"] for row in cleaned if row["role"] == "Duelist"],
+        "Strategist": [row["name"] for row in cleaned if row["role"] == "Strategist"],
+        "Flex": [row["name"] for row in cleaned if row["role"] == "Flex"],
+        "": [row["name"] for row in cleaned if not row["role"]],
+    }
+
+    selected: list[str] = []
+    selected_keys: set[str] = set()
+
+    def _take_from(role_key: str) -> str:
+        queue = buckets.get(role_key, [])
+        while queue:
+            candidate = queue.pop(0)
+            candidate_key = candidate.lower()
+            if candidate_key in selected_keys:
+                continue
+            selected_keys.add(candidate_key)
+            return candidate
+        return ""
+
+    def _take_any_remaining() -> str:
+        for role_key in ("Vanguard", "Duelist", "Strategist", "Flex", ""):
+            candidate = _take_from(role_key)
+            if candidate:
+                return candidate
+        return ""
+
+    for desired_role in desired_roles[:slot_count]:
+        candidate = _take_from(desired_role) if desired_role else ""
+        if not candidate:
+            candidate = _take_any_remaining()
+        if candidate:
+            selected.append(candidate)
+
+    return selected
+
+
 def parse_team_id(raw_team_id: str) -> int | None:
     value = (raw_team_id or "").strip()
     if not value:
@@ -1657,6 +1783,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     enemy_players = []
     team1_player_options: list[dict] = []
     team2_player_options: list[dict] = []
+    team1_default_players: list[str] = []
+    team2_default_players: list[str] = []
     enemy_team_data = None
     team1_label = match_record.get("team_name") or match_record.get("team1_name") or "Team 1"
     team2_label = match_record.get("enemy_team") or match_record.get("opponent") or match_record.get("team2_name") or "Team 2"
@@ -1665,6 +1793,18 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     picked_by_label = ""
 
     db = get_db()
+
+    def _build_default_player_slots(player_options: list[dict]) -> list[str]:
+        main_pool = [
+            {
+                "name": (option.get("name") or "").strip(),
+                "role": (option.get("role") or "").strip(),
+            }
+            for option in player_options
+            if (option.get("name") or "").strip() and not bool(option.get("is_sub"))
+        ]
+        return build_comp_slot_player_order(main_pool, slot_count=6)
+
     if is_tournament:
         tournament_source = tournament_record if tournament_record is not None else match_record
         team1 = get_tournament_team_by_id(tournament_source, map_entry.get("team1_tournament_team_id"))
@@ -1685,8 +1825,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
             }
             for player_name in (team2 or {}).get("players", [])
         ]
-        team1_player_options = [{"name": player_name, "role": ""} for player_name in team_players]
-        team2_player_options = [{"name": player_name, "role": ""} for player_name in (team2 or {}).get("players", [])]
+        team1_player_options = [{"name": player_name, "role": "", "is_sub": False} for player_name in team_players]
+        team2_player_options = [{"name": player_name, "role": "", "is_sub": False} for player_name in (team2 or {}).get("players", [])]
     else:
         participant_one, participant_two = get_scrim_participants(match_record)
         team1_label, team2_label = get_scrim_participant_labels(match_record)
@@ -1699,9 +1839,10 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         map_entry["team1_name"] = team1_label
         map_entry["team2_name"] = team2_label
         team_id = match_record.get("team_id")
+        player_rows = []
         if team_id:
             player_rows = db.execute(
-                "SELECT name FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+                "SELECT name, role, is_sub FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
                 (team_id,),
             ).fetchall()
             team_players = [row["name"] for row in player_rows]
@@ -1725,11 +1866,22 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         our_team_name = (match_record.get("team_name") or "").strip().lower()
         enemy_team_name = (match_record.get("enemy_team") or match_record.get("opponent") or "").strip().lower()
 
-        our_player_options = [{"name": player_name, "role": ""} for player_name in team_players]
+        our_player_options = [
+            {
+                "name": (row["name"] or "").strip(),
+                "role": (row["role"] or "").strip(),
+                "is_sub": bool(row["is_sub"]),
+            }
+            for row in player_rows
+            if (row["name"] or "").strip()
+        ]
+        if not our_player_options:
+            our_player_options = [{"name": player_name, "role": "", "is_sub": False} for player_name in team_players]
         known_enemy_player_options = [
             {
                 "name": (player.get("name") or "").strip(),
                 "role": (player.get("role") or "").strip(),
+                "is_sub": False,
             }
             for player in enemy_players
             if (player.get("name") or "").strip()
@@ -1750,6 +1902,9 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
 
         team1_player_options = _resolve_side_player_options(map_entry.get("team1_id"), map_entry.get("team1_name", ""))
         team2_player_options = _resolve_side_player_options(map_entry.get("team2_id"), map_entry.get("team2_name", ""))
+
+    team1_default_players = _build_default_player_slots(team1_player_options)
+    team2_default_players = _build_default_player_slots(team2_player_options)
 
     map_draft_timeline_row = None
     target_map_name = (map_entry.get("map_name") or "").strip()
@@ -1799,6 +1954,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "enemy_players": enemy_players,
         "team1_player_options": team1_player_options,
         "team2_player_options": team2_player_options,
+        "team1_default_players": team1_default_players,
+        "team2_default_players": team2_default_players,
         "team1_label": team1_label,
         "team2_label": team2_label,
         "participant_one_id": participant_one_id,
@@ -4548,7 +4705,7 @@ def team_detail(team_id: int):
     worst_mode = team_map_mode_rows[-1] if team_map_mode_rows else None
 
     player_rows = db.execute(
-        "SELECT * FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        "SELECT * FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
         (team_id,),
     ).fetchall()
 
@@ -4559,6 +4716,7 @@ def team_detail(team_id: int):
             "id": row["id"],
             "name": row["name"],
             "role": row["role"],
+            "is_sub": bool(row["is_sub"]) if "is_sub" in row.keys() else False,
             "main_hero": row["main_hero"],
             "notes": row["notes"],
             "stats": stats,
@@ -5204,6 +5362,7 @@ def create_player(team_id: int):
 
     name = request.form.get("name", "").strip()
     role = normalize_player_role(request.form.get("role", ""))
+    is_sub = 1 if request.form.get("is_sub") == "1" else 0
     main_hero = request.form.get("main_hero", "").strip()
     notes = request.form.get("notes", "").strip()
 
@@ -5214,10 +5373,10 @@ def create_player(team_id: int):
     try:
         db.execute(
             """
-            INSERT INTO players (team_id, name, role, main_hero, notes)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO players (team_id, name, role, is_sub, main_hero, notes)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (team_id, name, role, main_hero, notes),
+            (team_id, name, role, is_sub, main_hero, notes),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -5231,10 +5390,10 @@ def create_player(team_id: int):
         db.execute(
             """
             UPDATE players
-            SET role = ?, main_hero = ?, notes = ?
+            SET role = ?, is_sub = ?, main_hero = ?, notes = ?
             WHERE id = ?
             """,
-            (role, main_hero, notes, existing["id"]),
+            (role, is_sub, main_hero, notes, existing["id"]),
         )
         db.commit()
         flash("Player already existed, so their details were updated.", "success")
@@ -5253,6 +5412,7 @@ def edit_player(player_id: int):
 
     name = request.form.get("name", "").strip()
     role = normalize_player_role(request.form.get("role", ""))
+    is_sub = 1 if request.form.get("is_sub") == "1" else 0
     main_hero = request.form.get("main_hero", "").strip()
     notes = request.form.get("notes", "").strip()
 
@@ -5264,10 +5424,10 @@ def edit_player(player_id: int):
         db.execute(
             """
             UPDATE players
-            SET name = ?, role = ?, main_hero = ?, notes = ?
+            SET name = ?, role = ?, is_sub = ?, main_hero = ?, notes = ?
             WHERE id = ?
             """,
-            (name, role, main_hero, notes, player_id),
+            (name, role, is_sub, main_hero, notes, player_id),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -7733,11 +7893,24 @@ def update_tournament_match_comp_section(tournament_id: int, match_id: int, map_
         # Clear result if no valid result provided but submap exists
         section.pop("result", None)
 
+    default_players = get_map_side_default_players(
+        tournament_match,
+        map_entry,
+        is_tournament=True,
+        tournament_record=tournament_record,
+    )
+
     for i in range(6):
         section["team1"][i]["hero"] = request.form.get(f"team1_hero_{i}", "").strip()
-        section["team1"][i]["player"] = request.form.get(f"team1_player_{i}", "").strip()
+        team1_player = request.form.get(f"team1_player_{i}", "").strip()
+        if not team1_player and i < len(default_players.get("team1", [])):
+            team1_player = default_players["team1"][i]
+        section["team1"][i]["player"] = team1_player
         section["team2"][i]["hero"] = request.form.get(f"team2_hero_{i}", "").strip()
-        section["team2"][i]["player"] = request.form.get(f"team2_player_{i}", "").strip()
+        team2_player = request.form.get(f"team2_player_{i}", "").strip()
+        if not team2_player and i < len(default_players.get("team2", [])):
+            team2_player = default_players["team2"][i]
+        section["team2"][i]["player"] = team2_player
     save_app_state()
     return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
 
@@ -8171,11 +8344,15 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
         # Clear result if no valid result provided but submap exists
         section.pop("result", None)
 
+    default_players = get_map_side_default_players(scrim, map_entry, is_tournament=False)
+
     for team in ("team1", "team2"):
         team_slots = []
         for i in range(6):
             hero = request.form.get(f"{team}_hero_{i}", "").strip()
             player = request.form.get(f"{team}_player_{i}", "").strip()
+            if not player and i < len(default_players.get(team, [])):
+                player = default_players[team][i]
             team_slots.append({"hero": hero, "player": player})
         section[team] = team_slots
 

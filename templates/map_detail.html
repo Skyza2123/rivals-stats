@@ -328,6 +328,7 @@
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team1[i] %}
+                            {% set team1_selected_player = sec.team1[i].player or (team1_default_players[i] if i < (team1_default_players|length) else '') %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
                              data-player-slot="team1_player_{{ i }}"
@@ -336,7 +337,7 @@
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
-                            <span class="slot-hero-sub {{ 'show' if entry.player else '' }}">{{ entry.player or 'Assign player below' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Assign player below' }}</span>
                             <input type="hidden" name="team1_hero_{{ i }}" value="{{ entry.hero or '' }}">
                         </div>
                         {% endfor %}
@@ -347,6 +348,7 @@
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec.team2[i] %}
+                            {% set team2_selected_player = sec.team2[i].player or (team2_default_players[i] if i < (team2_default_players|length) else '') %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
                              data-player-slot="team2_player_{{ i }}"
@@ -355,7 +357,7 @@
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
-                            <span class="slot-hero-sub {{ 'show' if entry.player else '' }}">{{ entry.player or 'Assign player below' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Assign player below' }}</span>
                             <input type="hidden" name="team2_hero_{{ i }}" value="{{ entry.hero or '' }}">
                         </div>
                         {% endfor %}
@@ -363,7 +365,7 @@
                 </div>
             </div>
 
-            <p class="draft-hint">Assign players first for each slot, then click a slot and choose the hero. Right-click a slot to clear it.</p>
+            <p class="draft-hint">Main roster players are auto-filled by slot. Swap in any [Sub] as needed, then click a slot and choose the hero. Right-click a slot to clear it.</p>
 
             <!-- Player assignment (players first) -->
             <div class="draft-grid top-gap">
@@ -374,15 +376,16 @@
                         <div class="comp-slot-wrap">
                             <div class="field">
                                 <label>Slot {{ i + 1 }}</label>
+                                {% set team1_selected_player = sec.team1[i].player or (team1_default_players[i] if i < (team1_default_players|length) else '') %}
                                 <select class="comp-player-select" name="team1_player_{{ i }}">
                                     <option value="">Select player</option>
                                     {% for player in team1_player_options %}
-                                    <option value="{{ player.name }}" {% if sec.team1[i].player == player.name %}selected{% endif %}>{{ player.name }}{% if player.role %} ({{ player.role }}){% endif %}</option>
+                                    <option value="{{ player.name }}" {% if team1_selected_player == player.name %}selected{% endif %}>{{ player.name }}{% if player.is_sub %} [Sub]{% endif %}{% if player.role %} ({{ player.role }}){% endif %}</option>
                                     {% endfor %}
                                     <option value="" disabled>---</option>
                                     <option value="custom">Type manually...</option>
                                 </select>
-                                <input type="text" class="comp-player-input" data-slot="team1_{{ i }}" value="{{ sec.team1[i].player }}" placeholder="Player name" style="display: none;">
+                                <input type="text" class="comp-player-input" data-slot="team1_{{ i }}" value="{{ team1_selected_player }}" placeholder="Player name" style="display: none;">
                             </div>
                         </div>
                         {% endfor %}
@@ -395,15 +398,16 @@
                         <div class="comp-slot-wrap">
                             <div class="field">
                                 <label>Slot {{ i + 1 }}</label>
+                                {% set team2_selected_player = sec.team2[i].player or (team2_default_players[i] if i < (team2_default_players|length) else '') %}
                                 <select class="comp-player-select" name="team2_player_{{ i }}">
                                     <option value="">Select player</option>
                                     {% for player in team2_player_options %}
-                                    <option value="{{ player.name }}" {% if sec.team2[i].player == player.name %}selected{% endif %}>{{ player.name }}{% if player.role %} ({{ player.role }}){% endif %}</option>
+                                    <option value="{{ player.name }}" {% if team2_selected_player == player.name %}selected{% endif %}>{{ player.name }}{% if player.is_sub %} [Sub]{% endif %}{% if player.role %} ({{ player.role }}){% endif %}</option>
                                     {% endfor %}
                                     <option value="" disabled>---</option>
                                     <option value="custom">Type manually...</option>
                                 </select>
-                                <input type="text" class="comp-player-input" data-slot="team2_{{ i }}" value="{{ sec.team2[i].player }}" placeholder="Player name" style="display: none;">
+                                <input type="text" class="comp-player-input" data-slot="team2_{{ i }}" value="{{ team2_selected_player }}" placeholder="Player name" style="display: none;">
                             </div>
                         </div>
                         {% endfor %}
