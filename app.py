@@ -9,6 +9,7 @@ import hashlib
 import sqlite3
 import importlib
 from difflib import SequenceMatcher
+from itertools import combinations
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -3120,6 +3121,44 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
         expected_hero_pool = [hero for hero, _stats in sorted(hero_counts.items(), key=lambda item: item[1]["count"], reverse=True)]
     expected_hero_pool = expected_hero_pool[:6]
 
+    # Enforce minimum 2 per role (2 Vanguard, 2 Duelist, 2 Strategist)
+    # unless triple support is very prominent (>35% of comp appearances)
+    triple_support_appearances = sum(
+        s["count"]
+        for comp_key, s in comp_variant_counts.items()
+        if sum(1 for h in comp_key if _hero_role(h) == "Strategist") >= 3
+    )
+    total_comp_appearances = sum(s["count"] for s in comp_variant_counts.values())
+    triple_support_prominent = (
+        total_comp_appearances > 0
+        and (triple_support_appearances / total_comp_appearances) > 0.35
+    )
+    role_mins = {"Vanguard": 2, "Duelist": 2, "Strategist": 2}
+    if triple_support_prominent:
+        role_mins["Vanguard"] = 1
+
+    pool_set = {_canonical_draft_hero(h) for h in expected_hero_pool}
+    pool_by_role: dict[str, list[str]] = {}
+    for h in expected_hero_pool:
+        pool_by_role.setdefault(_hero_role(h), []).append(h)
+
+    for role, min_needed in role_mins.items():
+        deficit = min_needed - len(pool_by_role.get(role, []))
+        if deficit > 0:
+            role_candidates = sorted(
+                [
+                    (h, s["count"])
+                    for h, s in hero_counts.items()
+                    if _hero_role(h) == role and _canonical_draft_hero(h) not in pool_set
+                ],
+                key=lambda x: x[1],
+                reverse=True,
+            )
+            for hero, _ in role_candidates[:deficit]:
+                expected_hero_pool.append(hero)
+                pool_set.add(_canonical_draft_hero(hero))
+                pool_by_role.setdefault(role, []).append(hero)
+
     expected_core = []
     used_names = set()
     for hero_name in expected_hero_pool:
@@ -3164,6 +3203,26 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
             }
         )
 
+    combo4_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    for heroes, stats in comp_variant_counts.items():
+        if len(heroes) < 4:
+            continue
+        for combo_key in combinations(heroes, 4):
+            combo4_counts[combo_key]["count"] += stats["count"]
+            combo4_counts[combo_key]["wins"] += stats["wins"]
+            combo4_counts[combo_key]["losses"] += stats["losses"]
+
+    four_hero_combos = []
+    sorted_combo4 = sorted(combo4_counts.items(), key=lambda row: (row[1]["count"], row[1]["wins"]), reverse=True)
+    for heroes, stats in sorted_combo4[:8]:
+        four_hero_combos.append(
+            {
+                "heroes": list(heroes),
+                "maps": stats["count"],
+                "win_rate": round((stats["wins"] / stats["count"]) * 100, 1) if stats["count"] else 0,
+            }
+        )
+
     top_enemy_bans = prep_analytics.get("enemy_ban_rows", [])[:4]
     suggested_adjustments = []
     banned_set = {_canonical_draft_hero(row.get("hero", "")) for row in top_enemy_bans}
@@ -3191,6 +3250,7 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
     return {
         "expected_core": expected_core,
         "expected_comp_variants": expected_comp_variants,
+        "four_hero_combos": four_hero_combos,
         "suggested_adjustments": suggested_adjustments,
     }
 
@@ -4869,18 +4929,32 @@ def team_hero_detail(team_id: int, hero_name: str):
     if not target_hero:
         abort(404)
 
-    team_scrims = get_scrims_for_team(team["id"], team["name"])
+    all_team_scrims = get_scrims_for_team(team["id"], team["name"])
+    season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
 
     hero_insights = build_team_hero_insights(team_scrims, target_hero)
     if not hero_insights["summary"]["maps_played"]:
         flash(f"No comp data found for {target_hero}.", "error")
-        return redirect(url_for("team_detail", team_id=team_id) + "#comps")
+        return redirect(url_for("team_detail", team_id=team_id, season=selected_season) + "#comps")
 
     return render_template(
         "hero_detail.html",
         team=team,
         hero_insights=hero_insights,
         map_images=MAP_IMAGES,
+        selected_season=selected_season,
+        season_options=season_options,
+        has_unseasoned_scrims=has_unseasoned_scrims,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
     )
 
 

@@ -2978,12 +2978,43 @@ th {
     font-size: 0.95rem;
 }
 
+.prep-content-root {
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: var(--text);
+}
+
+.prep-content-root h3,
+.prep-content-root h4,
+.prep-content-root .section-kicker,
+.prep-content-root .panel-intro,
+.prep-content-root .empty-text,
+.prep-content-root .prep-chip-meta,
+.prep-content-root table {
+    letter-spacing: 0.01em;
+}
+
 .prep-flow-arrow {
     align-self: center;
     justify-self: center;
-    color: #fda4af;
+    color: #94a3b8;
     font-size: 1.25rem;
     font-weight: 800;
+}
+
+.prep-flow-arrow-ban {
+    color: #f87171;
+}
+
+.prep-flow-arrow-protect {
+    color: #4ade80;
+}
+
+.prep-arrow-legend {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .prep-chip-list,
@@ -3017,6 +3048,23 @@ th {
     white-space: nowrap;
 }
 
+/* Larger hero portraits in the quick plan / expected comp panels */
+.prep-hero-chip .hero-inline-thumb,
+.prep-adjust-row .hero-inline-thumb,
+.prep-comp-slot .hero-inline-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/* Hide verbose hero name + role text — image + rate chip is enough */
+.prep-hero-chip .hero-inline-meta,
+.prep-adjust-row .hero-inline-meta,
+.prep-comp-slot .hero-inline-meta {
+    display: none;
+}
+
 .prep-comp-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -3028,6 +3076,29 @@ th {
     border-radius: 12px;
     padding: 12px;
     background: var(--panel-2);
+}
+
+.prep-combo4-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.prep-combo4-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 10px;
+}
+
+.prep-combo4-heroes {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .draft-route-flow {

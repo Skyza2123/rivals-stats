@@ -1511,7 +1511,7 @@
             <div class="hero-usage-list top-gap">
                 {% for row in hero_graph_rows %}
                     {% set width = ((row.maps / usage_max) * 100) if usage_max else 0 %}
-                    <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero) }}">
+                    <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season) }}">
                         <span class="hero-usage-name">
                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                             {{ hero_display_name(row.hero) }}
@@ -1992,15 +1992,16 @@
             return;
         }
         const enemySelector = document.getElementById("prepEnemySelector");
-        const compareMapA = document.getElementById("prepCompareMapA");
-        const compareMapB = document.getElementById("prepCompareMapB");
         if (enemySelector) {
             enemySelector.addEventListener("change", () => loadPrepContent({ resetCompare: true }));
         }
-        if (compareMapA) {
+        const compareMapA = document.getElementById("prepCompareMapA");
+        const compareMapB = document.getElementById("prepCompareMapB");
+        // Only add listeners if not already bound by the inline template script
+        if (compareMapA && !compareMapA.dataset.prepBound) {
             compareMapA.addEventListener("change", () => loadPrepContent());
         }
-        if (compareMapB) {
+        if (compareMapB && !compareMapB.dataset.prepBound) {
             compareMapB.addEventListener("change", () => loadPrepContent());
         }
     };
@@ -2050,6 +2051,7 @@
     };
 
     bindPrepControls();
+    window.__prepLoadContent = loadPrepContent;
 
     const modal = document.getElementById("playerModal");
     const openBtn = document.getElementById("openPlayerModal");
