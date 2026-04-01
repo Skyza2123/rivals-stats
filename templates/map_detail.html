@@ -17,6 +17,22 @@
     {% endif %}
 {% endfor %}
 {% set summary_score = map_entry.score if map_entry.score else (' | '.join(section_scores) if section_scores else '') %}
+{% set score_pair = split_score_pair(map_entry.score or '') %}
+{% set team1_score_raw = score_pair[0] | trim %}
+{% set team2_score_raw = score_pair[1] | trim %}
+{% set winner_label = 'Not Set' %}
+{% if team1_score_raw.isdigit() and team2_score_raw.isdigit() %}
+    {% set team1_score = team1_score_raw | int %}
+    {% set team2_score = team2_score_raw | int %}
+    {% if team1_score > team2_score %}
+        {% set winner_label = team1_label %}
+    {% elif team2_score > team1_score %}
+        {% set winner_label = team2_label %}
+    {% else %}
+        {% set winner_label = 'Tie' %}
+    {% endif %}
+{% endif %}
+{% set map_anchor = 'map-' ~ (map_entry.map_name|lower|replace(' ', '-')|replace('/', '-')|replace("'", '')|replace('.', '')|replace(':', '')) %}
 <!-- Header with map image banner -->
 <div class="map-banner" {% if map_entry.map_name in map_images %}style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"{% endif %}>
     <div class="map-banner-overlay">
@@ -27,7 +43,7 @@
             </div>
             <div class="header-actions">
                 <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
-                <div class="pill {{ 'pill-win' if map_entry.result == 'Win' else ('pill-loss' if map_entry.result == 'Loss' else '') }}">{{ map_entry.result or 'No Result' }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}</div>
+                <div class="pill {{ 'pill-win' if winner_label == team1_label else ('pill-loss' if winner_label == team2_label else '') }}">Winner: {{ winner_label }}</div>
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
             </div>
@@ -36,12 +52,17 @@
 </div>
 
 <div class="summary-grid">
-    <section class="stat-card"><strong>Score</strong><span class="metric-text js-score-text">{{ summary_score or "---" }}</span></section>
-    <section class="stat-card"><strong>Result</strong><span class="metric-text js-result-text">{{ map_entry.result or 'Not Set' }}</span></section>
-    {% if is_tournament %}
-    <section class="stat-card"><strong>Picked By</strong><span>{{ picked_by_label or 'Not Set' }}</span></section>
-    {% endif %}
-    <section class="stat-card"><strong>Events</strong><span class="metric-text js-events-count" data-count="{{ map_entry.events|length }}">{{ map_entry.events|length }}</span></section>
+    <section class="stat-card"><strong>Winner</strong><span class="metric-text">{{ winner_label }}</span></section>
+    <section class="stat-card">
+        <strong>Map Draft Timeline</strong>
+        <span>
+            {% if is_tournament %}
+                <a href="{{ url_for('tournament_match_timelines', tournament_id=detail_parent_id, match_id=detail_match_id) }}#{{ map_anchor }}">Open Timeline</a>
+            {% else %}
+                <a href="{{ url_for('scrim_timelines', scrim_id=detail_match_id) }}#{{ map_anchor }}">Open Timeline</a>
+            {% endif %}
+        </span>
+    </section>
 </div>
 
 <!-- Tabs -->
@@ -93,41 +114,6 @@
             </div>
         </div>
     </div>
-</section>
-
-<section class="panel panel-soft-blue top-gap">
-    <div class="section-kicker">Map Draft Timeline</div>
-    <h3>Draft Phase Timeline For {{ map_entry.map_name }}</h3>
-    {% if map_draft_timeline_row %}
-        {% set map_main_lookup = {} %}
-        {% for row in map_draft_timeline_row.main_rows %}
-            {% set _ = map_main_lookup.update({row.slot_key: row}) %}
-        {% endfor %}
-        <div class="panel-intro">Based on {{ map_draft_timeline_row.maps }} map sample{% if map_draft_timeline_row.maps != 1 %}s{% endif %}.</div>
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Slot</th>
-                        <th>{{ team1_label }}</th>
-                        <th>{{ team2_label }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in map_draft_timeline_row.enemy_rows %}
-                        {% set main_row = map_main_lookup[row.slot_key] %}
-                        <tr>
-                            <td>{{ row.slot_label }}</td>
-                            <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
-                            <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">No draft timeline sample available for this map yet.</p>
-    {% endif %}
 </section>
 
 <!-- Team Comp Sections -->
