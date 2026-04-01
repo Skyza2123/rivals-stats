@@ -1066,6 +1066,7 @@ function activateCompSlot(el) {
     });
     el.classList.add('slot-active');
     activeCompSlot = el;
+    showCompAssignHover(el, true);
 }
 
 function clearCompSlot(el) {
@@ -1146,7 +1147,6 @@ document.addEventListener('click', function(e) {
     if (!compAssignPinned) return;
     if (compAssignHover && compAssignHover.contains(e.target)) return;
     if (compAssignHoverSlot && compAssignHoverSlot.contains(e.target)) return;
-    if (e.target.closest('.comp-pick-slot')) return;
     hideCompAssignHover(true);
 });
 
