@@ -7419,7 +7419,11 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
         if side1_tournament_team_id not in valid_team_ids:
             flash("Choose a valid match team for side 1.", "error")
             return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
-        side2_tournament_team_id = next(team_id for team_id in valid_team_ids if team_id != side1_tournament_team_id)
+        remaining_team_ids = [team_id for team_id in valid_team_ids if team_id is not None and team_id != side1_tournament_team_id]
+        if not remaining_team_ids:
+            flash("Match teams are not configured correctly. Please set two different teams on the match.", "error")
+            return redirect(url_for("tournament_match_detail", tournament_id=tournament_id, match_id=match_id))
+        side2_tournament_team_id = remaining_team_ids[0]
         team1 = get_tournament_team_by_id(tournament_record, side1_tournament_team_id)
         team2 = get_tournament_team_by_id(tournament_record, side2_tournament_team_id)
         map_entry["team1_tournament_team_id"] = side1_tournament_team_id
