@@ -347,7 +347,7 @@
             </div>
 
             <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
-            <p class="draft-hint">After a hero is selected, hover that hero slot to assign a player.</p>
+            <p class="draft-hint">After a hero is selected, click (or hover) that hero slot to assign a player.</p>
 
             <!-- Hero portrait picker -->
             <div class="hero-picker">
@@ -1243,9 +1243,18 @@ function pickCompHero(btn) {
     }
 
     if (activeCompSlot) {
-        showCompAssignHover(activeCompSlot);
+        showCompAssignHover(activeCompSlot, true);
     }
 }
+
+// Click outside to dismiss pinned player popup
+document.addEventListener('click', function(e) {
+    if (!compAssignPinned) return;
+    if (compAssignHover && compAssignHover.contains(e.target)) return;
+    if (compAssignHoverSlot && compAssignHoverSlot.contains(e.target)) return;
+    if (e.target.closest('.comp-pick-slot')) return;
+    hideCompAssignHover(true);
+});
 
 // Right-click to clear comp slots
 document.addEventListener('contextmenu', function(e) {
