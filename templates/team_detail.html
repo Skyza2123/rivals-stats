@@ -1680,6 +1680,33 @@
                     {% elif map_row.win_rate < 50 %}
                         {% set rate_tier = 'map-rate-low' %}
                     {% endif %}
+                    {% set map_anchor = 'map-' ~ (map_row.map_name|lower|replace(' ', '-')|replace('/', '-')|replace("'", '')|replace('.', '')|replace(':', '')) %}
+                    {% if map_row.timeline_scrim_id %}
+                    <a
+                        class="team-map-card {{ rate_tier }}"
+                        data-map-name="{{ map_row.map_name|lower }}"
+                        data-map-mode="{{ map_row.mode|lower }}"
+                        data-map-win-rate="{{ map_row.win_rate }}"
+                        data-map-games="{{ map_row.maps }}"
+                        title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
+                        href="{{ url_for('scrim_timelines', scrim_id=map_row.timeline_scrim_id) }}#{{ map_anchor }}"
+                    >
+                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ map_row.image }}')"{% endif %}></div>
+                        <div class="team-map-overlay"></div>
+                        <div class="team-map-top">
+                            <span class="team-map-mode">{{ map_row.mode }}</span>
+                            <span class="team-map-rate">{{ map_row.win_rate }}%</span>
+                        </div>
+                        <div class="team-map-bottom">
+                            <h4>{{ map_row.map_name }}</h4>
+                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ map_row.maps }} games</p>
+                            <div class="team-map-footer-meta">
+                                <span class="team-map-chip">Winrate</span>
+                                <span class="team-map-chip">{{ map_row.win_rate }}%</span>
+                            </div>
+                        </div>
+                    </a>
+                    {% else %}
                     <article
                         class="team-map-card {{ rate_tier }}"
                         data-map-name="{{ map_row.map_name|lower }}"
@@ -1703,6 +1730,7 @@
                             </div>
                         </div>
                     </article>
+                    {% endif %}
                 {% endfor %}
             </div>
             <p class="empty-text map-empty" id="mapEmptyState" hidden>No maps match this filter.</p>

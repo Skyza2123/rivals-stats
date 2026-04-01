@@ -3520,6 +3520,7 @@ def to_enemy_perspective_scrims(scrims: list[dict]) -> list[dict]:
 def build_map_mode_breakdown(scrims: list[dict]) -> tuple[list[dict], list[dict], dict | None, dict | None]:
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    map_timeline_targets: dict[str, int] = {}
     side_score_records = defaultdict(
         lambda: {
             "Attack": {"sum": 0.0, "count": 0},
@@ -3532,6 +3533,9 @@ def build_map_mode_breakdown(scrims: list[dict]) -> tuple[list[dict], list[dict]
             map_name = (map_entry.get("map_name", "") or "").strip()
             if not map_name:
                 continue
+
+            if map_name not in map_timeline_targets and scrim.get("id") is not None:
+                map_timeline_targets[map_name] = scrim.get("id")
 
             mode_name = MAP_MODES.get(map_name, "Other")
             result = map_entry.get("result")
@@ -4405,12 +4409,16 @@ def team_detail(team_id: int):
 
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    map_timeline_targets: dict[str, int] = {}
 
     for scrim in team_scrims:
         for map_entry in scrim.get("maps", []):
             map_name = (map_entry.get("map_name", "") or "").strip()
             if not map_name:
                 continue
+
+            if map_name not in map_timeline_targets and scrim.get("id") is not None:
+                map_timeline_targets[map_name] = scrim.get("id")
 
             mode_name = MAP_MODES.get(map_name, "Other")
             result = map_entry.get("result")
@@ -4438,6 +4446,7 @@ def team_detail(team_id: int):
                 "losses": stats["losses"],
                 "win_rate": win_rate,
                 "image": MAP_IMAGES.get(map_name, ""),
+                "timeline_scrim_id": map_timeline_targets.get(map_name),
             }
         )
     team_map_cards.sort(key=lambda r: (r["win_rate"], r["maps"]), reverse=True)
@@ -4764,6 +4773,7 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
 
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    map_timeline_targets: dict[str, int] = {}
     match_rows = []
 
     for tournament_match in tournament_record.get("matches", []):
@@ -4785,6 +4795,8 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
                 mode_name = MAP_MODES.get(map_name, "Other")
                 map_records[map_name]["maps"] += 1
                 mode_records[mode_name]["maps"] += 1
+                if map_name not in map_timeline_targets and tournament_match.get("id") is not None:
+                    map_timeline_targets[map_name] = tournament_match.get("id")
 
             result = get_result_for_slot(map_entry, team_slot)
             if result == "Win":
@@ -4822,6 +4834,7 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
                 "losses": stats["losses"],
                 "win_rate": win_rate,
                 "image": MAP_IMAGES.get(map_name, ""),
+                "timeline_match_id": map_timeline_targets.get(map_name),
             }
         )
     team_map_cards.sort(key=lambda row: (row["win_rate"], row["maps"]), reverse=True)

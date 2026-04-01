@@ -20,7 +20,8 @@
 {% if map_names %}
     {% for map_name in map_names %}
     {% set timeline = map_timelines.get(map_name) %}
-    <section class="panel top-gap">
+    {% set map_anchor = 'map-' ~ (map_name|lower|replace(' ', '-')|replace('/', '-')|replace("'", '')|replace('.', '')|replace(':', '')) %}
+    <section class="panel top-gap" id="{{ map_anchor }}">
         <div class="section-kicker">Map Draft Timeline</div>
         <h3>Draft Phase Timeline For {{ map_name }}</h3>
         
