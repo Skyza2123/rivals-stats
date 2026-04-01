@@ -6705,12 +6705,10 @@ def scrim_detail(scrim_id: int):
     participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
     participant_one, participant_two = get_scrim_participants(scrim)
 
-    team1_id = participant_one.get("id")
-    team2_id = participant_two.get("id")
     team1_score = 0
     team2_score = 0
     for map_entry in scrim.get("maps", []):
-        winner_team_id = None
+        winner_slot = ""
         left_raw, right_raw = split_score_pair(map_entry.get("score", ""))
         if left_raw and right_raw:
             try:
@@ -6719,20 +6717,20 @@ def scrim_detail(scrim_id: int):
             except ValueError:
                 left_score = right_score = 0.0
             if left_score > right_score:
-                winner_team_id = map_entry.get("team1_id")
+                winner_slot = "team1"
             elif right_score > left_score:
-                winner_team_id = map_entry.get("team2_id")
+                winner_slot = "team2"
 
-        if winner_team_id is None:
+        if not winner_slot:
             map_result = str(map_entry.get("result", "")).strip()
             if map_result == "Win":
-                winner_team_id = map_entry.get("team1_id") or team1_id
+                winner_slot = "team1"
             elif map_result == "Loss":
-                winner_team_id = map_entry.get("team2_id") or team2_id
+                winner_slot = "team2"
 
-        if winner_team_id == team1_id:
+        if winner_slot == "team1":
             team1_score += 1
-        elif winner_team_id == team2_id:
+        elif winner_slot == "team2":
             team2_score += 1
 
     winner_label = "Tie"
