@@ -923,6 +923,28 @@ th {
     gap: 12px;
 }
 
+.sub-toggle-field {
+    display: flex;
+    align-items: flex-end;
+}
+
+.sub-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    margin: 0;
+    font-size: 0.86rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sub-toggle-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+
 .player-edit-shell {
     border: 1px solid var(--border);
     border-radius: 12px;

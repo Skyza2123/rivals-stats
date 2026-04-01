@@ -1931,6 +1931,12 @@
                     <label for="add_player_name">Player Name</label>
                     <input id="add_player_name" name="name" type="text" placeholder="Player name" required>
                 </div>
+                <div class="field sub-toggle-field">
+                    <label class="sub-toggle-label">
+                        <input id="add_player_is_sub" name="is_sub" type="checkbox" value="1">
+                        Mark as Sub
+                    </label>
+                </div>
                 <div class="field">
                     <label for="add_player_role">Role</label>
                     <select id="add_player_role" name="role">
@@ -1939,12 +1945,6 @@
                             <option value="{{ role }}">{{ role }}</option>
                         {% endfor %}
                     </select>
-                </div>
-                <div class="field">
-                    <label>
-                        <input id="add_player_is_sub" name="is_sub" type="checkbox" value="1">
-                        Mark as Sub
-                    </label>
                 </div>
                 <div class="field">
                     <label for="add_player_hero">Main Hero</label>
@@ -1989,6 +1989,12 @@
                             <label for="edit_player_name">Player Name</label>
                             <input id="edit_player_name" name="name" type="text" required>
                         </div>
+                        <div class="field sub-toggle-field">
+                            <label class="sub-toggle-label">
+                                <input id="edit_player_is_sub" name="is_sub" type="checkbox" value="1">
+                                Mark as Sub
+                            </label>
+                        </div>
                         <div class="field">
                             <label for="edit_player_role">Role</label>
                             <select id="edit_player_role" name="role">
@@ -1997,12 +2003,6 @@
                                     <option value="{{ role }}">{{ role }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div class="field">
-                            <label>
-                                <input id="edit_player_is_sub" name="is_sub" type="checkbox" value="1">
-                                Mark as Sub
-                            </label>
                         </div>
                         <div class="field">
                             <label for="edit_player_hero">Main Hero</label>
