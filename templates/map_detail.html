@@ -182,7 +182,7 @@
             </div>
         </div>
         {% if sec.score %}
-        <div class="summary-box top-gap">Score: <span class="metric-text js-score-text">{{ sec.score }}</span></div>
+        <div class="summary-box top-gap">Score: <span class="metric-text js-score-text">{{ sec.score }}</span>{% if sec.submap and sec.get('result') %} &bull; Result: <span class="metric-text">{{ sec.result }}</span>{% endif %}</div>
         {% endif %}
     </div>
     {% endfor %}
@@ -264,9 +264,12 @@
         <form action="{{ url_for(update_map_info_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
                 <div class="field">
-                    <label for="edit_score">Score</label>
-                    <input type="text" id="edit_score" name="score" value="{{ map_entry.get('score', '') }}" placeholder="e.g. 3-2">
-                    <small style="display:block; margin-top:6px; color:var(--muted);">Winner is determined by the higher score.</small>
+                    <label for="edit_score_team1">{{ team1_label }} Score</label>
+                    <input type="text" id="edit_score_team1" name="score_team1" value="{{ split_score_pair(map_entry.get('score', ''))[0] }}" placeholder="e.g. 3" onchange="updateResultFromTeamScores()" oninput="updateResultFromTeamScores()">
+                </div>
+                <div class="field">
+                    <label for="edit_score_team2">{{ team2_label }} Score</label>
+                    <input type="text" id="edit_score_team2" name="score_team2" value="{{ split_score_pair(map_entry.get('score', ''))[1] }}" placeholder="e.g. 2" onchange="updateResultFromTeamScores()" oninput="updateResultFromTeamScores()">
                 </div>
                 <div class="field">
                     <label for="edit_result">Result (Auto-calculated)</label>
@@ -274,7 +277,7 @@
                         <option value="">Pending score</option>
                         {% for r in results %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
                     </select>
-                    <small style="display:block; margin-top:6px; color:var(--muted);">Automatically set based on score.</small>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Automatically set based on scores.</small>
                 </div>
                 {% if is_tournament %}
                 <div class="field">
@@ -332,6 +335,16 @@
                     <label>{{ team2_label }} Score</label>
                     <input type="text" name="score_team2" value="{{ sec_score_parts[1] }}" placeholder="e.g. 1">
                 </div>
+                {% if sec.submap %}
+                <div class="field">
+                    <label>Submap Result</label>
+                    <select name="section_result">
+                        <option value="">Not Set</option>
+                        <option value="Win" {% if sec.get('result') == 'Win' %}selected{% endif %}>{{ team1_label }} Won</option>
+                        <option value="Loss" {% if sec.get('result') == 'Loss' %}selected{% endif %}>{{ team2_label }} Won</option>
+                    </select>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Hero pick slots -->
@@ -691,34 +704,28 @@ function syncScrimEditMapTeams() {
     const participantOneName = '{{ map_entry.team1_name or team1_label }}';
     const participantTwoName = '{{ map_entry.team2_name or team2_label }}';
     const side1IsParticipantOne = side1Select.value === participantOneId;
-    const side1Name = side1IsParticipantOne ? participantOneName : participantTwoName;
-    const side2Name = side1IsParticipantOne ? participantTwoName : participantOneName;
 }
 
-function updateResultFromScore() {
-    const scoreInput = document.getElementById('edit_score');
+function updateResultFromTeamScores() {
+    const scoreTeam1Input = document.getElementById('edit_score_team1');
+    const scoreTeam2Input = document.getElementById('edit_score_team2');
     const resultSelect = document.getElementById('edit_result');
-    if (!scoreInput || !resultSelect) return;
+    if (!scoreTeam1Input || !scoreTeam2Input || !resultSelect) return;
 
-    const score = scoreInput.value.trim();
+    const team1Score = parseInt(scoreTeam1Input.value.trim(), 10);
+    const team2Score = parseInt(scoreTeam2Input.value.trim(), 10);
     
-    // Try to parse score like "3-2" or "3 - 2"
-    const scoreParts = score.split('-').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-    
-    if (scoreParts.length === 2) {
-        const team1Score = scoreParts[0];
-        const team2Score = scoreParts[1];
-        
-        let result = '';
+    let result = '';
+    if (!isNaN(team1Score) && !isNaN(team2Score)) {
         if (team1Score > team2Score) {
-            result = 'Win';  // Team 1 won (which is usually "our" side)
+            result = 'Win';
         } else if (team2Score > team1Score) {
-            result = 'Loss'; // Team 2 won (we lost)
+            result = 'Loss';
         }
-        
-        if (result && resultSelect.querySelector(`option[value="${result}"]`)) {
-            resultSelect.value = result;
-        }
+    }
+    
+    if (result && resultSelect.querySelector(`option[value="${result}"]`)) {
+        resultSelect.value = result;
     } else {
         resultSelect.value = '';
     }
@@ -1409,22 +1416,30 @@ function copyPreviousCompSection(sectionIndex) {
 
 // Initialize score-to-result calculator for Edit Map Info modal
 document.addEventListener('DOMContentLoaded', function() {
-    const scoreInput = document.getElementById('edit_score');
-    if (scoreInput) {
-        scoreInput.addEventListener('input', updateResultFromScore);
-        scoreInput.addEventListener('change', updateResultFromScore);
+    const scoreTeam1Input = document.getElementById('edit_score_team1');
+    const scoreTeam2Input = document.getElementById('edit_score_team2');
+    
+    if (scoreTeam1Input && scoreTeam2Input) {
+        scoreTeam1Input.addEventListener('input', updateResultFromTeamScores);
+        scoreTeam1Input.addEventListener('change', updateResultFromTeamScores);
+        scoreTeam2Input.addEventListener('input', updateResultFromTeamScores);
+        scoreTeam2Input.addEventListener('change', updateResultFromTeamScores);
+        
         // Also calculate on modal open
         const editInfoModal = document.getElementById('editInfoModal');
         if (editInfoModal) {
             const observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
                     if (mutation.attributeName === 'class' && editInfoModal.classList.contains('show')) {
-                        updateResultFromScore();
+                        updateResultFromTeamScores();
                     }
                 });
             });
             observer.observe(editInfoModal, { attributes: true, attributeFilter: ['class'] });
         }
+        
+        // Initial calculation
+        updateResultFromTeamScores();
     }
 });
 </script>

@@ -7290,8 +7290,15 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
     map_entry = get_map_or_404(tournament_match, map_id)
     
     # Get score and auto-calculate result if not provided
-    score = request.form.get("score", map_entry.get("score", "")).strip()
-    map_entry["score"] = score
+    score_team1 = request.form.get("score_team1", "").strip()
+    score_team2 = request.form.get("score_team2", "").strip()
+    score = request.form.get("score", "").strip()
+    
+    # Prefer team-specific scores if provided
+    if score_team1 or score_team2:
+        map_entry["score"] = f"{score_team1}-{score_team2}".strip("-")
+    else:
+        map_entry["score"] = score
     
     # Auto-calculate result from score (higher number = win)
     result = request.form.get("result", "").strip()
@@ -7402,6 +7409,14 @@ def update_tournament_match_comp_section(tournament_id: int, match_id: int, map_
         section["score"] = f"{score_team1}-{score_team2}".strip("-")
     else:
         section["score"] = ""
+    
+    # Store submap result if this section has a submap
+    section_result = request.form.get("section_result", "").strip()
+    if section_result in RESULTS:
+        section["result"] = section_result
+    elif section.get("submap"):
+        # Clear result if no valid result provided but submap exists
+        section.pop("result", None)
 
     for i in range(6):
         section["team1"][i]["hero"] = request.form.get(f"team1_hero_{i}", "").strip()
@@ -7664,15 +7679,23 @@ def update_map_info(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
     
-    # Get score and auto-calculate result if not provided
-    score = request.form.get("score", map_entry.get("score", "")).strip()
-    map_entry["score"] = score
+    # Get team-specific scores and build combined score
+    score_team1 = request.form.get("score_team1", "").strip()
+    score_team2 = request.form.get("score_team2", "").strip()
+    score = request.form.get("score", "").strip()
+    
+    # Prefer team-specific scores if provided
+    if score_team1 or score_team2:
+        map_entry["score"] = f"{score_team1}-{score_team2}".strip("-")
+    else:
+        map_entry["score"] = score
     
     # Auto-calculate result from score (higher number = win)
     result = request.form.get("result", "").strip()
     if not result or result not in RESULTS:
         # Try to parse score and auto-determine result
-        score_parts = [int(s.strip()) for s in score.split('-') if s.strip() and s.strip().isdigit()]
+        score_val = map_entry["score"]
+        score_parts = [int(s.strip()) for s in score_val.split('-') if s.strip() and s.strip().isdigit()]
         if len(score_parts) == 2 and score_parts[0] != score_parts[1]:
             result = "Win" if score_parts[0] > score_parts[1] else "Loss"
         else:
@@ -7837,6 +7860,14 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
         request.form.get("score_team2", "").strip(),
         request.form.get("score", section.get("score", "")).strip(),
     )
+    
+    # Store submap result if this section has a submap
+    section_result = request.form.get("section_result", "").strip()
+    if section_result in RESULTS:
+        section["result"] = section_result
+    elif section.get("submap"):
+        # Clear result if no valid result provided but submap exists
+        section.pop("result", None)
 
     for team in ("team1", "team2"):
         team_slots = []
@@ -7871,6 +7902,14 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
         request.form.get("score_team2", "").strip(),
         request.form.get("score", section.get("score", "")).strip(),
     )
+    
+    # Store submap result if this section has a submap
+    section_result = request.form.get("section_result", "").strip()
+    if section_result in RESULTS:
+        section["result"] = section_result
+    elif section.get("submap"):
+        # Clear result if no valid result provided but submap exists
+        section.pop("result", None)
 
     for team in ("team1", "team2"):
         team_slots = []
