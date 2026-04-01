@@ -6766,6 +6766,7 @@ def scrim_detail(scrim_id: int):
         participant_two_label=participant_two_label,
         participant_one_id=participant_one.get("id"),
         participant_two_id=participant_two.get("id"),
+        split_score_pair=split_score_pair,
         opponent_field_label="Enemy Team",
         show_team_selector=True,
     )
@@ -6880,6 +6881,7 @@ def tournament_match_detail(tournament_id: int, match_id: int):
         heroes=HEROES,
         hero_roles=HERO_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
+        split_score_pair=split_score_pair,
     )
 
 
