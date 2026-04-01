@@ -558,7 +558,43 @@ def scrim_involves_team(scrim: dict, team_id: int | None, team_name: str = "") -
 
 
 def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
-    return [scrim for scrim in SCRIMS if scrim_involves_team(scrim, team_id, team_name)]
+    relevant_scrims = [scrim for scrim in SCRIMS if scrim_involves_team(scrim, team_id, team_name)]
+    remapped_scrims: list[dict] = []
+
+    team_name_lower = (team_name or "").strip().lower()
+    for original_scrim in relevant_scrims:
+        scrim = copy.deepcopy(original_scrim)
+
+        team_slot = None
+        if team_id is not None:
+            if scrim.get("team1_id") == team_id:
+                team_slot = "team1"
+            elif scrim.get("team2_id") == team_id:
+                team_slot = "team2"
+
+        if team_slot is None and team_name_lower:
+            if (str(scrim.get("team1_name", "")).strip().lower() == team_name_lower):
+                team_slot = "team1"
+            elif (str(scrim.get("team2_name", "")).strip().lower() == team_name_lower):
+                team_slot = "team2"
+
+        if team_slot is None:
+            team_slot = normalize_match_team_slot(scrim.get("team_slot", "team1"))
+
+        remapped_maps: list[dict] = []
+        for original_map in scrim.get("maps", []):
+            if not isinstance(original_map, dict):
+                continue
+            map_entry = copy.deepcopy(original_map)
+            map_entry["our_team_slot"] = team_slot
+            map_entry["result"] = get_result_for_slot(original_map, team_slot)
+            remapped_maps.append(map_entry)
+
+        scrim["team_slot"] = team_slot
+        scrim["maps"] = remapped_maps
+        remapped_scrims.append(scrim)
+
+    return remapped_scrims
 
 
 def normalize_scrim_record(scrim: dict) -> dict:
@@ -7280,6 +7316,14 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
     team_id = scrim.get("team_id")
     team_name = (scrim.get("team_name") or scrim.get("team1_name") or "").strip()
     map_timeline_row = None
+    map_overview = {
+        "maps": 0,
+        "wins": 0,
+        "losses": 0,
+        "win_rate": 0,
+    }
+    top_hero_rows: list[dict] = []
+    enemy_top_hero_rows: list[dict] = []
     if team_id and team_name:
         source_scrims = get_scrims_for_team(team_id, team_name)
         draft_timeline = build_draft_phase_timeline(source_scrims)
@@ -7288,10 +7332,79 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
             None,
         )
 
+        our_hero_counts = defaultdict(int)
+        our_hero_win_counts = defaultdict(int)
+        enemy_hero_counts = defaultdict(int)
+        map_count = 0
+        win_count = 0
+        loss_count = 0
+        for source_scrim in source_scrims:
+            for map_entry in source_scrim.get("maps", []):
+                if (map_entry.get("map_name") or "").strip() != map_name:
+                    continue
+                map_count += 1
+                our_team_slot = map_entry.get("our_team_slot", "team1")
+                if our_team_slot not in TEAM_SLOTS:
+                    our_team_slot = "team1"
+                enemy_team_slot = opposite_team_slot(our_team_slot)
+
+                result = get_result_for_slot(map_entry, our_team_slot)
+                is_win = result == "Win"
+                if is_win:
+                    win_count += 1
+                elif result == "Loss":
+                    loss_count += 1
+
+                heroes_in_map = set()
+                enemy_heroes_in_map = set()
+                for section in map_entry.get("comp", []):
+                    for slot in section.get(our_team_slot, []):
+                        hero_name = _resolve_hero_transform_key((slot.get("hero") or "").strip()) or (slot.get("hero") or "").strip()
+                        if hero_name:
+                            heroes_in_map.add(hero_name)
+                    for slot in section.get(enemy_team_slot, []):
+                        hero_name = _resolve_hero_transform_key((slot.get("hero") or "").strip()) or (slot.get("hero") or "").strip()
+                        if hero_name:
+                            enemy_heroes_in_map.add(hero_name)
+
+                for hero_name in heroes_in_map:
+                    our_hero_counts[hero_name] += 1
+                    if is_win:
+                        our_hero_win_counts[hero_name] += 1
+                for hero_name in enemy_heroes_in_map:
+                    enemy_hero_counts[hero_name] += 1
+
+        map_overview = {
+            "maps": map_count,
+            "wins": win_count,
+            "losses": loss_count,
+            "win_rate": round((win_count / map_count) * 100, 1) if map_count else 0,
+        }
+        top_hero_rows = [
+            {
+                "hero": hero_name,
+                "maps": hero_maps,
+                "play_rate": round((hero_maps / map_count) * 100, 1) if map_count else 0,
+                "win_rate": round((our_hero_win_counts.get(hero_name, 0) / hero_maps) * 100, 1) if hero_maps else 0,
+            }
+            for hero_name, hero_maps in sorted(our_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
+        ]
+        enemy_top_hero_rows = [
+            {
+                "hero": hero_name,
+                "maps": hero_maps,
+                "play_rate": round((hero_maps / map_count) * 100, 1) if map_count else 0,
+            }
+            for hero_name, hero_maps in sorted(enemy_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
+        ]
+
     return render_template(
         "map_timeline_detail.html",
         map_name=map_name,
         map_timeline_row=map_timeline_row,
+        map_overview=map_overview,
+        top_hero_rows=top_hero_rows,
+        enemy_top_hero_rows=enemy_top_hero_rows,
         participant_one_label=participant_one_label,
         participant_two_label=participant_two_label,
         is_tournament=False,
@@ -7312,6 +7425,72 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
         None,
     )
 
+    our_hero_counts = defaultdict(int)
+    our_hero_win_counts = defaultdict(int)
+    enemy_hero_counts = defaultdict(int)
+    map_count = 0
+    win_count = 0
+    loss_count = 0
+    for source_scrim in source_scrims:
+        for map_entry in source_scrim.get("maps", []):
+            if (map_entry.get("map_name") or "").strip() != map_name:
+                continue
+            map_count += 1
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            enemy_team_slot = opposite_team_slot(our_team_slot)
+
+            result = get_result_for_slot(map_entry, our_team_slot)
+            is_win = result == "Win"
+            if is_win:
+                win_count += 1
+            elif result == "Loss":
+                loss_count += 1
+
+            heroes_in_map = set()
+            enemy_heroes_in_map = set()
+            for section in map_entry.get("comp", []):
+                for slot in section.get(our_team_slot, []):
+                    hero_name = _resolve_hero_transform_key((slot.get("hero") or "").strip()) or (slot.get("hero") or "").strip()
+                    if hero_name:
+                        heroes_in_map.add(hero_name)
+                for slot in section.get(enemy_team_slot, []):
+                    hero_name = _resolve_hero_transform_key((slot.get("hero") or "").strip()) or (slot.get("hero") or "").strip()
+                    if hero_name:
+                        enemy_heroes_in_map.add(hero_name)
+
+            for hero_name in heroes_in_map:
+                our_hero_counts[hero_name] += 1
+                if is_win:
+                    our_hero_win_counts[hero_name] += 1
+            for hero_name in enemy_heroes_in_map:
+                enemy_hero_counts[hero_name] += 1
+
+    map_overview = {
+        "maps": map_count,
+        "wins": win_count,
+        "losses": loss_count,
+        "win_rate": round((win_count / map_count) * 100, 1) if map_count else 0,
+    }
+    top_hero_rows = [
+        {
+            "hero": hero_name,
+            "maps": hero_maps,
+            "play_rate": round((hero_maps / map_count) * 100, 1) if map_count else 0,
+            "win_rate": round((our_hero_win_counts.get(hero_name, 0) / hero_maps) * 100, 1) if hero_maps else 0,
+        }
+        for hero_name, hero_maps in sorted(our_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
+    ]
+    enemy_top_hero_rows = [
+        {
+            "hero": hero_name,
+            "maps": hero_maps,
+            "play_rate": round((hero_maps / map_count) * 100, 1) if map_count else 0,
+        }
+        for hero_name, hero_maps in sorted(enemy_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
+    ]
+
     team1_label = (get_tournament_team_by_id(tournament_record, tournament_match.get("team1_tournament_team_id")) or {}).get("name") or tournament_match.get("team1_name") or "Team 1"
     team2_label = (get_tournament_team_by_id(tournament_record, tournament_match.get("team2_tournament_team_id")) or {}).get("name") or tournament_match.get("team2_name") or "Team 2"
 
@@ -7319,6 +7498,9 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
         "map_timeline_detail.html",
         map_name=map_name,
         map_timeline_row=map_timeline_row,
+        map_overview=map_overview,
+        top_hero_rows=top_hero_rows,
+        enemy_top_hero_rows=enemy_top_hero_rows,
         participant_one_label=team1_label,
         participant_two_label=team2_label,
         is_tournament=True,

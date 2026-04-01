@@ -13,6 +13,83 @@
     </div>
 </div>
 
+<div class="summary-grid">
+    <section class="stat-card"><strong>Maps</strong><span>{{ map_overview.maps }}</span></section>
+    <section class="stat-card"><strong>Wins</strong><span>{{ map_overview.wins }}</span></section>
+    <section class="stat-card"><strong>Losses</strong><span>{{ map_overview.losses }}</span></section>
+    <section class="stat-card"><strong>Win Rate</strong><span>{{ map_overview.win_rate }}%</span></section>
+</div>
+
+<section class="panel top-gap">
+    <div class="section-kicker">Hero Usage</div>
+    <h3>{{ participant_one_label }} Most Played Heroes On {{ map_name }}</h3>
+    {% if top_hero_rows %}
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>Maps Used</th>
+                        <th>Pick Rate</th>
+                        <th>Win Rate When Used</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in top_hero_rows %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.maps }}</td>
+                            <td>{{ row.play_rate }}%</td>
+                            <td>{{ row.win_rate }}%</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No hero usage data for this map yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-blue top-gap">
+    <div class="section-kicker">Enemy Heroes</div>
+    <h3>{{ participant_two_label }} Most Played Heroes On {{ map_name }}</h3>
+    {% if enemy_top_hero_rows %}
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>Maps Used</th>
+                        <th>Pick Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in enemy_top_hero_rows %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.maps }}</td>
+                            <td>{{ row.play_rate }}%</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No enemy hero usage data for this map yet.</p>
+    {% endif %}
+</section>
+
 <section class="panel panel-soft-violet top-gap">
     <div class="section-kicker">Map Draft Timeline</div>
     <h3>Draft Phase Timeline For {{ map_name }}</h3>
