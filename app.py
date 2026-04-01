@@ -1655,6 +1655,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
 
     team_players = []
     enemy_players = []
+    team1_player_options: list[dict] = []
+    team2_player_options: list[dict] = []
     enemy_team_data = None
     team1_label = match_record.get("team_name") or match_record.get("team1_name") or "Team 1"
     team2_label = match_record.get("enemy_team") or match_record.get("opponent") or match_record.get("team2_name") or "Team 2"
@@ -1683,6 +1685,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
             }
             for player_name in (team2 or {}).get("players", [])
         ]
+        team1_player_options = [{"name": player_name, "role": ""} for player_name in team_players]
+        team2_player_options = [{"name": player_name, "role": ""} for player_name in (team2 or {}).get("players", [])]
     else:
         participant_one, participant_two = get_scrim_participants(match_record)
         team1_label, team2_label = get_scrim_participant_labels(match_record)
@@ -1715,6 +1719,37 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                     (enemy_team_id,),
                 ).fetchall()
                 enemy_players = [dict(row) for row in enemy_player_rows]
+
+        our_team_id = match_record.get("team_id")
+        enemy_team_id = match_record.get("enemy_team_id")
+        our_team_name = (match_record.get("team_name") or "").strip().lower()
+        enemy_team_name = (match_record.get("enemy_team") or match_record.get("opponent") or "").strip().lower()
+
+        our_player_options = [{"name": player_name, "role": ""} for player_name in team_players]
+        known_enemy_player_options = [
+            {
+                "name": (player.get("name") or "").strip(),
+                "role": (player.get("role") or "").strip(),
+            }
+            for player in enemy_players
+            if (player.get("name") or "").strip()
+        ]
+
+        def _resolve_side_player_options(side_team_id: int | None, side_team_name: str) -> list[dict]:
+            if side_team_id and our_team_id and side_team_id == our_team_id:
+                return list(our_player_options)
+            if side_team_id and enemy_team_id and side_team_id == enemy_team_id:
+                return list(known_enemy_player_options)
+
+            side_name = (side_team_name or "").strip().lower()
+            if side_name and our_team_name and side_name == our_team_name:
+                return list(our_player_options)
+            if side_name and enemy_team_name and side_name == enemy_team_name:
+                return list(known_enemy_player_options)
+            return []
+
+        team1_player_options = _resolve_side_player_options(map_entry.get("team1_id"), map_entry.get("team1_name", ""))
+        team2_player_options = _resolve_side_player_options(map_entry.get("team2_id"), map_entry.get("team2_name", ""))
 
     map_draft_timeline_row = None
     target_map_name = (map_entry.get("map_name") or "").strip()
@@ -1762,6 +1797,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "team_players": team_players,
         "enemy_team": enemy_team_data,
         "enemy_players": enemy_players,
+        "team1_player_options": team1_player_options,
+        "team2_player_options": team2_player_options,
         "team1_label": team1_label,
         "team2_label": team2_label,
         "participant_one_id": participant_one_id,
