@@ -322,6 +322,23 @@ def refresh_app_state_from_db() -> None:
     load_app_state()
 
 
+def create_manual_db_backup() -> Path:
+    backup_dir = DB_PATH.parent / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    backup_path = backup_dir / f"rivals_stats_manual_{stamp}.db"
+
+    src = sqlite3.connect(DB_PATH)
+    dst = sqlite3.connect(backup_path)
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
+
+    return backup_path
+
+
 def save_app_state(*, allow_scrim_removal: bool = False) -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
 
@@ -584,8 +601,61 @@ def get_map_side_default_players(
         return defaults
 
     db = get_db()
+    our_team_id = match_record.get("team_id")
+    enemy_team_id = match_record.get("enemy_team_id")
+    our_team_name = (match_record.get("team_name") or "").strip().lower()
+    enemy_team_name = (match_record.get("enemy_team") or match_record.get("opponent") or "").strip().lower()
 
     def _load_side_player_pool(side_team_id: int | None, side_team_name: str = "") -> list[dict]:
+        normalized_side_name = (side_team_name or "").strip().lower()
+
+        if side_team_id and our_team_id and side_team_id == our_team_id:
+            player_rows = db.execute(
+                "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                (side_team_id,),
+            ).fetchall()
+            return [
+                {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                for row in player_rows
+                if (row["name"] or "").strip()
+            ]
+
+        if side_team_id and enemy_team_id and side_team_id == enemy_team_id:
+            enemy_rows = db.execute(
+                "SELECT name, role FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                (side_team_id,),
+            ).fetchall()
+            return [
+                {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                for row in enemy_rows
+                if (row["name"] or "").strip()
+            ]
+
+        if normalized_side_name and our_team_name and normalized_side_name == our_team_name:
+            if our_team_id:
+                player_rows = db.execute(
+                    "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                    (our_team_id,),
+                ).fetchall()
+                return [
+                    {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                    for row in player_rows
+                    if (row["name"] or "").strip()
+                ]
+
+        if normalized_side_name and enemy_team_name and normalized_side_name == enemy_team_name:
+            if enemy_team_id:
+                enemy_rows = db.execute(
+                    "SELECT name, role FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                    (enemy_team_id,),
+                ).fetchall()
+                return [
+                    {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                    for row in enemy_rows
+                    if (row["name"] or "").strip()
+                ]
+
+        # Fallback only when side identity is unknown.
         if side_team_id:
             player_rows = db.execute(
                 "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
@@ -1959,7 +2029,18 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 return list(side_options_cache[cache_key])
 
             resolved: list[dict] = []
-            if side_team_id:
+            normalized_side_name = (side_team_name or "").strip().lower()
+
+            if side_team_id and our_team_id and side_team_id == our_team_id:
+                resolved = _load_team_player_options(our_team_id)
+            elif side_team_id and enemy_team_id and side_team_id == enemy_team_id:
+                resolved = _load_enemy_player_options(enemy_team_id)
+            elif normalized_side_name and our_team_name and normalized_side_name == our_team_name:
+                resolved = _load_team_player_options(our_team_id)
+            elif normalized_side_name and enemy_team_name and normalized_side_name == enemy_team_name:
+                resolved = _load_enemy_player_options(enemy_team_id)
+
+            if not resolved and side_team_id:
                 resolved = _load_team_player_options(side_team_id)
                 if not resolved:
                     resolved = _load_enemy_player_options(side_team_id)
@@ -6104,6 +6185,21 @@ def recover_latest_scrim_backup():
     else:
         flash("No missing scrims were found in the latest backup.", "warning")
     return redirect(url_for("scrims"))
+
+@app.route("/db/manual-save", methods=["POST"])
+def manual_db_save():
+    next_url = (request.form.get("next") or "").strip()
+    if not next_url.startswith("/"):
+        next_url = url_for("teams")
+
+    try:
+        save_app_state()
+        backup_path = create_manual_db_backup()
+        flash(f"Manual save complete. Backup written to {backup_path}.", "success")
+    except Exception as exc:
+        flash(f"Manual save failed: {exc}", "error")
+
+    return redirect(next_url)
 
 
 # ── CSV column indices ──────────────────────────────────────────────────────
