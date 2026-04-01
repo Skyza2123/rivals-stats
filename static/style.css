@@ -915,6 +915,67 @@ th {
     display: block;
 }
 
+.player-modal-card {
+    max-width: 860px;
+}
+
+.player-form-grid {
+    gap: 12px;
+}
+
+.player-edit-shell {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.player-edit-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 10px;
+}
+
+.player-edit-current {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.84rem;
+    white-space: nowrap;
+}
+
+.player-edit-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#editPlayerForm.is-empty .player-edit-fields {
+    opacity: 0.55;
+}
+
+@media (max-width: 760px) {
+    .player-edit-top {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .player-edit-current {
+        height: auto;
+        min-height: 38px;
+    }
+
+    .player-edit-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 900px) {
     .compact-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));

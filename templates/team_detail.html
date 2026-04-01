@@ -1911,7 +1911,7 @@
 
 <!-- PLAYER MANAGEMENT MODAL -->
 <div id="playerModal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card player-modal-card">
         <div class="modal-header">
             <div>
                 <h3>Player Management</h3>
@@ -1926,7 +1926,7 @@
         </div>
 
         <div id="tabAddPanel" class="tab-panel tab-panel-active top-gap">
-            <form method="post" action="{{ url_for('create_player', team_id=team.id) }}" class="form-grid">
+            <form method="post" action="{{ url_for('create_player', team_id=team.id) }}" class="form-grid player-form-grid">
                 <div class="field">
                     <label for="add_player_name">Player Name</label>
                     <input id="add_player_name" name="name" type="text" placeholder="Player name" required>
@@ -1961,52 +1961,58 @@
         </div>
 
         <div id="tabEditPanel" class="tab-panel top-gap">
-            <form id="editPlayerForm" method="post" action="{{ url_for('edit_player', player_id=0) }}" class="form-grid">
-                <div class="field">
-                    <label for="edit_player_select">Select Player</label>
-                    <select id="edit_player_select">
-                        <option value="">Choose a player</option>
-                        {% for player in players %}
-                            <option
-                                value="{{ player.id }}"
-                                data-player-name="{{ player.name }}"
-                                data-player-role="{{ player.role }}"
-                                data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
-                                data-player-hero="{{ player.main_hero }}"
-                                data-player-notes="{{ player.notes }}"
-                            >
-                                {{ player.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field"></div>
-                <div class="field">
-                    <label for="edit_player_name">Player Name</label>
-                    <input id="edit_player_name" name="name" type="text" required>
-                </div>
-                <div class="field">
-                    <label for="edit_player_role">Role</label>
-                    <select id="edit_player_role" name="role">
-                        <option value="">Select role</option>
-                        {% for role in player_roles %}
-                            <option value="{{ role }}">{{ role }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label>
-                        <input id="edit_player_is_sub" name="is_sub" type="checkbox" value="1">
-                        Mark as Sub
-                    </label>
-                </div>
-                <div class="field">
-                    <label for="edit_player_hero">Main Hero</label>
-                    <input id="edit_player_hero" name="main_hero" type="text">
-                </div>
-                <div class="field">
-                    <label for="edit_player_notes">Notes</label>
-                    <input id="edit_player_notes" name="notes" type="text">
+            <form id="editPlayerForm" method="post" action="{{ url_for('edit_player', player_id=0) }}" class="form-grid player-form-grid is-empty">
+                <div class="field field-full player-edit-shell">
+                    <div class="player-edit-top">
+                        <div class="field field-full">
+                            <label for="edit_player_select">Select Player</label>
+                            <select id="edit_player_select">
+                                <option value="">Choose a player</option>
+                                {% for player in players %}
+                                    <option
+                                        value="{{ player.id }}"
+                                        data-player-name="{{ player.name }}"
+                                        data-player-role="{{ player.role }}"
+                                        data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
+                                        data-player-hero="{{ player.main_hero }}"
+                                        data-player-notes="{{ player.notes }}"
+                                    >
+                                        {{ player.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="player-edit-current" id="editPlayerCurrent">No player selected</div>
+                    </div>
+                    <div class="player-edit-fields">
+                        <div class="field">
+                            <label for="edit_player_name">Player Name</label>
+                            <input id="edit_player_name" name="name" type="text" required>
+                        </div>
+                        <div class="field">
+                            <label for="edit_player_role">Role</label>
+                            <select id="edit_player_role" name="role">
+                                <option value="">Select role</option>
+                                {% for role in player_roles %}
+                                    <option value="{{ role }}">{{ role }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>
+                                <input id="edit_player_is_sub" name="is_sub" type="checkbox" value="1">
+                                Mark as Sub
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label for="edit_player_hero">Main Hero</label>
+                            <input id="edit_player_hero" name="main_hero" type="text">
+                        </div>
+                        <div class="field field-full">
+                            <label for="edit_player_notes">Notes</label>
+                            <input id="edit_player_notes" name="notes" type="text">
+                        </div>
+                    </div>
                 </div>
                 <div class="button-row field-full">
                     <button type="submit" class="button-small">Save Player</button>
@@ -2130,6 +2136,7 @@
     const editIsSub = document.getElementById("edit_player_is_sub");
     const editHero = document.getElementById("edit_player_hero");
     const editNotes = document.getElementById("edit_player_notes");
+    const editCurrent = document.getElementById("editPlayerCurrent");
     const quickEditButtons = document.querySelectorAll(".open-edit-player");
     const teamLogoInput = document.getElementById("team_logo");
     const teamLogoPreview = document.getElementById("teamLogoPreview");
@@ -2156,8 +2163,22 @@
         modal.setAttribute("aria-hidden", "true");
     };
 
+    const setEditFormState = (hasSelection, summaryText) => {
+        editForm.classList.toggle("is-empty", !hasSelection);
+        if (editCurrent) {
+            editCurrent.textContent = summaryText || (hasSelection ? "Editing player" : "No player selected");
+        }
+    };
+
     const loadPlayerIntoEditForm = (player) => {
         if (!player || !player.id) {
+            editForm.action = "{{ url_for('edit_player', player_id=0) }}";
+            editName.value = "";
+            editRole.value = "";
+            editIsSub.checked = false;
+            editHero.value = "";
+            editNotes.value = "";
+            setEditFormState(false, "No player selected");
             return;
         }
         editForm.action = "{{ url_for('edit_player', player_id=0) }}".replace("/0/edit", `/${player.id}/edit`);
@@ -2167,6 +2188,8 @@
         editHero.value = player.hero || "";
         editNotes.value = player.notes || "";
         editSelect.value = String(player.id);
+        const statusLabel = editIsSub.checked ? "Sub" : "Main";
+        setEditFormState(true, `${player.name || "Selected"} • ${statusLabel}`);
     };
 
     openBtn.addEventListener("click", () => {
@@ -2188,6 +2211,7 @@
     editSelect.addEventListener("change", () => {
         const option = editSelect.selectedOptions[0];
         if (!option || !option.value) {
+            loadPlayerIntoEditForm(null);
             return;
         }
         loadPlayerIntoEditForm({
@@ -2214,6 +2238,14 @@
             openModal();
         });
     });
+
+    editIsSub?.addEventListener("change", () => {
+        const selectedName = (editName.value || "Selected").trim() || "Selected";
+        const statusLabel = editIsSub.checked ? "Sub" : "Main";
+        setEditFormState(Boolean(editSelect.value), `${selectedName} • ${statusLabel}`);
+    });
+
+    loadPlayerIntoEditForm(null);
 
     if (teamLogoInput && teamLogoPreview && removeTeamLogoInput) {
         const fallbackLogo = teamLogoPreview.dataset.fallback || teamLogoPreview.src;
