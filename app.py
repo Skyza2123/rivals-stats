@@ -44,9 +44,7 @@ def _default_database_path() -> Path:
         return Path(render_mount) / "rivals_stats.db"
 
     if (os.environ.get("RENDER") or "").strip().lower() == "true":
-        render_default_mount = Path("/var/data")
-        if render_default_mount.exists():
-            return render_default_mount / "rivals_stats.db"
+        return Path("/var/data") / "rivals_stats.db"
 
     return Path(app.root_path) / "rivals_stats.db"
 

@@ -906,43 +906,38 @@ document.querySelectorAll('.comp-player-select').forEach(select => {
     const form = select.closest('form');
     const teamKey = getCompTeamFromSlotName(slot);
     
-    // Function to update the hidden input field
+    // Keep exactly one active form control for each slot name.
     const updateInput = () => {
         const value = select.value;
         if (value === 'custom') {
-            // Show text input and make it the active one
             if (inputField) {
                 inputField.style.display = 'block';
+                inputField.setAttribute('name', slot);
                 inputField.focus();
             }
+            select.setAttribute('name', '');
             select.style.display = 'none';
         } else {
-            // Use selected value
             if (inputField) {
                 inputField.style.display = 'none';
+                inputField.setAttribute('name', '');
                 inputField.value = value;
             }
+            select.setAttribute('name', slot);
             select.style.display = 'block';
         }
         syncCompSlotPlayerBadge(form, slot);
         refreshTeamPlayerSelectAvailability(form, teamKey);
     };
 
-    // When form is about to submit, update the hidden input with the correct value
+    // Ensure no stale dynamically-added hidden values remain from older versions.
     if (form) {
-        form.addEventListener('submit', function(e) {
-            if (inputField && select.style.display === 'none') {
-                // Text input is active, use its value
-                inputField.setAttribute('name', slot);
-            } else if (inputField) {
-                // Dropdown is active, use dropdown value
-                inputField.setAttribute('name', '');
-                const correctInput = document.createElement('input');
-                correctInput.type = 'hidden';
-                correctInput.name = slot;
-                correctInput.value = select.value;
-                form.appendChild(correctInput);
-            }
+        form.addEventListener('submit', function() {
+            form.querySelectorAll(`input[type="hidden"][name="${slot}"]`).forEach((hidden) => {
+                if (!hidden.closest('.comp-pick-slot')) {
+                    hidden.remove();
+                }
+            });
         });
     }
     
