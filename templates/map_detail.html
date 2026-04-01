@@ -264,22 +264,17 @@
         <form action="{{ url_for(update_map_info_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
                 <div class="field">
-                    <label for="edit_result">Result</label>
-                    <select id="edit_result" name="result">
-                        <option value="" {% if not map_entry.result %}selected{% endif %}>Not Set</option>
-                        {% for r in results %}<option value="{{ r }}" {% if map_entry.result == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="field">
                     <label for="edit_score">Score</label>
                     <input type="text" id="edit_score" name="score" value="{{ map_entry.get('score', '') }}" placeholder="e.g. 3-2">
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Winner is determined by the higher score.</small>
                 </div>
                 <div class="field">
-                    <label for="edit_our_team_slot">Result Side</label>
-                    <select id="edit_our_team_slot" name="our_team_slot">
-                        <option value="team1" {% if our_slot == 'team1' %}selected{% endif %}>{{ team1_label }}</option>
-                        <option value="team2" {% if our_slot == 'team2' %}selected{% endif %}>{{ team2_label }}</option>
+                    <label for="edit_result">Result (Auto-calculated)</label>
+                    <select id="edit_result" name="result" disabled>
+                        <option value="">Pending score</option>
+                        {% for r in results %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
                     </select>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Automatically set based on score.</small>
                 </div>
                 {% if is_tournament %}
                 <div class="field">
@@ -690,8 +685,7 @@ function syncTournamentEditMapTeams() {
 
 function syncScrimEditMapTeams() {
     const side1Select = document.getElementById('edit_map_team1_team_id');
-    const resultSideSelect = document.getElementById('edit_our_team_slot');
-    if (!side1Select || !resultSideSelect) return;
+    if (!side1Select) return;
 
     const participantOneId = '{{ participant_one_id if participant_one_id is not none else "" }}';
     const participantOneName = '{{ map_entry.team1_name or team1_label }}';
@@ -699,9 +693,35 @@ function syncScrimEditMapTeams() {
     const side1IsParticipantOne = side1Select.value === participantOneId;
     const side1Name = side1IsParticipantOne ? participantOneName : participantTwoName;
     const side2Name = side1IsParticipantOne ? participantTwoName : participantOneName;
+}
 
-    resultSideSelect.options[0].text = side1Name;
-    resultSideSelect.options[1].text = side2Name;
+function updateResultFromScore() {
+    const scoreInput = document.getElementById('edit_score');
+    const resultSelect = document.getElementById('edit_result');
+    if (!scoreInput || !resultSelect) return;
+
+    const score = scoreInput.value.trim();
+    
+    // Try to parse score like "3-2" or "3 - 2"
+    const scoreParts = score.split('-').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    
+    if (scoreParts.length === 2) {
+        const team1Score = scoreParts[0];
+        const team2Score = scoreParts[1];
+        
+        let result = '';
+        if (team1Score > team2Score) {
+            result = 'Win';  // Team 1 won (which is usually "our" side)
+        } else if (team2Score > team1Score) {
+            result = 'Loss'; // Team 2 won (we lost)
+        }
+        
+        if (result && resultSelect.querySelector(`option[value="${result}"]`)) {
+            resultSelect.value = result;
+        }
+    } else {
+        resultSelect.value = '';
+    }
 }
 
 function applyMapMetricHighlights() {
@@ -1386,5 +1406,26 @@ function copyPreviousCompSection(sectionIndex) {
         }
     });
 }
+
+// Initialize score-to-result calculator for Edit Map Info modal
+document.addEventListener('DOMContentLoaded', function() {
+    const scoreInput = document.getElementById('edit_score');
+    if (scoreInput) {
+        scoreInput.addEventListener('input', updateResultFromScore);
+        scoreInput.addEventListener('change', updateResultFromScore);
+        // Also calculate on modal open
+        const editInfoModal = document.getElementById('editInfoModal');
+        if (editInfoModal) {
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.attributeName === 'class' && editInfoModal.classList.contains('show')) {
+                        updateResultFromScore();
+                    }
+                });
+            });
+            observer.observe(editInfoModal, { attributes: true, attributeFilter: ['class'] });
+        }
+    }
+});
 </script>
 {% endblock %}

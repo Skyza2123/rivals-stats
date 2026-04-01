@@ -7288,12 +7288,26 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
     tournament_record = get_tournament_or_404(tournament_id)
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
     map_entry = get_map_or_404(tournament_match, map_id)
-    map_entry["result"] = request.form.get("result", map_entry["result"]).strip()
-    if map_entry["result"] not in RESULTS:
-        map_entry["result"] = ""
-    map_entry["score"] = request.form.get("score", map_entry.get("score", "")).strip()
-    our_team_slot = request.form.get("our_team_slot", map_entry.get("our_team_slot", "team1")).strip()
-    map_entry["our_team_slot"] = our_team_slot if our_team_slot in TEAM_SLOTS else "team1"
+    
+    # Get score and auto-calculate result if not provided
+    score = request.form.get("score", map_entry.get("score", "")).strip()
+    map_entry["score"] = score
+    
+    # Auto-calculate result from score (higher number = win)
+    result = request.form.get("result", "").strip()
+    if not result or result not in RESULTS:
+        # Try to parse score and auto-determine result
+        score_parts = [int(s.strip()) for s in score.split('-') if s.strip() and s.strip().isdigit()]
+        if len(score_parts) == 2 and score_parts[0] != score_parts[1]:
+            result = "Win" if score_parts[0] > score_parts[1] else "Loss"
+        else:
+            result = ""
+    
+    map_entry["result"] = result if result in RESULTS else ""
+    
+    # Remove our_team_slot since result is now auto-determined
+    if "our_team_slot" in map_entry:
+        del map_entry["our_team_slot"]
 
     raw_map_team1_id = request.form.get("map_team1_tournament_team_id", "")
     if raw_map_team1_id:
@@ -7649,12 +7663,27 @@ def update_tournament_vod(tournament_id: int, map_id: int):
 def update_map_info(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
-    map_entry["result"] = request.form.get("result", map_entry["result"]).strip()
-    if map_entry["result"] not in RESULTS:
-        map_entry["result"] = ""
-    map_entry["score"] = request.form.get("score", map_entry.get("score", "")).strip()
-    our_team_slot = request.form.get("our_team_slot", map_entry.get("our_team_slot", "team1")).strip()
-    map_entry["our_team_slot"] = our_team_slot if our_team_slot in TEAM_SLOTS else "team1"
+    
+    # Get score and auto-calculate result if not provided
+    score = request.form.get("score", map_entry.get("score", "")).strip()
+    map_entry["score"] = score
+    
+    # Auto-calculate result from score (higher number = win)
+    result = request.form.get("result", "").strip()
+    if not result or result not in RESULTS:
+        # Try to parse score and auto-determine result
+        score_parts = [int(s.strip()) for s in score.split('-') if s.strip() and s.strip().isdigit()]
+        if len(score_parts) == 2 and score_parts[0] != score_parts[1]:
+            result = "Win" if score_parts[0] > score_parts[1] else "Loss"
+        else:
+            result = ""
+    
+    map_entry["result"] = result if result in RESULTS else ""
+    
+    # Remove our_team_slot since result is now auto-determined
+    if "our_team_slot" in map_entry:
+        del map_entry["our_team_slot"]
+    
     participant_one, participant_two = get_scrim_participants(scrim)
     valid_team_ids = {
         participant_one.get("id"),
