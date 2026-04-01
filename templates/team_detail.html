@@ -1170,60 +1170,6 @@
 </div>
 
 <div class="tab-content tab-hidden" id="tab-comps">
-    <section class="panel panel-soft-violet">
-        <div class="section-kicker">Player Matrix</div>
-        <h3>Player Map Performance Matrix</h3>
-        <p class="panel-intro">Each cell shows wins-losses, maps played, and win rate for that player on that map. Scroll horizontally if needed.</p>
-        {% if player_map_matrix_columns and player_map_matrix_rows %}
-            <div class="table-wrap matrix-table-wrap top-gap">
-                <table class="stats-table stats-table-compare player-matrix-table">
-                    <thead>
-                        <tr>
-                            <th class="matrix-sticky-col">Player</th>
-                            {% for map_name in player_map_matrix_columns %}
-                                <th>{{ map_name }}</th>
-                            {% endfor %}
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in player_map_matrix_rows %}
-                            <tr>
-                                <td class="matrix-sticky-col matrix-player-cell">
-                                    <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">
-                                        {{ row.player_name }}{% if row.role %} ({{ row.role }}){% endif %}
-                                    </a>
-                                </td>
-                                {% for cell in row.cells %}
-                                    <td class="matrix-data-cell{% if not cell %} matrix-data-cell-empty{% elif cell.win_rate >= 60 %} matrix-data-cell-hot{% elif cell.win_rate < 40 %} matrix-data-cell-cold{% endif %}">
-                                        {% if cell %}
-                                            <div class="matrix-cell-stat">
-                                                <strong>{{ cell.wins }}-{{ cell.losses }}</strong>
-                                                <span>{{ cell.maps }} map{% if cell.maps != 1 %}s{% endif %}</span>
-                                                <small>WR {{ cell.win_rate }}%</small>
-                                            </div>
-                                        {% else %}
-                                            <span class="matrix-empty-mark">--</span>
-                                        {% endif %}
-                                    </td>
-                                {% endfor %}
-                                <td class="matrix-data-cell matrix-total-cell{% if row.summary.win_rate >= 60 %} matrix-data-cell-hot{% elif row.summary.maps and row.summary.win_rate < 40 %} matrix-data-cell-cold{% endif %}">
-                                    <div class="matrix-cell-stat">
-                                        <strong>{{ row.summary.wins }}-{{ row.summary.losses }}</strong>
-                                        <span>{{ row.summary.maps }} map{% if row.summary.maps != 1 %}s{% endif %}</span>
-                                        <small>WR {{ row.summary.win_rate }}%</small>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="empty-text">No player map performance data yet.</p>
-        {% endif %}
-    </section>
-
     <section class="panel panel-soft-blue">
         <div class="section-kicker">Matchup Summary</div>
         <h3>Comp Matchups</h3>
@@ -1268,24 +1214,22 @@
                                 </td>
                                 <td>
                                     {% if row.our_heroes %}
-                                        {% for hero_name in row.our_heroes %}
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
-                                                <span>{{ hero_display_name(hero_name) }}</span>
-                                            </span>
-                                        {% endfor %}
+                                        <div class="matchup-hero-strip">
+                                            {% for hero_name in row.our_heroes %}
+                                                <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb matchup-hero-thumb" title="{{ hero_display_name(hero_name) }}" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
+                                            {% endfor %}
+                                        </div>
                                     {% else %}
                                         <span class="empty-text">No lineup data</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if row.enemy_heroes %}
-                                        {% for hero_name in row.enemy_heroes %}
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
-                                                <span>{{ hero_display_name(hero_name) }}</span>
-                                            </span>
-                                        {% endfor %}
+                                        <div class="matchup-hero-strip">
+                                            {% for hero_name in row.enemy_heroes %}
+                                                <img src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" class="hero-inline-thumb matchup-hero-thumb" title="{{ hero_display_name(hero_name) }}" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero_name | urlencode }}'">
+                                            {% endfor %}
+                                        </div>
                                     {% else %}
                                         <span class="empty-text">No lineup data</span>
                                     {% endif %}
@@ -1552,6 +1496,60 @@
 </div>
 
 <div class="tab-content tab-hidden" id="tab-maps">
+    <section class="panel panel-soft-violet">
+        <div class="section-kicker">Player Matrix</div>
+        <h3>Player Map Performance Matrix</h3>
+        <p class="panel-intro">Each cell shows wins-losses, maps played, and win rate for that player on that map. Scroll horizontally if needed.</p>
+        {% if player_map_matrix_columns and player_map_matrix_rows %}
+            <div class="table-wrap matrix-table-wrap top-gap">
+                <table class="stats-table stats-table-compare player-matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="matrix-sticky-col">Player</th>
+                            {% for map_name in player_map_matrix_columns %}
+                                <th>{{ map_name }}</th>
+                            {% endfor %}
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in player_map_matrix_rows %}
+                            <tr>
+                                <td class="matrix-sticky-col matrix-player-cell">
+                                    <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id, season=selected_season) }}">
+                                        {{ row.player_name }}{% if row.role %} ({{ row.role }}){% endif %}
+                                    </a>
+                                </td>
+                                {% for cell in row.cells %}
+                                    <td class="matrix-data-cell{% if not cell %} matrix-data-cell-empty{% elif cell.win_rate >= 60 %} matrix-data-cell-hot{% elif cell.win_rate < 40 %} matrix-data-cell-cold{% endif %}">
+                                        {% if cell %}
+                                            <div class="matrix-cell-stat">
+                                                <strong>{{ cell.wins }}-{{ cell.losses }}</strong>
+                                                <span>{{ cell.maps }} map{% if cell.maps != 1 %}s{% endif %}</span>
+                                                <small>WR {{ cell.win_rate }}%</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="matrix-empty-mark">--</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="matrix-data-cell matrix-total-cell{% if row.summary.win_rate >= 60 %} matrix-data-cell-hot{% elif row.summary.maps and row.summary.win_rate < 40 %} matrix-data-cell-cold{% endif %}">
+                                    <div class="matrix-cell-stat">
+                                        <strong>{{ row.summary.wins }}-{{ row.summary.losses }}</strong>
+                                        <span>{{ row.summary.maps }} map{% if row.summary.maps != 1 %}s{% endif %}</span>
+                                        <small>WR {{ row.summary.win_rate }}%</small>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No player map performance data yet.</p>
+        {% endif %}
+    </section>
+
     <section class="panel panel-soft-violet">
         <div class="section-kicker">Map Draft Correlation</div>
         <h3>Draft Correlation To Map (Skip Flags)</h3>

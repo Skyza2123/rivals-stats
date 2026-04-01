@@ -3175,6 +3175,19 @@ th {
     justify-content: flex-start;
 }
 
+.matchup-hero-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.matchup-hero-thumb {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+}
+
 .hero-pool-sub {
     font-size: 0.64rem;
     color: #93c5fd;
