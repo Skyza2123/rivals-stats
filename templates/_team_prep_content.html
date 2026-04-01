@@ -346,18 +346,35 @@
     </div>
     <script>
     (function () {
+        var enemySel = document.getElementById("prepEnemySelector");
         var selA = document.getElementById("prepCompareMapA");
         var selB = document.getElementById("prepCompareMapB");
+
+        function applyEnemyFilter() {
+            if (typeof window.__prepLoadContent === "function") {
+                window.__prepLoadContent({ resetCompare: true });
+                return;
+            }
+            var p = new URLSearchParams(window.location.search);
+            if (enemySel && enemySel.value) { p.set("prep_enemy_id", enemySel.value); } else { p.delete("prep_enemy_id"); }
+            p.delete("compare_map_a");
+            p.delete("compare_map_b");
+            window.location.search = p.toString();
+        }
+
         function applyMapFilter() {
             if (typeof window.__prepLoadContent === "function") {
                 window.__prepLoadContent();
                 return;
             }
             var p = new URLSearchParams(window.location.search);
+            if (enemySel && enemySel.value) { p.set("prep_enemy_id", enemySel.value); } else { p.delete("prep_enemy_id"); }
             if (selA && selA.value) { p.set("compare_map_a", selA.value); } else { p.delete("compare_map_a"); }
             if (selB && selB.value) { p.set("compare_map_b", selB.value); } else { p.delete("compare_map_b"); }
             window.location.search = p.toString();
         }
+
+        if (enemySel && !enemySel.dataset.prepBound) { enemySel.dataset.prepBound = "1"; enemySel.addEventListener("change", applyEnemyFilter); }
         if (selA && !selA.dataset.prepBound) { selA.dataset.prepBound = "1"; selA.addEventListener("change", applyMapFilter); }
         if (selB && !selB.dataset.prepBound) { selB.dataset.prepBound = "1"; selB.addEventListener("change", applyMapFilter); }
     })();
