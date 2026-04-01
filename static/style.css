@@ -3062,7 +3062,30 @@ th {
 .prep-hero-chip .hero-inline-meta,
 .prep-adjust-row .hero-inline-meta,
 .prep-comp-slot .hero-inline-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.prep-hero-chip .hero-inline-meta {
     display: none;
+}
+
+.prep-adjust-row .hero-inline-meta > span,
+.prep-comp-slot .hero-inline-meta > span {
+    font-size: 0.8rem;
+    line-height: 1.2;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prep-adjust-row .hero-inline-meta .hero-sub-label,
+.prep-comp-slot .hero-inline-meta .hero-sub-label {
+    font-size: 0.68rem;
+    color: var(--muted);
 }
 
 .prep-comp-grid {
@@ -3080,25 +3103,39 @@ th {
 
 .prep-combo4-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
 }
 
 .prep-combo4-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 14px;
     border: 1px solid var(--border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px;
 }
 
 .prep-combo4-heroes {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+}
+
+.prep-combo4-heroes .hero-inline-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.prep-combo4-names {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
 }
 
 .draft-route-flow {

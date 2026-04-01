@@ -187,7 +187,10 @@
                             </span>
                         {% endfor %}
                     </div>
-                    <span class="prep-chip-meta">{{ row.maps }} maps • {{ row.win_rate }}% WR</span>
+                    <div>
+                        <div class="prep-combo4-names">{{ row.heroes|join(' + ') }}</div>
+                        <span class="prep-chip-meta">{{ row.maps }} maps • {{ row.win_rate }}% WR</span>
+                    </div>
                 </article>
             {% endfor %}
         </div>
