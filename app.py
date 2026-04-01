@@ -582,20 +582,56 @@ def get_map_side_default_players(
         return defaults
 
     db = get_db()
+
+    def _load_side_player_pool(side_team_id: int | None, side_team_name: str = "") -> list[dict]:
+        if side_team_id:
+            player_rows = db.execute(
+                "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                (side_team_id,),
+            ).fetchall()
+            if player_rows:
+                return [
+                    {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                    for row in player_rows
+                    if (row["name"] or "").strip()
+                ]
+
+            enemy_rows = db.execute(
+                "SELECT name, role FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                (side_team_id,),
+            ).fetchall()
+            if enemy_rows:
+                return [
+                    {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                    for row in enemy_rows
+                    if (row["name"] or "").strip()
+                ]
+
+        normalized_name = (side_team_name or "").strip()
+        if normalized_name:
+            team_row = db.execute(
+                "SELECT id FROM teams WHERE lower(name) = lower(?)",
+                (normalized_name,),
+            ).fetchone()
+            if team_row:
+                player_rows = db.execute(
+                    "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                    (team_row["id"],),
+                ).fetchall()
+                return [
+                    {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
+                    for row in player_rows
+                    if (row["name"] or "").strip()
+                ]
+
+        return []
+
     for side in TEAM_SLOTS:
         side_team_id = map_entry.get(f"{side}_id")
-        if not side_team_id:
-            continue
-        player_rows = db.execute(
-            "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
-            (side_team_id,),
-        ).fetchall()
+        side_team_name = map_entry.get(f"{side}_name", "")
+        player_rows = _load_side_player_pool(side_team_id, side_team_name)
         defaults[side] = build_comp_slot_player_order(
-            [
-                {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
-                for row in player_rows
-                if (row["name"] or "").strip()
-            ],
+            player_rows,
             slot_count=6,
         )
 
@@ -1838,12 +1874,45 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         map_entry["team2_name"] = team2_label
         team_id = match_record.get("team_id")
         player_rows = []
-        if team_id:
-            player_rows = db.execute(
+
+        def _load_team_player_options(team_id_value: int | None) -> list[dict]:
+            if not team_id_value:
+                return []
+            rows = db.execute(
                 "SELECT name, role, is_sub FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
-                (team_id,),
+                (team_id_value,),
             ).fetchall()
-            team_players = [row["name"] for row in player_rows]
+            return [
+                {
+                    "name": (row["name"] or "").strip(),
+                    "role": (row["role"] or "").strip(),
+                    "is_sub": bool(row["is_sub"]),
+                }
+                for row in rows
+                if (row["name"] or "").strip()
+            ]
+
+        def _load_enemy_player_options(enemy_team_id_value: int | None) -> list[dict]:
+            if not enemy_team_id_value:
+                return []
+            rows = db.execute(
+                "SELECT name, role FROM enemy_players WHERE enemy_team_id = ? ORDER BY name COLLATE NOCASE",
+                (enemy_team_id_value,),
+            ).fetchall()
+            return [
+                {
+                    "name": (row["name"] or "").strip(),
+                    "role": (row["role"] or "").strip(),
+                    "is_sub": False,
+                }
+                for row in rows
+                if (row["name"] or "").strip()
+            ]
+
+        if team_id:
+            player_options = _load_team_player_options(team_id)
+            player_rows = player_options
+            team_players = [row["name"] for row in player_options]
 
         enemy_team_id = match_record.get("enemy_team_id")
         if enemy_team_id:
@@ -1864,28 +1933,51 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         our_team_name = (match_record.get("team_name") or "").strip().lower()
         enemy_team_name = (match_record.get("enemy_team") or match_record.get("opponent") or "").strip().lower()
 
-        our_player_options = [
-            {
-                "name": (row["name"] or "").strip(),
-                "role": (row["role"] or "").strip(),
-                "is_sub": bool(row["is_sub"]),
-            }
-            for row in player_rows
-            if (row["name"] or "").strip()
-        ]
+        our_player_options = [dict(row) for row in player_rows]
         if not our_player_options:
             our_player_options = [{"name": player_name, "role": "", "is_sub": False} for player_name in team_players]
-        known_enemy_player_options = [
-            {
-                "name": (player.get("name") or "").strip(),
-                "role": (player.get("role") or "").strip(),
-                "is_sub": False,
-            }
-            for player in enemy_players
-            if (player.get("name") or "").strip()
-        ]
+
+        known_enemy_player_options = _load_enemy_player_options(enemy_team_id)
+        if not known_enemy_player_options:
+            known_enemy_player_options = [
+                {
+                    "name": (player.get("name") or "").strip(),
+                    "role": (player.get("role") or "").strip(),
+                    "is_sub": False,
+                }
+                for player in enemy_players
+                if (player.get("name") or "").strip()
+            ]
+
+        side_options_cache: dict[tuple[int | None, str], list[dict]] = {}
+
+        def _load_side_options(side_team_id: int | None, side_team_name: str) -> list[dict]:
+            cache_key = (side_team_id, (side_team_name or "").strip().lower())
+            if cache_key in side_options_cache:
+                return list(side_options_cache[cache_key])
+
+            resolved: list[dict] = []
+            if side_team_id:
+                resolved = _load_team_player_options(side_team_id)
+                if not resolved:
+                    resolved = _load_enemy_player_options(side_team_id)
+
+            if not resolved and side_team_name:
+                team_row = db.execute(
+                    "SELECT id FROM teams WHERE lower(name) = lower(?)",
+                    ((side_team_name or "").strip(),),
+                ).fetchone()
+                if team_row:
+                    resolved = _load_team_player_options(team_row["id"])
+
+            side_options_cache[cache_key] = list(resolved)
+            return list(resolved)
 
         def _resolve_side_player_options(side_team_id: int | None, side_team_name: str) -> list[dict]:
+            direct_match = _load_side_options(side_team_id, side_team_name)
+            if direct_match:
+                return direct_match
+
             if side_team_id and our_team_id and side_team_id == our_team_id:
                 return list(our_player_options)
             if side_team_id and enemy_team_id and side_team_id == enemy_team_id:
