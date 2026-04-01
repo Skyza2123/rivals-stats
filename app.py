@@ -7159,6 +7159,72 @@ def tournament_match_map_detail(tournament_id: int, match_id: int, map_id: int):
     )
 
 
+@app.route("/scrims/<int:scrim_id>/timelines")
+def scrim_timelines(scrim_id: int):
+    """Display draft phase timelines for all maps in a scrim."""
+    scrim = get_scrim_or_404(scrim_id)
+    participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
+    
+    # Build timeline for each map
+    map_timelines = {}
+    team_id = scrim.get("team_id")
+    team_name = (scrim.get("team_name") or scrim.get("team1_name") or "").strip()
+    
+    if team_id and team_name:
+        source_scrims = get_scrims_for_team(team_id, team_name)
+        draft_timeline = build_draft_phase_timeline(source_scrims)
+        map_timelines = {row.get("map_name"): row for row in draft_timeline.get("maps", [])}
+    
+    # Get unique map names from this scrim
+    map_names = sorted(set(m.get("map_name", "") for m in scrim.get("maps", []) if m.get("map_name")))
+    
+    return render_template(
+        "map_timelines.html",
+        scrim=scrim,
+        map_timelines=map_timelines,
+        map_names=map_names,
+        participant_one_label=participant_one_label,
+        participant_two_label=participant_two_label,
+        is_tournament=False,
+        back_to_detail_endpoint="scrim_detail",
+        scrim_id=scrim_id,
+    )
+
+
+@app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/timelines")
+def tournament_match_timelines(tournament_id: int, match_id: int):
+    """Display draft phase timelines for all maps in a tournament match."""
+    tournament_record = get_tournament_or_404(tournament_id)
+    tournament_match = get_tournament_match_or_404(tournament_record, match_id)
+    
+    # Build timeline for each map
+    map_timelines = {}
+    perspective = tournament_match.get("our_team_slot", "team1") if tournament_match.get("our_team_slot", "team1") in TEAM_SLOTS else "team1"
+    source_scrims = build_tournament_match_scrims(tournament_record, perspective=perspective)
+    draft_timeline = build_draft_phase_timeline(source_scrims)
+    map_timelines = {row.get("map_name"): row for row in draft_timeline.get("maps", [])}
+    
+    # Get unique map names from this match
+    map_names = sorted(set(m.get("map_name", "") for m in tournament_match.get("maps", []) if m.get("map_name")))
+    
+    team1_label = (get_tournament_team_by_id(tournament_record, tournament_match.get("team1_tournament_team_id")) or {}).get("name") or tournament_match.get("team1_name") or "Team 1"
+    team2_label = (get_tournament_team_by_id(tournament_record, tournament_match.get("team2_tournament_team_id")) or {}).get("name") or tournament_match.get("team2_name") or "Team 2"
+    
+    return render_template(
+        "map_timelines.html",
+        scrim=tournament_match,
+        tournament=tournament_record,
+        map_timelines=map_timelines,
+        map_names=map_names,
+        participant_one_label=team1_label,
+        participant_two_label=team2_label,
+        is_tournament=True,
+        back_to_detail_endpoint="tournament_match_detail",
+        tournament_id=tournament_id,
+        match_id=match_id,
+    )
+
+
 @app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/delete", methods=["POST"])
 def delete_tournament_match_map(tournament_id: int, match_id: int, map_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
