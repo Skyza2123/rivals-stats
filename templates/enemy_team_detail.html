@@ -316,6 +316,13 @@
                             <option value="team2">I am Team 2</option>
                         </select>
                     </div>
+                    <div class="field" style="max-width: 260px;">
+                        <label for="sim-mode-enemy">Draft Mode</label>
+                        <select id="sim-mode-enemy" aria-label="Draft Mode">
+                            <option value="one-sided" selected>One-Sided (Auto Enemy)</option>
+                            <option value="two-sided">Two-Sided (Manual Both)</option>
+                        </select>
+                    </div>
                     <div class="draft-grid" id="draft-predictor-enemy">
                         <div class="draft-column">
                             <h4>Team 1</h4>
@@ -419,6 +426,7 @@
                     const beginButton = document.getElementById('begin-sim-enemy');
                     const clearButton = document.getElementById('clear-sim-enemy');
                     const simSideSelect = document.getElementById('sim-side-enemy');
+                    const simModeSelect = document.getElementById('sim-mode-enemy');
                     const resultsContainer = document.getElementById('simulation-results-enemy');
                     const team1Heading = board.querySelector('.draft-column:nth-child(1) h4');
                     const team2Heading = board.querySelector('.draft-column:nth-child(2) h4');
@@ -438,6 +446,7 @@
                     let activeField = null;
                     let simulationStarted = false;
                     let simulationSide = (simSideSelect && simSideSelect.value) ? simSideSelect.value : 'team1';
+                    let draftMode = (simModeSelect && simModeSelect.value) ? simModeSelect.value : 'one-sided';
                     const slots = Array.from(board.querySelectorAll('.draft-slot'));
                     const heroButtons = Array.from(document.querySelectorAll('#draft-predict-form-enemy .hero-pick-btn'));
                     const heroImageMap = {};
@@ -455,6 +464,18 @@
 
                     function getOpponentSide() {
                         return simulationSide === 'team1' ? 'team2' : 'team1';
+                    }
+
+                    function isOneSidedMode() {
+                        return draftMode === 'one-sided';
+                    }
+
+                    function isUserField(fieldKey) {
+                        return getFieldTeam(fieldKey) === simulationSide;
+                    }
+
+                    function canEditField(fieldKey) {
+                        return !isOneSidedMode() || isUserField(fieldKey);
                     }
 
                     function getTeamDisplayName(teamKey) {
@@ -478,6 +499,17 @@
                         }
                         if (team2Heading) {
                             team2Heading.textContent = getTeamDisplayName('team2');
+                        }
+                    }
+
+                    function updateSlotInteractivity() {
+                        slots.forEach(slot => {
+                            const locked = !canEditField(slot.dataset.field);
+                            slot.classList.toggle('slot-locked', locked);
+                            slot.title = locked ? 'Locked in one-sided mode' : '';
+                        });
+                        if (activeField && !canEditField(activeField)) {
+                            setPreferredActiveTarget();
                         }
                     }
 
@@ -542,7 +574,11 @@
                             setActive(null);
                             return;
                         }
-                        const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
+                        const preferred = targets.find(field => isUserField(field));
+                        if (isOneSidedMode()) {
+                            setActive(preferred || null);
+                            return;
+                        }
                         setActive(preferred || targets[0]);
                     }
 
@@ -614,7 +650,7 @@
                         resultsContainer.innerHTML = html;
                     }
 
-                    async function fetchSimulationPrediction(triggerField) {
+                    async function fetchSimulationPrediction(_triggerField) {
                         const query = new URLSearchParams();
                         if (seasonValue && seasonValue !== 'all') {
                             query.set('season', seasonValue);
@@ -632,7 +668,7 @@
                         const data = await response.json();
                         renderSimulationResults(data);
 
-                        if (!triggerField || !Array.isArray(data.targets)) {
+                        if (!Array.isArray(data.targets) || !isOneSidedMode()) {
                             return;
                         }
 
@@ -659,6 +695,9 @@
                     }
 
                     function clearSlot(slot) {
+                        if (!canEditField(slot.dataset.field)) {
+                            return;
+                        }
                         const input = slot.querySelector('input[type="hidden"]');
                         input.value = '';
                         renderSlot(slot);
@@ -670,6 +709,9 @@
 
                     slots.forEach(slot => {
                         slot.addEventListener('click', function () {
+                            if (!canEditField(slot.dataset.field)) {
+                                return;
+                            }
                             setActive(slot.dataset.field);
                         });
                         slot.addEventListener('contextmenu', function (event) {
@@ -682,10 +724,18 @@
                         btn.addEventListener('click', function () {
                             const hero = btn.dataset.hero;
                             const targets = getNextTargets();
-                            const preferred = targets.find(field => getFieldTeam(field) === simulationSide);
-                            const targetField = (activeField && targets.includes(activeField) && getFieldTeam(activeField) === simulationSide)
-                                ? activeField
-                                : (preferred || targets[0]);
+                            const preferred = targets.find(field => isUserField(field));
+                            let targetField = null;
+
+                            if (isOneSidedMode()) {
+                                targetField = (activeField && targets.includes(activeField) && isUserField(activeField))
+                                    ? activeField
+                                    : preferred;
+                            } else {
+                                targetField = (activeField && targets.includes(activeField))
+                                    ? activeField
+                                    : (preferred || targets[0]);
+                            }
                             if (!targetField) return;
                             setSlotValue(targetField, hero);
                             setPreferredActiveTarget();
@@ -727,6 +777,18 @@
                         simSideSelect.addEventListener('change', function () {
                             simulationSide = simSideSelect.value || 'team1';
                             updateDraftHeadings();
+                            updateSlotInteractivity();
+                            setPreferredActiveTarget();
+                            if (simulationStarted) {
+                                fetchSimulationPrediction(null);
+                            }
+                        });
+                    }
+
+                    if (simModeSelect) {
+                        simModeSelect.addEventListener('change', function () {
+                            draftMode = simModeSelect.value || 'one-sided';
+                            updateSlotInteractivity();
                             setPreferredActiveTarget();
                             if (simulationStarted) {
                                 fetchSimulationPrediction(null);
@@ -736,6 +798,7 @@
 
                     refreshAllSlots();
                     updateDraftHeadings();
+                    updateSlotInteractivity();
                     setPreferredActiveTarget();
                 })();
                 </script>

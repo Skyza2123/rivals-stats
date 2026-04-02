@@ -1118,6 +1118,15 @@ th {
     border-color: #30363d;
 }
 
+.draft-slot.slot-locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.draft-slot.slot-locked:hover {
+    border-color: var(--border);
+}
+
 .draft-slot.slot-active {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--ring);
