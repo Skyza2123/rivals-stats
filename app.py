@@ -85,6 +85,14 @@ SIMULATOR_SLOT_ORDER = (
     "team1_ban4",   
    
 )
+CONCEPT_ONE_SIDED_SLOT_ORDER = (
+    "my_ban1",
+    "their_protect1",
+    "my_ban2",
+    "my_ban3",
+    "their_protect2",
+    "my_ban4",
+)
 PREDICTOR_GROUPS = (
     (("team1", "ban1", "t1_ban1"), ("team2", "ban1", "t2_ban1")),
     (("team2", "protect1", "t2_protect1"),),
@@ -4511,6 +4519,35 @@ def _sanitize_simulator_draft_slots(raw_slots: dict | None) -> dict[str, str]:
     return cleaned
 
 
+def _sanitize_one_sided_concept_slots(raw_slots: dict | None) -> dict[str, str]:
+    cleaned = {slot_name: "" for slot_name in CONCEPT_ONE_SIDED_SLOT_ORDER}
+    if not isinstance(raw_slots, dict):
+        return cleaned
+
+    for slot_name in CONCEPT_ONE_SIDED_SLOT_ORDER:
+        raw_value = (raw_slots.get(slot_name, "") or "").strip()
+        if not raw_value:
+            continue
+
+        tokens = []
+        seen = set()
+        for token in re.split(r"[/|,]", raw_value):
+            canonical = _canonical_draft_hero(token)
+            if not canonical:
+                continue
+            canonical_key = canonical.lower()
+            if canonical_key in seen:
+                continue
+            tokens.append(canonical)
+            seen.add(canonical_key)
+            if len(tokens) >= 2:
+                break
+
+        cleaned[slot_name] = "/".join(tokens)
+
+    return cleaned
+
+
 def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dict:
     cleaned_inputs = {
         field_key: (raw_inputs.get(field_key, "") or "").strip()
@@ -7717,16 +7754,30 @@ def api_team_saved_drafts(team_id: int):
         drafts = []
         for row in rows:
             try:
-                slots = _sanitize_simulator_draft_slots(json.loads(row["draft_slots_json"] or "{}"))
+                stored_payload = json.loads(row["draft_slots_json"] or "{}")
             except json.JSONDecodeError:
-                slots = _sanitize_simulator_draft_slots({})
+                stored_payload = {}
+
+            mode = "full"
+            slots = _sanitize_simulator_draft_slots({})
+            concept_slots = _sanitize_one_sided_concept_slots({})
+
+            if isinstance(stored_payload, dict) and "mode" in stored_payload:
+                mode = (stored_payload.get("mode") or "full").strip() or "full"
+                slots = _sanitize_simulator_draft_slots(stored_payload.get("slots"))
+                concept_slots = _sanitize_one_sided_concept_slots(stored_payload.get("concept_slots"))
+            else:
+                # Legacy rows store full draft slots at the root.
+                slots = _sanitize_simulator_draft_slots(stored_payload)
 
             drafts.append(
                 {
                     "id": row["id"],
                     "name": row["draft_name"],
                     "season": row["season"],
+                    "mode": mode,
                     "slots": slots,
+                    "concept_slots": concept_slots,
                     "created_at": row["created_at"],
                 }
             )
@@ -7735,21 +7786,34 @@ def api_team_saved_drafts(team_id: int):
     payload = request.get_json(silent=True) or {}
     draft_name = (payload.get("name") or "").strip()
     season = normalize_season_value(payload.get("season", ""))
+    mode = (payload.get("mode") or "full").strip() or "full"
     slots = _sanitize_simulator_draft_slots(payload.get("slots"))
+    concept_slots = _sanitize_one_sided_concept_slots(payload.get("concept_slots"))
 
     if not draft_name:
         return jsonify({"error": "Draft name is required."}), 400
     if len(draft_name) > 80:
         return jsonify({"error": "Draft name must be 80 characters or less."}), 400
-    if not any(slots.values()):
-        return jsonify({"error": "Add at least one draft hero before saving."}), 400
+    if mode == "concept_one_sided":
+        if not any(concept_slots.values()):
+            return jsonify({"error": "Add at least one concept slot before saving."}), 400
+    else:
+        mode = "full"
+        if not any(slots.values()):
+            return jsonify({"error": "Add at least one draft hero before saving."}), 400
+
+    draft_payload = {
+        "mode": mode,
+        "slots": slots,
+        "concept_slots": concept_slots,
+    }
 
     cursor = db.execute(
         """
         INSERT INTO team_saved_drafts (team_id, draft_name, season, draft_slots_json)
         VALUES (?, ?, ?, ?)
         """,
-        (team_id, draft_name, season, json.dumps(slots)),
+        (team_id, draft_name, season, json.dumps(draft_payload)),
     )
     db.commit()
 
@@ -7758,7 +7822,9 @@ def api_team_saved_drafts(team_id: int):
             "id": cursor.lastrowid,
             "name": draft_name,
             "season": season,
+            "mode": mode,
             "slots": slots,
+            "concept_slots": concept_slots,
         }
     ), 201
 

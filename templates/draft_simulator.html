@@ -11,7 +11,7 @@
     <div class="header-actions">
         <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
         <button type="button" id="rt-toggle" class="button-secondary rt-toggle" onclick="toggleRealTime()">Real-Time: OFF</button>
-        <button type="button" class="button-secondary" onclick="resetDraft()">Reset Draft</button>
+        <button type="button" class="button-secondary" onclick="resetActiveDraft()">Reset Draft</button>
     </div>
 </div>
 
@@ -56,6 +56,13 @@
     </div>
     <p class="panel-intro top-gap" id="draftSaveStatus"></p>
 </section>
+
+<div class="tab-bar" id="draftModeTabs">
+    <button class="tab-btn tab-active" type="button" data-draft-mode="full" onclick="if (typeof setDraftMode === 'function') { setDraftMode('full'); } else { var f = document.getElementById('draftModeFull'); var c = document.getElementById('draftModeConcept'); if (f) f.style.display = ''; if (c) c.style.display = 'none'; }">Full Draft Simulator</button>
+    <button class="tab-btn" type="button" data-draft-mode="concept_one_sided" onclick="if (typeof setDraftMode === 'function') { setDraftMode('concept_one_sided'); } else { var f = document.getElementById('draftModeFull'); var c = document.getElementById('draftModeConcept'); if (f) f.style.display = 'none'; if (c) c.style.display = ''; }">One-Sided Concepts</button>
+</div>
+
+<div id="draftModeFull">
 
 <section class="panel">
     <div class="draft-grid">
@@ -200,8 +207,80 @@
     </div>
 </section>
 
+</div>
+
+<div id="draftModeConcept" style="display:none;">
+<section class="panel">
+    <h3>One-Sided Draft Concepts</h3>
+    <p class="panel-intro">Plan your POV only. Click a slot, then pick heroes. Click a hero again to add a second option for that slot.</p>
+
+    <div class="draft-slots concept-slots-grid" id="conceptDraftBoard">
+        <div class="draft-slot concept-slot" data-concept-slot="my_ban1" onclick="activateConceptSlot(this)">
+            <span class="slot-label ban-label">My Ban 1</span>
+            <span class="slot-hero"></span>
+            <input type="hidden" value="">
+        </div>
+        <div class="draft-slot concept-slot concept-slot-opponent" data-concept-slot="their_protect1" onclick="activateConceptSlot(this)">
+            <span class="slot-label protect-label">Their Protect 1</span>
+            <span class="slot-hero"></span>
+            <input type="hidden" value="">
+        </div>
+        <div class="draft-slot concept-slot" data-concept-slot="my_ban2" onclick="activateConceptSlot(this)">
+            <span class="slot-label ban-label">My Ban 2</span>
+            <span class="slot-hero"></span>
+            <input type="hidden" value="">
+        </div>
+        <div class="draft-slot concept-slot" data-concept-slot="my_ban3" onclick="activateConceptSlot(this)">
+            <span class="slot-label ban-label">My Ban 3</span>
+            <span class="slot-hero"></span>
+            <input type="hidden" value="">
+        </div>
+        <div class="draft-slot concept-slot concept-slot-opponent" data-concept-slot="their_protect2" onclick="activateConceptSlot(this)">
+            <span class="slot-label protect-label">Their Protect 2</span>
+            <span class="slot-hero"></span>
+            <input type="hidden" value="">
+        </div>
+        <div class="draft-slot concept-slot" data-concept-slot="my_ban4" onclick="activateConceptSlot(this)">
+            <span class="slot-label ban-label">My Ban 4</span>
+            <span class="slot-hero"></span>
+            <input type="hidden" value="">
+        </div>
+    </div>
+
+    <p class="draft-hint">Left-click to set active slot. Right-click clears the slot. Slots support up to two hero options separated by "/".</p>
+</section>
+
+<section class="panel">
+    <div class="hero-picker">
+        {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+        <div class="hero-role-section">
+            <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+            <div class="hero-icon-grid">
+                {% for hero in hero_roles[role] %}
+                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-display="{{ hero_display_name(hero) }}" data-pool="{{ hero_pool_label(hero) }}"
+                        onclick="pickHero(this)"
+                    title="{{ hero_display_name(hero) }}{% if hero_pool_label(hero) %} ({{ hero_pool_label(hero) }}){% endif %}">
+                    <div class="hero-img-wrap">
+                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                             alt="{{ hero }}" loading="lazy">
+                        {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
+                        {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
+                        {% if hero == 'SupportPool' %}<span class="pool-tag tag-sup">SUP</span>{% endif %}
+                    </div>
+                    <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
+                    {% if hero_pool_label(hero) %}
+                        <span class="hero-pool-sub">{{ hero_pool_label(hero) }}</span>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+</div>
+
 <script>
-/* Draft order: the sequence of slots to fill in a real draft */
 const DRAFT_ORDER = [
     'team1_ban1',
     'team2_ban1',
@@ -216,12 +295,29 @@ const DRAFT_ORDER = [
     'team2_protect2',
     'team1_ban4',
 ];
-
+const CONCEPT_ONE_SIDED_ORDER = [
+    'my_ban1',
+    'their_protect1',
+    'my_ban2',
+    'my_ban3',
+    'their_protect2',
+    'my_ban4',
+];
 const SIMULTANEOUS_PAIRS = [[0, 1], [6, 7]];
 const PICK_TIME = 15;
 const TRANSITION_TIME = 5;
 
+const fullModeContainer = document.getElementById('draftModeFull');
+const conceptModeContainer = document.getElementById('draftModeConcept');
+const draftModeTabs = Array.from(document.querySelectorAll('#draftModeTabs [data-draft-mode]'));
+const rtToggleButton = document.getElementById('rt-toggle');
+const rtStartWrap = document.getElementById('rt-start-wrap');
+const rtStartButton = document.getElementById('rt-start-btn');
+const conceptBoard = document.getElementById('conceptDraftBoard');
+
+let currentDraftMode = 'full';
 let activeSlot = null;
+let activeConceptSlot = null;
 let currentStep = 0;
 let realTimeMode = false;
 let draftStarted = false;
@@ -245,8 +341,70 @@ document.querySelectorAll('.hero-pick-btn').forEach(btn => {
     }
 });
 
+function getFullDraftSlots() {
+    return Array.from(document.querySelectorAll('#draftModeFull .draft-slot[data-slot]'));
+}
+
 function getSlotByName(name) {
-    return document.querySelector('.draft-slot[data-slot="' + name + '"]');
+    return document.querySelector('#draftModeFull .draft-slot[data-slot="' + name + '"]');
+}
+
+function getConceptSlots() {
+    return Array.from(document.querySelectorAll('#conceptDraftBoard .concept-slot[data-concept-slot]'));
+}
+
+function getConceptSlotByName(name) {
+    return document.querySelector('#conceptDraftBoard .concept-slot[data-concept-slot="' + name + '"]');
+}
+
+function normalizeMode(value) {
+    return value === 'concept_one_sided' ? 'concept_one_sided' : 'full';
+}
+
+function getEffectiveMode() {
+    if (conceptModeContainer && conceptModeContainer.style.display !== 'none') {
+        return 'concept_one_sided';
+    }
+    return 'full';
+}
+
+function setDraftMode(mode) {
+    currentDraftMode = normalizeMode(mode);
+    const isFull = currentDraftMode === 'full';
+
+    if (fullModeContainer) {
+        fullModeContainer.style.display = isFull ? '' : 'none';
+    }
+    if (conceptModeContainer) {
+        conceptModeContainer.style.display = isFull ? 'none' : '';
+    }
+    if (rtToggleButton) {
+        rtToggleButton.style.display = isFull ? '' : 'none';
+    }
+    if (rtStartWrap) {
+        rtStartWrap.style.display = isFull && realTimeMode ? '' : 'none';
+    }
+
+    draftModeTabs.forEach(button => {
+        button.classList.toggle('tab-active', button.dataset.draftMode === currentDraftMode);
+    });
+
+    if (isFull) {
+        updateStepHighlight();
+        if (!realTimeMode && currentStep < DRAFT_ORDER.length && !activeSlot) {
+            activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
+        }
+        updateHeroAvailability();
+    } else {
+        if (activeSlot) {
+            activeSlot.classList.remove('slot-active');
+            activeSlot = null;
+        }
+        updateConceptActiveTarget();
+        updateHeroAvailability();
+    }
+
+    renderSavedDraftOptions();
 }
 
 function setSlotHero(slot, hero) {
@@ -264,7 +422,9 @@ function setSlotHero(slot, hero) {
             heroSub.textContent = '';
             heroSub.classList.remove('show');
         }
-        if (slotWrap) slotWrap.remove();
+        if (slotWrap) {
+            slotWrap.remove();
+        }
         slot.classList.remove('slot-filled');
         return;
     }
@@ -274,6 +434,7 @@ function setSlotHero(slot, hero) {
         heroSub.textContent = HERO_POOL_BY_NAME[value] || '';
         heroSub.classList.toggle('show', !!heroSub.textContent);
     }
+
     if (!slotWrap) {
         slotWrap = document.createElement('div');
         slotWrap.className = 'slot-img-wrap';
@@ -288,7 +449,9 @@ function setSlotHero(slot, hero) {
     slotImg.alt = value;
 
     const oldTag = slotWrap.querySelector('.pool-tag');
-    if (oldTag) oldTag.remove();
+    if (oldTag) {
+        oldTag.remove();
+    }
     const heroBtn = document.querySelector('.hero-pick-btn[data-hero="' + CSS.escape(value) + '"]');
     const poolTag = heroBtn ? heroBtn.querySelector('.pool-tag') : null;
     if (poolTag) {
@@ -298,10 +461,57 @@ function setSlotHero(slot, hero) {
     slot.classList.add('slot-filled');
 }
 
+function parseConceptOptions(rawValue) {
+    return String(rawValue || '')
+        .split('/')
+        .map(token => token.trim())
+        .filter(Boolean)
+        .slice(0, 2);
+}
+
+function setConceptSlotValue(slot, rawValue) {
+    const canonicalOptions = parseConceptOptions(rawValue);
+    const options = canonicalOptions.map(hero => HERO_DISPLAY_BY_NAME[hero] || hero);
+    const value = canonicalOptions.join('/');
+    const input = slot.querySelector('input');
+    const heroLabel = slot.querySelector('.slot-hero');
+
+    let optionsWrap = slot.querySelector('.concept-options');
+    if (!optionsWrap) {
+        optionsWrap = document.createElement('div');
+        optionsWrap.className = 'concept-options';
+        slot.insertBefore(optionsWrap, heroLabel);
+    }
+    optionsWrap.innerHTML = '';
+
+    canonicalOptions.forEach(hero => {
+        const imgWrap = document.createElement('span');
+        imgWrap.className = 'slot-img-wrap';
+        const img = document.createElement('img');
+        img.className = 'slot-img';
+        img.src = HERO_IMAGE_BY_NAME[hero] || '';
+        img.alt = hero;
+        imgWrap.appendChild(img);
+        optionsWrap.appendChild(imgWrap);
+    });
+
+    input.value = value;
+    heroLabel.textContent = options.join(' / ');
+    slot.classList.toggle('slot-filled', !!value);
+}
+
 function collectDraftSlots() {
     const slots = {};
-    document.querySelectorAll('.draft-slot').forEach(slot => {
+    getFullDraftSlots().forEach(slot => {
         slots[slot.dataset.slot] = (slot.querySelector('input').value || '').trim();
+    });
+    return slots;
+}
+
+function collectConceptSlots() {
+    const slots = {};
+    getConceptSlots().forEach(slot => {
+        slots[slot.dataset.conceptSlot] = (slot.querySelector('input').value || '').trim();
     });
     return slots;
 }
@@ -309,9 +519,8 @@ function collectDraftSlots() {
 function applyDraftSlots(slots) {
     resetDraft();
     const data = (slots && typeof slots === 'object') ? slots : {};
-    document.querySelectorAll('.draft-slot').forEach(slot => {
-        const hero = data[slot.dataset.slot] || '';
-        setSlotHero(slot, hero);
+    getFullDraftSlots().forEach(slot => {
+        setSlotHero(slot, data[slot.dataset.slot] || '');
     });
     recalcStep();
     if (!realTimeMode && currentStep < DRAFT_ORDER.length) {
@@ -321,22 +530,38 @@ function applyDraftSlots(slots) {
     }
 }
 
+function applyConceptSlots(slots) {
+    resetConceptDraft();
+    const data = (slots && typeof slots === 'object') ? slots : {};
+    getConceptSlots().forEach(slot => {
+        setConceptSlotValue(slot, data[slot.dataset.conceptSlot] || '');
+    });
+    updateConceptActiveTarget();
+}
+
 function showDraftStatus(message, isError) {
     const status = document.getElementById('draftSaveStatus');
-    if (!status) return;
+    if (!status) {
+        return;
+    }
     status.textContent = message || '';
     status.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+}
+
+function getVisibleSavedDrafts() {
+    return savedDrafts.filter(draft => normalizeMode(draft.mode) === currentDraftMode);
 }
 
 function renderSavedDraftOptions() {
     const select = document.getElementById('savedDraftSelect');
     const currentId = select.value;
+    const visibleDrafts = getVisibleSavedDrafts();
     select.innerHTML = '';
 
-    if (!savedDrafts.length) {
+    if (!visibleDrafts.length) {
         const emptyOpt = document.createElement('option');
         emptyOpt.value = '';
-        emptyOpt.textContent = 'No saved drafts';
+        emptyOpt.textContent = 'No saved drafts for this mode';
         select.appendChild(emptyOpt);
         return;
     }
@@ -346,7 +571,7 @@ function renderSavedDraftOptions() {
     placeholder.textContent = 'Select saved draft';
     select.appendChild(placeholder);
 
-    savedDrafts.forEach(draft => {
+    visibleDrafts.forEach(draft => {
         const option = document.createElement('option');
         option.value = String(draft.id);
         const seasonPart = draft.season ? ' [S' + draft.season + ']' : '';
@@ -354,7 +579,7 @@ function renderSavedDraftOptions() {
         select.appendChild(option);
     });
 
-    if (currentId && savedDrafts.some(d => String(d.id) === currentId)) {
+    if (currentId && visibleDrafts.some(draft => String(draft.id) === currentId)) {
         select.value = currentId;
     }
 }
@@ -371,10 +596,13 @@ async function loadSavedDrafts() {
 
     try {
         const response = await fetch('/api/teams/' + encodeURIComponent(teamId) + '/saved-drafts');
-        if (!response.ok) throw new Error('Could not load saved drafts.');
+        if (!response.ok) {
+            throw new Error('Could not load saved drafts.');
+        }
         savedDrafts = await response.json();
         renderSavedDraftOptions();
-        showDraftStatus('Loaded ' + savedDrafts.length + ' saved draft' + (savedDrafts.length === 1 ? '' : 's') + '.', false);
+        const visibleCount = getVisibleSavedDrafts().length;
+        showDraftStatus('Loaded ' + visibleCount + ' saved draft' + (visibleCount === 1 ? '' : 's') + ' for this mode.', false);
     } catch (_error) {
         showDraftStatus('Failed to load saved drafts for this team.', true);
     }
@@ -397,7 +625,9 @@ async function saveCurrentDraft() {
     const payload = {
         name,
         season,
+        mode: currentDraftMode,
         slots: collectDraftSlots(),
+        concept_slots: collectConceptSlots(),
     };
 
     try {
@@ -426,6 +656,7 @@ function loadSelectedDraft() {
         showDraftStatus('Select a saved draft first.', true);
         return;
     }
+
     const draft = savedDrafts.find(item => String(item.id) === String(selectedId));
     if (!draft) {
         showDraftStatus('Saved draft not found. Refreshing list.', true);
@@ -433,7 +664,14 @@ function loadSelectedDraft() {
         return;
     }
 
-    applyDraftSlots(draft.slots);
+    const draftMode = normalizeMode(draft.mode);
+    setDraftMode(draftMode);
+    if (draftMode === 'concept_one_sided') {
+        applyConceptSlots(draft.concept_slots || {});
+    } else {
+        applyDraftSlots(draft.slots || {});
+    }
+
     if (draft.season) {
         document.getElementById('draftSeasonInput').value = draft.season;
     }
@@ -468,87 +706,124 @@ async function deleteSelectedDraft() {
 
 function getTeamHeroes(team, type) {
     const heroes = [];
-    document.querySelectorAll('.draft-slot').forEach(slot => {
+    getFullDraftSlots().forEach(slot => {
         const name = slot.dataset.slot;
         if (name.startsWith(team + '_' + type)) {
             const val = slot.querySelector('input').value;
-            if (val) heroes.push(val);
+            if (val) {
+                heroes.push(val);
+            }
         }
     });
     return heroes;
 }
 
 function updateHeroAvailability() {
-    if (!activeSlot) {
-        document.querySelectorAll('.hero-pick-btn').forEach(b => {
-            b.disabled = false;
-            b.classList.remove('hero-disabled');
+    const heroButtons = document.querySelectorAll('.hero-pick-btn');
+    if (currentDraftMode !== 'full') {
+        heroButtons.forEach(button => {
+            button.disabled = false;
+            button.classList.remove('hero-disabled');
         });
         return;
     }
+
+    if (!activeSlot) {
+        heroButtons.forEach(button => {
+            button.disabled = false;
+            button.classList.remove('hero-disabled');
+        });
+        return;
+    }
+
     const slotName = activeSlot.dataset.slot;
     const slotTeam = slotName.startsWith('team1') ? 'team1' : 'team2';
     const slotType = slotName.includes('ban') ? 'ban' : 'protect';
     const otherTeam = slotTeam === 'team1' ? 'team2' : 'team1';
-
     const otherProtects = getTeamHeroes(otherTeam, 'protect');
     const teamBans = getTeamHeroes(slotTeam, 'ban');
-
     const otherBans = getTeamHeroes(otherTeam, 'ban');
 
-    document.querySelectorAll('.hero-pick-btn').forEach(btn => {
-        const hero = btn.dataset.hero;
+    heroButtons.forEach(button => {
+        const hero = button.dataset.hero;
         let blocked = false;
         if (slotType === 'ban') {
-            if (otherProtects.includes(hero)) blocked = true;
-            if (teamBans.includes(hero)) blocked = true;
+            if (otherProtects.includes(hero)) {
+                blocked = true;
+            }
+            if (teamBans.includes(hero)) {
+                blocked = true;
+            }
         } else if (slotType === 'protect') {
-            if (otherBans.includes(hero)) blocked = true;
+            if (otherBans.includes(hero)) {
+                blocked = true;
+            }
         }
-        btn.disabled = blocked;
-        btn.classList.toggle('hero-disabled', blocked);
+        button.disabled = blocked;
+        button.classList.toggle('hero-disabled', blocked);
     });
 }
 
 function updateStepHighlight() {
-    document.querySelectorAll('.draft-step').forEach(s => s.classList.remove('step-active', 'step-done'));
+    document.querySelectorAll('.draft-step').forEach(step => step.classList.remove('step-active', 'step-done'));
     for (let i = 0; i < currentStep && i < DRAFT_ORDER.length; i++) {
-        const stepEl = document.querySelector('.draft-step[data-step="' + i + '"]');
-        if (stepEl) stepEl.classList.add('step-done');
+        const stepElement = document.querySelector('.draft-step[data-step="' + i + '"]');
+        if (stepElement) {
+            stepElement.classList.add('step-done');
+        }
     }
     if (currentStep < DRAFT_ORDER.length) {
-        const stepEl = document.querySelector('.draft-step[data-step="' + currentStep + '"]');
-        if (stepEl) stepEl.classList.add('step-active');
+        const stepElement = document.querySelector('.draft-step[data-step="' + currentStep + '"]');
+        if (stepElement) {
+            stepElement.classList.add('step-active');
+        }
         if (realTimeMode) {
-            const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(currentStep));
+            const pair = SIMULTANEOUS_PAIRS.find(item => item.includes(currentStep));
             if (pair) {
                 pair.forEach(idx => {
-                    const pEl = document.querySelector('.draft-step[data-step="' + idx + '"]');
-                    if (pEl && !pEl.classList.contains('step-done')) pEl.classList.add('step-active');
+                    const pairElement = document.querySelector('.draft-step[data-step="' + idx + '"]');
+                    if (pairElement && !pairElement.classList.contains('step-done')) {
+                        pairElement.classList.add('step-active');
+                    }
                 });
             }
         }
     }
 }
 
-function activateSlot(el) {
-    if (delayActive) return;
-    if (realTimeMode && !draftStarted) return;
-    document.querySelectorAll('.draft-slot').forEach(s => s.classList.remove('slot-active'));
-    el.classList.add('slot-active');
-    activeSlot = el;
+function activateSlot(element) {
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode !== 'full') {
+        return;
+    }
+    if (!element || delayActive) {
+        return;
+    }
+    if (realTimeMode && !draftStarted) {
+        return;
+    }
+    getFullDraftSlots().forEach(slot => slot.classList.remove('slot-active'));
+    element.classList.add('slot-active');
+    activeSlot = element;
     updateHeroAvailability();
 }
 
-function clearSlot(el) {
-    if (delayActive) return;
-    if (realTimeMode && draftStarted) return;
-    el.querySelector('.slot-hero').textContent = '';
-    el.querySelector('input').value = '';
-    const slotWrap = el.querySelector('.slot-img-wrap');
-    if (slotWrap) slotWrap.remove();
-    el.classList.remove('slot-filled', 'slot-active');
-    if (activeSlot === el) activeSlot = null;
+function clearSlot(element) {
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode !== 'full') {
+        return;
+    }
+    if (!element || delayActive) {
+        return;
+    }
+    if (realTimeMode && draftStarted) {
+        return;
+    }
+    setSlotHero(element, '');
+    element.classList.remove('slot-active');
+    if (activeSlot === element) {
+        activeSlot = null;
+    }
     clearSimultaneousHighlight();
     recalcStep();
     updateHeroAvailability();
@@ -557,7 +832,7 @@ function clearSlot(el) {
 function recalcStep() {
     for (let i = 0; i < DRAFT_ORDER.length; i++) {
         const slot = getSlotByName(DRAFT_ORDER[i]);
-        if (!slot.querySelector('input').value) {
+        if (slot && !slot.querySelector('input').value) {
             currentStep = i;
             updateStepHighlight();
             return;
@@ -567,42 +842,150 @@ function recalcStep() {
     updateStepHighlight();
 }
 
-document.addEventListener('contextmenu', function(e) {
-    const slot = e.target.closest('.draft-slot');
-    if (slot) {
-        e.preventDefault();
-        clearSlot(slot);
+function getNextConceptSlot() {
+    for (const slotName of CONCEPT_ONE_SIDED_ORDER) {
+        const slot = getConceptSlotByName(slotName);
+        if (!slot) {
+            continue;
+        }
+        const value = (slot.querySelector('input')?.value || '').trim();
+        if (!value) {
+            return slot;
+        }
+    }
+    return getConceptSlotByName(CONCEPT_ONE_SIDED_ORDER[0]);
+}
+
+function updateConceptActiveTarget() {
+    if (currentDraftMode !== 'concept_one_sided') {
+        return;
+    }
+    const domActive = document.querySelector('#conceptDraftBoard .concept-slot.slot-active');
+    if (domActive) {
+        activeConceptSlot = domActive;
+        return;
+    }
+    if (activeConceptSlot && getConceptSlots().includes(activeConceptSlot)) {
+        return;
+    }
+    activateConceptSlot(getNextConceptSlot());
+}
+
+function activateConceptSlot(slot) {
+    currentDraftMode = getEffectiveMode();
+    if (!slot || currentDraftMode !== 'concept_one_sided') {
+        return;
+    }
+    getConceptSlots().forEach(item => item.classList.remove('slot-active'));
+    slot.classList.add('slot-active');
+    activeConceptSlot = slot;
+}
+
+function clearConceptSlot(slot) {
+    currentDraftMode = getEffectiveMode();
+    if (!slot) {
+        return;
+    }
+    setConceptSlotValue(slot, '');
+    if (activeConceptSlot === slot) {
+        activeConceptSlot = null;
+    }
+    updateConceptActiveTarget();
+}
+
+function pickHeroForConcept(button) {
+    const hero = (button.dataset.hero || '').trim();
+    if (!hero) {
+        return;
+    }
+
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode !== 'concept_one_sided') {
+        return;
+    }
+
+    let targetSlot = document.querySelector('#conceptDraftBoard .concept-slot.slot-active');
+    if (!targetSlot) {
+        targetSlot = getNextConceptSlot();
+        if (targetSlot) {
+            activateConceptSlot(targetSlot);
+        }
+    }
+    if (!targetSlot) {
+        return;
+    }
+    activeConceptSlot = targetSlot;
+
+    const input = targetSlot.querySelector('input');
+    const current = parseConceptOptions(input.value);
+    if (current.includes(hero)) {
+        return;
+    }
+    if (current.length < 2) {
+        current.push(hero);
+    } else {
+        current[1] = hero;
+    }
+    setConceptSlotValue(targetSlot, current.join('/'));
+
+    const currentSlotName = targetSlot.dataset.conceptSlot;
+    const currentIndex = CONCEPT_ONE_SIDED_ORDER.indexOf(currentSlotName);
+    if (currentIndex >= 0 && currentIndex < CONCEPT_ONE_SIDED_ORDER.length - 1) {
+        const nextSlot = getConceptSlotByName(CONCEPT_ONE_SIDED_ORDER[currentIndex + 1]);
+        if (nextSlot) {
+            activateConceptSlot(nextSlot);
+            return;
+        }
+    }
+    updateConceptActiveTarget();
+}
+
+document.addEventListener('contextmenu', function (event) {
+    const fullSlot = event.target.closest('#draftModeFull .draft-slot[data-slot]');
+    if (fullSlot && fullModeContainer && fullModeContainer.style.display !== 'none') {
+        event.preventDefault();
+        clearSlot(fullSlot);
+        return;
+    }
+
+    const conceptSlot = event.target.closest('#conceptDraftBoard .concept-slot[data-concept-slot]');
+    if (conceptSlot && conceptModeContainer && conceptModeContainer.style.display !== 'none') {
+        event.preventDefault();
+        clearConceptSlot(conceptSlot);
     }
 });
 
-/* ── Countdown display ── */
 function showCountdown(seconds, label) {
-    const el = document.getElementById('rt-countdown');
+    const element = document.getElementById('rt-countdown');
     countdownSeconds = seconds;
-    el.textContent = label + ' ' + countdownSeconds + 's';
-    el.classList.add('rt-countdown-visible');
-    if (countdownInterval) clearInterval(countdownInterval);
+    element.textContent = label + ' ' + countdownSeconds + 's';
+    element.classList.add('rt-countdown-visible');
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+    }
     countdownInterval = setInterval(() => {
         countdownSeconds--;
         if (countdownSeconds <= 0) {
             clearInterval(countdownInterval);
             countdownInterval = null;
-            el.textContent = '';
-            el.classList.remove('rt-countdown-visible');
+            element.textContent = '';
+            element.classList.remove('rt-countdown-visible');
         } else {
-            el.textContent = label + ' ' + countdownSeconds + 's';
+            element.textContent = label + ' ' + countdownSeconds + 's';
         }
     }, 1000);
 }
 
 function hideCountdown() {
-    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
-    const el = document.getElementById('rt-countdown');
-    el.textContent = '';
-    el.classList.remove('rt-countdown-visible');
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    const element = document.getElementById('rt-countdown');
+    element.textContent = '';
+    element.classList.remove('rt-countdown-visible');
 }
 
-/* ── Timer bar animation ── */
 function animateTimerBar(durationMs) {
     const fill = document.querySelector('.rt-timer-fill');
     const bar = document.querySelector('.rt-timer-bar');
@@ -622,7 +1005,6 @@ function hideTimerBar() {
     bar.classList.remove('rt-timer-active');
 }
 
-/* ── Pick timer (15s countdown to pick) ── */
 function startPickTimer() {
     clearPickTimer();
     animateTimerBar(PICK_TIME * 1000);
@@ -634,7 +1016,10 @@ function startPickTimer() {
 }
 
 function clearPickTimer() {
-    if (pickTimer) { clearTimeout(pickTimer); pickTimer = null; }
+    if (pickTimer) {
+        clearTimeout(pickTimer);
+        pickTimer = null;
+    }
     hideCountdown();
     hideTimerBar();
 }
@@ -646,11 +1031,11 @@ function onPickTimerExpired() {
         activeSlot.classList.remove('slot-active');
         activeSlot = null;
     }
-    const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(currentStep));
+    const pair = SIMULTANEOUS_PAIRS.find(item => item.includes(currentStep));
     if (pair) {
         pair.forEach(idx => {
             const slot = getSlotByName(DRAFT_ORDER[idx]);
-            if (!slot.querySelector('input').value) {
+            if (slot && !slot.querySelector('input').value) {
                 slot.querySelector('.slot-hero').textContent = 'Skipped';
                 slot.classList.add('slot-filled');
             }
@@ -658,7 +1043,7 @@ function onPickTimerExpired() {
         clearSimultaneousHighlight();
     } else {
         const slot = getSlotByName(DRAFT_ORDER[currentStep]);
-        if (!slot.querySelector('input').value) {
+        if (slot && !slot.querySelector('input').value) {
             slot.querySelector('.slot-hero').textContent = 'Skipped';
             slot.classList.add('slot-filled');
         }
@@ -671,16 +1056,20 @@ function onPickTimerExpired() {
     }
 }
 
-/* ── Transition delay (5s between picks) ── */
 function startTransition() {
     delayActive = true;
-    document.querySelector('.hero-picker').classList.add('picker-locked');
+    const fullPicker = document.querySelector('#draftModeFull .hero-picker');
+    if (fullPicker) {
+        fullPicker.classList.add('picker-locked');
+    }
     animateTimerBar(TRANSITION_TIME * 1000);
     showCountdown(TRANSITION_TIME, 'Next in');
     delayTimer = setTimeout(() => {
         delayTimer = null;
         delayActive = false;
-        document.querySelector('.hero-picker').classList.remove('picker-locked');
+        if (fullPicker) {
+            fullPicker.classList.remove('picker-locked');
+        }
         hideTimerBar();
         hideCountdown();
         if (currentStep < DRAFT_ORDER.length) {
@@ -689,10 +1078,11 @@ function startTransition() {
     }, TRANSITION_TIME * 1000);
 }
 
-/* ── Begin a step (activate slot + start timer) ── */
 function beginStep() {
-    const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(currentStep));
-    if (pair) highlightSimultaneousPair(pair);
+    const pair = SIMULTANEOUS_PAIRS.find(item => item.includes(currentStep));
+    if (pair) {
+        highlightSimultaneousPair(pair);
+    }
     activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
     startPickTimer();
 }
@@ -702,65 +1092,61 @@ function draftFinished() {
     hideCountdown();
     hideTimerBar();
     clearSimultaneousHighlight();
-    document.querySelector('.hero-picker').classList.remove('picker-locked');
-    document.getElementById('rt-start-wrap').style.display = '';
-    document.getElementById('rt-start-btn').textContent = 'Restart Draft';
+    const fullPicker = document.querySelector('#draftModeFull .hero-picker');
+    if (fullPicker) {
+        fullPicker.classList.remove('picker-locked');
+    }
+    if (rtStartWrap) {
+        rtStartWrap.style.display = '';
+    }
+    if (rtStartButton) {
+        rtStartButton.textContent = 'Restart Draft';
+    }
     updateHeroAvailability();
 }
 
-/* ── Hero pick ── */
-function pickHero(btn) {
-    if (delayActive) return;
-    if (realTimeMode && !draftStarted) return;
+function pickHero(button) {
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode === 'concept_one_sided') {
+        pickHeroForConcept(button);
+        return;
+    }
+
+    if (delayActive) {
+        return;
+    }
+    if (realTimeMode && !draftStarted) {
+        return;
+    }
 
     if (!activeSlot) {
         if (currentStep < DRAFT_ORDER.length) {
             activeSlot = getSlotByName(DRAFT_ORDER[currentStep]);
-            activeSlot.classList.add('slot-active');
+            if (activeSlot) {
+                activeSlot.classList.add('slot-active');
+            }
         } else {
             return;
         }
     }
+    if (!activeSlot) {
+        return;
+    }
 
-    const hero = btn.dataset.hero;
-    const img = btn.querySelector('img').src;
+    const hero = button.dataset.hero;
     const filledSlotName = activeSlot.dataset.slot;
-
-    activeSlot.querySelector('.slot-hero').textContent = hero;
-    activeSlot.querySelector('input').value = hero;
-
-    let slotWrap = activeSlot.querySelector('.slot-img-wrap');
-    if (!slotWrap) {
-        slotWrap = document.createElement('div');
-        slotWrap.className = 'slot-img-wrap';
-        const slotImg = document.createElement('img');
-        slotImg.className = 'slot-img';
-        slotWrap.appendChild(slotImg);
-        activeSlot.insertBefore(slotWrap, activeSlot.querySelector('.slot-hero'));
-    }
-    slotWrap.querySelector('.slot-img').src = img;
-    slotWrap.querySelector('.slot-img').alt = hero;
-
-    const oldTag = slotWrap.querySelector('.pool-tag');
-    if (oldTag) oldTag.remove();
-    const poolTag = btn.querySelector('.pool-tag');
-    if (poolTag) {
-        slotWrap.appendChild(poolTag.cloneNode(true));
-    }
-
+    setSlotHero(activeSlot, hero);
     activeSlot.classList.remove('slot-active');
-    activeSlot.classList.add('slot-filled');
     activeSlot = null;
-
     recalcStep();
 
     if (realTimeMode) {
         const filledIdx = DRAFT_ORDER.indexOf(filledSlotName);
-        const pair = SIMULTANEOUS_PAIRS.find(p => p.includes(filledIdx));
+        const pair = SIMULTANEOUS_PAIRS.find(item => item.includes(filledIdx));
         if (pair) {
             const partnerIdx = pair[0] === filledIdx ? pair[1] : pair[0];
             const partnerSlot = getSlotByName(DRAFT_ORDER[partnerIdx]);
-            if (!partnerSlot.querySelector('input').value) {
+            if (partnerSlot && !partnerSlot.querySelector('input').value) {
                 activateSlot(partnerSlot);
                 return;
             }
@@ -772,58 +1158,76 @@ function pickHero(btn) {
         } else {
             draftFinished();
         }
+    } else if (currentStep < DRAFT_ORDER.length) {
+        activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
     } else {
-        if (currentStep < DRAFT_ORDER.length) {
-            activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
-        } else {
-            updateHeroAvailability();
-        }
+        updateHeroAvailability();
     }
 }
 
-/* ── Toggle & Start ── */
 function toggleRealTime() {
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode !== 'full') {
+        return;
+    }
     realTimeMode = !realTimeMode;
-    const btn = document.getElementById('rt-toggle');
-    btn.classList.toggle('rt-active', realTimeMode);
-    btn.textContent = realTimeMode ? 'Real-Time: ON' : 'Real-Time: OFF';
-    document.getElementById('rt-start-wrap').style.display = realTimeMode ? '' : 'none';
-    document.getElementById('rt-start-btn').textContent = 'Start Draft';
+    if (rtToggleButton) {
+        rtToggleButton.classList.toggle('rt-active', realTimeMode);
+        rtToggleButton.textContent = realTimeMode ? 'Real-Time: ON' : 'Real-Time: OFF';
+    }
+    if (rtStartWrap) {
+        rtStartWrap.style.display = realTimeMode ? '' : 'none';
+    }
+    if (rtStartButton) {
+        rtStartButton.textContent = 'Start Draft';
+    }
     resetDraft();
 }
 
 function startDraft() {
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode !== 'full') {
+        return;
+    }
     resetDraft();
     draftStarted = true;
-    document.getElementById('rt-start-wrap').style.display = 'none';
+    if (rtStartWrap) {
+        rtStartWrap.style.display = 'none';
+    }
     beginStep();
 }
 
 function highlightSimultaneousPair(pair) {
     pair.forEach(idx => {
-        getSlotByName(DRAFT_ORDER[idx]).classList.add('slot-simultaneous');
+        const slot = getSlotByName(DRAFT_ORDER[idx]);
+        if (slot) {
+            slot.classList.add('slot-simultaneous');
+        }
     });
 }
 
 function clearSimultaneousHighlight() {
-    document.querySelectorAll('.slot-simultaneous').forEach(s => s.classList.remove('slot-simultaneous'));
+    document.querySelectorAll('#draftModeFull .slot-simultaneous').forEach(slot => slot.classList.remove('slot-simultaneous'));
 }
 
 function resetDraft() {
     clearPickTimer();
-    if (delayTimer) { clearTimeout(delayTimer); delayTimer = null; }
+    if (delayTimer) {
+        clearTimeout(delayTimer);
+        delayTimer = null;
+    }
     delayActive = false;
     draftStarted = false;
-    document.querySelector('.hero-picker').classList.remove('picker-locked');
+    const fullPicker = document.querySelector('#draftModeFull .hero-picker');
+    if (fullPicker) {
+        fullPicker.classList.remove('picker-locked');
+    }
     hideTimerBar();
     hideCountdown();
     clearSimultaneousHighlight();
-    document.querySelectorAll('.draft-slot').forEach(slot => {
-        slot.querySelector('.slot-hero').textContent = '';
-        slot.querySelector('input').value = '';
-        const wrap = slot.querySelector('.slot-img-wrap');
-        if (wrap) wrap.remove();
-        slot.classList.remove('slot-filled', 'slot-active');
+    getFullDraftSlots().forEach(slot => {
+        setSlotHero(slot, '');
+        slot.classList.remove('slot-active');
     });
     activeSlot = null;
     currentStep = 0;
@@ -833,10 +1237,44 @@ function resetDraft() {
     }
 }
 
-// Initialize
-document.getElementById('rt-start-wrap').style.display = 'none';
+function resetConceptDraft() {
+    getConceptSlots().forEach(slot => {
+        setConceptSlotValue(slot, '');
+        slot.classList.remove('slot-active');
+    });
+    activeConceptSlot = null;
+    updateConceptActiveTarget();
+}
+
+function resetActiveDraft() {
+    currentDraftMode = getEffectiveMode();
+    if (currentDraftMode === 'concept_one_sided') {
+        resetConceptDraft();
+    } else {
+        resetDraft();
+    }
+}
+
+getConceptSlots().forEach(slot => {
+    slot.setAttribute('onclick', 'activateConceptSlot(this)');
+    slot.addEventListener('click', function () {
+        activateConceptSlot(slot);
+    });
+});
+
+draftModeTabs.forEach(button => {
+    button.addEventListener('click', function () {
+        setDraftMode(button.dataset.draftMode || 'full');
+    });
+});
+
+if (rtStartWrap) {
+    rtStartWrap.style.display = 'none';
+}
 updateStepHighlight();
 activateSlot(getSlotByName(DRAFT_ORDER[0]));
+updateConceptActiveTarget();
+setDraftMode('full');
 
 document.getElementById('draftTeamSelect').addEventListener('change', loadSavedDrafts);
 document.getElementById('saveDraftBtn').addEventListener('click', saveCurrentDraft);

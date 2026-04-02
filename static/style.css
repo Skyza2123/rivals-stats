@@ -1209,6 +1209,36 @@ th {
     background: rgba(255, 255, 255, 0.08);
 }
 
+.concept-slots-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.concept-slot-opponent {
+    border-style: dashed;
+    border-color: rgba(248, 113, 113, 0.45);
+    background: rgba(248, 113, 113, 0.08);
+}
+
+.concept-slot .slot-hero {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.concept-options {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
 .slot-img-wrap {
     position: relative;
     display: inline-block;
