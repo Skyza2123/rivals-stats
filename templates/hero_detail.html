@@ -32,8 +32,8 @@
             <span>{{ hero_insights.summary.win_rate }}%</span>
         </section>
         <section class="stat-card">
-            <strong>Maps With Hero</strong>
-            <span>{{ hero_insights.summary.sections_played }}</span>
+            <strong>Hero Instances</strong>
+            <span>{{ hero_insights.summary.hero_instances }}</span>
         </section>
         <section class="stat-card">
             <strong>Unique Allies</strong>
@@ -60,7 +60,7 @@
                                 <span class="hero-usage-bar-wrap">
                                     <span class="hero-usage-bar" data-width="{{ width }}"></span>
                                 </span>
-                                <span class="hero-usage-meta">{{ row.count }} sections • {{ row.win_rate }}%</span>
+                                <span class="hero-usage-meta">{{ row.count }} instances • {{ row.win_rate }}%</span>
                             </div>
                         {% endfor %}
                     </div>
@@ -84,7 +84,7 @@
                                 <span class="hero-usage-bar-wrap">
                                     <span class="hero-usage-bar" data-width="{{ width }}"></span>
                                 </span>
-                                <span class="hero-usage-meta">{{ row.count }} maps • {{ row.win_rate }}%</span>
+                                <span class="hero-usage-meta">{{ row.count }} instances • {{ row.win_rate }}%</span>
                             </div>
                         {% endfor %}
                     </div>

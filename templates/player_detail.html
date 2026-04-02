@@ -5,13 +5,17 @@
 {% block content %}
 <div class="team-hero">
     <div class="team-hero-left">
-        <img class="team-avatar" src="https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=140" alt="{{ player.name }}">
+        {% if player_insights.primary_hero %}
+            <img class="team-avatar" src="{{ hero_image_url(player_insights.primary_hero.hero) }}" alt="{{ player_insights.primary_hero.hero }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=140'">
+        {% else %}
+            <img class="team-avatar" src="https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=140" alt="{{ player.name }}">
+        {% endif %}
         <div>
             <h2>{{ player.name }}</h2>
             <p class="team-record-line">
                 {{ team.name }}
                 &bull; {{ player.role or 'Role not set' }}
-                {% if player.main_hero %}&bull; Main Hero: {{ player.main_hero }}{% endif %}
+                {% if player_insights.primary_hero %}&bull; Most Played: {{ hero_display_name(player_insights.primary_hero.hero) }}{% endif %}
             </p>
             <p>
                 {{ player.notes or 'No notes yet.' }}
@@ -37,11 +41,55 @@
 <section class="panel">
     <div class="summary-grid">
         <section class="stat-card"><strong>Maps</strong><span>{{ player_stats.maps_played }}</span></section>
+        <section class="stat-card"><strong>Decided</strong><span>{{ player_stats.decided_maps }}</span></section>
+        <section class="stat-card"><strong>ND</strong><span>{{ player_stats.unresolved_maps }}</span></section>
         <section class="stat-card"><strong>Wins</strong><span>{{ player_stats.wins }}</span></section>
         <section class="stat-card"><strong>Losses</strong><span>{{ player_stats.losses }}</span></section>
         <section class="stat-card"><strong>Win Rate</strong><span>{{ player_stats.win_rate }}%</span></section>
         <section class="stat-card"><strong>Event Mentions</strong><span>{{ player_stats.events_mentioned }}</span></section>
+        <section class="stat-card"><strong>Unique Heroes</strong><span>{{ player_insights.unique_heroes }}</span></section>
+        <section class="stat-card"><strong>Most Played Hero</strong><span>{{ hero_display_name(player_insights.primary_hero.hero) if player_insights.primary_hero else '—' }}</span></section>
+        <section class="stat-card"><strong>Round/Submap Swaps</strong><span>{{ player_swap_summary.swap_count }}</span></section>
+        <section class="stat-card"><strong>Swap Rate</strong><span>{{ player_swap_summary.swap_rate }}%</span></section>
+        <section class="stat-card"><strong>Best Map</strong><span>{{ player_insights.best_map.map_name if player_insights.best_map else '—' }}</span></section>
+        <section class="stat-card"><strong>Worst Map</strong><span>{{ player_insights.worst_map.map_name if player_insights.worst_map else '—' }}</span></section>
     </div>
+</section>
+
+<section class="panel panel-soft-green top-gap">
+    <h3>Round / Submap Swaps</h3>
+    {% if player_swap_summary.transition_count %}
+        <p class="panel-intro">Tracked {{ player_swap_summary.transition_count }} round-to-round transitions where this player appeared. Swap rate: <strong>{{ player_swap_summary.swap_rate }}%</strong>.</p>
+    {% else %}
+        <p class="panel-intro">No multi-round/submap transitions recorded yet for this player.</p>
+    {% endif %}
+
+    {% if player_swap_summary.swap_events %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Map</th>
+                        <th>Transition</th>
+                        <th>From Heroes</th>
+                        <th>To Heroes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in player_swap_summary.swap_events %}
+                        <tr>
+                            <td>{{ row.scrim_date or '—' }}</td>
+                            <td>{{ row.map_name or '—' }}</td>
+                            <td>{{ row.from_label }} → {{ row.to_label }}</td>
+                            <td>{{ row.from_heroes | join(', ') if row.from_heroes else '—' }}</td>
+                            <td>{{ row.to_heroes | join(', ') if row.to_heroes else '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
 </section>
 
 <section class="panel panel-soft-blue top-gap">
@@ -52,7 +100,7 @@
                 <thead>
                     <tr>
                         <th>Hero</th>
-                        <th>Maps</th>
+                        <th>Instances</th>
                         <th>Record</th>
                         <th>Win Rate</th>
                     </tr>
@@ -108,6 +156,38 @@
         </div>
     {% else %}
         <p class="empty-text">No map data for this player yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel top-gap">
+    <h3>Recent Map Appearances</h3>
+    {% if player_recent_maps %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Map</th>
+                        <th>Opponent</th>
+                        <th>Result</th>
+                        <th>Heroes Used</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in player_recent_maps %}
+                        <tr>
+                            <td>{{ row.scrim_date or '—' }}</td>
+                            <td>{{ row.map_name or '—' }}</td>
+                            <td>{{ row.opponent or '—' }}</td>
+                            <td>{{ row.result or '—' }}</td>
+                            <td>{{ row.heroes | join(', ') if row.heroes else '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No recent map appearances found.</p>
     {% endif %}
 </section>
 {% endblock %}

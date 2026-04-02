@@ -29,8 +29,8 @@
                 <thead>
                     <tr>
                         <th>Hero</th>
-                        <th>Maps Used</th>
-                        <th>Pick Rate</th>
+                        <th>Instances</th>
+                        <th>Usage Share</th>
                         <th>Win Rate When Used</th>
                     </tr>
                 </thead>
@@ -43,7 +43,7 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
-                            <td>{{ row.maps }}</td>
+                            <td>{{ row.appearances }}</td>
                             <td>{{ row.play_rate }}%</td>
                             <td>{{ row.win_rate }}%</td>
                         </tr>
@@ -65,8 +65,8 @@
                 <thead>
                     <tr>
                         <th>Hero</th>
-                        <th>Maps Used</th>
-                        <th>Pick Rate</th>
+                        <th>Instances</th>
+                        <th>Usage Share</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -78,7 +78,7 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
-                            <td>{{ row.maps }}</td>
+                            <td>{{ row.appearances }}</td>
                             <td>{{ row.play_rate }}%</td>
                         </tr>
                     {% endfor %}

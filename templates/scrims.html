@@ -37,7 +37,7 @@
             {% if selected_season == 'all' and not selected_team_id %}
                 Showing all <strong>{{ scrims|length }}</strong> scrims
             {% else %}
-                <strong style="color: var(--accent-color, #0066cc);">{{ scrims|length }} of {{ total_scrim_count }}</strong> scrims
+                <strong>{{ scrims|length }} of {{ total_scrim_count }}</strong> scrims
                 {%- if selected_team_id -%}
                     {%- for team in teams -%}
                         {%- if team.id|string == selected_team_id %} &bull; {{ team.name }}{%- endif -%}

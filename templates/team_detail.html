@@ -42,6 +42,10 @@
             <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
             <button type="submit" class="button-secondary">Manual Save</button>
         </form>
+        <form method="post" action="{{ url_for('db_dump_json') }}">
+            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
+            <button type="submit" class="button-secondary">DB Dump JSON</button>
+        </form>
         <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
             <button type="submit" class="button-secondary">Delete Team</button>
         </form>
@@ -63,7 +67,7 @@
     <section class="panel">
         <div class="section-kicker">Ban/Protect Deep Dive</div>
         <h3>{{ team.name }} Ban & Protect Stats</h3>
-        <p class="panel-intro">Draft flow, target priorities, and where your team differs from the enemy in ban behavior.</p>
+        <p class="panel-intro">Draft flow, target priorities, and where your team differs from opponents in ban behavior.</p>
         <p class="panel-intro">
             Phase order: 1st Phase (each team bans once and protects once), 2nd Phase (each team takes two uninterrupted bans), 3rd Phase (each team protects, then takes one final ban).
         </p>
@@ -214,7 +218,7 @@
             <div class="form-grid top-gap">
                 <div class="panel panel-soft-blue">
                     <div class="section-kicker">Draft Flow</div>
-                    <h3>When Main Team Bans, Enemy Is Likely To Ban</h3>
+                    <h3>When This Team Bans, Opponent Is Likely To Ban</h3>
                     {% if team_analytics.ban_next_rows %}
                         <div class="draft-flow-stack">
                             {% for row in team_analytics.ban_next_rows %}
@@ -390,11 +394,11 @@
                                 <div class="ban-position-analysis">
                                     {% if slot.insight_hero %}
                                         {% if slot.insight_state == 'more' %}
-                                            Main team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the enemy team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                            This team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the opponent ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
                                         {% elif slot.insight_state == 'less' %}
-                                            Main team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the enemy team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                            This team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the opponent ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
                                         {% else %}
-                                            Main team and enemy team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
+                                            This team and the opponent use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
                                         {% endif %}
                                     {% else %}
                                         No comparison insight yet for this slot.
@@ -422,8 +426,8 @@
 
                 <div class="panel panel-soft-gold">
                     <div class="section-kicker">Ban Phase</div>
-                    <h3>Enemy Team Ban Positions</h3>
-                    <p class="panel-intro">Compare the enemy side's preferred heroes at each point in the ban phase.</p>
+                    <h3>Opponent Ban Positions</h3>
+                    <p class="panel-intro">Compare the opponent's preferred heroes at each point in the ban phase.</p>
                     <p class="panel-intro">
                         {{ team_analytics.ban_phase_variation.enemy.message }}
                         <span class="insight-tags">
@@ -457,11 +461,11 @@
                                 <div class="ban-position-analysis">
                                     {% if slot.insight_hero %}
                                         {% if slot.insight_state == 'more' %}
-                                            Enemy team is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the main team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                            Opponent is <strong>more likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than this team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
                                         {% elif slot.insight_state == 'less' %}
-                                            Enemy team is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than the main team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
+                                            Opponent is <strong>less likely</strong> to use {{ slot.slot_label }} on {{ slot.insight_hero }} than this team ({{ slot.insight_rate }}% vs {{ slot.insight_compare_rate }}%).
                                         {% else %}
-                                            Enemy team and main team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
+                                            Opponent and this team use {{ slot.slot_label }} on {{ slot.insight_hero }} at a similar rate ({{ slot.insight_rate }}%).
                                         {% endif %}
                                     {% else %}
                                         No comparison insight yet for this slot.
@@ -578,15 +582,15 @@
             <div class="panel panel-soft-violet top-gap">
                 <div class="section-kicker">Comparison</div>
                 <h3>Ban Difference</h3>
-                <p class="panel-intro">Quickly spot which heroes the main team targets more often versus which ones the enemy team removes first.</p>
+                <p class="panel-intro">Quickly spot which heroes this team targets more often versus which ones the opponent removes first.</p>
                 {% if team_analytics.ban_diff_rows %}
                     <div class="table-wrap">
                         <table class="stats-table stats-table-compare">
                             <thead>
                                 <tr>
                                     <th>Hero</th>
-                                    <th>Main Team Ban</th>
-                                    <th>Enemy Team Ban</th>
+                                    <th>This Team Ban</th>
+                                    <th>Opponent Ban</th>
                                     <th>Diff</th>
                                     <th>Edge</th>
                                 </tr>
@@ -607,7 +611,7 @@
                                             {% if row.rate_diff > 0 %}
                                                 <span class="compare-tag compare-tag-positive">Main team bans more</span>
                                             {% elif row.rate_diff < 0 %}
-                                                <span class="compare-tag compare-tag-negative">Enemy team bans more</span>
+                                                <span class="compare-tag compare-tag-negative">Opponent bans more</span>
                                             {% else %}
                                                 <span class="compare-tag compare-tag-neutral">Even</span>
                                             {% endif %}
@@ -628,6 +632,10 @@
 </div>
 
 <div class="tab-content" id="tab-prep">
+    <div id="teamPrepContent">
+        {% include '_team_prep_content.html' %}
+    </div>
+
     <section class="panel">
         <div class="section-kicker">Draft Overview</div>
         <h3>{{ team.name }} Quick Draft Snapshot</h3>
@@ -652,108 +660,6 @@
         </div>
     </section>
 
-    <section class="panel panel-soft-blue top-gap">
-        <div class="section-kicker">Open Hero Impact</div>
-        <h3>When Heroes Are Open, Do We Play Them?</h3>
-        <p class="panel-intro">Open means the enemy did not ban that hero on the map. This compares play rate and win-rate outcomes when open vs banned.</p>
-        {% if team_analytics.hero_open_rows %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Hero</th>
-                            <th>Open Maps</th>
-                            <th>Played If Open</th>
-                            <th>Play Rate (Open)</th>
-                            <th>WR Open + Played</th>
-                            <th>WR Open + Not Played</th>
-                            <th>Played - Not Played</th>
-                            <th>Banned Maps</th>
-                            <th>WR When Banned</th>
-                            <th>WR When Open</th>
-                            <th>Open - Banned</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in team_analytics.hero_open_rows %}
-                            <tr>
-                                <td>
-                                    <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                        <span>{{ hero_display_name(row.hero) }}</span>
-                                    </span>
-                                </td>
-                                <td>{{ row.open_maps }}</td>
-                                <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
-                                <td>
-                                    <span class="metric-text {% if row.play_when_open_rate >= 60 %}metric-good{% elif row.play_when_open_rate >= 40 %}metric-warn{% else %}metric-bad{% endif %}">
-                                        {{ row.play_when_open_rate }}%
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if row.played_when_open %}
-                                        <span class="metric-text {% if row.win_rate_when_open_played >= 55 %}metric-good{% elif row.win_rate_when_open_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                            {{ row.win_rate_when_open_played }}%
-                                        </span>
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if row.not_played_when_open %}
-                                        <span class="metric-text {% if row.win_rate_when_open_not_played >= 55 %}metric-good{% elif row.win_rate_when_open_not_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                            {{ row.win_rate_when_open_not_played }}%
-                                        </span>
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if row.played_vs_not_played_open_delta is not none %}
-                                        <span class="metric-text {% if row.played_vs_not_played_open_delta > 1 %}metric-good{% elif row.played_vs_not_played_open_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
-                                            {% if row.played_vs_not_played_open_delta > 0 %}+{% endif %}{{ row.played_vs_not_played_open_delta }}%
-                                        </span>
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                                <td>{{ row.banned_maps }}</td>
-                                <td>
-                                    {% if row.banned_maps %}
-                                        <span class="metric-text {% if row.win_rate_when_banned >= 55 %}metric-good{% elif row.win_rate_when_banned >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                            {{ row.win_rate_when_banned }}%
-                                        </span>
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="metric-text {% if row.win_rate_when_open >= 55 %}metric-good{% elif row.win_rate_when_open >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                        {{ row.win_rate_when_open }}%
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if row.open_vs_banned_delta is not none %}
-                                        <span class="metric-text {% if row.open_vs_banned_delta > 1 %}metric-good{% elif row.open_vs_banned_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
-                                            {% if row.open_vs_banned_delta > 0 %}+{% endif %}{{ row.open_vs_banned_delta }}%
-                                        </span>
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="empty-text">Not enough draft data to calculate open hero rates yet.</p>
-        {% endif %}
-    </section>
-
-    <div id="teamPrepContent">
-        {% include '_team_prep_content.html' %}
-    </div>
 </div>
 
 <div class="tab-content tab-hidden" id="tab-simulator">
@@ -1354,7 +1260,7 @@
             </span>
         </p>
         <p class="panel-intro top-gap">
-            Triple Support Prevalence: Main Team {{ team_analytics.comp_difference.triple_support_rate }}% ({{ team_analytics.comp_difference.triple_support_count }} maps) vs Enemy Team {{ team_analytics.comp_difference.enemy_triple_support_rate }}% ({{ team_analytics.comp_difference.enemy_triple_support_count }} maps)
+            Triple Support Prevalence: This Team {{ team_analytics.comp_difference.triple_support_rate }}% ({{ team_analytics.comp_difference.triple_support_count }} maps) vs Opponent {{ team_analytics.comp_difference.enemy_triple_support_rate }}% ({{ team_analytics.comp_difference.enemy_triple_support_count }} maps)
             <span class="comp-diff-tags">
             {% if team_analytics.comp_difference.triple_support_prevalence_diff > 0 %}
                 <span class="compare-tag compare-tag-positive">Main +{{ team_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
@@ -1373,13 +1279,14 @@
     <section class="panel panel-soft-gold">
         <div class="section-kicker">Hero Profile</div>
         <h3>{{ team.name }} Hero Identity</h3>
-        <p class="panel-intro">Effective Pool counts heroes played on at least {{ team_hero_profile.summary.effective_pool_threshold }} map{% if team_hero_profile.summary.effective_pool_threshold != 1 %}s{% endif %}. Diversity Score is a 0-100 spread score based on how evenly the team distributes hero usage.</p>
+        <p class="panel-intro">Effective Pool counts heroes with at least {{ team_hero_profile.summary.effective_pool_threshold }} recorded instance{% if team_hero_profile.summary.effective_pool_threshold != 1 %}s{% endif %}. Diversity Score is a 0-100 spread score based on how evenly the team distributes hero usage.</p>
         <div class="summary-grid top-gap">
             <section class="stat-card"><strong>Total Heroes</strong><span>{{ team_hero_profile.summary.total_heroes }}</span></section>
             <section class="stat-card"><strong>Effective Pool</strong><span>{{ team_hero_profile.summary.effective_pool }}</span></section>
             <section class="stat-card"><strong>Diversity Score</strong><span>{{ team_hero_profile.summary.diversity_score }}</span></section>
             <section class="stat-card"><strong>Specialists</strong><span>{{ team_hero_profile.summary.specialist_count }}</span></section>
             <section class="stat-card"><strong>Tracked Maps</strong><span>{{ team_hero_profile.summary.tracked_maps }}</span></section>
+            <section class="stat-card"><strong>Hero Instances</strong><span>{{ team_hero_profile.summary.total_instances }}</span></section>
             <section class="stat-card"><strong>Most Played</strong><span>{% if team_hero_profile.top_heroes %}{{ hero_display_name(team_hero_profile.top_heroes[0].hero) }}{% else %}--{% endif %}</span></section>
         </div>
     </section>
@@ -1387,7 +1294,7 @@
     <section class="panel top-gap">
         <div class="section-kicker">Specialists</div>
         <h3>Specialists</h3>
-        <p class="panel-intro">Players are flagged here when one hero or hero pair dominates their recorded map usage.</p>
+        <p class="panel-intro">Players are flagged here when one hero or hero pair dominates their recorded hero-instance usage.</p>
         {% if team_hero_profile.specialists %}
             <div class="specialist-grid top-gap">
                 {% for row in team_hero_profile.specialists %}
@@ -1397,7 +1304,7 @@
                                 <h4>{% if row.player_id %}<a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">{{ row.player_name }}</a>{% else %}{{ row.player_name }}{% endif %}</h4>
                                 {% if row.role %}<span class="specialist-role">{{ row.role }}</span>{% endif %}
                             </div>
-                            <span class="compare-tag compare-tag-neutral">{{ row.maps }} maps</span>
+                            <span class="compare-tag compare-tag-neutral">{{ row.appearances }} instances</span>
                         </div>
                         <div class="specialist-focus top-gap">
                             <span class="hero-inline-cell">
@@ -1406,7 +1313,7 @@
                             </span>
                             <span class="compare-tag compare-tag-positive">{{ row.focus_rate }}%</span>
                         </div>
-                        <p class="panel-intro top-gap">Top two heroes cover {{ row.top_two_rate }}% of recorded maps. {{ row.unique_heroes }} unique heroes tracked.</p>
+                        <p class="panel-intro top-gap">Top two heroes cover {{ row.top_two_rate }}% of recorded instances. {{ row.unique_heroes }} unique heroes tracked.</p>
                         <div class="specialist-hero-list">
                             {% for hero_row in row.hero_rows %}
                                 <span class="specialist-hero-pill">
@@ -1426,8 +1333,8 @@
 
     <section class="panel top-gap">
         <div class="section-kicker">Heatmap</div>
-        <h3>Hero Pickrate Heatmap</h3>
-        <p class="panel-intro">Rows are players. Columns are the 15 most-played heroes across the team. Each cell shows how often that player appeared on the hero across their recorded maps.</p>
+        <h3>Hero Usage Heatmap</h3>
+        <p class="panel-intro">Rows are players. Columns are the 15 most-played heroes across the team. Each cell shows how often that player appeared on the hero across their recorded hero instances.</p>
         {% if team_hero_profile.heatmap_columns and team_hero_profile.heatmap_rows %}
             <div class="table-wrap matrix-table-wrap top-gap">
                 <table class="stats-table stats-table-compare hero-heatmap-table">
@@ -1455,7 +1362,7 @@
                                         {% if cell.count %}
                                             <div class="hero-heatmap-stat">
                                                 <strong>{{ cell.rate }}%</strong>
-                                                <span>{{ cell.count }} map{% if cell.count != 1 %}s{% endif %}</span>
+                                                <span>{{ cell.count }} instance{% if cell.count != 1 %}s{% endif %}</span>
                                                 <small>WR {{ cell.win_rate }}%</small>
                                             </div>
                                         {% else %}
@@ -1477,10 +1384,10 @@
         <div class="section-kicker">Usage</div>
         <h3>Top 15 Most Played Heroes Across The Team</h3>
         {% if hero_graph_rows %}
-            {% set usage_max = hero_graph_rows[0].maps %}
+            {% set usage_max = hero_graph_rows[0].appearances %}
             <div class="hero-usage-list top-gap">
                 {% for row in hero_graph_rows %}
-                    {% set width = ((row.maps / usage_max) * 100) if usage_max else 0 %}
+                    {% set width = ((row.appearances / usage_max) * 100) if usage_max else 0 %}
                     <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season) }}">
                         <span class="hero-usage-name">
                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
@@ -1489,7 +1396,7 @@
                         <span class="hero-usage-bar-wrap">
                             <span class="hero-usage-bar" data-width="{{ width }}"></span>
                         </span>
-                        <span class="hero-usage-meta">{{ row.maps }} maps • {{ row.usage_rate }}% pick rate • {{ row.win_rate }}% WR</span>
+                        <span class="hero-usage-meta">{{ row.appearances }} instances • {{ row.usage_rate }}% usage share • {{ row.win_rate }}% WR</span>
                     </a>
                 {% endfor %}
             </div>
@@ -1849,12 +1756,13 @@
                     <thead>
                         <tr>
                             <th>Player</th>
+                            <th>Top Hero</th>
                             <th>Status</th>
                             <th>Role</th>
-                            <th>Main Hero</th>
                             <th>Maps</th>
                             <th>W</th>
                             <th>L</th>
+                            <th>ND</th>
                             <th>Win %</th>
                             <th>Event Mentions</th>
                             <th>Actions</th>
@@ -1866,12 +1774,22 @@
                                 <td>
                                     <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season) }}">{{ player.name }}</a>
                                 </td>
+                                <td>
+                                    {% if player.top_hero %}
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(player.top_hero) }}" alt="{{ player.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ player.top_hero | urlencode }}'">
+                                            <span>{{ hero_display_name(player.top_hero) }}</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="empty-text">—</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ 'Sub' if player.is_sub else 'Main' }}</td>
                                 <td>{{ player.role or '-' }}</td>
-                                <td>{{ player.main_hero or '-' }}</td>
                                 <td>{{ player.stats.maps_played }}</td>
                                 <td>{{ player.stats.wins }}</td>
                                 <td>{{ player.stats.losses }}</td>
+                                <td>{{ player.stats.unresolved_maps }}</td>
                                 <td>{{ player.stats.win_rate }}%</td>
                                 <td>{{ player.stats.events_mentioned }}</td>
                                 <td>
@@ -1883,7 +1801,6 @@
                                             data-player-name="{{ player.name }}"
                                             data-player-role="{{ player.role }}"
                                             data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
-                                            data-player-hero="{{ player.main_hero }}"
                                             data-player-notes="{{ player.notes }}"
                                         >
                                             Edit
@@ -1897,7 +1814,12 @@
                             </tr>
                             {% if player.notes %}
                                 <tr class="notes-row">
-                                    <td colspan="10"><strong>Notes:</strong> {{ player.notes }}</td>
+                                    <td colspan="11"><strong>Notes:</strong> {{ player.notes }}</td>
+                                </tr>
+                            {% endif %}
+                            {% if player.stats.unresolved_maps %}
+                                <tr class="notes-row">
+                                    <td colspan="11"><strong>Pending:</strong> {{ player.stats.unresolved_maps }} map{% if player.stats.unresolved_maps != 1 %}s{% endif %} without final result.</td>
                                 </tr>
                             {% endif %}
                         {% endfor %}
@@ -1951,10 +1873,6 @@
                     </select>
                 </div>
                 <div class="field">
-                    <label for="add_player_hero">Main Hero</label>
-                    <input id="add_player_hero" name="main_hero" type="text" placeholder="Optional main hero">
-                </div>
-                <div class="field">
                     <label for="add_player_notes">Notes</label>
                     <input id="add_player_notes" name="notes" type="text" placeholder="Optional notes">
                 </div>
@@ -1978,7 +1896,6 @@
                                         data-player-name="{{ player.name }}"
                                         data-player-role="{{ player.role }}"
                                         data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
-                                        data-player-hero="{{ player.main_hero }}"
                                         data-player-notes="{{ player.notes }}"
                                     >
                                         {{ player.name }}
@@ -2007,10 +1924,6 @@
                                     <option value="{{ role }}">{{ role }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div class="field">
-                            <label for="edit_player_hero">Main Hero</label>
-                            <input id="edit_player_hero" name="main_hero" type="text">
                         </div>
                         <div class="field field-full">
                             <label for="edit_player_notes">Notes</label>
@@ -2138,7 +2051,6 @@
     const editName = document.getElementById("edit_player_name");
     const editRole = document.getElementById("edit_player_role");
     const editIsSub = document.getElementById("edit_player_is_sub");
-    const editHero = document.getElementById("edit_player_hero");
     const editNotes = document.getElementById("edit_player_notes");
     const editCurrent = document.getElementById("editPlayerCurrent");
     const quickEditButtons = document.querySelectorAll(".open-edit-player");
@@ -2180,7 +2092,6 @@
             editName.value = "";
             editRole.value = "";
             editIsSub.checked = false;
-            editHero.value = "";
             editNotes.value = "";
             setEditFormState(false, "No player selected");
             return;
@@ -2189,7 +2100,6 @@
         editName.value = player.name || "";
         editRole.value = player.role || "";
         editIsSub.checked = Boolean(Number(player.isSub || 0));
-        editHero.value = player.hero || "";
         editNotes.value = player.notes || "";
         editSelect.value = String(player.id);
         const statusLabel = editIsSub.checked ? "Sub" : "Main";

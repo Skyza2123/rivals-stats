@@ -126,37 +126,25 @@
         <div class="map-card-grid">
             {% for map_entry in scrim.maps %}
                 <div class="map-card-wrap">
-                    {% set map_score_pair = split_score_pair(map_entry.score or '') %}
-                    {% set map_team1_score = map_score_pair[0] | trim %}
-                    {% set map_team2_score = map_score_pair[1] | trim %}
-                    {% set map_winner_label = 'Not Set' %}
-                    {% if map_team1_score.isdigit() and map_team2_score.isdigit() %}
-                        {% if (map_team1_score | int) > (map_team2_score | int) %}
-                            {% set map_winner_label = map_entry.team1_name or 'Team 1' %}
-                        {% elif (map_team2_score | int) > (map_team1_score | int) %}
-                            {% set map_winner_label = map_entry.team2_name or 'Team 2' %}
-                        {% else %}
-                            {% set map_winner_label = 'Tie' %}
-                        {% endif %}
-                    {% endif %}
+                    {% set map_team1_score = map_entry.get('participant_one_score', '') | trim %}
+                    {% set map_team2_score = map_entry.get('participant_two_score', '') | trim %}
+                    {% set map_winner_label = map_entry.get('participant_winner_label', 'Not Set') %}
                     <a class="map-card" href="{{ url_for(map_detail_endpoint, tournament_id=scrim.id, scrim_id=scrim.id, map_id=map_entry.id) }}"
                        {% if map_entry.map_name in map_images %}
                        style="background-image: url('https://marvelrivalsapi.com/rivals{{ map_images[map_entry.map_name] }}');"
                        {% endif %}>
                         <div class="map-card-overlay">
                             <div class="map-card-top">
-                                <div class="pill {{ 'pill-win' if map_winner_label == (map_entry.team1_name or 'Team 1') else ('pill-loss' if map_winner_label == (map_entry.team2_name or 'Team 2') else '') }}">
+                                <div class="pill pill-neutral">
                                     Winner: {{ map_winner_label }}
                                 </div>
                             </div>
                             <div class="map-card-bottom">
                                 <div class="map-card-title">{{ map_entry.map_name }}</div>
                                 <div class="map-card-sub">
-                                    {% if map_entry.team1_name or map_entry.team2_name %}
-                                        {{ map_entry.team1_name or 'Team 1' }} vs {{ map_entry.team2_name or 'Team 2' }} &bull;
-                                    {% endif %}
+                                    {{ participant_one_label }} vs {{ participant_two_label }} &bull;
                                     {% if map_team1_score and map_team2_score %}
-                                        {{ map_entry.team1_name or 'Team 1' }} {{ map_team1_score }} - {{ map_team2_score }} {{ map_entry.team2_name or 'Team 2' }} &bull;
+                                        {{ participant_one_label }} {{ map_team1_score }} - {{ map_team2_score }} {{ participant_two_label }} &bull;
                                     {% elif map_entry.score %}
                                         {{ map_entry.score }} &bull;
                                     {% else %}
@@ -363,13 +351,13 @@
         <div class="modal-header">
             <div>
                 <h3>Add Map</h3>
-                <p>Set draft + notes. Result is optional.</p>
+                <p>Select the map and who starts on side 1.</p>
             </div>
             <button type="button" class="modal-close" onclick="closeMapModal()">&times;</button>
         </div>
 
         <form action="{{ url_for(add_map_endpoint, tournament_id=scrim.id, scrim_id=scrim.id) }}" method="post">
-            <div class="compact-grid">
+            <div class="form-grid">
                 <div class="field">
                     <label for="map_name">Map</label>
                     <select id="map_name" name="map_name" required>
@@ -377,36 +365,6 @@
                         {% for map_name in maps %}
                             <option value="{{ map_name }}">{{ map_name }}</option>
                         {% endfor %}
-                    </select>
-                </div>
-
-                <div class="field">
-                    <label for="result">Result</label>
-                    <select id="result" name="result">
-                        <option value="">Not Set</option>
-                        {% for result in results %}
-                            <option value="{{ result }}">{{ result }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="field" id="first_submap_field" style="display:none;">
-                    <label for="first_submap">First Control Sub-Map</label>
-                    <select id="first_submap" name="first_submap">
-                        <option value="">Default order</option>
-                    </select>
-                </div>
-
-                <div class="field">
-                    <label for="score">Score</label>
-                    <input type="text" id="score" name="score" placeholder="e.g. 3-2">
-                </div>
-
-                <div class="field">
-                    <label for="our_team_slot">Result Side</label>
-                    <select id="our_team_slot" name="our_team_slot">
-                        <option value="team1" {% if (scrim.team_slot or 'team1') == 'team1' %}selected{% endif %}>{{ participant_one_label }}</option>
-                        <option value="team2" {% if scrim.team_slot == 'team2' %}selected{% endif %}>{{ participant_two_label }}</option>
                     </select>
                 </div>
 
@@ -430,127 +388,7 @@
                         {% endfor %}
                     </select>
                 </div>
-
-                <div class="field">
-                    <label for="map_team2_select">Map Team 2</label>
-                    <select id="map_team2_select" name="team2_tournament_team_id" required>
-                        <option value="">Select tournament team</option>
-                        {% for team in scrim.tournament_teams %}
-                            <option value="{{ team.id }}">{{ team.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
                 {% endif %}
-
-                <div class="field field-full">
-    <label>Draft Phase</label>
-
-    <!-- Draft slots display -->
-    <div class="draft-grid">
-        <div class="draft-column">
-            <h4>{{ participant_one_label }}</h4>
-            <div class="draft-slots">
-                <div class="draft-slot" data-slot="team1_ban1" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 1</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team1_ban1" value="">
-                </div>
-                <div class="draft-slot" data-slot="team1_ban2" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 2</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team1_ban2" value="">
-                </div>
-                <div class="draft-slot" data-slot="team1_protect1" onclick="activateSlot(this)">
-                    <span class="slot-label protect-label">Protect 1</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team1_protect1" value="">
-                </div>
-                <div class="draft-slot" data-slot="team1_ban3" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 3</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team1_ban3" value="">
-                </div>
-                <div class="draft-slot" data-slot="team1_protect2" onclick="activateSlot(this)">
-                    <span class="slot-label protect-label">Protect 2</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team1_protect2" value="">
-                </div>
-                <div class="draft-slot" data-slot="team1_ban4" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 4</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team1_ban4" value="">
-                </div>
-            </div>
-        </div>
-
-        <div class="draft-column">
-            <h4>{{ participant_two_label }}</h4>
-            <div class="draft-slots">
-                <div class="draft-slot" data-slot="team2_ban1" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 1</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team2_ban1" value="">
-                </div>
-                <div class="draft-slot" data-slot="team2_protect1" onclick="activateSlot(this)">
-                    <span class="slot-label protect-label">Protect 1</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team2_protect1" value="">
-                </div>
-                <div class="draft-slot" data-slot="team2_ban2" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 2</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team2_ban2" value="">
-                </div>
-                <div class="draft-slot" data-slot="team2_ban3" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 3</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team2_ban3" value="">
-                </div>
-                <div class="draft-slot" data-slot="team2_ban4" onclick="activateSlot(this)">
-                    <span class="slot-label ban-label">Ban 4</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team2_ban4" value="">
-                </div>
-                <div class="draft-slot" data-slot="team2_protect2" onclick="activateSlot(this)">
-                    <span class="slot-label protect-label">Protect 2</span>
-                    <span class="slot-hero">—</span>
-                    <input type="hidden" name="team2_protect2" value="">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <p class="draft-hint">Click a slot to select it, then pick a hero below. Right-click a slot to clear it.</p>
-
-    <!-- Hero picker by role -->
-    <div class="hero-picker">
-        {% for role in ["Vanguard", "Duelist", "Strategist"] %}
-        <div class="hero-role-section">
-            <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
-            <div class="hero-icon-grid">
-                {% for hero in hero_roles[role] %}
-                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}"
-                        onclick="pickHero(this)"
-                        title="{{ hero }}">
-                    <div class="hero-img-wrap">
-                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
-                             alt="{{ hero }}" loading="lazy">
-                        {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
-                        {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
-                        {% if hero == 'SupportPool' %}<span class="pool-tag tag-sup">SUP</span>{% endif %}
-                    </div>
-                    <span class="hero-pick-name">{{ hero }}</span>
-                </button>
-                {% endfor %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-<div class="field field-full">
-    <label for="notes">Map Notes</label>
-    <textarea id="notes" name="notes" rows="3" placeholder="Optional short note"></textarea>
-</div>
 
             <div class="modal-actions">
                 <button type="button" class="button-secondary" onclick="closeMapModal()">Cancel</button>
@@ -577,39 +415,7 @@ function closeManageTeamsModal(e) {
 }
 function syncTournamentMapTeams() {
     var team1Select = document.getElementById("map_team1_select");
-    var team2Select = document.getElementById("map_team2_select");
     if (!team1Select) return;
-
-    var team1Text = team1Select.options[team1Select.selectedIndex] ? team1Select.options[team1Select.selectedIndex].text : "Team 1";
-    var team2Text = "Team 2";
-
-    if (team2Select) {
-        Array.from(team1Select.options).forEach(function(option) {
-            option.hidden = option.value !== "" && option.value === team2Select.value;
-        });
-        Array.from(team2Select.options).forEach(function(option) {
-            option.hidden = option.value !== "" && option.value === team1Select.value;
-        });
-        team2Text = team2Select.options[team2Select.selectedIndex] ? team2Select.options[team2Select.selectedIndex].text : "Team 2";
-    } else {
-        Array.from(team1Select.options).forEach(function(option) {
-            if (option.value === "") return;
-            option.hidden = false;
-        });
-        team2Text = team1Select.value === "{{ participant_one_id }}" ? "{{ participant_two_label }}" : "{{ participant_one_label }}";
-    }
-
-    var resultSide = document.getElementById("our_team_slot");
-    if (resultSide && resultSide.options.length >= 2) {
-        resultSide.options[0].text = team1Text;
-        resultSide.options[1].text = team2Text;
-    }
-
-    var mapHeadings = document.querySelectorAll("#mapModal .draft-column h4");
-    if (mapHeadings.length >= 2) {
-        mapHeadings[0].textContent = team1Text;
-        mapHeadings[1].textContent = team2Text;
-    }
 }
 
 function syncEditScrimTeams() {

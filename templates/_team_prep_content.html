@@ -4,12 +4,12 @@
         <div>
             <div class="section-kicker">Opponent Prep Report</div>
             <h3>Scouting Snapshot</h3>
-            <p class="panel-intro">A focused read on enemy ban pressure, likely pivots, comp shape, and where the draft usually bends across the current sample.</p>
+            <p class="panel-intro">A focused read on opponent ban pressure, likely pivots, comp shape, and where the draft usually bends across the current sample.</p>
         </div>
         <div class="header-actions">
-            <label for="prepEnemySelector" class="sr-only">Enemy selector</label>
+            <label for="prepEnemySelector" class="sr-only">Opponent selector</label>
             <select id="prepEnemySelector" class="team-range-select">
-                <option value="">All Enemies</option>
+                <option value="">All Opponents</option>
                 {% for enemy in enemy_teams %}
                     <option value="{{ enemy.id }}" {% if selected_prep_enemy_id == enemy.id|string %}selected{% endif %}>{{ enemy.name }}</option>
                 {% endfor %}
@@ -23,11 +23,11 @@
     <div class="summary-grid top-gap">
         <section class="stat-card">
             <strong>Sample</strong>
-            <span>{% if selected_prep_enemy_name %}{{ selected_prep_enemy_name }}{% else %}All Enemies{% endif %}</span>
+            <span>{% if selected_prep_enemy_name %}{{ selected_prep_enemy_name }}{% else %}All Opponents{% endif %}</span>
             <small>{{ prep_scrim_count }} scrims</small>
         </section>
         <section class="stat-card">
-            <strong>Enemy Top Ban</strong>
+            <strong>Opponent Top Ban</strong>
             {% if enemy_focus %}
                 <span>{{ hero_display_name(enemy_focus.hero) }}</span>
                 {% if hero_pool_label(enemy_focus.hero) %}<small>{{ hero_pool_label(enemy_focus.hero) }}</small>{% endif %}
@@ -67,6 +67,85 @@
 </section>
 
 <section class="panel panel-soft-blue top-gap">
+    <div class="section-kicker">Open Hero Impact</div>
+    <h3>When Heroes Are Open, Do We Play Them?</h3>
+    <p class="panel-intro">Uses the current opponent selector. Open means the opponent did not ban the hero on that map. This stays focused on how often we field a hero when it is available, plus whether results improve when that hero is open.</p>
+    {% if prep_analytics.hero_open_rows %}
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>Open Maps</th>
+                        <th>Played If Open</th>
+                        <th>Play Rate If Open</th>
+                        <th>WR When Open</th>
+                        <th>WR When Open + Played</th>
+                        <th>WR When Banned</th>
+                        <th>Open - Banned</th>
+                        <th>Delta vs Team WR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in prep_analytics.hero_open_rows %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.open_maps }}</td>
+                            <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
+                            <td>
+                                <span class="metric-text {% if row.play_when_open_rate >= 60 %}metric-good{% elif row.play_when_open_rate >= 40 %}metric-warn{% else %}metric-bad{% endif %}">
+                                    {{ row.play_when_open_rate }}%
+                                </span>
+                            </td>
+                            <td>
+                                <span class="metric-text {% if row.win_rate_when_open >= 55 %}metric-good{% elif row.win_rate_when_open >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                    {{ row.win_rate_when_open }}%
+                                </span>
+                            </td>
+                            <td>
+                                <span class="metric-text {% if row.win_rate_when_open_played >= 55 %}metric-good{% elif row.win_rate_when_open_played >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                    {{ row.win_rate_when_open_played }}%
+                                </span>
+                            </td>
+                            <td>
+                                {% if row.banned_maps %}
+                                    <span class="metric-text {% if row.win_rate_when_closed >= 55 %}metric-good{% elif row.win_rate_when_closed >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                        {{ row.win_rate_when_closed }}%
+                                    </span>
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.open_vs_closed_delta is not none %}
+                                    <span class="metric-text {% if row.open_vs_closed_delta > 1 %}metric-good{% elif row.open_vs_closed_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
+                                        {% if row.open_vs_closed_delta > 0 %}+{% endif %}{{ row.open_vs_closed_delta }}%
+                                    </span>
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="metric-text {% if row.open_vs_overall_delta > 1 %}metric-good{% elif row.open_vs_overall_delta < -1 %}metric-bad{% else %}metric-warn{% endif %}">
+                                    {% if row.open_vs_overall_delta > 0 %}+{% endif %}{{ row.open_vs_overall_delta }}%
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">Not enough filtered draft data to calculate open hero rates yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-blue top-gap">
     <div class="section-kicker">Quick Plan</div>
     <h3>Ban Pressure → Expected Core → Player Swaps</h3>
     <p class="panel-intro">Fast visual draft plan based on current sample. Arrows use red for ban paths and green for protect paths.</p>
@@ -77,7 +156,7 @@
 
     <div class="prep-flow-grid top-gap">
         <article class="prep-flow-card">
-            <h4>Enemy Likely Bans</h4>
+            <h4>Opponent Likely Bans</h4>
             {% if prep_expected_plan.suggested_adjustments %}
                 <div class="prep-chip-list">
                     {% for row in prep_expected_plan.suggested_adjustments %}
@@ -91,7 +170,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="empty-text">No enemy ban pressure data yet.</p>
+                <p class="empty-text">No opponent ban pressure data yet.</p>
             {% endif %}
         </article>
 
@@ -197,6 +276,49 @@
         </div>
     {% else %}
         <p class="empty-text">No 4-hero combo data yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-violet top-gap">
+    <div class="section-kicker">Player vs Player On Hero</div>
+    <h3>Hero Specialist Difference</h3>
+    <p class="panel-intro">Highlights heroes where performance shifts depending on who pilots the hero.</p>
+    {% if prep_expected_plan.hero_player_differences %}
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>Higher WR Player</th>
+                        <th>WR</th>
+                        <th>Alt Player</th>
+                        <th>WR</th>
+                        <th>Difference</th>
+                        <th>Samples</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in prep_expected_plan.hero_player_differences %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.best_player.player_name }}</td>
+                            <td>{{ row.best_player.win_rate }}% ({{ row.best_player.maps }} maps)</td>
+                            <td>{{ row.alt_player.player_name }}</td>
+                            <td>{{ row.alt_player.win_rate }}% ({{ row.alt_player.maps }} maps)</td>
+                            <td>{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%</td>
+                            <td>{{ row.sample_total }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">Not enough hero-player overlap yet to compare different players on the same hero.</p>
     {% endif %}
 </section>
 

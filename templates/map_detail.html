@@ -41,7 +41,7 @@
             </div>
             <div class="header-actions">
                 <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
-                <div class="pill {{ 'pill-win' if winner_label == team1_label else ('pill-loss' if winner_label == team2_label else '') }}">Winner: {{ winner_label }}</div>
+                <div class="pill pill-neutral">Winner: {{ winner_label }}</div>
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
             </div>
@@ -50,7 +50,7 @@
 </div>
 
 <div class="summary-grid">
-    <section class="stat-card"><strong>Winner</strong><span class="metric-text">{{ winner_label }}</span></section>
+    <section class="stat-card"><strong>Winner</strong><span>{{ winner_label }}</span></section>
     <section class="stat-card"><strong>Map Type</strong><span>{{ map_mode }}</span></section>
 </div>
 
@@ -337,7 +337,7 @@
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
-                            <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Hover to assign player' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Click slot to assign player' }}</span>
                             <input type="hidden" name="team1_hero_{{ i }}" value="{{ entry.hero or '' }}">
                             <input type="hidden" name="team1_player_{{ i }}" value="{{ team1_selected_player }}">
                         </div>
@@ -358,7 +358,7 @@
                             <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
-                            <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Hover to assign player' }}</span>
+                            <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Click slot to assign player' }}</span>
                             <input type="hidden" name="team2_hero_{{ i }}" value="{{ entry.hero or '' }}">
                             <input type="hidden" name="team2_player_{{ i }}" value="{{ team2_selected_player }}">
                         </div>
@@ -367,7 +367,30 @@
                 </div>
             </div>
 
-            <p class="draft-hint">Hover a slot to switch the player, then click the slot and pick a hero. Right-click a slot to clear.</p>
+            <p class="draft-hint">Click a slot to assign a player and pick a hero. Right-click a slot to clear.</p>
+            <p class="draft-hint">You can enter heroes in any order. On save, player names are auto-matched to the heroes based on recorded picks.</p>
+
+            <div class="panel panel-soft-blue top-gap comp-assign-panel" data-comp-modal="{{ s }}">
+                <div class="section-kicker">Player Assigner</div>
+                <h4>Assign Player To Selected Slot</h4>
+                <p class="panel-intro comp-assign-target">No slot selected yet.</p>
+                <div class="form-grid">
+                    <div class="field">
+                        <label>Roster Player</label>
+                        <select class="comp-assign-player-select">
+                            <option value="">No player</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Or Type Custom Name</label>
+                        <input type="text" class="comp-assign-player-input" placeholder="Player name">
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button type="button" class="button-small comp-assign-apply">Apply Player</button>
+                    <button type="button" class="btn-secondary comp-assign-clear">Clear Player</button>
+                </div>
+            </div>
 
             <!-- Hero portrait picker -->
             <div class="hero-picker">
@@ -852,7 +875,7 @@ function syncCompSlotPlayerBadge(form, slotName) {
         sub.textContent = value;
         sub.classList.add('show');
     } else {
-        sub.textContent = 'Hover to assign player';
+        sub.textContent = 'Click slot to assign player';
         sub.classList.remove('show');
     }
 }
@@ -865,6 +888,108 @@ function applyPlayerValueToControls(form, slotName, value) {
 
     input.value = (value || '').trim();
     syncCompSlotPlayerBadge(form, slotName);
+}
+
+function getCompSlotLabel(slotName) {
+    if (!slotName) return 'Slot';
+    var teamText = slotName.startsWith('team1_') ? '{{ team1_label|e }}' : '{{ team2_label|e }}';
+    var idxPart = slotName.split('_').pop();
+    var idx = Number(idxPart);
+    if (Number.isFinite(idx)) {
+        return teamText + ' - Slot ' + (idx + 1);
+    }
+    return teamText + ' - Slot';
+}
+
+function fillCompAssignPanelOptions(panel, slot, form, slotName) {
+    const teamKey = getCompTeamFromSlotName(slotName);
+    const select = panel.querySelector('.comp-assign-player-select');
+    const input = panel.querySelector('.comp-assign-player-input');
+    if (!select || !input) return;
+
+    const options = Array.isArray(COMP_TEAM_PLAYER_OPTIONS[teamKey]) ? COMP_TEAM_PLAYER_OPTIONS[teamKey] : [];
+    const siblingAssigned = new Set();
+    form.querySelectorAll(`.comp-pick-slot[data-player-slot^="${teamKey}_player_"]`).forEach((teamSlot) => {
+        const teamSlotName = teamSlot.dataset.playerSlot;
+        if (!teamSlotName || teamSlotName === slotName) return;
+        const teamInput = getCompPlayerHiddenInput(form, teamSlotName);
+        const value = teamInput ? (teamInput.value || '').trim() : '';
+        if (value) siblingAssigned.add(value.toLowerCase());
+    });
+
+    select.innerHTML = '';
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'No player';
+    select.appendChild(emptyOption);
+
+    options.forEach((option) => {
+        const name = (option.name || '').trim();
+        if (!name) return;
+        const role = (option.role || '').trim();
+        const isSub = Boolean(option.is_sub || option.isSub);
+        const item = document.createElement('option');
+        item.value = name;
+        item.textContent = `${name}${isSub ? ' [Sub]' : ''}${role ? ` (${role})` : ''}`;
+        if (siblingAssigned.has(name.toLowerCase())) {
+            item.disabled = true;
+        }
+        select.appendChild(item);
+    });
+
+    const currentValue = getCompPlayerValueFromControls(form, slotName);
+    const matched = Array.from(select.options).some(opt => opt.value === currentValue);
+    if (matched) {
+        select.value = currentValue;
+        input.value = currentValue;
+    } else if (currentValue) {
+        select.value = '';
+        input.value = currentValue;
+    } else {
+        select.value = '';
+        input.value = '';
+    }
+}
+
+function syncCompAssignPanelForSlot(slot) {
+    if (!slot) return;
+    const modalId = slot.dataset.compModal;
+    const panel = document.querySelector(`.comp-assign-panel[data-comp-modal="${modalId}"]`);
+    const form = slot.closest('form');
+    const slotName = slot.dataset.playerSlot;
+    if (!panel || !form || !slotName) return;
+
+    panel.dataset.activeSlot = slotName;
+    const target = panel.querySelector('.comp-assign-target');
+    if (target) target.textContent = `Selected: ${getCompSlotLabel(slotName)}`;
+
+    fillCompAssignPanelOptions(panel, slot, form, slotName);
+}
+
+function applyCompAssignPanel(panel) {
+    if (!panel) return;
+    const modalId = panel.dataset.compModal;
+    let slotName = panel.dataset.activeSlot || '';
+    if (!slotName && activeCompSlot && activeCompSlot.dataset.compModal === modalId) {
+        slotName = activeCompSlot.dataset.playerSlot || '';
+        if (slotName) {
+            panel.dataset.activeSlot = slotName;
+        }
+    }
+    if (!slotName) return;
+
+    const slot = document.querySelector(`.comp-pick-slot[data-comp-modal="${modalId}"][data-player-slot="${slotName}"]`);
+    const form = slot ? slot.closest('form') : null;
+    if (!slot || !form) return;
+
+    const select = panel.querySelector('.comp-assign-player-select');
+    const input = panel.querySelector('.comp-assign-player-input');
+    const typed = input ? (input.value || '').trim() : '';
+    const selected = select ? (select.value || '').trim() : '';
+    // Dropdown is authoritative unless user explicitly typed a custom value.
+    const finalValue = typed.length ? typed : selected;
+    applyPlayerValueToControls(form, slotName, finalValue);
+    fillCompAssignPanelOptions(panel, slot, form, slotName);
 }
 
 let compAssignHover = null;
@@ -1066,7 +1191,8 @@ function activateCompSlot(el) {
     });
     el.classList.add('slot-active');
     activeCompSlot = el;
-    showCompAssignHover(el, true);
+    hideCompAssignHover(true);
+    syncCompAssignPanelForSlot(el);
 }
 
 function clearCompSlot(el) {
@@ -1083,7 +1209,7 @@ function clearCompSlot(el) {
             subEl.textContent = playerValue;
             subEl.classList.add('show');
         } else {
-            subEl.textContent = 'Hover to assign player';
+            subEl.textContent = 'Click slot to assign player';
             subEl.classList.remove('show');
         }
     }
@@ -1092,6 +1218,12 @@ function clearCompSlot(el) {
     el.classList.remove('slot-filled', 'slot-active');
     if (activeCompSlot === el) activeCompSlot = null;
     hideCompAssignHover(true);
+    if (slotName) {
+        const panel = document.querySelector(`.comp-assign-panel[data-comp-modal="${el.dataset.compModal}"]`);
+        if (panel && panel.dataset.activeSlot === slotName) {
+            syncCompAssignPanelForSlot(el);
+        }
+    }
 }
 
 function pickCompHero(btn) {
@@ -1126,7 +1258,7 @@ function pickCompHero(btn) {
             subEl.textContent = playerValue;
             subEl.classList.add('show');
         } else {
-            subEl.textContent = 'Hover to assign player';
+            subEl.textContent = 'Click slot to assign player';
             subEl.classList.remove('show');
         }
     }
@@ -1138,6 +1270,14 @@ function pickCompHero(btn) {
     for (var i = curIdx + 1; i < allSlots.length; i++) {
         var nextInp = allSlots[i].querySelector('input[type=hidden]');
         if (!nextInp || !nextInp.value) { activateCompSlot(allSlots[i]); break; }
+    }
+
+    if (!activeCompSlot) {
+        var panel = document.querySelector(`.comp-assign-panel[data-comp-modal="${modalId}"]`);
+        if (panel && panel.dataset.activeSlot) {
+            var currentSlot = document.querySelector(`.comp-pick-slot[data-comp-modal="${modalId}"][data-player-slot="${panel.dataset.activeSlot}"]`);
+            if (currentSlot) syncCompAssignPanelForSlot(currentSlot);
+        }
     }
 
 }
@@ -1156,15 +1296,36 @@ document.addEventListener('contextmenu', function(e) {
     if (compSlot) { e.preventDefault(); clearCompSlot(compSlot); }
 });
 
-document.querySelectorAll('.comp-pick-slot').forEach(function(slot) {
-    slot.addEventListener('mouseenter', function() {
-        if (compAssignHoverHideTimer) {
-            clearTimeout(compAssignHoverHideTimer);
-            compAssignHoverHideTimer = null;
+document.querySelectorAll('.comp-assign-panel').forEach(function(panel) {
+    const select = panel.querySelector('.comp-assign-player-select');
+    const input = panel.querySelector('.comp-assign-player-input');
+    const applyBtn = panel.querySelector('.comp-assign-apply');
+    const clearBtn = panel.querySelector('.comp-assign-clear');
+
+    select?.addEventListener('change', function() {
+        if (input) {
+            // Clear custom input on dropdown change so selected roster value wins.
+            input.value = '';
         }
-        showCompAssignHover(slot);
+        applyCompAssignPanel(panel);
     });
-    slot.addEventListener('mouseleave', scheduleHideCompAssignHover);
+
+    applyBtn?.addEventListener('click', function() {
+        applyCompAssignPanel(panel);
+    });
+
+    clearBtn?.addEventListener('click', function() {
+        if (input) input.value = '';
+        if (select) select.value = '';
+        applyCompAssignPanel(panel);
+    });
+
+    input?.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            applyCompAssignPanel(panel);
+        }
+    });
 });
 
 window.addEventListener('resize', function() {

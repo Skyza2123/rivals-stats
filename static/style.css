@@ -396,6 +396,12 @@ textarea:focus {
     border: 1px solid transparent;
 }
 
+.pill-neutral {
+    background: rgba(139, 148, 158, 0.12);
+    color: var(--text);
+    border-color: rgba(139, 148, 158, 0.22);
+}
+
 .pill-win {
     background: rgba(34, 197, 94, 0.12);
     color: #86efac;

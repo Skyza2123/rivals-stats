@@ -15,33 +15,136 @@
 <section class="panel">
     <h3>Select Players</h3>
     <form method="GET" action="{{ url_for('player_compare') }}" class="form-grid top-gap">
+        <div class="field field-full">
+            <label for="season">Season</label>
+            <select id="season" name="season">
+                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                {% if has_unseasoned_scrims %}
+                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                {% endif %}
+                {% for season in season_options %}
+                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="field">
             <label for="player_a">Player A</label>
+            <input id="player_a_search" type="text" placeholder="Search by name, team, or role" autocomplete="off">
             <select id="player_a" name="player_a" required>
                 <option value="">Choose player</option>
                 {% for option in player_options %}
-                    <option value="{{ option.id }}" {% if selected_player_a_id == option.id|string %}selected{% endif %}>
+                    <option
+                        value="{{ option.id }}"
+                        data-player-name="{{ option.name|lower }}"
+                        data-team-name="{{ option.team_name|lower }}"
+                        data-player-role="{{ (option.role or '')|lower }}"
+                        {% if selected_player_a_id == option.id|string %}selected{% endif %}
+                    >
                         {{ option.name }} ({{ option.team_name }})
                     </option>
                 {% endfor %}
             </select>
+            <small id="player_a_match_count" class="muted-text"></small>
         </div>
         <div class="field">
             <label for="player_b">Player B</label>
+            <input id="player_b_search" type="text" placeholder="Search by name, team, or role" autocomplete="off">
             <select id="player_b" name="player_b" required>
                 <option value="">Choose player</option>
                 {% for option in player_options %}
-                    <option value="{{ option.id }}" {% if selected_player_b_id == option.id|string %}selected{% endif %}>
+                    <option
+                        value="{{ option.id }}"
+                        data-player-name="{{ option.name|lower }}"
+                        data-team-name="{{ option.team_name|lower }}"
+                        data-player-role="{{ (option.role or '')|lower }}"
+                        {% if selected_player_b_id == option.id|string %}selected{% endif %}
+                    >
                         {{ option.name }} ({{ option.team_name }})
                     </option>
                 {% endfor %}
             </select>
+            <small id="player_b_match_count" class="muted-text"></small>
         </div>
         <div class="button-row field-full">
+            <button type="button" class="button-secondary" id="swap_players_btn">Swap</button>
+            <button type="button" class="button-secondary" id="clear_players_btn">Clear</button>
             <button type="submit">Compare</button>
         </div>
     </form>
 </section>
+
+<script>
+(() => {
+    const playerASelect = document.getElementById('player_a');
+    const playerBSelect = document.getElementById('player_b');
+    const playerASearch = document.getElementById('player_a_search');
+    const playerBSearch = document.getElementById('player_b_search');
+    const playerACount = document.getElementById('player_a_match_count');
+    const playerBCount = document.getElementById('player_b_match_count');
+    const swapBtn = document.getElementById('swap_players_btn');
+    const clearBtn = document.getElementById('clear_players_btn');
+
+    const filterSelect = (selectEl, searchEl, countEl) => {
+        if (!selectEl || !searchEl) return;
+        const query = (searchEl.value || '').trim().toLowerCase();
+        let visibleCount = 0;
+
+        Array.from(selectEl.options).forEach((option, idx) => {
+            if (idx === 0) {
+                option.hidden = false;
+                return;
+            }
+
+            const haystack = [
+                option.dataset.playerName || '',
+                option.dataset.teamName || '',
+                option.dataset.playerRole || '',
+                (option.textContent || '').toLowerCase(),
+            ].join(' ');
+
+            const matches = !query || haystack.includes(query);
+            option.hidden = !matches;
+            if (matches) visibleCount += 1;
+        });
+
+        if (countEl) {
+            countEl.textContent = query
+                ? `${visibleCount} match${visibleCount === 1 ? '' : 'es'}`
+                : `${Math.max(0, selectEl.options.length - 1)} total players`;
+        }
+
+        const selected = selectEl.selectedOptions && selectEl.selectedOptions[0];
+        if (selected && selected.hidden) {
+            selectEl.value = '';
+        }
+    };
+
+    const syncBoth = () => {
+        filterSelect(playerASelect, playerASearch, playerACount);
+        filterSelect(playerBSelect, playerBSearch, playerBCount);
+    };
+
+    playerASearch?.addEventListener('input', syncBoth);
+    playerBSearch?.addEventListener('input', syncBoth);
+
+    swapBtn?.addEventListener('click', () => {
+        const a = playerASelect.value;
+        const b = playerBSelect.value;
+        playerASelect.value = b;
+        playerBSelect.value = a;
+    });
+
+    clearBtn?.addEventListener('click', () => {
+        playerASelect.value = '';
+        playerBSelect.value = '';
+        if (playerASearch) playerASearch.value = '';
+        if (playerBSearch) playerBSearch.value = '';
+        syncBoth();
+    });
+
+    syncBoth();
+})();
+</script>
 
 {% if player_a and player_b %}
 <section class="panel panel-soft-blue top-gap">
@@ -68,8 +171,26 @@
                 </tr>
                 <tr>
                     <td>Main Hero</td>
-                    <td>{{ player_a.profile.main_hero or '-' }}</td>
-                    <td>{{ player_b.profile.main_hero or '-' }}</td>
+                    <td>
+                        {% if player_a.primary_hero %}
+                            <div class="player-inline-hero">
+                                <img src="{{ hero_image_url(player_a.primary_hero.hero) }}" alt="{{ hero_display_name(player_a.primary_hero.hero) }}">
+                                <span>{{ hero_display_name(player_a.primary_hero.hero) }}</span>
+                            </div>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if player_b.primary_hero %}
+                            <div class="player-inline-hero">
+                                <img src="{{ hero_image_url(player_b.primary_hero.hero) }}" alt="{{ hero_display_name(player_b.primary_hero.hero) }}">
+                                <span>{{ hero_display_name(player_b.primary_hero.hero) }}</span>
+                            </div>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <td>Maps Played</td>
@@ -87,9 +208,19 @@
                     <td>{{ player_b.stats.losses }}</td>
                 </tr>
                 <tr>
+                    <td>ND Maps</td>
+                    <td>{{ player_a.stats.unresolved_maps }}</td>
+                    <td>{{ player_b.stats.unresolved_maps }}</td>
+                </tr>
+                <tr>
                     <td>Win Rate</td>
                     <td>{{ player_a.stats.win_rate }}%</td>
                     <td>{{ player_b.stats.win_rate }}%</td>
+                </tr>
+                <tr>
+                    <td>Decided Maps</td>
+                    <td>{{ player_a.stats.decided_maps }}</td>
+                    <td>{{ player_b.stats.decided_maps }}</td>
                 </tr>
                 <tr>
                     <td>Event Mentions</td>
@@ -109,8 +240,8 @@
                 <thead>
                     <tr>
                         <th>Hero</th>
-                        <th>{{ player_a.profile.name }} Maps</th>
-                        <th>{{ player_b.profile.name }} Maps</th>
+                        <th>{{ player_a.profile.name }} Instances</th>
+                        <th>{{ player_b.profile.name }} Instances</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -156,5 +287,107 @@
         <p class="empty-text">No shared maps for these players yet.</p>
     {% endif %}
 </section>
+
+<section class="panel panel-soft-blue top-gap">
+    <h3>Hero Winrate Difference</h3>
+    {% if hero_winrate_differences %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>{{ player_a.profile.name }} WR</th>
+                        <th>{{ player_b.profile.name }} WR</th>
+                        <th>Difference</th>
+                        <th>{{ player_a.profile.name }} Instances</th>
+                        <th>{{ player_b.profile.name }} Instances</th>
+                        <th>Decided Sample</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hero_winrate_differences %}
+                        <tr>
+                            <td>{{ hero_display_name(row.hero) }}</td>
+                            <td>{% if row.player_a_win_rate is not none %}{{ row.player_a_win_rate }}%{% else %}&mdash;{% endif %}</td>
+                            <td>{% if row.player_b_win_rate is not none %}{{ row.player_b_win_rate }}%{% else %}&mdash;{% endif %}</td>
+                            <td class="{{ 'diff-positive' if row.win_rate_diff is not none and row.win_rate_diff > 0 else 'diff-negative' if row.win_rate_diff is not none and row.win_rate_diff < 0 else '' }}">
+                                {% if row.win_rate_diff is not none %}{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%{% else %}&mdash;{% endif %}
+                            </td>
+                            <td>{{ row.player_a_maps }}</td>
+                            <td>{{ row.player_b_maps }}</td>
+                            <td>{{ row.player_a_decided_maps }} / {{ row.player_b_decided_maps }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No hero winrate data available yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-green top-gap">
+    <h3>Map Winrate Difference</h3>
+    {% if map_winrate_differences %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Map</th>
+                        <th>{{ player_a.profile.name }} WR</th>
+                        <th>{{ player_b.profile.name }} WR</th>
+                        <th>Difference</th>
+                        <th>{{ player_a.profile.name }} Maps</th>
+                        <th>{{ player_b.profile.name }} Maps</th>
+                        <th>Decided Sample</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in map_winrate_differences %}
+                        <tr>
+                            <td>{{ row.map_name }}</td>
+                            <td>{% if row.player_a_win_rate is not none %}{{ row.player_a_win_rate }}%{% else %}&mdash;{% endif %}</td>
+                            <td>{% if row.player_b_win_rate is not none %}{{ row.player_b_win_rate }}%{% else %}&mdash;{% endif %}</td>
+                            <td class="{{ 'diff-positive' if row.win_rate_diff is not none and row.win_rate_diff > 0 else 'diff-negative' if row.win_rate_diff is not none and row.win_rate_diff < 0 else '' }}">
+                                {% if row.win_rate_diff is not none %}{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%{% else %}&mdash;{% endif %}
+                            </td>
+                            <td>{{ row.player_a_maps }}</td>
+                            <td>{{ row.player_b_maps }}</td>
+                            <td>{{ row.player_a_decided_maps }} / {{ row.player_b_decided_maps }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No map winrate data available yet.</p>
+    {% endif %}
+</section>
 {% endif %}
+
+<style>
+.player-inline-hero {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.player-inline-hero img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.diff-positive {
+    color: #1f8f53;
+    font-weight: 700;
+}
+
+.diff-negative {
+    color: #c7433e;
+    font-weight: 700;
+}
+</style>
 {% endblock %}
