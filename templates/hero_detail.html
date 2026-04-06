@@ -60,7 +60,7 @@
                                 <span class="hero-usage-bar-wrap">
                                     <span class="hero-usage-bar" data-width="{{ width }}"></span>
                                 </span>
-                                <span class="hero-usage-meta">{{ row.count }} instances • {{ row.win_rate }}%</span>
+                                <span class="hero-usage-meta">{{ sample_warn(row.count) }} instances • {{ row.win_rate }}%</span>
                             </div>
                         {% endfor %}
                     </div>
@@ -84,7 +84,7 @@
                                 <span class="hero-usage-bar-wrap">
                                     <span class="hero-usage-bar" data-width="{{ width }}"></span>
                                 </span>
-                                <span class="hero-usage-meta">{{ row.count }} instances • {{ row.win_rate }}%</span>
+                                <span class="hero-usage-meta">{{ sample_warn(row.count) }} instances • {{ row.win_rate }}%</span>
                             </div>
                         {% endfor %}
                     </div>
@@ -107,7 +107,7 @@
                                         </span>
                                     {% endfor %}
                                 </div>
-                                <div class="comp-usage-meta">{{ row.count }} maps • {{ row.win_rate }}% WR</div>
+                                <div class="comp-usage-meta">{{ sample_warn(row.count) }} maps • {{ row.win_rate }}% WR</div>
                             </div>
                         {% endfor %}
                     </div>
@@ -138,7 +138,7 @@
                         </div>
                         <div class="team-map-bottom">
                             <h4>{{ row.map_name }}</h4>
-                            <p>{{ row.wins }}W - {{ row.losses }}L &bull; {{ row.maps }} games</p>
+                            <p>{{ row.wins }}W - {{ row.losses }}L &bull; {{ sample_warn(row.maps) }} games</p>
                             <div class="team-map-footer-meta">
                                 <span class="team-map-chip">Hero WR</span>
                                 <span class="team-map-chip">{{ row.win_rate }}%</span>
@@ -173,61 +173,70 @@
         bar.style.width = clamped + '%';
     });
 
+    if (typeof Chart === 'undefined') return;
     const timelinePayload = document.getElementById('heroTimelineData')?.textContent || '[]';
     const timelinePoints = JSON.parse(timelinePayload);
     const canvas = document.getElementById('heroTimelineChart');
-    if (!canvas || !timelinePoints.length) {
-        return;
-    }
+    if (!canvas || !timelinePoints.length) return;
 
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const cssWidth = canvas.clientWidth || 980;
-    const cssHeight = 320;
-    canvas.width = Math.floor(cssWidth * dpr);
-    canvas.height = Math.floor(cssHeight * dpr);
-    ctx.scale(dpr, dpr);
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
 
-    const pad = { top: 20, right: 20, bottom: 42, left: 42 };
-    const innerW = cssWidth - pad.left - pad.right;
-    const innerH = cssHeight - pad.top - pad.bottom;
-
-    const xAt = (i) => pad.left + (timelinePoints.length === 1 ? innerW / 2 : (innerW * i) / (timelinePoints.length - 1));
-    const yAt = (value) => pad.top + innerH - (Math.max(0, Math.min(100, value)) / 100) * innerH;
-
-    ctx.fillStyle = 'rgba(13,17,23,0.9)';
-    ctx.fillRect(0, 0, cssWidth, cssHeight);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    [0, 25, 50, 75, 100].forEach((tick) => {
-        const y = yAt(tick);
-        ctx.beginPath();
-        ctx.moveTo(pad.left, y);
-        ctx.lineTo(cssWidth - pad.right, y);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(148,163,184,0.9)';
-        ctx.font = '12px sans-serif';
-        ctx.fillText(`${tick}%`, 4, y + 4);
-    });
-
-    const drawSeries = (key, color) => {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        timelinePoints.forEach((point, i) => {
-            const x = xAt(i);
-            const y = yAt(point[key]);
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: timelinePoints.map((_, i) => `Scrim ${i + 1}`),
+            datasets: [
+                {
+                    label: 'Scrim Win Rate',
+                    data: timelinePoints.map(p => p.scrim_win_rate),
+                    borderColor: '#60a5fa',
+                    backgroundColor: '#60a5fa22',
+                    fill: false,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    borderWidth: 2.5,
+                },
+                {
+                    label: 'Cumulative Win Rate',
+                    data: timelinePoints.map(p => p.cumulative_win_rate),
+                    borderColor: '#fa4454',
+                    backgroundColor: '#fa445422',
+                    fill: false,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    borderWidth: 2.5,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.07)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y: {
+                    min: 0, max: 100,
+                    grid: { color: 'rgba(255,255,255,0.07)' },
+                    ticks: { callback: v => v + '%', color: '#94a3b8' }
+                }
             }
-        });
-        ctx.stroke();
-    };
-
-    drawSeries('scrim_win_rate', '#60a5fa');
-    drawSeries('cumulative_win_rate', '#fa4454');
+        }
+    });
 })();
 </script>
 {% endblock %}

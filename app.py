@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
 from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context
+from markupsafe import Markup
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from data import (
@@ -3203,40 +3204,56 @@ def build_scrim_analytics(
                         not roster_player_keys or player_key in roster_player_keys
                     ):
                         our_hero_players_in_map[hero_name].add(player_name)
-            tracked_heroes = hero_pool | enemy_banned_heroes | canonical_heroes_in_map
-            for hero_name in tracked_heroes:
-                is_open = hero_name not in enemy_banned_heroes
-                is_played = hero_name in canonical_heroes_in_map
-                if is_open:
-                    hero_open_stats[hero_name]["open_maps"] += 1
-                    if is_win:
-                        hero_open_stats[hero_name]["open_wins"] += 1
-                    elif is_loss:
-                        hero_open_stats[hero_name]["open_losses"] += 1
 
-                    if is_played:
-                        hero_open_stats[hero_name]["played_when_open"] += 1
+            # Only track open/closed stats on maps where the draft was actually logged.
+            # Without ban data, every hero in hero_pool looks "open" (empty banned set),
+            # which inflates open_maps for all heroes on draft-less maps.
+            has_draft_data = (
+                any(our_ban_slots.values())
+                or any(enemy_ban_slots.values())
+                or any(our_protect_slots.values())
+            )
+            if not has_draft_data:
+                # No draft was recorded for this map; skip open/closed tracking.
+                pass
+            else:
+                tracked_heroes = hero_pool | enemy_banned_heroes | canonical_heroes_in_map
+                for hero_name in tracked_heroes:
+                    is_open = hero_name not in enemy_banned_heroes
+                    is_played = hero_name in canonical_heroes_in_map
+                    if is_open:
+                        hero_open_stats[hero_name]["open_maps"] += 1
                         if is_win:
-                            hero_open_stats[hero_name]["played_wins"] += 1
+                            hero_open_stats[hero_name]["open_wins"] += 1
                         elif is_loss:
-                            hero_open_stats[hero_name]["played_losses"] += 1
-                        for player_name in our_hero_players_in_map.get(hero_name, []):
-                            hero_open_stats[hero_name]["teammate_open_counts"][player_name] += 1
+                            hero_open_stats[hero_name]["open_losses"] += 1
 
-                is_fully_open = hero_name not in enemy_banned_heroes and hero_name not in our_banned_heroes
-                if is_fully_open:
-                    hero_open_stats[hero_name]["fully_open_maps"] += 1
-                    if hero_name in canonical_heroes_in_map:
-                        hero_open_stats[hero_name]["our_played_when_fully_open"] += 1
-                    if hero_name in enemy_canonical_heroes_in_map:
-                        hero_open_stats[hero_name]["enemy_played_when_fully_open"] += 1
+                        if is_played:
+                            hero_open_stats[hero_name]["played_when_open"] += 1
+                            if is_win:
+                                hero_open_stats[hero_name]["played_wins"] += 1
+                            elif is_loss:
+                                hero_open_stats[hero_name]["played_losses"] += 1
+                            for player_name in our_hero_players_in_map.get(hero_name, []):
+                                hero_open_stats[hero_name]["teammate_open_counts"][player_name] += 1
 
-                else:
-                    hero_open_stats[hero_name]["closed_maps"] += 1
-                    if is_win:
-                        hero_open_stats[hero_name]["closed_wins"] += 1
-                    elif is_loss:
-                        hero_open_stats[hero_name]["closed_losses"] += 1
+                    is_fully_open = hero_name not in enemy_banned_heroes and hero_name not in our_banned_heroes
+                    if is_fully_open:
+                        hero_open_stats[hero_name]["fully_open_maps"] += 1
+                        if hero_name in canonical_heroes_in_map:
+                            hero_open_stats[hero_name]["our_played_when_fully_open"] += 1
+                        if hero_name in enemy_canonical_heroes_in_map:
+                            hero_open_stats[hero_name]["enemy_played_when_fully_open"] += 1
+
+                    # "Banned" means the enemy specifically banned the hero (not us banning it).
+                    # Tracked separately from is_fully_open so a hero we ban doesn't pollute
+                    # the "WR When Banned" win-rate or inflate open_maps vs closed_maps totals.
+                    if not is_open:
+                        hero_open_stats[hero_name]["closed_maps"] += 1
+                        if is_win:
+                            hero_open_stats[hero_name]["closed_wins"] += 1
+                        elif is_loss:
+                            hero_open_stats[hero_name]["closed_losses"] += 1
 
             # Determine if draft is unmirrored (1-2 shared heroes)
             is_draft_unmirrored = False
@@ -3839,15 +3856,17 @@ def build_scrim_analytics(
                 "top_teammate_rate": top_teammate_rate,
             }
         )
-    hero_open_rows.sort(
-        key=lambda row: (
-            row["fully_open_maps"],
-            row["open_maps"],
-            row["play_when_open_rate"],
-            row["played_when_open"],
-        ),
-        reverse=True,
-    )
+    def _open_priority(row: dict) -> tuple:
+        # Primary: composite of play-rate × win-rate-when-played (both 0-100),
+        # scaled so a hero always played and always winning scores 10000.
+        # This surfaces "must-play and winning" heroes regardless of sample size.
+        play_rate = row["play_when_open_rate"]          # 0-100
+        wr_played = row["win_rate_when_open_played"]    # 0-100
+        composite = play_rate * wr_played               # max 10000
+        # Secondary: sample confidence (more open maps = more reliable signal)
+        return (composite, row["played_when_open"], row["open_maps"])
+
+    hero_open_rows.sort(key=_open_priority, reverse=True)
 
     mirror_rates = {
         "draft": {
@@ -4117,19 +4136,41 @@ def filter_team_scrims_for_enemy(team_scrims: list[dict], enemy_team_id: int | N
     filtered = []
     enemy_name_lower = (enemy_team_name or "").strip().lower()
     for scrim in team_scrims:
-        scrim_enemy_id = scrim.get("enemy_team_id")
-        if enemy_team_id and scrim_enemy_id == enemy_team_id:
-            filtered.append(scrim)
-            continue
+        # --- ID matching ---
+        if enemy_team_id:
+            # Legacy enemy_team_id field (enemy_teams table).
+            scrim_enemy_id = scrim.get("enemy_team_id")
+            if scrim_enemy_id and scrim_enemy_id == enemy_team_id:
+                filtered.append(scrim)
+                continue
 
+            # Scrims between two registered teams store IDs in team1_id / team2_id.
+            # Our slot is already resolved; the opponent is on the other side.
+            our_slot = scrim.get("team_slot", "team1")
+            if our_slot == "team1":
+                opp_id = scrim.get("team2_id")
+            else:
+                opp_id = scrim.get("team1_id")
+            if opp_id and opp_id == enemy_team_id:
+                filtered.append(scrim)
+                continue
+
+        # --- Name matching fallback ---
         scrim_enemy_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip().lower()
+        if not scrim_enemy_name:
+            # Try team1_name / team2_name based on slot
+            our_slot = scrim.get("team_slot", "team1")
+            if our_slot == "team1":
+                scrim_enemy_name = (scrim.get("team2_name") or "").strip().lower()
+            else:
+                scrim_enemy_name = (scrim.get("team1_name") or "").strip().lower()
         if enemy_name_lower and scrim_enemy_name == enemy_name_lower:
             filtered.append(scrim)
 
     return filtered
 
 
-def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sqlite3.Row | dict], prep_analytics: dict) -> dict:
+def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sqlite3.Row | dict], prep_analytics: dict, all_scrims: list[dict] | None = None) -> dict:
     pair_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     hero_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     comp_variant_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
@@ -4211,6 +4252,132 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
                     comp_variant_counts[lineup_key]["wins"] += 1
                 elif result == "Loss":
                     comp_variant_counts[lineup_key]["losses"] += 1
+
+    # Build a full pair_counts from ALL scrims (not just vs this enemy) so that
+    # player capability lookups have enough history even when enemy-filtered data is thin.
+    full_pair_counts: dict[tuple, dict] = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    for _scrim in (all_scrims or prep_scrims):
+        for _map in _scrim.get("maps", []):
+            _our_slot = _map.get("our_team_slot", "team1")
+            if _our_slot not in TEAM_SLOTS:
+                _our_slot = "team1"
+            for _section in _map.get("comp", []):
+                if not isinstance(_section, dict):
+                    continue
+                for _slot in _section.get(_our_slot, []):
+                    if not isinstance(_slot, dict):
+                        continue
+                    _hero = _canonical_draft_hero(_slot.get("hero", ""))
+                    _player = (_slot.get("player", "") or "").strip()
+                    if _hero and _player:
+                        _roster_pname = roster_name_lookup.get(_player.lower())
+                        if _roster_pname:
+                            full_pair_counts[(_hero, _roster_pname)]["count"] += 1
+
+    # Determine each player's main heroes (top played, min 2 maps, up to 3).
+    # Falls back to single most-played if none meet the 2-map threshold.
+    player_main_heroes: dict[str, list[str]] = {}
+    for player_obj in players:
+        pname = player_obj["name"]
+        player_hero_counts = sorted(
+            [
+                (hero_name, stats["count"])
+                for (hero_name, player_name), stats in pair_counts.items()
+                if player_name == pname
+            ],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        if player_hero_counts:
+            mains = [h for h, c in player_hero_counts if c >= 2][:3]
+            if not mains:
+                mains = [player_hero_counts[0][0]]
+            player_main_heroes[pname] = mains
+        elif player_obj.get("main_hero"):
+            player_main_heroes[pname] = [_canonical_draft_hero(player_obj["main_hero"])]
+
+    # Second pass: for each map where any of a player's main heroes was enemy-banned,
+    # track what that player actually switched to and the outcome.
+    # Key is (player_name, banned_main_hero).
+    player_ban_pivot_counts: dict[tuple, dict] = {
+        (pname, main_h): defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+        for pname, mains in player_main_heroes.items()
+        for main_h in mains
+    }
+    player_main_ban_total: dict[tuple, int] = defaultdict(int)
+
+    for scrim in prep_scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            pivot_result = get_map_outcome_for_slot(map_entry, our_team_slot)
+            enemy_slot = "team2" if our_team_slot == "team1" else "team1"
+            draft = map_entry.get("draft", {})
+            enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
+            enemy_bans = {
+                _canonical_draft_hero(v)
+                for k, v in enemy_draft.items()
+                if "ban" in k and _canonical_draft_hero(v)
+            }
+
+            # Build map: roster player -> heroes they played this map
+            player_heroes_this_map: dict[str, list] = defaultdict(list)
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot, []):
+                    if not isinstance(slot, dict):
+                        continue
+                    h = _canonical_draft_hero(slot.get("hero", ""))
+                    p = (slot.get("player", "") or "").strip()
+                    if h and p:
+                        roster_pname = roster_name_lookup.get(p.lower())
+                        if roster_pname:
+                            player_heroes_this_map[roster_pname].append(h)
+
+            for pname, mains in player_main_heroes.items():
+                for main_h in mains:
+                    if main_h in enemy_bans:
+                        player_main_ban_total[(pname, main_h)] += 1
+                        for h in player_heroes_this_map.get(pname, []):
+                            if h != main_h:
+                                player_ban_pivot_counts[(pname, main_h)][h]["count"] += 1
+                                if pivot_result == "Win":
+                                    player_ban_pivot_counts[(pname, main_h)][h]["wins"] += 1
+                                elif pivot_result == "Loss":
+                                    player_ban_pivot_counts[(pname, main_h)][h]["losses"] += 1
+
+    player_pivot_rows: list[dict] = []
+    for pname, mains in player_main_heroes.items():
+        for main_h in mains:
+            main_stats = pair_counts.get((main_h, pname), {"count": 0, "wins": 0, "losses": 0})
+            main_maps = main_stats["count"]
+            if main_maps == 0:
+                continue
+            main_wr = round((main_stats["wins"] / main_maps) * 100, 1)
+            banned_maps = player_main_ban_total.get((pname, main_h), 0)
+            pivot_counts = player_ban_pivot_counts.get((pname, main_h), {})
+            pivot_hero = ""
+            pivot_maps = 0
+            pivot_wr = 0.0
+            if pivot_counts:
+                top_key, top_stats = max(pivot_counts.items(), key=lambda x: (x[1]["count"], x[1]["wins"]))
+                pivot_hero = top_key
+                pivot_maps = top_stats["count"]
+                pivot_wr = round((top_stats["wins"] / pivot_maps) * 100, 1) if pivot_maps else 0.0
+            player_pivot_rows.append({
+                "player_name": pname,
+                "main_hero": main_h,
+                "main_hero_maps": main_maps,
+                "main_hero_win_rate": main_wr,
+                "banned_maps": banned_maps,
+                "pivot_hero": pivot_hero,
+                "pivot_maps": pivot_maps,
+                "pivot_win_rate": pivot_wr,
+            })
+    # Sort by player name, then by main hero play count descending within each player
+    player_pivot_rows.sort(key=lambda r: (r["player_name"].lower(), -r["main_hero_maps"]))
 
     def choose_player_for_hero(hero_name: str, used_names: set[str] | None = None) -> dict:
         used_names = used_names or set()
@@ -4330,12 +4497,48 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
             }
         )
 
+    # Build lenient 5-hero core combos: groups all comps that share 5 heroes,
+    # tolerating 1-hero flex pick variation.  Also track what the 6th (flex) pick
+    # was across all those maps so we can surface "or <alt>" suggestions.
+    combo5_counts: dict[tuple, dict] = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    combo5_flex_counts: dict[tuple, dict] = defaultdict(lambda: defaultdict(int))
+
+    for heroes, stats in comp_variant_counts.items():
+        if len(heroes) < 5:
+            continue
+        for combo_key in combinations(heroes, 5):
+            combo5_counts[combo_key]["count"] += stats["count"]
+            combo5_counts[combo_key]["wins"] += stats["wins"]
+            combo5_counts[combo_key]["losses"] += stats["losses"]
+            if len(heroes) == 6:
+                flex_heroes = set(heroes) - set(combo_key)
+                for flex_h in flex_heroes:
+                    combo5_flex_counts[combo_key][flex_h] += stats["count"]
+
     expected_comp_variants = []
-    sorted_variants = sorted(comp_variant_counts.items(), key=lambda row: (row[1]["count"], row[1]["wins"]), reverse=True)
-    for idx, (heroes, stats) in enumerate(sorted_variants[:3]):
+    seen_comp_sets: list[frozenset] = []
+    # Sort primarily by sample size; win rate only breaks ties between equally-played cores.
+    # A comp with 8 maps at 50% WR is more reliable than one with 2 maps at 100% WR.
+    sorted_5combos = sorted(
+        combo5_counts.items(),
+        key=lambda row: (
+            row[1]["count"],
+            round((row[1]["wins"] / row[1]["count"]) * 100) if row[1]["count"] else 0,
+        ),
+        reverse=True,
+    )
+    for core_heroes, stats in sorted_5combos:
+        if len(expected_comp_variants) >= 3:
+            break
+        # Skip if this core overlaps heavily (≥4 shared heroes) with an already-shown comp.
+        core_set = frozenset(core_heroes)
+        if any(len(core_set & s) >= 4 for s in seen_comp_sets):
+            continue
+        seen_comp_sets.append(core_set)
+
         used_variant_names = set()
         slots = []
-        for hero_name in heroes:
+        for hero_name in core_heroes:
             assignment = choose_player_for_hero(hero_name, used_variant_names)
             if assignment.get("name") and assignment["name"] != "TBD":
                 used_variant_names.add(assignment["name"])
@@ -4347,10 +4550,20 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
                 }
             )
 
+        flex_sorted = sorted(combo5_flex_counts[core_heroes].items(), key=lambda x: x[1], reverse=True)
+        flex_hero = flex_sorted[0][0] if flex_sorted else ""
+        flex_alt = flex_sorted[1][0] if len(flex_sorted) > 1 else ""
+        flex_assignment = choose_player_for_hero(flex_hero, set(used_variant_names)) if flex_hero else {}
+        flex_alt_assignment = choose_player_for_hero(flex_alt, set()) if flex_alt else {}
+
         expected_comp_variants.append(
             {
-                "label": f"Expected Comp {idx + 1}",
+                "label": f"Expected Comp {len(expected_comp_variants) + 1}",
                 "heroes": slots,
+                "flex_hero": flex_hero,
+                "flex_hero_player": flex_assignment,
+                "flex_alt": flex_alt,
+                "flex_alt_player": flex_alt_assignment,
                 "maps": stats["count"],
                 "win_rate": round((stats["wins"] / stats["count"]) * 100, 1) if stats["count"] else 0,
             }
@@ -4366,7 +4579,14 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
             combo4_counts[combo_key]["losses"] += stats["losses"]
 
     four_hero_combos = []
-    sorted_combo4 = sorted(combo4_counts.items(), key=lambda row: (row[1]["count"], row[1]["wins"]), reverse=True)
+    sorted_combo4 = sorted(
+        combo4_counts.items(),
+        key=lambda row: (
+            row[1]["count"],
+            round((row[1]["wins"] / row[1]["count"]) * 100) if row[1]["count"] else 0,
+        ),
+        reverse=True,
+    )
     for heroes, stats in sorted_combo4[:8]:
         four_hero_combos.append(
             {
@@ -4378,25 +4598,121 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
 
     top_enemy_bans = prep_analytics.get("enemy_ban_rows", [])[:4]
     suggested_adjustments = []
-    banned_set = {_canonical_draft_hero(row.get("hero", "")) for row in top_enemy_bans}
-    fallback_pool = [item for item in expected_core if _canonical_draft_hero(item["hero"]) not in banned_set]
+    core_hero_keys = {_canonical_draft_hero(item["hero"]) for item in expected_core}
+    used_replacement_keys: set[str] = set()
+
     for row in top_enemy_bans:
         banned_hero = row.get("hero", "")
         banned_key = _canonical_draft_hero(banned_hero)
-        impacted_slot = next((item for item in expected_core if _canonical_draft_hero(item["hero"]) == banned_key), None)
 
-        replacement = None
-        if fallback_pool:
-            replacement = fallback_pool[0]
-            fallback_pool = fallback_pool[1:] + fallback_pool[:1]
+        # Who in our expected core plays this hero (if anyone)?
+        impacted_slot = next(
+            (item for item in expected_core if _canonical_draft_hero(item["hero"]) == banned_key),
+            None,
+        )
+        impacted_player_name = impacted_slot.get("player", {}).get("name", "") if impacted_slot else ""
+
+        banned_role = _hero_role(banned_key)
+
+        replacement_hero = ""
+        replacement_player_name = ""
+
+        # Only suggest a swap if the banned hero is actually in our expected core.
+        # If the enemy bans something we don't run, there's nothing to swap.
+        if impacted_slot is not None:
+            # Primary: what did this player actually play on maps where the banned hero was banned?
+            # player_ban_pivot_counts[(player, banned_hero)] → {hero: {count, wins, losses}}
+            if impacted_player_name:
+                ban_pivot = player_ban_pivot_counts.get((impacted_player_name, banned_key), {})
+                ban_pivot_alts = sorted(
+                    [
+                        (hero_name, stats)
+                        for hero_name, stats in ban_pivot.items()
+                        if _canonical_draft_hero(hero_name) not in core_hero_keys
+                        and _canonical_draft_hero(hero_name) not in used_replacement_keys
+                        and _canonical_draft_hero(hero_name) != banned_key
+                    ],
+                    key=lambda x: (x[1]["count"], x[1]["wins"]),
+                    reverse=True,
+                )
+                if ban_pivot_alts:
+                    # Best case: we saw this player swap to something when banned.
+                    replacement_hero = ban_pivot_alts[0][0]
+                    replacement_player_name = impacted_player_name
+                    used_replacement_keys.add(_canonical_draft_hero(replacement_hero))
+                else:
+                    # Fallback: any same-role hero the player has played historically.
+                    # Prefer enemy-filtered pair_counts; supplement with full_pair_counts
+                    # so thin enemy samples don't leave players with no suggestion.
+                    _capability_counts = full_pair_counts if full_pair_counts else pair_counts
+                    player_role_alts = sorted(
+                        [
+                            (hero_name, stats)
+                            for (hero_name, player_name), stats in _capability_counts.items()
+                            if player_name == impacted_player_name
+                            and _hero_role(hero_name) == banned_role
+                            and _canonical_draft_hero(hero_name) not in core_hero_keys
+                            and _canonical_draft_hero(hero_name) not in used_replacement_keys
+                            and _canonical_draft_hero(hero_name) != banned_key
+                        ],
+                        key=lambda x: (x[1]["count"], x[1]["wins"]),
+                        reverse=True,
+                    )
+                    if player_role_alts:
+                        replacement_hero = player_role_alts[0][0]
+                        replacement_player_name = impacted_player_name
+                        used_replacement_keys.add(_canonical_draft_hero(replacement_hero))
+                    else:
+                        # No play history for this player on other same-role heroes.
+                        # Check their declared main_hero in the roster as a candidate.
+                        roster_player = next(
+                            (p for p in players if p["name"] == impacted_player_name),
+                            None,
+                        )
+                        roster_main = _canonical_draft_hero(roster_player["main_hero"]) if roster_player else ""
+                        if (
+                            roster_main
+                            and roster_main != banned_key
+                            and _hero_role(roster_main) == banned_role
+                            and roster_main not in core_hero_keys
+                            and roster_main not in used_replacement_keys
+                        ):
+                            replacement_hero = roster_main
+                            replacement_player_name = impacted_player_name
+                            used_replacement_keys.add(roster_main)
+                        else:
+                            # No history and no viable main_hero — still keep the same player.
+                            # They're the one who needs to adapt; we just have no hero suggestion.
+                            replacement_player_name = impacted_player_name
+
+            # Fallback: only if we still have no player identified at all, search any
+            # player who has played a same-role hero not already in core.
+            if not replacement_player_name:
+                role_candidates = sorted(
+                    [
+                        (h, s)
+                        for h, s in hero_counts.items()
+                        if _hero_role(h) == banned_role
+                        and _canonical_draft_hero(h) not in core_hero_keys
+                        and _canonical_draft_hero(h) not in used_replacement_keys
+                        and _canonical_draft_hero(h) != banned_key
+                    ],
+                    key=lambda x: (x[1]["count"], x[1]["wins"]),
+                    reverse=True,
+                )
+                if role_candidates:
+                    replacement_hero = role_candidates[0][0]
+                    used_replacement_keys.add(_canonical_draft_hero(replacement_hero))
+                    replace_assign = choose_player_for_hero(replacement_hero)
+                    replacement_player_name = replace_assign.get("name", "")
 
         suggested_adjustments.append(
             {
                 "banned_hero": banned_hero,
                 "ban_rate": row.get("ban_rate", 0),
-                "impacted_player_name": impacted_slot.get("player", {}).get("name") if impacted_slot else "TBD",
-                "replacement_hero": replacement.get("hero") if replacement else "TBD",
-                "replacement_player_name": replacement.get("player", {}).get("name") if replacement else "TBD",
+                "impacted_player_name": impacted_player_name,
+                "replacement_hero": replacement_hero,
+                "replacement_player_name": replacement_player_name,
             }
         )
 
@@ -4448,6 +4764,7 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
         "four_hero_combos": four_hero_combos,
         "suggested_adjustments": suggested_adjustments,
         "hero_player_differences": hero_player_differences[:12],
+        "player_pivot_rows": player_pivot_rows,
     }
 
 
@@ -4477,7 +4794,7 @@ def build_team_prep_context(
 
     prep_analytics = build_scrim_analytics(prep_scrims, roster_player_names=roster_player_names)
     draft_phase_timeline = build_draft_phase_timeline(prep_scrims)
-    prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics)
+    prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics, all_scrims=team_scrims)
 
     compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
     compare_map_a = (compare_map_a_raw or "").strip()
@@ -7173,10 +7490,24 @@ def _hero_display_name(hero_name: str) -> str:
 
 @app.context_processor
 def inject_template_helpers():
+    def _sample_warn(n, threshold: int = 5) -> Markup:
+        """Return the count with a ⚠ icon when below the sample threshold."""
+        try:
+            count = int(n)
+        except (TypeError, ValueError):
+            return Markup(str(n) if n is not None else "")
+        if count < threshold:
+            return Markup(
+                f'{count}\u202f<span class="sample-warn-icon" '
+                f'title="Low sample size (fewer than {threshold} maps)">⚠</span>'
+            )
+        return Markup(str(count))
+
     return {
         "hero_image_url": _hero_image_url,
         "hero_pool_label": _hero_pool_label,
         "hero_display_name": _hero_display_name,
+        "sample_warn": _sample_warn,
     }
 
 

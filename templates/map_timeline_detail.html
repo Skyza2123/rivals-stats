@@ -14,7 +14,7 @@
 </div>
 
 <div class="summary-grid">
-    <section class="stat-card"><strong>Maps</strong><span>{{ map_overview.maps }}</span></section>
+    <section class="stat-card"><strong>Maps</strong><span>{{ sample_warn(map_overview.maps) }}</span></section>
     <section class="stat-card"><strong>Wins</strong><span>{{ map_overview.wins }}</span></section>
     <section class="stat-card"><strong>Losses</strong><span>{{ map_overview.losses }}</span></section>
     <section class="stat-card"><strong>Win Rate</strong><span>{{ map_overview.win_rate }}%</span></section>
@@ -43,7 +43,7 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
-                            <td>{{ row.appearances }}</td>
+                            <td>{{ sample_warn(row.appearances) }}</td>
                             <td>{{ row.play_rate }}%</td>
                             <td>{{ row.win_rate }}%</td>
                         </tr>
@@ -78,7 +78,7 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
-                            <td>{{ row.appearances }}</td>
+                            <td>{{ sample_warn(row.appearances) }}</td>
                             <td>{{ row.play_rate }}%</td>
                         </tr>
                     {% endfor %}
@@ -100,7 +100,7 @@
             {% set _ = map_main_lookup.update({row.slot_key: row}) %}
         {% endfor %}
 
-        <div class="panel-intro">Based on {{ map_timeline_row.maps }} map sample{% if map_timeline_row.maps != 1 %}s{% endif %}.</div>
+        <div class="panel-intro">Based on {{ sample_warn(map_timeline_row.maps) }} map sample{% if map_timeline_row.maps != 1 %}s{% endif %}.</div>
 
         <div class="table-wrap top-gap">
             <table class="stats-table stats-table-compare">

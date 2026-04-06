@@ -114,7 +114,7 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
-                            <td>{{ row.maps }}</td>
+                            <td>{{ sample_warn(row.maps) }}</td>
                             <td>{{ row.wins }}W - {{ row.losses }}L</td>
                             <td>{{ row.win_rate }}%</td>
                         </tr>
@@ -146,7 +146,7 @@
                         <tr>
                             <td>{{ row.map_name }}</td>
                             <td>{{ row.mode }}</td>
-                            <td>{{ row.maps }}</td>
+                            <td>{{ sample_warn(row.maps) }}</td>
                             <td>{{ row.wins }}W - {{ row.losses }}L</td>
                             <td>{{ row.win_rate }}%</td>
                         </tr>

@@ -632,10 +632,6 @@
 </div>
 
 <div class="tab-content" id="tab-prep">
-    <div id="teamPrepContent">
-        {% include '_team_prep_content.html' %}
-    </div>
-
     <section class="panel">
         <div class="section-kicker">Draft Overview</div>
         <h3>{{ team.name }} Quick Draft Snapshot</h3>
@@ -659,6 +655,10 @@
             </section>
         </div>
     </section>
+
+    <div id="teamPrepContent">
+        {% include '_team_prep_content.html' %}
+    </div>
 
 </div>
 
@@ -1620,7 +1620,7 @@
                         <div class="mode-progress"><span data-progress="{{ mode_row.win_rate }}"></span></div>
                         <div class="mode-meta">
                             <span>{{ mode_row.wins }}W - {{ mode_row.losses }}L</span>
-                            <span>{{ mode_row.maps }} games</span>
+                            <span>{{ sample_warn(mode_row.maps) }} games</span>
                         </div>
                         {% if mode_row.best_map %}
                             <div class="mode-note">Best map: {{ mode_row.best_map.map_name }} ({{ mode_row.best_map.win_rate }}%)</div>
@@ -1673,7 +1673,7 @@
                         </div>
                         <div class="team-map-bottom">
                             <h4>{{ map_row.map_name }}</h4>
-                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ map_row.maps }} games</p>
+                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ sample_warn(map_row.maps) }} games</p>
                             <div class="team-map-footer-meta">
                                 <span class="team-map-chip">Winrate</span>
                                 <span class="team-map-chip">{{ map_row.win_rate }}%</span>
@@ -1697,7 +1697,7 @@
                         </div>
                         <div class="team-map-bottom">
                             <h4>{{ map_row.map_name }}</h4>
-                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ map_row.maps }} games</p>
+                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ sample_warn(map_row.maps) }} games</p>
                             <div class="team-map-footer-meta">
                                 <span class="team-map-chip">Winrate</span>
                                 <span class="team-map-chip">{{ map_row.win_rate }}%</span>
@@ -1741,7 +1741,7 @@
                                 <td>{{ row.tournament_name }}</td>
                                 <td>{{ row.scrim_date or '-' }}</td>
                                 <td>{{ row.season or '-' }}</td>
-                                <td>{{ row.maps }}</td>
+                                <td>{{ sample_warn(row.maps) }}</td>
                                 <td>{{ row.wins }}</td>
                                 <td>{{ row.losses }}</td>
                                 <td>{{ row.win_rate }}%</td>
@@ -2021,6 +2021,14 @@
         });
 
         window.history.replaceState(null, "", `#${nextTab}`);
+
+        // Chart.js can't measure hidden (display:none) canvases — resize after reveal
+        if (nextTab === "heroes") {
+            setTimeout(() => {
+                const c = typeof Chart !== 'undefined' && Chart.getChart(document.getElementById('heroUsageTimelineChart'));
+                if (c) c.resize();
+            }, 0);
+        }
     };
 
     tabButtons.forEach((button) => {
@@ -2092,6 +2100,13 @@
                 return;
             }
             prepContainer.innerHTML = html;
+            // innerHTML silently drops <script> tags — re-execute them manually
+            prepContainer.querySelectorAll('script').forEach((oldScript) => {
+                if (oldScript.type && oldScript.type !== 'text/javascript') return;
+                const s = document.createElement('script');
+                s.textContent = oldScript.textContent;
+                oldScript.parentNode.replaceChild(s, oldScript);
+            });
             bindPrepControls();
         } finally {
             if (requestId === prepRequestId) {
@@ -2350,122 +2365,55 @@ if (document.readyState !== 'complete') {
     const usagePayload = document.getElementById('heroUsageTimelineData')?.textContent || '';
     const usageTimeline = usagePayload ? JSON.parse(usagePayload) : null;
     const usageCanvas = document.getElementById('heroUsageTimelineChart');
-    const usageTooltip = document.getElementById('heroUsageTimelineTooltip');
-    if (!usageCanvas || !usageTimeline?.labels?.length || !usageTimeline?.series?.length) {
-        return;
-    }
+    if (!usageCanvas || !usageTimeline?.labels?.length || !usageTimeline?.series?.length) return;
+    if (typeof Chart === 'undefined') return;
 
-    const ctx = usageCanvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const cssWidth = usageCanvas.clientWidth || 980;
-    const cssHeight = 320;
-    usageCanvas.width = Math.floor(cssWidth * dpr);
-    usageCanvas.height = Math.floor(cssHeight * dpr);
-    ctx.scale(dpr, dpr);
-
-    const pad = { top: 20, right: 20, bottom: 50, left: 42 };
-    const innerW = cssWidth - pad.left - pad.right;
-    const innerH = cssHeight - pad.top - pad.bottom;
     const colors = ['#60a5fa', '#f97316', '#34d399', '#facc15', '#f472b6', '#a78bfa'];
+    const existing = Chart.getChart(usageCanvas);
+    if (existing) existing.destroy();
 
-    const xAt = (i) => pad.left + (usageTimeline.labels.length === 1 ? innerW / 2 : (innerW * i) / (usageTimeline.labels.length - 1));
-    const yAt = (value) => pad.top + innerH - (Math.max(0, Math.min(100, value)) / 100) * innerH;
-
-    const drawChart = (hoverIndex = null) => {
-        ctx.clearRect(0, 0, cssWidth, cssHeight);
-        ctx.fillStyle = 'rgba(13,17,23,0.9)';
-        ctx.fillRect(0, 0, cssWidth, cssHeight);
-
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        [0, 25, 50, 75, 100].forEach((tick) => {
-            const y = yAt(tick);
-            ctx.beginPath();
-            ctx.moveTo(pad.left, y);
-            ctx.lineTo(cssWidth - pad.right, y);
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(148,163,184,0.9)';
-            ctx.font = '12px sans-serif';
-            ctx.fillText(`${tick}%`, 4, y + 4);
-        });
-
-        usageTimeline.series.forEach((line, index) => {
-            const color = colors[index % colors.length];
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            line.values.forEach((value, pointIndex) => {
-                const x = xAt(pointIndex);
-                const y = yAt(value);
-                if (pointIndex === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
+    new Chart(usageCanvas, {
+        type: 'line',
+        data: {
+            labels: usageTimeline.labels,
+            datasets: usageTimeline.series.map((line, i) => ({
+                label: line.hero,
+                data: line.values,
+                borderColor: colors[i % colors.length],
+                backgroundColor: colors[i % colors.length] + '22',
+                fill: false,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.25,
+                borderWidth: 2.5,
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%`
+                    }
                 }
-            });
-            ctx.stroke();
-
-            line.values.forEach((value, pointIndex) => {
-                const x = xAt(pointIndex);
-                const y = yAt(value);
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(x, y, hoverIndex === pointIndex ? 4.5 : 3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        });
-
-        if (hoverIndex !== null) {
-            const x = xAt(hoverIndex);
-            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x, pad.top);
-            ctx.lineTo(x, cssHeight - pad.bottom);
-            ctx.stroke();
-        }
-    };
-
-    const pointIndexFromEvent = (event) => {
-        const rect = usageCanvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        let nearestIndex = 0;
-        let nearestDistance = Infinity;
-        usageTimeline.labels.forEach((_, index) => {
-            const distance = Math.abs(xAt(index) - x);
-            if (distance < nearestDistance) {
-                nearestDistance = distance;
-                nearestIndex = index;
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.07)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y: {
+                    min: 0, max: 100,
+                    grid: { color: 'rgba(255,255,255,0.07)' },
+                    ticks: { callback: v => v + '%', color: '#94a3b8' }
+                }
             }
-        });
-        return nearestIndex;
-    };
-
-    usageCanvas.addEventListener('mousemove', (event) => {
-        const index = pointIndexFromEvent(event);
-        drawChart(index);
-        if (!usageTooltip) {
-            return;
-        }
-        const rows = usageTimeline.series.map((line, lineIndex) => (
-            `<div class="tt-row"><span>${line.hero}</span><strong style="color:${colors[lineIndex % colors.length]}">${line.values[index]}%</strong></div>`
-        )).join('');
-        usageTooltip.innerHTML = `<div class="tt-label">${usageTimeline.labels[index]}</div>${rows}`;
-        usageTooltip.hidden = false;
-        const rect = usageCanvas.getBoundingClientRect();
-        const tooltipX = Math.min(rect.width - 190, Math.max(12, event.clientX - rect.left + 14));
-        const tooltipY = Math.max(12, event.clientY - rect.top - 20);
-        usageTooltip.style.left = `${tooltipX}px`;
-        usageTooltip.style.top = `${tooltipY}px`;
-    });
-
-    usageCanvas.addEventListener('mouseleave', () => {
-        drawChart();
-        if (usageTooltip) {
-            usageTooltip.hidden = true;
         }
     });
-
-    drawChart();
 })();
 
 </script>

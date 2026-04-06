@@ -64,6 +64,16 @@
             {% endif %}
         </section>
     </div>
+    {% if prep_analytics.enemy_ban_rows %}
+        <div class="prep-chart-block top-gap">
+            <h4 class="prep-chart-title">Opponent Ban Pressure</h4>
+            <script id="prepEnemyBanData" type="application/json">{{ prep_analytics.enemy_ban_rows[:10] | tojson }}</script>
+            <div class="prep-chart-wrap">
+                <canvas id="prepEnemyBanChart" height="200"></canvas>
+                <div id="prepEnemyBanTooltip" class="chart-tooltip" hidden></div>
+            </div>
+        </div>
+    {% endif %}
 </section>
 
 <section class="panel panel-soft-blue top-gap">
@@ -95,7 +105,7 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </span>
                             </td>
-                            <td>{{ row.open_maps }}</td>
+                            <td>{{ sample_warn(row.open_maps) }}</td>
                             <td>{{ row.played_when_open }}/{{ row.open_maps }}</td>
                             <td>
                                 <span class="metric-text {% if row.play_when_open_rate >= 60 %}metric-good{% elif row.play_when_open_rate >= 40 %}metric-warn{% else %}metric-bad{% endif %}">
@@ -142,6 +152,17 @@
         </div>
     {% else %}
         <p class="empty-text">Not enough filtered draft data to calculate open hero rates yet.</p>
+    {% endif %}
+    {% if prep_analytics.hero_open_rows %}
+        <div class="prep-chart-block top-gap">
+            <h4 class="prep-chart-title">Play Rate vs Win Rate When Open</h4>
+            <p class="prep-chart-sub">Each dot is a hero. X = how often we play them when open, Y = win rate when we do play them. Top-right quadrant = high priority picks.</p>
+            <script id="prepOpenHeroData" type="application/json">{{ prep_analytics.hero_open_rows | tojson }}</script>
+            <div class="prep-chart-wrap" style="position:relative;">
+                <canvas id="prepOpenHeroChart" height="320"></canvas>
+                <div id="prepOpenHeroTooltip" class="chart-tooltip" hidden></div>
+            </div>
+        </div>
     {% endif %}
 </section>
 
@@ -208,11 +229,15 @@
                                 <span class="hero-inline-meta"><span>{{ hero_display_name(row.banned_hero) }}</span>{% if hero_pool_label(row.banned_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.banned_hero) }}</small>{% endif %}</span>
                             </span>
                             <span class="prep-flow-arrow prep-flow-arrow-ban">→</span>
-                            <span class="hero-inline-cell">
-                                <img src="{{ hero_image_url(row.replacement_hero) }}" alt="{{ row.replacement_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.replacement_hero | urlencode }}'">
-                                <span class="hero-inline-meta"><span>{{ hero_display_name(row.replacement_hero) }}</span>{% if hero_pool_label(row.replacement_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.replacement_hero) }}</small>{% endif %}</span>
-                            </span>
-                            <span class="prep-chip-meta">{{ row.replacement_player_name }}</span>
+                            {% if row.replacement_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.replacement_hero) }}" alt="{{ row.replacement_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.replacement_hero | urlencode }}'">
+                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.replacement_hero) }}</span>{% if hero_pool_label(row.replacement_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.replacement_hero) }}</small>{% endif %}</span>
+                                </span>
+                                <span class="prep-chip-meta">{{ row.replacement_player_name }}</span>
+                            {% else %}
+                                <span class="prep-chip-meta empty-text">No swap data</span>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 </div>
@@ -226,7 +251,7 @@
 <section class="panel panel-soft-gold top-gap">
     <div class="section-kicker">Expected Comps</div>
     <h3>Potential Comps + Assigned Players + 4-Hero Core Combos</h3>
-    <p class="panel-intro">These are the most likely full comps from your sample, including who is most likely to pilot each hero.</p>
+    <p class="panel-intro">Each comp shows the 5-hero core that appeared most together, with the most common flex pick shown separately. Similar comps (differing by 1 hero) are grouped.</p>
 
     {% if prep_expected_plan.expected_comp_variants %}
         <div class="prep-comp-grid top-gap">
@@ -234,7 +259,7 @@
                 <article class="prep-comp-card">
                     <div class="panel-header-row">
                         <h4>{{ comp.label }}</h4>
-                        <span class="compare-tag compare-tag-neutral">{{ comp.maps }} maps • {{ comp.win_rate }}% WR</span>
+                        <span class="compare-tag compare-tag-neutral">{{ sample_warn(comp.maps) }} maps • {{ comp.win_rate }}% WR</span>
                     </div>
                     <div class="prep-comp-slots">
                         {% for slot in comp.heroes %}
@@ -246,6 +271,18 @@
                                 <span class="prep-chip-meta">{{ slot.player.name }}</span>
                             </div>
                         {% endfor %}
+                        {% if comp.flex_hero %}
+                            <div class="prep-comp-slot prep-comp-flex-slot">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(comp.flex_hero) }}" alt="{{ comp.flex_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ comp.flex_hero | urlencode }}'">
+                                    <span class="hero-inline-meta">
+                                        <span>{{ hero_display_name(comp.flex_hero) }}</span>
+                                        {% if comp.flex_alt %}<small class="hero-sub-label">or {{ hero_display_name(comp.flex_alt) }}</small>{% endif %}
+                                    </span>
+                                </span>
+                                <span class="prep-chip-meta prep-chip-flex-label">flex</span>
+                            </div>
+                        {% endif %}
                     </div>
                 </article>
             {% endfor %}
@@ -269,13 +306,97 @@
                     </div>
                     <div class="prep-combo4-meta">
                         <div class="prep-combo4-names">{{ row.heroes|join(' + ') }}</div>
-                        <span class="prep-chip-meta">{{ row.maps }} maps • {{ row.win_rate }}% WR</span>
+                        <span class="prep-chip-meta">{{ sample_warn(row.maps) }} maps • {{ row.win_rate }}% WR</span>
                     </div>
                 </article>
             {% endfor %}
         </div>
     {% else %}
         <p class="empty-text">No 4-hero combo data yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-teal top-gap">
+    <div class="section-kicker">Ban Impact Per Player</div>
+    <h3>When Their Main Gets Banned, What Do They Play?</h3>
+    <p class="panel-intro">Based on each player's most-played heroes (up to 3, min 2 maps). Shows what they switched to when that hero was enemy-banned — and the win rate of those pivot games. <span class="sample-warning-inline">⚠ = low sample (&lt;5 maps), treat with caution.</span></p>
+    {% if prep_expected_plan.player_pivot_rows %}
+        <div class="table-wrap top-gap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Main Hero</th>
+                        <th>Main Maps</th>
+                        <th>Main WR</th>
+                        <th>Times Banned</th>
+                        <th>Pivot Hero</th>
+                        <th>Pivot Maps</th>
+                        <th>Pivot WR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set ns = namespace(last_player='') %}
+                    {% for row in prep_expected_plan.player_pivot_rows %}
+                        {% if row.player_name != ns.last_player %}
+                            {% set ns.last_player = row.player_name %}
+                            {% if not loop.first %}
+                                <tr class="row-divider"><td colspan="8"></td></tr>
+                            {% endif %}
+                        {% endif %}
+                        <tr>
+                            <td><strong>{{ row.player_name }}</strong></td>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.main_hero) }}" alt="{{ row.main_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text=?'">
+                                    <span>{{ hero_display_name(row.main_hero) }}</span>
+                                </span>
+                            </td>
+                            <td>
+                                {{ row.main_hero_maps }}
+                                {% if row.main_hero_maps < 5 %}<span class="sample-warn-icon" title="Low sample size">⚠</span>{% endif %}
+                            </td>
+                            <td>
+                                <span class="metric-text {% if row.main_hero_win_rate >= 55 %}metric-good{% elif row.main_hero_win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                    {{ row.main_hero_win_rate }}%
+                                </span>
+                                {% if row.main_hero_maps < 5 %}<span class="sample-warn-icon" title="Low sample size">⚠</span>{% endif %}
+                            </td>
+                            <td>
+                                {{ row.banned_maps }}
+                                {% if row.banned_maps > 0 and row.banned_maps < 3 %}<span class="sample-warn-icon" title="Very few ban observations">⚠</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if row.pivot_hero %}
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.pivot_hero) }}" alt="{{ row.pivot_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text=?'">
+                                        <span>{{ hero_display_name(row.pivot_hero) }}</span>
+                                    </span>
+                                {% else %}
+                                    <span class="empty-text">No data</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ row.pivot_maps if row.pivot_maps else '—' }}
+                                {% if row.pivot_maps > 0 and row.pivot_maps < 3 %}<span class="sample-warn-icon" title="Very few pivot observations">⚠</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if row.pivot_maps %}
+                                    <span class="metric-text {% if row.pivot_win_rate >= 55 %}metric-good{% elif row.pivot_win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                        {{ row.pivot_win_rate }}%
+                                    </span>
+                                    {% if row.pivot_maps < 3 %}<span class="sample-warn-icon" title="Very few pivot observations">⚠</span>{% endif %}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">Not enough player + draft data to calculate ban pivots yet.</p>
     {% endif %}
 </section>
 
@@ -307,11 +428,11 @@
                                 </span>
                             </td>
                             <td>{{ row.best_player.player_name }}</td>
-                            <td>{{ row.best_player.win_rate }}% ({{ row.best_player.maps }} maps)</td>
+                            <td>{{ row.best_player.win_rate }}% ({{ sample_warn(row.best_player.maps) }} maps)</td>
                             <td>{{ row.alt_player.player_name }}</td>
-                            <td>{{ row.alt_player.win_rate }}% ({{ row.alt_player.maps }} maps)</td>
+                            <td>{{ row.alt_player.win_rate }}% ({{ sample_warn(row.alt_player.maps) }} maps)</td>
                             <td>{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%</td>
-                            <td>{{ row.sample_total }}</td>
+                            <td>{{ sample_warn(row.sample_total) }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -342,7 +463,7 @@
                         <img src="{{ hero_image_url(row.to_hero) }}" alt="{{ row.to_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.to_hero | urlencode }}'">
                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.to_hero) }}</span>{% if hero_pool_label(row.to_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.to_hero) }}</small>{% endif %}</span>
                     </span>
-                    <span class="prep-chip-meta">{{ row.rate }}% • {{ row.count }} samples</span>
+                    <span class="prep-chip-meta">{{ row.rate }}% • {{ sample_warn(row.count) }} samples</span>
                 </div>
             {% endfor %}
         </div>
@@ -397,6 +518,17 @@
         </div>
     {% else %}
         <p class="empty-text">No ban value data yet.</p>
+    {% endif %}
+    {% if prep_analytics.ban_protect_rows %}
+        <div class="prep-chart-block top-gap">
+            <h4 class="prep-chart-title">Ban Rate vs Protect Rate</h4>
+            <p class="prep-chart-sub">How often each hero appears in our draft — as a ban (red) vs a protect (green). Wider red bar = ban priority; wider green = protect priority.</p>
+            <script id="prepBanProtectData" type="application/json">{{ prep_analytics.ban_protect_rows[:10] | tojson }}</script>
+            <div class="prep-chart-wrap" style="position:relative;">
+                <canvas id="prepBanProtectChart" height="280"></canvas>
+                <div id="prepBanProtectTooltip" class="chart-tooltip" hidden></div>
+            </div>
+        </div>
     {% endif %}
 </section>
 <section class="panel top-gap">
@@ -533,3 +665,246 @@
     {% endif %}
 </section>
  </div>
+
+<script>
+/* ── Prep Charts (Chart.js) ─────────────────────────────────────────────── */
+(function () {
+    'use strict';
+    if (typeof Chart === 'undefined') return;
+
+    function parseData(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch (e) { return null; }
+    }
+
+    function initChart(id, config) {
+        var existing = Chart.getChart(id);
+        if (existing) existing.destroy();
+        var canvas = document.getElementById(id);
+        if (!canvas) return null;
+        return new Chart(canvas, config);
+    }
+
+    var gridColor  = 'rgba(255,255,255,0.07)';
+    var labelColor = '#94a3b8';
+    var axisColor  = '#e6edf3';
+
+    /* ── Chart 1: Opponent Ban Pressure (horizontal bar) ─── */
+    (function () {
+        var rows = parseData('prepEnemyBanData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('prepEnemyBanChart');
+        if (!canvas) return;
+        canvas.parentElement.style.height = Math.max(160, rows.length * 38 + 40) + 'px';
+        initChart('prepEnemyBanChart', {
+            type: 'bar',
+            data: {
+                labels: rows.map(function (r) { return r.hero; }),
+                datasets: [{
+                    data: rows.map(function (r) { return r.ban_rate; }),
+                    backgroundColor: 'rgba(239,68,68,0.65)',
+                    hoverBackgroundColor: '#ef4444',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var r = rows[ctx.dataIndex];
+                                return ' ' + ctx.raw + '% ban rate · ' + r.count + ' bans';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor },
+                        title: { display: true, text: 'Ban Rate', color: labelColor }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: axisColor, font: { weight: '600' } }
+                    }
+                }
+            }
+        });
+    })();
+
+    /* ── Chart 2: Open Hero Impact — play rate × WR (bubble) ─── */
+    (function () {
+        var rows = parseData('prepOpenHeroData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('prepOpenHeroChart');
+        if (!canvas) return;
+        canvas.parentElement.style.height = '360px';
+
+        var maxMaps = Math.max.apply(null, rows.map(function (r) { return r.open_maps || 1; }));
+
+        var quadrantPlugin = {
+            id: 'prepQuadrant',
+            afterDraw: function (chart) {
+                var c2 = chart.ctx, ca = chart.chartArea;
+                var xs = chart.scales.x, ys = chart.scales.y;
+                var cx = xs.getPixelForValue(50), cy = ys.getPixelForValue(50);
+                c2.save();
+                c2.strokeStyle = 'rgba(255,255,255,0.15)';
+                c2.lineWidth = 1;
+                c2.setLineDash([4, 4]);
+                c2.beginPath(); c2.moveTo(cx, ca.top);  c2.lineTo(cx, ca.bottom); c2.stroke();
+                c2.beginPath(); c2.moveTo(ca.left, cy); c2.lineTo(ca.right, cy);  c2.stroke();
+                c2.setLineDash([]);
+                c2.font = '11px sans-serif';
+                c2.textAlign = 'right';
+                c2.fillStyle = 'rgba(74,222,128,0.5)';
+                c2.fillText('Must Pick', ca.right - 6, ca.top + 14);
+                c2.textAlign = 'left';
+                c2.fillStyle = 'rgba(248,113,113,0.5)';
+                c2.fillText('Rarely Used', ca.left + 6, ca.top + 14);
+                rows.forEach(function (r) {
+                    var px  = xs.getPixelForValue(r.play_when_open_rate || 0);
+                    var py  = ys.getPixelForValue(r.win_rate_when_open_played || 0);
+                    var rad = 5 + ((r.open_maps || 0) / maxMaps) * 10;
+                    c2.fillStyle = 'rgba(226,232,240,0.85)';
+                    c2.font = '10px sans-serif';
+                    c2.textAlign = 'center';
+                    c2.fillText(r.hero, px, py - rad - 4);
+                });
+                c2.restore();
+            }
+        };
+
+        initChart('prepOpenHeroChart', {
+            type: 'bubble',
+            data: {
+                datasets: rows.map(function (r) {
+                    var hp  = (r.play_when_open_rate || 0) >= 50;
+                    var hw  = (r.win_rate_when_open_played || 0) >= 50;
+                    var col = hp && hw ? '#4ade80' : hp ? '#fbbf24' : hw ? '#2dd4bf' : '#f87171';
+                    return {
+                        label: r.hero,
+                        data: [{ x: r.play_when_open_rate || 0, y: r.win_rate_when_open_played || 0, r: 5 + ((r.open_maps || 0) / maxMaps) * 10 }],
+                        backgroundColor: col + 'b3',
+                        hoverBackgroundColor: col,
+                        borderColor: col + '66',
+                        borderWidth: 1,
+                    };
+                })
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 600 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function (items) { return rows[items[0].datasetIndex].hero; },
+                            label: function (ctx) {
+                                var r = rows[ctx.datasetIndex];
+                                return [
+                                    ' Play rate: ' + (r.play_when_open_rate || 0) + '%  (' + r.played_when_open + '/' + r.open_maps + ' maps)',
+                                    ' WR when played: ' + (r.win_rate_when_open_played || 0) + '%'
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor },
+                        title: { display: true, text: 'Play Rate When Open →', color: labelColor }
+                    },
+                    y: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor },
+                        title: { display: true, text: 'WR When Played →', color: labelColor }
+                    }
+                }
+            },
+            plugins: [quadrantPlugin]
+        });
+    })();
+
+    /* ── Chart 3: Ban Rate vs Protect Rate (grouped horizontal bars) ─── */
+    (function () {
+        var rows = parseData('prepBanProtectData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('prepBanProtectChart');
+        if (!canvas) return;
+        canvas.parentElement.style.height = Math.max(160, rows.length * 42 + 60) + 'px';
+        initChart('prepBanProtectChart', {
+            type: 'bar',
+            data: {
+                labels: rows.map(function (r) { return r.hero; }),
+                datasets: [
+                    {
+                        label: 'Ban Rate',
+                        data: rows.map(function (r) { return r.ban_rate; }),
+                        backgroundColor: 'rgba(248,113,113,0.7)',
+                        hoverBackgroundColor: '#f87171',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: 'Protect Rate',
+                        data: rows.map(function (r) { return r.protect_rate; }),
+                        backgroundColor: 'rgba(74,222,128,0.6)',
+                        hoverBackgroundColor: '#4ade80',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { boxWidth: 10 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var r = rows[ctx.dataIndex];
+                                if (ctx.datasetIndex === 0) return ' Ban: ' + r.ban_rate + '% (' + r.ban_count + ' bans)';
+                                return ' Protect: ' + r.protect_rate + '% (' + r.protect_count + ' protects)';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: axisColor, font: { weight: '600' } }
+                    }
+                }
+            }
+        });
+    })();
+
+})();
+</script>
+

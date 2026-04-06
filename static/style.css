@@ -253,6 +253,49 @@ button:hover {
     color: #f87171;
 }
 
+.sample-warn-icon {
+    color: #f59e0b;
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
+    vertical-align: middle;
+    cursor: default;
+}
+
+.sample-warning-inline {
+    color: #f59e0b;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.sidebar-legend {
+    margin-top: auto;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    color: #9ca3af;
+    line-height: 1.3;
+}
+
+.sidebar-legend-text {
+    flex: 1;
+}
+
+.sidebar-legend .sample-warn-icon {
+    font-size: 0.85rem;
+    margin-left: 0;
+    flex-shrink: 0;
+}
+
+.row-divider td {
+    padding: 0;
+    border: none;
+    background: transparent;
+    height: 6px;
+}
+
 .stat-card span,
 .result-card span {
     display: block;
@@ -2333,17 +2376,18 @@ th {
 }
 
 .enemy-trend-chart-wrap {
+    position: relative;
     width: 100%;
+    height: 320px;
     border-radius: 12px;
     border: 1px solid var(--border);
-    overflow: hidden;
-    background: #0d1117;
+    background: rgba(13,17,23,0.9);
 }
 
 .enemy-trend-chart-wrap canvas {
     display: block;
     width: 100%;
-    height: 320px;
+    border-radius: 11px;
     cursor: crosshair;
 }
 
@@ -3195,6 +3239,39 @@ th {
     white-space: nowrap;
 }
 
+.prep-chart-block {
+    margin-top: 1.25rem;
+}
+
+.prep-chart-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.prep-chart-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+}
+
+.prep-chart-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 8px;
+    background: rgba(13,17,23,0.7);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 8px;
+}
+
+.prep-chart-wrap canvas {
+    display: block;
+    border-radius: 4px;
+}
+
+
+
 /* Larger hero portraits in the quick plan / expected comp panels */
 .prep-hero-chip .hero-inline-thumb,
 .prep-adjust-row .hero-inline-thumb,
@@ -3245,6 +3322,20 @@ th {
     border-radius: 12px;
     padding: 12px;
     background: var(--panel-2);
+}
+
+/* Flex (6th pick) slot — visually separate from the 5-hero core */
+.prep-comp-flex-slot {
+    border-style: dashed;
+    border-color: rgba(148, 163, 184, 0.25);
+    background: rgba(255, 255, 255, 0.01);
+    opacity: 0.82;
+}
+
+.prep-chip-flex-label {
+    font-style: italic;
+    color: var(--muted);
+    opacity: 0.7;
 }
 
 .prep-combo4-grid {

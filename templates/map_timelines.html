@@ -30,7 +30,7 @@
             {% for row in timeline.main_rows %}
                 {% set _ = map_main_lookup.update({row.slot_key: row}) %}
             {% endfor %}
-            <div class="panel-intro">Based on {{ timeline.maps }} map sample{% if timeline.maps != 1 %}s{% endif %}.</div>
+            <div class="panel-intro">Based on {{ sample_warn(timeline.maps) }} map sample{% if timeline.maps != 1 %}s{% endif %}.</div>
             <div class="table-wrap top-gap">
                 <table class="stats-table stats-table-compare">
                     <thead>

@@ -1195,8 +1195,7 @@
                                         <span>{{ hero_display_name(row.hero) }}</span>
                                     </span>
                                 </td>
-                                <td>{{ row.maps }}</td>
-                                <td>{{ row.win_rate }}%</td>
+                                <td>{{ sample_warn(row.maps) }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -1318,7 +1317,7 @@
                         <div class="mode-progress"><span data-progress="{{ mode_row.win_rate }}"></span></div>
                         <div class="mode-meta">
                             <span>{{ mode_row.wins }}W - {{ mode_row.losses }}L</span>
-                            <span>{{ mode_row.maps }} games</span>
+                            <span>{{ sample_warn(mode_row.maps) }} games</span>
                         </div>
                         {% if mode_row.best_map %}
                             <div class="mode-note">Best map: {{ mode_row.best_map.map_name }} ({{ mode_row.best_map.win_rate }}%)</div>
@@ -1369,7 +1368,7 @@
                         </div>
                         <div class="team-map-bottom">
                             <h4>{{ map_row.map_name }}</h4>
-                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ map_row.maps }} games</p>
+                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ sample_warn(map_row.maps) }} games</p>
                             <div class="team-map-footer-meta">
                                 <span class="team-map-chip">Winrate</span>
                                 <span class="team-map-chip">{{ map_row.win_rate }}%</span>
@@ -1611,212 +1610,104 @@
     const timelinePayload = document.getElementById("enemyTimelineData")?.textContent || "[]";
     const timelinePoints = JSON.parse(timelinePayload);
     const trendCanvas = document.getElementById("enemyTimelineChart");
-    let timelineRendered = false;
-
-    const renderTimelineChart = () => {
-        if (!trendCanvas || !timelinePoints.length) {
-            return;
-        }
-
-        const ctx = trendCanvas.getContext("2d");
-        const dpr = window.devicePixelRatio || 1;
-        const cssWidth = trendCanvas.clientWidth || 980;
-        const cssHeight = 320;
-        trendCanvas.width = Math.floor(cssWidth * dpr);
-        trendCanvas.height = Math.floor(cssHeight * dpr);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
-
-        const w = cssWidth;
-        const h = cssHeight;
-        const pad = { top: 20, right: 20, bottom: 42, left: 42 };
-        const innerW = w - pad.left - pad.right;
-        const innerH = h - pad.top - pad.bottom;
-
-        const xAt = (i) => pad.left + (timelinePoints.length === 1 ? innerW / 2 : (innerW * i) / (timelinePoints.length - 1));
-        const yAt = (value) => pad.top + innerH - (Math.max(0, Math.min(100, value)) / 100) * innerH;
-
-        ctx.clearRect(0, 0, w, h);
-
-        ctx.fillStyle = "rgba(13, 17, 23, 0.9)";
-        ctx.fillRect(0, 0, w, h);
-
-        ctx.strokeStyle = "rgba(255,255,255,0.08)";
-        ctx.lineWidth = 1;
-        [0, 25, 50, 75, 100].forEach((tick) => {
-            const y = yAt(tick);
-            ctx.beginPath();
-            ctx.moveTo(pad.left, y);
-            ctx.lineTo(w - pad.right, y);
-            ctx.stroke();
-
-            ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
-            ctx.font = "12px sans-serif";
-            ctx.fillText(`${tick}%`, 4, y + 4);
-        });
-
-        const drawSeries = (key, color) => {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            timelinePoints.forEach((pt, i) => {
-                const x = xAt(i);
-                const y = yAt(pt[key]);
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            });
-            ctx.stroke();
-
-            timelinePoints.forEach((pt, i) => {
-                const x = xAt(i);
-                const y = yAt(pt[key]);
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        };
-
-        drawSeries("scrim_win_rate", "#60a5fa");
-        drawSeries("cumulative_win_rate", "#fa4454");
-
-        ctx.fillStyle = "rgba(230, 237, 243, 0.95)";
-        ctx.font = "12px sans-serif";
-        timelinePoints.forEach((_, i) => {
-            const x = xAt(i);
-            ctx.fillText(`${i + 1}`, x - 3, h - 16);
-        });
-
-        ctx.fillStyle = "#60a5fa";
-        ctx.fillRect(w - 210, 12, 10, 10);
-        ctx.fillStyle = "#e6edf3";
-        ctx.fillText("Scrim Win Rate", w - 194, 21);
-        ctx.fillStyle = "#fa4454";
-        ctx.fillRect(w - 210, 30, 10, 10);
-        ctx.fillStyle = "#e6edf3";
-        ctx.fillText("Cumulative Win Rate", w - 194, 39);
-
-        timelineRendered = true;
-        chartSnapshot = ctx.getImageData(0, 0, trendCanvas.width, trendCanvas.height);
-    };
-
-    let chartSnapshot = null;
     const tooltip = document.getElementById("enemyChartTooltip");
 
-    trendCanvas?.addEventListener("mousemove", (e) => {
-        if (!timelineRendered || !chartSnapshot || !timelinePoints.length) {
-            return;
-        }
+    const renderTimelineChart = (() => {
+        let chartInst = null;
+        return () => {
+            if (!trendCanvas || !timelinePoints.length || typeof Chart === "undefined") return;
+            if (chartInst) return;
 
-        const dpr = window.devicePixelRatio || 1;
-        const rect = trendCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
+            const existing = Chart.getChart(trendCanvas);
+            if (existing) existing.destroy();
 
-        const cssWidth = trendCanvas.clientWidth || 980;
-        const pad = { top: 20, right: 20, bottom: 42, left: 42 };
-        const innerW = cssWidth - pad.left - pad.right;
-        const xAt = (i) => pad.left + (timelinePoints.length === 1 ? innerW / 2 : (innerW * i) / (timelinePoints.length - 1));
-        const yAt = (value) => pad.top + (320 - pad.top - pad.bottom) - (Math.max(0, Math.min(100, value)) / 100) * (320 - pad.top - pad.bottom);
+            const externalTooltip = ({ chart, tooltip: ttModel }) => {
+                if (!tooltip) return;
+                if (ttModel.opacity === 0) { tooltip.hidden = true; return; }
+                const idx = ttModel.dataPoints?.[0]?.dataIndex ?? 0;
+                const pt = timelinePoints[idx];
+                const winClass = pt.wins > pt.losses ? "tt-win" : pt.wins < pt.losses ? "tt-loss" : "tt-draw";
+                tooltip.innerHTML = `
+                    <div class="tt-label">${pt.label}</div>
+                    <div class="tt-row"><span>Maps</span><span>${pt.maps}</span></div>
+                    <div class="tt-row"><span>W–L</span><span class="${winClass}">${pt.wins}–${pt.losses}</span></div>
+                    <div class="tt-row"><span>Scrim WR</span><span style="color:#60a5fa">${pt.scrim_win_rate}%</span></div>
+                    <div class="tt-row"><span>Cumulative WR</span><span style="color:#fa4454">${pt.cumulative_win_rate}%</span></div>
+                `;
+                tooltip.hidden = false;
+                const canvasRect = chart.canvas.getBoundingClientRect();
+                const wrapRect   = chart.canvas.parentElement.getBoundingClientRect();
+                const relLeft = canvasRect.left - wrapRect.left + ttModel.caretX;
+                const relTop  = canvasRect.top  - wrapRect.top  + ttModel.caretY;
+                const ttW = tooltip.offsetWidth  || 180;
+                const ttH = tooltip.offsetHeight || 100;
+                let left = relLeft + 14;
+                if (left + ttW > wrapRect.width - 6) left = relLeft - ttW - 14;
+                let top = relTop - ttH / 2;
+                top = Math.max(4, Math.min(top, wrapRect.height - ttH - 4));
+                tooltip.style.left = left + "px";
+                tooltip.style.top  = top  + "px";
+            };
 
-        let closestIdx = 0;
-        let closestDist = Infinity;
-        timelinePoints.forEach((_, i) => {
-            const dist = Math.abs(mouseX - xAt(i));
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestIdx = i;
-            }
-        });
+            chartInst = new Chart(trendCanvas, {
+                type: "line",
+                data: {
+                    labels: timelinePoints.map((_, i) => i + 1),
+                    datasets: [
+                        {
+                            label: "Scrim Win Rate",
+                            data: timelinePoints.map(p => p.scrim_win_rate),
+                            borderColor: "#60a5fa",
+                            backgroundColor: "#60a5fa22",
+                            fill: false,
+                            pointRadius: 4,
+                            pointHoverRadius: 7,
+                            tension: 0.25,
+                            borderWidth: 2.5,
+                        },
+                        {
+                            label: "Cumulative Win Rate",
+                            data: timelinePoints.map(p => p.cumulative_win_rate),
+                            borderColor: "#fa4454",
+                            backgroundColor: "#fa445422",
+                            fill: false,
+                            pointRadius: 4,
+                            pointHoverRadius: 7,
+                            tension: 0.25,
+                            borderWidth: 2.5,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 400 },
+                    interaction: { mode: "index", intersect: false },
+                    plugins: {
+                        legend: { display: true, position: "top" },
+                        tooltip: { enabled: false, external: externalTooltip }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: "rgba(255,255,255,0.07)" },
+                            ticks: { color: "#94a3b8" }
+                        },
+                        y: {
+                            min: 0, max: 100,
+                            grid: { color: "rgba(255,255,255,0.07)" },
+                            ticks: { callback: v => v + "%", color: "#94a3b8" }
+                        }
+                    }
+                }
+            });
+        };
+    })();
 
-        const snapThreshold = Math.max(24, innerW / (timelinePoints.length + 1));
-        if (closestDist > snapThreshold) {
-            tooltip.hidden = true;
-            const ctx = trendCanvas.getContext("2d");
-            ctx.putImageData(chartSnapshot, 0, 0);
-            return;
-        }
-
-        const pt = timelinePoints[closestIdx];
-        const hx = xAt(closestIdx);
-        const cssH = 320;
-
-        const ctx = trendCanvas.getContext("2d");
-        ctx.putImageData(chartSnapshot, 0, 0);
-
-        ctx.save();
-        ctx.scale(dpr, dpr);
-        ctx.strokeStyle = "rgba(255,255,255,0.18)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath();
-        ctx.moveTo(hx, pad.top);
-        ctx.lineTo(hx, cssH - pad.bottom);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        [["scrim_win_rate", "#60a5fa"], ["cumulative_win_rate", "#fa4454"]].forEach(([key, color]) => {
-            const cy = yAt(pt[key]);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(hx, cy, 6, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "rgba(255,255,255,0.6)";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-        });
-        ctx.restore();
-
-        const winClass = pt.wins > pt.losses ? "tt-win" : pt.wins < pt.losses ? "tt-loss" : "tt-draw";
-        tooltip.innerHTML = `
-            <div class="tt-label">${pt.label}</div>
-            <div class="tt-row"><span>Maps</span><span>${pt.maps}</span></div>
-            <div class="tt-row"><span>W–L</span><span class="${winClass}">${pt.wins}–${pt.losses}</span></div>
-            <div class="tt-row"><span>Scrim WR</span><span style="color:#60a5fa">${pt.scrim_win_rate}%</span></div>
-            <div class="tt-row"><span>Cumulative WR</span><span style="color:#fa4454">${pt.cumulative_win_rate}%</span></div>
-        `;
-
-        const wrapRect = trendCanvas.parentElement.getBoundingClientRect();
-        const canvasLeft = rect.left - wrapRect.left;
-        const canvasTop = rect.top - wrapRect.top;
-        const dotY = yAt(pt.scrim_win_rate);
-
-        tooltip.hidden = false;
-        const ttW = tooltip.offsetWidth;
-        const ttH = tooltip.offsetHeight;
-        let ttLeft = canvasLeft + hx + 14;
-        let ttTop = canvasTop + dotY - ttH / 2;
-
-        if (ttLeft + ttW > wrapRect.width - 6) {
-            ttLeft = canvasLeft + hx - ttW - 14;
-        }
-        ttTop = Math.max(canvasTop + 4, Math.min(ttTop, canvasTop + cssH - ttH - 4));
-
-        tooltip.style.left = `${ttLeft}px`;
-        tooltip.style.top = `${ttTop}px`;
-    });
-
-    trendCanvas?.addEventListener("mouseleave", () => {
-        tooltip.hidden = true;
-        if (chartSnapshot) {
-            trendCanvas.getContext("2d").putImageData(chartSnapshot, 0, 0);
-        }
-    });
 
     const hashTab = (window.location.hash || "").replace("#", "").trim().toLowerCase();
     if (validTabs.has(hashTab)) {
         switchTab(hashTab);
     }
-
-    window.addEventListener("resize", () => {
-        if (timelineRendered) {
-            renderTimelineChart();
-        }
-    });
 
     const modal = document.getElementById("playerModal");
     const openBtn = document.getElementById("openPlayerModal");
