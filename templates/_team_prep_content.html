@@ -766,14 +766,14 @@
                 c2.setLineDash([]);
                 c2.font = '11px sans-serif';
                 c2.textAlign = 'right';
-                c2.fillStyle = 'rgba(74,222,128,0.5)';
-                c2.fillText('Must Pick', ca.right - 6, ca.top + 14);
-                c2.textAlign = 'left';
                 c2.fillStyle = 'rgba(248,113,113,0.5)';
-                c2.fillText('Rarely Used', ca.left + 6, ca.top + 14);
+                c2.fillText('Must Ban', ca.right - 6, ca.top + 14);
+                c2.textAlign = 'left';
+                c2.fillStyle = 'rgba(74,222,128,0.5)';
+                c2.fillText('Safe to Leave', ca.left + 6, ca.top + 14);
                 rows.forEach(function (r) {
-                    var px  = xs.getPixelForValue(r.play_when_open_rate || 0);
-                    var py  = ys.getPixelForValue(r.win_rate_when_open_played || 0);
+                    var px  = xs.getPixelForValue(r.ban_rate || 0);
+                    var py  = ys.getPixelForValue(r.play_when_open_rate || 0);
                     var rad = 5 + ((r.open_maps || 0) / maxMaps) * 10;
                     c2.fillStyle = 'rgba(226,232,240,0.85)';
                     c2.font = '10px sans-serif';
@@ -788,12 +788,12 @@
             type: 'bubble',
             data: {
                 datasets: rows.map(function (r) {
+                    var hb  = (r.ban_rate || 0) >= 50;
                     var hp  = (r.play_when_open_rate || 0) >= 50;
-                    var hw  = (r.win_rate_when_open_played || 0) >= 50;
-                    var col = hp && hw ? '#4ade80' : hp ? '#fbbf24' : hw ? '#2dd4bf' : '#f87171';
+                    var col = hb && hp ? '#f87171' : hb ? '#fbbf24' : hp ? '#4ade80' : '#94a3b8';
                     return {
                         label: r.hero,
-                        data: [{ x: r.play_when_open_rate || 0, y: r.win_rate_when_open_played || 0, r: 5 + ((r.open_maps || 0) / maxMaps) * 10 }],
+                        data: [{ x: r.ban_rate || 0, y: r.play_when_open_rate || 0, r: 5 + ((r.open_maps || 0) / maxMaps) * 10 }],
                         backgroundColor: col + 'b3',
                         hoverBackgroundColor: col,
                         borderColor: col + '66',
@@ -813,7 +813,8 @@
                             label: function (ctx) {
                                 var r = rows[ctx.datasetIndex];
                                 return [
-                                    ' Play rate: ' + (r.play_when_open_rate || 0) + '%  (' + r.played_when_open + '/' + r.open_maps + ' maps)',
+                                    ' Ban rate: ' + (r.ban_rate || 0) + '%  (' + r.banned_maps + ' maps)',
+                                    ' Played when open: ' + (r.play_when_open_rate || 0) + '%  (' + r.played_when_open + '/' + r.open_maps + ' maps)',
                                     ' WR when played: ' + (r.win_rate_when_open_played || 0) + '%'
                                 ];
                             }
@@ -825,13 +826,13 @@
                         min: 0, max: 100,
                         grid: { color: gridColor },
                         ticks: { callback: function (v) { return v + '%'; }, color: labelColor },
-                        title: { display: true, text: 'Play Rate When Open →', color: labelColor }
+                        title: { display: true, text: 'Ban Rate →', color: labelColor }
                     },
                     y: {
                         min: 0, max: 100,
                         grid: { color: gridColor },
                         ticks: { callback: function (v) { return v + '%'; }, color: labelColor },
-                        title: { display: true, text: 'WR When Played →', color: labelColor }
+                        title: { display: true, text: 'Play Rate When Open →', color: labelColor }
                     }
                 }
             },

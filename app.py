@@ -3802,6 +3802,8 @@ def build_scrim_analytics(
         )
         open_vs_overall_delta = round(win_rate_when_open - overall_win_rate, 1)
         play_when_open_rate = pct(played_when_open, open_maps)
+        total_observed_maps = open_maps + closed_maps
+        ban_rate = pct(closed_maps, total_observed_maps)
         fully_open_maps = stats["fully_open_maps"]
         our_played_when_fully_open = stats["our_played_when_fully_open"]
         enemy_played_when_fully_open = stats["enemy_played_when_fully_open"]
@@ -3847,6 +3849,7 @@ def build_scrim_analytics(
                 "fully_open_maps": fully_open_maps,
                 "our_played_when_fully_open": our_played_when_fully_open,
                 "enemy_played_when_fully_open": enemy_played_when_fully_open,
+                "ban_rate": ban_rate,
                 "our_fully_open_rate": our_fully_open_rate,
                 "enemy_fully_open_rate": enemy_fully_open_rate,
                 "fully_open_play_diff": fully_open_play_diff,
