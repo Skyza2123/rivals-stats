@@ -1608,6 +1608,140 @@ def build_player_hero_map_breakdown(player_name: str, scrims: list[dict]) -> dic
     }
 
 
+def build_player_ban_impact(player_name: str, scrims: list[dict]) -> list[dict]:
+    """Return ban impact rows for each of the player's main heroes (top 3 with >=2 maps).
+
+    Each row contains:
+      hero, hero_maps, hero_wr, times_banned, wr_when_banned, wr_delta, all_pivots, top_pivot
+    """
+    target_name = (player_name or "").strip().lower()
+    if not target_name:
+        return []
+
+    # First pass: count how many maps the player appeared on each hero.
+    hero_total_maps: dict[str, int] = defaultdict(int)
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            seen_heroes: set[str] = set()
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot, []):
+                    if (slot.get("player", "") or "").strip().lower() != target_name:
+                        continue
+                    h = _canonical_draft_hero(slot.get("hero", ""))
+                    if h and h not in seen_heroes:
+                        hero_total_maps[h] += 1
+                        seen_heroes.add(h)
+
+    if not hero_total_maps:
+        return []
+
+    sorted_heroes = sorted(hero_total_maps.items(), key=lambda x: x[1], reverse=True)
+    mains = [h for h, c in sorted_heroes if c >= 2][:3]
+    if not mains:
+        mains = [sorted_heroes[0][0]]
+
+    # Second pass: for each map check enemy bans, outcome, and player heroes played.
+    times_banned: dict[str, int] = defaultdict(int)
+    avail_wins: dict[str, int] = defaultdict(int)
+    avail_losses: dict[str, int] = defaultdict(int)
+    ban_wins: dict[str, int] = defaultdict(int)
+    ban_losses: dict[str, int] = defaultdict(int)
+    pivot_stats: dict[str, dict] = {h: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for h in mains}
+
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+
+            enemy_slot = "team2" if our_team_slot == "team1" else "team1"
+            draft = map_entry.get("draft", {})
+            enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
+            enemy_bans = {
+                _canonical_draft_hero(v)
+                for k, v in enemy_draft.items()
+                if "ban" in k and _canonical_draft_hero(v)
+            }
+
+            player_heroes: set[str] = set()
+            player_found = False
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot, []):
+                    if (slot.get("player", "") or "").strip().lower() != target_name:
+                        continue
+                    player_found = True
+                    h = _canonical_draft_hero(slot.get("hero", ""))
+                    if h:
+                        player_heroes.add(h)
+
+            if not player_found:
+                continue
+
+            for main_h in mains:
+                if main_h in enemy_bans:
+                    times_banned[main_h] += 1
+                    if result == "Win":
+                        ban_wins[main_h] += 1
+                    elif result == "Loss":
+                        ban_losses[main_h] += 1
+                    for h in player_heroes:
+                        if h != main_h:
+                            pivot_stats[main_h][h]["count"] += 1
+                            if result == "Win":
+                                pivot_stats[main_h][h]["wins"] += 1
+                            elif result == "Loss":
+                                pivot_stats[main_h][h]["losses"] += 1
+                elif main_h in player_heroes:
+                    if result == "Win":
+                        avail_wins[main_h] += 1
+                    elif result == "Loss":
+                        avail_losses[main_h] += 1
+
+    rows = []
+    for main_h in mains:
+        a_w = avail_wins[main_h]
+        a_l = avail_losses[main_h]
+        a_dec = a_w + a_l
+        hero_wr: float | None = round((a_w / a_dec) * 100, 1) if a_dec else None
+
+        b_w = ban_wins[main_h]
+        b_l = ban_losses[main_h]
+        b_dec = b_w + b_l
+        wr_banned: float | None = round((b_w / b_dec) * 100, 1) if b_dec else None
+
+        delta: float | None = round(wr_banned - hero_wr, 1) if (hero_wr is not None and wr_banned is not None) else None
+
+        pvts = []
+        for pvt_h, s in pivot_stats[main_h].items():
+            pvt_dec = s["wins"] + s["losses"]
+            pvt_wr: float | None = round((s["wins"] / pvt_dec) * 100, 1) if pvt_dec else None
+            pvts.append({"hero": pvt_h, "count": s["count"], "wr": pvt_wr})
+        pvts.sort(key=lambda x: x["count"], reverse=True)
+
+        rows.append({
+            "hero": main_h,
+            "hero_maps": hero_total_maps.get(main_h, 0),
+            "hero_wr": hero_wr,
+            "times_banned": times_banned[main_h],
+            "wr_when_banned": wr_banned,
+            "wr_delta": delta,
+            "all_pivots": pvts,
+            "top_pivot": pvts[0] if pvts else None,
+        })
+
+    rows.sort(key=lambda r: r["hero_maps"], reverse=True)
+    return rows
+
+
 def build_team_tournament_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
     team_id = int(team_row["id"])
     team_name = (team_row["name"] or "").strip().lower()
@@ -6572,6 +6706,7 @@ def player_detail(team_id: int, player_id: int):
     primary_hero_row = breakdown["hero_rows"][0] if breakdown["hero_rows"] else None
     recent_map_rows = build_player_recent_maps(player["name"], team_scrims, limit=20)
     swap_summary = build_player_submap_swap_summary(player["name"], team_scrims, limit=20)
+    player_ban_impact = build_player_ban_impact(player["name"], team_scrims)
 
     best_map_row = max(breakdown["map_rows"], key=lambda row: (row["win_rate"], row["maps"]), default=None)
     worst_map_row = min(breakdown["map_rows"], key=lambda row: (row["win_rate"], -row["maps"]), default=None)
@@ -6591,6 +6726,7 @@ def player_detail(team_id: int, player_id: int):
         player_map_rows=breakdown["map_rows"],
         player_recent_maps=recent_map_rows,
         player_swap_summary=swap_summary,
+        player_ban_impact=player_ban_impact,
         player_insights=player_insights,
         selected_season=selected_season,
         season_options=season_options,

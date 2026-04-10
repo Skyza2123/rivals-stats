@@ -550,6 +550,16 @@ th {
     border-color: rgba(167, 139, 250, 0.22);
 }
 
+.panel-soft-teal {
+    background: linear-gradient(180deg, rgba(15, 118, 110, 0.14), rgba(13, 17, 23, 0.88));
+    border-color: rgba(45, 212, 191, 0.22);
+}
+
+.panel-soft-orange {
+    background: linear-gradient(180deg, rgba(154, 52, 18, 0.14), rgba(13, 17, 23, 0.88));
+    border-color: rgba(251, 146, 60, 0.22);
+}
+
 .stats-table {
     border-collapse: separate;
     border-spacing: 0;
@@ -4343,3 +4353,267 @@ th {
     color: var(--muted);
     font-style: italic;
 }
+
+
+/* ------- Player Detail � Visual Enhancements ------- */
+
+/* Hero portrait grid */
+.player-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.25rem;
+}
+
+.player-hero-card {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    cursor: default;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.player-hero-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(250, 68, 84, 0.40);
+}
+
+.player-hero-card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+}
+
+.player-hero-card-meta {
+    padding: 5px 7px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: rgba(0,0,0,0.45);
+}
+
+.player-hero-card-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.player-hero-card-wr {
+    font-size: 0.68rem;
+    color: var(--muted);
+}
+
+.player-hero-card-wr.wr-good { color: #4ade80; }
+.player-hero-card-wr.wr-ok   { color: #fbbf24; }
+.player-hero-card-wr.wr-bad  { color: #f87171; }
+
+/* Map banner cards */
+.player-map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.25rem;
+}
+
+.player-map-card {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.player-map-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(96,165,250,0.35);
+}
+
+.player-map-card-banner {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    display: block;
+    background: var(--panel-bg);
+}
+
+.player-map-card-body {
+    padding: 8px 10px 10px;
+}
+
+.player-map-card-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-map-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    gap: 6px;
+}
+
+.player-map-card-record {
+    font-size: 0.73rem;
+    color: var(--muted);
+}
+
+.player-map-wr-pill {
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.player-map-wr-pill.wr-good { background: rgba(74,222,128,0.18); color: #4ade80; }
+.player-map-wr-pill.wr-ok   { background: rgba(251,191,36,0.18);  color: #fbbf24; }
+.player-map-wr-pill.wr-bad  { background: rgba(248,113,113,0.18); color: #f87171; }
+
+/* Trend + hero chart wraps */
+.player-chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(13,17,23,0.85);
+}
+
+.player-chart-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+/* ── Player Ban Impact ─────────────────────────────── */
+.player-ban-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.player-ban-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 220px;
+    flex: 1 1 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.player-ban-card-hero {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.player-ban-card-hero img {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.player-ban-card-hero-name {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.2;
+}
+
+.player-ban-count {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.ban-count-badge {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
+    border: 1px solid rgba(251, 146, 60, 0.3);
+    white-space: nowrap;
+}
+
+.player-ban-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.player-ban-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    min-width: 90px;
+}
+
+.player-ban-stat-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.player-ban-pivot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.player-ban-pivot-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.player-ban-pivot-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 5px 9px;
+}
+
+.player-ban-pivot-chip img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.player-ban-pivot-name {
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.wr-good { color: #4ade80; }
+.wr-ok   { color: #fbbf24; }
+.wr-bad  { color: #f87171; }

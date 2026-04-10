@@ -93,69 +93,165 @@
 </section>
 
 <section class="panel panel-soft-blue top-gap">
-    <h3>Best Heroes</h3>
+    <h3>Hero Pool</h3>
     {% if player_hero_rows %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Hero</th>
-                        <th>Instances</th>
-                        <th>Record</th>
-                        <th>Win Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in player_hero_rows[:12] %}
-                        <tr>
-                            <td>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    <span>{{ hero_display_name(row.hero) }}</span>
-                                </span>
-                            </td>
-                            <td>{{ sample_warn(row.maps) }}</td>
-                            <td>{{ row.wins }}W - {{ row.losses }}L</td>
-                            <td>{{ row.win_rate }}%</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {# Portrait grid — top 12 heroes #}
+        <div class="player-hero-grid">
+            {% for row in player_hero_rows[:12] %}
+                {% set wr = row.win_rate %}
+                {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                <div class="player-hero-card">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                    <div class="player-hero-card-meta">
+                        <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
+                        <span class="player-hero-card-wr {{ wr_class }}">{{ row.maps }} maps &bull; {{ wr }}%</span>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
+
+        {# Bar chart: hero play count #}
+        <p class="player-chart-label">Play Count by Hero</p>
+        <div class="player-chart-wrap" style="height: {{ [260, player_hero_rows[:12]|length * 36 + 40]|max }}px">
+            <canvas id="playerHeroBarChart"></canvas>
+        </div>
+        <script id="playerHeroData" type="application/json">{{ player_hero_rows[:12] | tojson }}</script>
     {% else %}
         <p class="empty-text">No hero data for this player yet.</p>
     {% endif %}
 </section>
 
 <section class="panel panel-soft-violet top-gap">
-    <h3>Best Maps</h3>
+    <h3>Map Performance</h3>
     {% if player_map_rows %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Map</th>
-                        <th>Mode</th>
-                        <th>Maps</th>
-                        <th>Record</th>
-                        <th>Win Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in player_map_rows[:12] %}
-                        <tr>
-                            <td>{{ row.map_name }}</td>
-                            <td>{{ row.mode }}</td>
-                            <td>{{ sample_warn(row.maps) }}</td>
-                            <td>{{ row.wins }}W - {{ row.losses }}L</td>
-                            <td>{{ row.win_rate }}%</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {# Map image cards #}
+        <div class="player-map-grid">
+            {% for row in player_map_rows[:12] %}
+                {% set wr = row.win_rate %}
+                {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                <div class="player-map-card">
+                    {% if row.image %}
+                        <img class="player-map-card-banner" src="{{ row.image }}" alt="{{ row.map_name }}" onerror="this.style.display='none'">
+                    {% else %}
+                        <div class="player-map-card-banner" style="background: var(--panel-bg);"></div>
+                    {% endif %}
+                    <div class="player-map-card-body">
+                        <div class="player-map-card-name">{{ row.map_name }}</div>
+                        <div class="player-map-card-meta">
+                            <span class="player-map-card-record">{{ row.wins }}W&ndash;{{ row.losses }}L &bull; {{ sample_warn(row.maps) }}</span>
+                            <span class="player-map-wr-pill {{ wr_class }}">{{ wr }}%</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
+
+        {# Map WR bar chart #}
+        <p class="player-chart-label">Win Rate by Map</p>
+        <div class="player-chart-wrap" style="height: {{ [260, player_map_rows[:12]|length * 36 + 40]|max }}px">
+            <canvas id="playerMapChart"></canvas>
+        </div>
+        <script id="playerMapData" type="application/json">{{ player_map_rows[:12] | tojson }}</script>
     {% else %}
         <p class="empty-text">No map data for this player yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-teal top-gap">
+    <h3>Performance Trend</h3>
+    <p class="panel-intro">Cumulative win rate over the last {{ player_recent_maps|length }} maps, in chronological order.</p>
+    <div class="player-chart-wrap">
+        <canvas id="playerTrendChart"></canvas>
+    </div>
+    <script id="playerRecentData" type="application/json">{{ player_recent_maps | tojson }}</script>
+</section>
+
+<section class="panel panel-soft-teal top-gap">
+    <h3>Performance Trend</h3>
+    <p class="panel-intro">Cumulative win rate over the last {{ player_recent_maps|length }} maps, in chronological order.</p>
+    <div class="player-chart-wrap">
+        <canvas id="playerTrendChart"></canvas>
+    </div>
+    <script id="playerRecentData" type="application/json">{{ player_recent_maps | tojson }}</script>
+</section>
+
+<section class="panel panel-soft-orange top-gap">
+    <h3>Ban Impact</h3>
+    {% if player_ban_impact and player_ban_impact | selectattr("times_banned") | list %}
+        <p class="panel-intro">How the team performs when the enemy bans out {{ player.name }}'s key heroes, and what they pivot to.</p>
+
+        {# Ban impact hero cards #}
+        <div class="player-ban-grid">
+            {% for row in player_ban_impact %}
+                <div class="player-ban-card">
+                    <div class="player-ban-card-hero">
+                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                        <div>
+                            <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
+                            <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
+                        </div>
+                        <span class="ban-count-badge">Banned {{ row.times_banned }}×</span>
+                    </div>
+
+                    <div class="player-ban-stats">
+                        <div class="player-ban-stat">
+                            <span class="player-ban-stat-label">WR when available</span>
+                            {% if row.hero_wr is not none %}
+                                <strong class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</strong>
+                            {% else %}
+                                <strong>—</strong>
+                            {% endif %}
+                        </div>
+                        <div class="player-ban-stat">
+                            <span class="player-ban-stat-label">WR when banned</span>
+                            {% if row.wr_when_banned is not none %}
+                                <strong class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</strong>
+                            {% else %}
+                                <strong>—</strong>
+                            {% endif %}
+                        </div>
+                        {% if row.wr_delta is not none %}
+                            <div class="player-ban-stat">
+                                <span class="player-ban-stat-label">Impact</span>
+                                <strong class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if row.all_pivots %}
+                        <div class="player-ban-pivot-list">
+                            <span class="player-ban-stat-label">Pivots to:</span>
+                            <div class="player-ban-pivot-chips">
+                                {% for pvt in row.all_pivots[:3] %}
+                                    <div class="player-ban-pivot-chip">
+                                        <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" onerror="this.style.display='none'">
+                                        <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
+                                        <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="player-ban-count" style="margin:0">No pivot data recorded.</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {# Ban impact comparison chart #}
+        {% if player_ban_impact | selectattr("wr_when_banned") | list %}
+            <p class="player-chart-label">Win Rate: Available vs Banned</p>
+            <div class="player-chart-wrap" style="height: {{ [220, player_ban_impact|length * 54 + 60]|max }}px">
+                <canvas id="playerBanChart"></canvas>
+            </div>
+        {% endif %}
+        <script id="playerBanData" type="application/json">{{ player_ban_impact | tojson }}</script>
+
+    {% elif player_ban_impact %}
+        <p class="empty-text">{{ player.name }}'s main heroes have not been banned in any recorded scrims yet.</p>
+        <script id="playerBanData" type="application/json">{{ player_ban_impact | tojson }}</script>
+    {% else %}
+        <p class="empty-text">No hero data available to compute ban impact.</p>
     {% endif %}
 </section>
 
@@ -190,4 +286,255 @@
         <p class="empty-text">No recent map appearances found.</p>
     {% endif %}
 </section>
+
+<script>
+(function () {
+    var gridColor  = 'rgba(255,255,255,0.07)';
+    var labelColor = '#94a3b8';
+
+    function parseJson(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch(e) { return null; }
+    }
+
+    /* ── Hero bar chart ─────────────────────────────────── */
+    (function () {
+        var rows = parseJson('playerHeroData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('playerHeroBarChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        var labels = rows.map(function (r) { return r.hero; });
+        var counts = rows.map(function (r) { return r.maps; });
+        var wrs    = rows.map(function (r) { return r.win_rate; });
+        var barColors = wrs.map(function (wr) {
+            return wr >= 55 ? 'rgba(74,222,128,0.75)' : wr >= 45 ? 'rgba(251,191,36,0.75)' : 'rgba(248,113,113,0.75)';
+        });
+
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Maps Played',
+                        data: counts,
+                        backgroundColor: barColors,
+                        hoverBackgroundColor: barColors.map(function (c) { return c.replace('0.75', '1'); }),
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: 'Win Rate %',
+                        data: wrs,
+                        type: 'line',
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96,165,250,0.12)',
+                        pointBackgroundColor: '#60a5fa',
+                        pointRadius: 4,
+                        tension: 0.35,
+                        yAxisID: 'yWR',
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                if (ctx.datasetIndex === 0) return ' ' + ctx.raw + ' maps';
+                                return ' WR: ' + ctx.raw + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x:    { grid: { color: gridColor }, ticks: { color: labelColor }, title: { display: true, text: 'Maps Played', color: labelColor } },
+                    yWR:  { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { callback: function(v){ return v+'%'; }, color: '#60a5fa' } },
+                    y:    { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+                }
+            }
+        });
+    })();
+
+    /* ── Map WR bar chart ───────────────────────────────── */
+    (function () {
+        var rows = parseJson('playerMapData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('playerMapChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        var labels = rows.map(function (r) { return r.map_name; });
+        var wrs    = rows.map(function (r) { return r.win_rate; });
+        var counts = rows.map(function (r) { return r.maps; });
+        var barColors = wrs.map(function (wr) {
+            return wr >= 55 ? 'rgba(74,222,128,0.75)' : wr >= 45 ? 'rgba(251,191,36,0.75)' : 'rgba(248,113,113,0.75)';
+        });
+
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Win Rate %',
+                        data: wrs,
+                        backgroundColor: barColors,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var r = rows[ctx.dataIndex];
+                                return ' ' + ctx.raw + '% WR  (' + r.wins + 'W–' + r.losses + 'L, ' + r.maps + ' maps)';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v){ return v+'%'; }, color: labelColor } },
+                    y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+                }
+            }
+        });
+    })();
+
+    /* ── Cumulative WR trend chart ──────────────────────── */
+    (function () {
+        var rows = parseJson('playerRecentData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('playerTrendChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        /* Reverse so index 0 = oldest */
+        var ordered = rows.slice().reverse();
+        var labels = [], cumWR = [], wins = 0, decided = 0;
+        ordered.forEach(function (r, i) {
+            var res = r.result || '';
+            if (res === 'Win')  { wins++; decided++; }
+            else if (res === 'Loss') { decided++; }
+            labels.push('Map ' + (i + 1));
+            cumWR.push(decided ? Math.round((wins / decided) * 1000) / 10 : null);
+        });
+
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Cumulative WR %',
+                    data: cumWR,
+                    borderColor: '#fa4454',
+                    backgroundColor: 'rgba(250,68,84,0.10)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#fa4454',
+                    spanGaps: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function (items) {
+                                var r = ordered[items[0].dataIndex];
+                                return (r.map_name || 'Map') + ' vs ' + (r.opponent || '?');
+                            },
+                            label: function (ctx) {
+                                var r = ordered[ctx.dataIndex];
+                                return [
+                                    ' Result: ' + (r.result || '—'),
+                                    ' Cumulative WR: ' + ctx.raw + '%'
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: gridColor }, ticks: { color: labelColor, maxTicksLimit: 12 } },
+                    y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v){ return v+'%'; }, color: labelColor } }
+                }
+            }
+        });
+    })();
+
+    /* ── Ban impact grouped bar chart ──────────────────── */
+    (function () {
+        var rows = parseJson('playerBanData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('playerBanChart');
+        if (!canvas) return;
+        if (typeof Chart === 'undefined') return;
+
+        /* Only include rows that have at least one WR value */
+        var filtered = rows.filter(function (r) { return r.hero_wr !== null || r.wr_when_banned !== null; });
+        if (!filtered.length) return;
+
+        var labels   = filtered.map(function (r) { return r.hero; });
+        var availWRs = filtered.map(function (r) { return r.hero_wr; });
+        var bannedWRs = filtered.map(function (r) { return r.wr_when_banned; });
+
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'WR when available',
+                        data: availWRs,
+                        backgroundColor: 'rgba(96,165,250,0.75)',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: 'WR when banned',
+                        data: bannedWRs,
+                        backgroundColor: 'rgba(250,68,84,0.70)',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, labels: { color: labelColor } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return ctx.raw !== null ? ' ' + ctx.raw + '%' : ' No data';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v){ return v+'%'; }, color: labelColor } },
+                    y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+                }
+            }
+        });
+    })();
+})();
+</script>
 {% endblock %}
