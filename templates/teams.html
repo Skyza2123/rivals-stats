@@ -45,6 +45,13 @@
 
     <div class="tab-content" id="tab-all">
         {% if teams %}
+            {% set charted = teams | selectattr('map_count') | list %}
+            {% if charted | length > 1 %}
+            <script id="teamsCompareData" type="application/json">{{ charted | tojson }}</script>
+            <div class="teams-wr-chart-wrap">
+                <canvas id="teamsWrChart"></canvas>
+            </div>
+            {% endif %}
             <div class="teams-card-grid">
                 {% for team in teams %}
                     <article class="team-dash-card">
@@ -246,6 +253,75 @@
     if (validTabs.has(hashTab)) {
         switchTab(hashTab);
     }
+})();
+
+/* ── Teams Win Rate Bar Chart ── */
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var el = document.getElementById('teamsCompareData');
+    if (!el) return;
+    var rows;
+    try { rows = JSON.parse(el.textContent); } catch (e) { return; }
+    if (!rows || !rows.length) return;
+    var canvas = document.getElementById('teamsWrChart');
+    if (!canvas) return;
+
+    rows = rows.slice().sort(function (a, b) { return (b.map_win_rate || 0) - (a.map_win_rate || 0); });
+    canvas.parentElement.style.height = Math.max(140, rows.length * 36 + 60) + 'px';
+
+    var gridColor  = 'rgba(255,255,255,0.07)';
+    var labelColor = '#94a3b8';
+    var labels = rows.map(function (r) { return r.name; });
+    var wrs    = rows.map(function (r) { return r.map_win_rate || 0; });
+    var counts = rows.map(function (r) { return r.map_count || 0; });
+    var colors = wrs.map(function (wr) {
+        return wr >= 60 ? 'rgba(74,222,128,0.8)' : wr >= 45 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)';
+    });
+
+    var existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Win Rate %',
+                data: wrs,
+                backgroundColor: colors,
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            var r = rows[ctx.dataIndex];
+                            return ' WR: ' + ctx.raw + '%  (' + (r.map_count || 0) + ' maps)';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: 0, max: 100,
+                    grid: { color: gridColor },
+                    ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: labelColor }
+                }
+            }
+        }
+    });
 })();
 </script>
 {% endblock %}

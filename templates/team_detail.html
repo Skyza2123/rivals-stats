@@ -577,6 +577,13 @@
                 {% else %}
                     <p class="empty-text">No ban/protect tendency data yet.</p>
                 {% endif %}
+
+                {% if team_analytics.ban_protect_rows %}
+                <script id="teamBanProtectData" type="application/json">{{ team_analytics.ban_protect_rows[:14] | tojson }}</script>
+                <div class="prep-chart-wrap top-gap" style="position:relative;">
+                    <canvas id="teamBanProtectChart"></canvas>
+                </div>
+                {% endif %}
             </div>
 
             <div class="panel panel-soft-violet top-gap">
@@ -1469,6 +1476,23 @@
         {% endif %}
     </section>
 
+    {% if hero_graph_rows %}
+    <section class="panel top-gap">
+        <div class="section-kicker">Role Breakdown</div>
+        <h3>Role Distribution</h3>
+        <p class="panel-intro">Total hero appearances broken down by role across all tracked maps.</p>
+        <script id="teamHeroGraphData" type="application/json">{{ hero_graph_rows | tojson }}</script>
+        <div class="hero-charts-split">
+            <div class="role-donut-wrap">
+                <canvas id="teamRoleDonutChart"></canvas>
+            </div>
+            <div class="hero-pool-bar-wrap">
+                <canvas id="teamHeroPoolBarChart"></canvas>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <section class="panel top-gap">
         <div class="section-kicker">Usage Trend</div>
         <h3>Hero Usage Over Time</h3>
@@ -1493,6 +1517,17 @@
 </div>
 
 <div class="tab-content tab-hidden" id="tab-maps">
+    {% if team_map_cards %}
+    <section class="panel">
+        <div class="section-kicker">Overview</div>
+        <h3>Map Win Rate</h3>
+        <p class="panel-intro">Win rate per map across all tracked scrims, coloured by performance tier.</p>
+        <script id="teamMapWrData" type="application/json">{{ team_map_cards | tojson }}</script>
+        <div class="prep-chart-wrap" style="position:relative;">
+            <canvas id="teamMapWrChart"></canvas>
+        </div>
+    </section>
+    {% endif %}
     <section class="panel panel-soft-violet">
         <div class="section-kicker">Player Matrix</div>
         <h3>Player Map Performance Matrix</h3>
@@ -1665,7 +1700,7 @@
                         title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
                         href="{{ url_for('scrim_map_timeline', scrim_id=map_row.timeline_scrim_id, map_name=map_row.map_name) }}"
                     >
-                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ map_row.image }}')"{% endif %}></div>
+                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('{{ map_row.image }}')"{% endif %}></div>
                         <div class="team-map-overlay"></div>
                         <div class="team-map-top">
                             <span class="team-map-mode">{{ map_row.mode }}</span>
@@ -1689,7 +1724,7 @@
                         data-map-games="{{ map_row.maps }}"
                         title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
                     >
-                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ map_row.image }}')"{% endif %}></div>
+                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('{{ map_row.image }}')"{% endif %}></div>
                         <div class="team-map-overlay"></div>
                         <div class="team-map-top">
                             <span class="team-map-mode">{{ map_row.mode }}</span>
@@ -2414,6 +2449,297 @@ if (document.readyState !== 'complete') {
             }
         }
     });
+})();
+
+/* ── New charts: Role Donut, Hero Pool Bar, Ban/Protect Bar, Map WR Bar ── */
+(function () {
+    'use strict';
+    if (typeof Chart === 'undefined') return;
+
+    var gridColor  = 'rgba(255,255,255,0.07)';
+    var labelColor = '#94a3b8';
+
+    var HERO_ROLES = {
+        'Angela': 'Vanguard', 'Captain America': 'Vanguard', 'Dr. Strange': 'Vanguard',
+        'Emma Frost': 'Vanguard', 'Groot': 'Vanguard', 'Hulk': 'Vanguard',
+        'Magneto': 'Vanguard', 'Rogue': 'Vanguard', 'Peni Parker': 'Vanguard',
+        'Tankpool': 'Vanguard', 'Thing': 'Vanguard', 'Thor': 'Vanguard', 'Venom': 'Vanguard',
+        'Black Panther': 'Duelist', 'Black Widow': 'Duelist', 'Blade': 'Duelist',
+        'Daredevil': 'Duelist', 'DpsPool': 'Duelist', 'Elsa Bloodstone': 'Duelist',
+        'Hawkeye': 'Duelist', 'Hela': 'Duelist', 'Human Torch': 'Duelist',
+        'Iron Fist': 'Duelist', 'Iron Man': 'Duelist', 'Magik': 'Duelist',
+        'Moon Knight': 'Duelist', 'Mr. Fantastic': 'Duelist', 'Namor': 'Duelist',
+        'Phoenix': 'Duelist', 'Psylocke': 'Duelist', 'Punisher': 'Duelist',
+        'Scarlet Witch': 'Duelist', 'Spider-Man': 'Duelist', 'Squirrel Girl': 'Duelist',
+        'Star-Lord': 'Duelist', 'Storm': 'Duelist', 'Winter Soldier': 'Duelist',
+        'Wolverine': 'Duelist',
+        'Adam Warlock': 'Strategist', 'Cloak & Dagger': 'Strategist', 'Invisible Woman': 'Strategist',
+        'Gambit': 'Strategist', 'Jeff TLS': 'Strategist', 'Loki': 'Strategist',
+        'Luna Snow': 'Strategist', 'Mantis': 'Strategist', 'Rocket Raccoon': 'Strategist',
+        'SupportPool': 'Strategist', 'Ultron': 'Strategist', 'White Fox': 'Strategist',
+    };
+
+    function parseJsonEl(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch (e) { return null; }
+    }
+
+    function destroyAndCreate(id, config) {
+        var existing = Chart.getChart(id);
+        if (existing) existing.destroy();
+        var canvas = document.getElementById(id);
+        if (!canvas) return null;
+        return new Chart(canvas, config);
+    }
+
+    /* ── Role Breakdown Donut ── */
+    (function () {
+        var rows = parseJsonEl('teamHeroGraphData');
+        if (!rows || !rows.length) return;
+        var counts = { Vanguard: 0, Duelist: 0, Strategist: 0 };
+        rows.forEach(function (r) {
+            var role = HERO_ROLES[r.hero] || 'Duelist';
+            counts[role] = (counts[role] || 0) + (r.appearances || 0);
+        });
+        var total = counts.Vanguard + counts.Duelist + counts.Strategist;
+        if (!total) return;
+        var canvas = document.getElementById('teamRoleDonutChart');
+        if (!canvas) return;
+        canvas.parentElement.style.maxWidth = '260px';
+        canvas.parentElement.style.margin = '0 auto';
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Vanguard', 'Duelist', 'Strategist'],
+                datasets: [{
+                    data: [counts.Vanguard, counts.Duelist, counts.Strategist],
+                    backgroundColor: ['rgba(96,165,250,0.85)', 'rgba(248,113,113,0.85)', 'rgba(74,222,128,0.85)'],
+                    borderColor: ['#60a5fa', '#f87171', '#4ade80'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '62%',
+                plugins: {
+                    legend: { display: true, position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var v = ctx.raw;
+                                return ' ' + ctx.label + ': ' + v + ' (' + Math.round(v / total * 100) + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+
+    /* ── Hero Pool Bar Chart (appearances + win rate line) ── */
+    (function () {
+        var rows = parseJsonEl('teamHeroGraphData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('teamHeroPoolBarChart');
+        if (!canvas) return;
+        var labels   = rows.map(function (r) { return r.hero; });
+        var apps     = rows.map(function (r) { return r.appearances; });
+        var wrs      = rows.map(function (r) { return r.win_rate; });
+        canvas.parentElement.style.height = Math.max(200, rows.length * 34 + 60) + 'px';
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Appearances',
+                        data: apps,
+                        backgroundColor: 'rgba(96,165,250,0.75)',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        xAxisID: 'xCount',
+                    },
+                    {
+                        label: 'Win Rate %',
+                        data: wrs,
+                        type: 'line',
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74,222,128,0.12)',
+                        pointBackgroundColor: '#4ade80',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.3,
+                        fill: false,
+                        xAxisID: 'xWR',
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { color: labelColor } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                if (ctx.dataset.xAxisID === 'xWR') return ' WR: ' + ctx.raw + '%';
+                                return ' Appearances: ' + ctx.raw;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: { color: labelColor },
+                        grid: { color: gridColor },
+                    },
+                    xCount: {
+                        position: 'bottom',
+                        beginAtZero: true,
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor },
+                        title: { display: true, text: 'Appearances', color: labelColor },
+                    },
+                    xWR: {
+                        position: 'top',
+                        min: 0, max: 100,
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor },
+                        title: { display: true, text: 'Win Rate', color: labelColor },
+                    }
+                }
+            }
+        });
+    })();
+
+    /* ── Ban vs Protect Rate grouped horizontal bar ── */
+    (function () {
+        var rows = parseJsonEl('teamBanProtectData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('teamBanProtectChart');
+        if (!canvas) return;
+        canvas.parentElement.style.height = Math.max(160, rows.length * 42 + 80) + 'px';
+        var labels = rows.map(function (r) { return r.hero; });
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Ban Rate',
+                        data: rows.map(function (r) { return r.ban_rate; }),
+                        backgroundColor: 'rgba(248,113,113,0.75)',
+                        hoverBackgroundColor: '#f87171',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: 'Protect Rate',
+                        data: rows.map(function (r) { return r.protect_rate; }),
+                        backgroundColor: 'rgba(74,222,128,0.65)',
+                        hoverBackgroundColor: '#4ade80',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { color: labelColor } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return ' ' + ctx.dataset.label + ': ' + ctx.raw + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: labelColor }
+                    }
+                }
+            }
+        });
+    })();
+
+    /* ── Map Win Rate horizontal bar ── */
+    (function () {
+        var rows = parseJsonEl('teamMapWrData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('teamMapWrChart');
+        if (!canvas) return;
+        rows = rows.slice().sort(function (a, b) { return (b.win_rate || 0) - (a.win_rate || 0); });
+        canvas.parentElement.style.height = Math.max(160, rows.length * 38 + 60) + 'px';
+        var labels = rows.map(function (r) { return r.map_name; });
+        var wrs    = rows.map(function (r) { return r.win_rate || 0; });
+        var colors = wrs.map(function (wr) {
+            return wr >= 60 ? 'rgba(74,222,128,0.8)' : wr >= 45 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)';
+        });
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Win Rate %',
+                    data: wrs,
+                    backgroundColor: colors,
+                    borderRadius: 4,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var r = rows[ctx.dataIndex];
+                                return ' WR: ' + ctx.raw + '% (' + (r.wins || 0) + 'W-' + (r.losses || 0) + 'L, ' + (r.maps || 0) + ' maps)';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: labelColor }
+                    }
+                }
+            }
+        });
+    })();
+
 })();
 
 </script>

@@ -130,7 +130,7 @@
                         {% set rate_tier = 'map-rate-low' %}
                     {% endif %}
                     <article class="team-map-card hero-map-card {{ rate_tier }}">
-                        <div class="team-map-bg {% if not row.image %}team-map-bg-fallback{% endif %}" {% if row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ row.image }}')"{% endif %}></div>
+                        <div class="team-map-bg {% if not row.image %}team-map-bg-fallback{% endif %}" {% if row.image %}style="background-image:url('{{ row.image }}')"{% endif %}></div>
                         <div class="team-map-overlay"></div>
                         <div class="team-map-top">
                             <span class="team-map-mode">{{ row.mode }}</span>

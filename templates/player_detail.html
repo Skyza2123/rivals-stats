@@ -56,42 +56,6 @@
     </div>
 </section>
 
-<section class="panel panel-soft-green top-gap">
-    <h3>Round / Submap Swaps</h3>
-    {% if player_swap_summary.transition_count %}
-        <p class="panel-intro">Tracked {{ player_swap_summary.transition_count }} round-to-round transitions where this player appeared. Swap rate: <strong>{{ player_swap_summary.swap_rate }}%</strong>.</p>
-    {% else %}
-        <p class="panel-intro">No multi-round/submap transitions recorded yet for this player.</p>
-    {% endif %}
-
-    {% if player_swap_summary.swap_events %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Map</th>
-                        <th>Transition</th>
-                        <th>From Heroes</th>
-                        <th>To Heroes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in player_swap_summary.swap_events %}
-                        <tr>
-                            <td>{{ row.scrim_date or '—' }}</td>
-                            <td>{{ row.map_name or '—' }}</td>
-                            <td>{{ row.from_label }} → {{ row.to_label }}</td>
-                            <td>{{ row.from_heroes | join(', ') if row.from_heroes else '—' }}</td>
-                            <td>{{ row.to_heroes | join(', ') if row.to_heroes else '—' }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-</section>
-
 <section class="panel panel-soft-blue top-gap">
     <h3>Hero Pool</h3>
     {% if player_hero_rows %}
@@ -116,6 +80,12 @@
             <canvas id="playerHeroBarChart"></canvas>
         </div>
         <script id="playerHeroData" type="application/json">{{ player_hero_rows[:12] | tojson }}</script>
+
+        {# Role breakdown donut #}
+        <p class="player-chart-label top-gap">Role Distribution</p>
+        <div class="player-role-donut-wrap">
+            <canvas id="playerRoleDonutChart"></canvas>
+        </div>
     {% else %}
         <p class="empty-text">No hero data for this player yet.</p>
     {% endif %}
@@ -166,125 +136,228 @@
     <script id="playerRecentData" type="application/json">{{ player_recent_maps | tojson }}</script>
 </section>
 
-<section class="panel panel-soft-teal top-gap">
-    <h3>Performance Trend</h3>
-    <p class="panel-intro">Cumulative win rate over the last {{ player_recent_maps|length }} maps, in chronological order.</p>
-    <div class="player-chart-wrap">
-        <canvas id="playerTrendChart"></canvas>
-    </div>
-    <script id="playerRecentData" type="application/json">{{ player_recent_maps | tojson }}</script>
-</section>
-
 <section class="panel panel-soft-orange top-gap">
     <h3>Ban Impact</h3>
-    {% if player_ban_impact and player_ban_impact | selectattr("times_banned") | list %}
-        <p class="panel-intro">How the team performs when the enemy bans out {{ player.name }}'s key heroes, and what they pivot to.</p>
+    {% if player_ban_impact %}
+        {% set banned_rows = player_ban_impact | selectattr("times_banned") | list %}
+        {% set unbanned_rows = player_ban_impact | rejectattr("times_banned") | list %}
 
-        {# Ban impact hero cards #}
-        <div class="player-ban-grid">
-            {% for row in player_ban_impact %}
-                <div class="player-ban-card">
-                    <div class="player-ban-card-hero">
-                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
-                        <div>
-                            <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
-                            <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
-                        </div>
-                        <span class="ban-count-badge">Banned {{ row.times_banned }}×</span>
-                    </div>
+        {% if banned_rows %}
+            <p class="panel-intro">How the team performs when the enemy targets {{ player.name }}'s hero pool, and what they pivot to.</p>
 
-                    <div class="player-ban-stats">
-                        <div class="player-ban-stat">
-                            <span class="player-ban-stat-label">WR when available</span>
-                            {% if row.hero_wr is not none %}
-                                <strong class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</strong>
-                            {% else %}
-                                <strong>—</strong>
-                            {% endif %}
-                        </div>
-                        <div class="player-ban-stat">
-                            <span class="player-ban-stat-label">WR when banned</span>
-                            {% if row.wr_when_banned is not none %}
-                                <strong class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</strong>
-                            {% else %}
-                                <strong>—</strong>
-                            {% endif %}
-                        </div>
-                        {% if row.wr_delta is not none %}
-                            <div class="player-ban-stat">
-                                <span class="player-ban-stat-label">Impact</span>
-                                <strong class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</strong>
+            {# Cards for heroes that were actually banned #}
+            <div class="player-ban-grid">
+                {% for row in banned_rows %}
+                    <div class="player-ban-card">
+                        <div class="player-ban-card-hero">
+                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                            <div>
+                                <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
+                                <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
                             </div>
+                            <span class="ban-count-badge">Banned {{ row.times_banned }}×</span>
+                        </div>
+
+                        <div class="player-ban-stats">
+                            <div class="player-ban-stat">
+                                <span class="player-ban-stat-label">WR when available</span>
+                                {% if row.hero_wr is not none %}
+                                    <strong class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</strong>
+                                {% else %}
+                                    <strong>—</strong>
+                                {% endif %}
+                            </div>
+                            <div class="player-ban-stat">
+                                <span class="player-ban-stat-label">WR when banned</span>
+                                {% if row.wr_when_banned is not none %}
+                                    <strong class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</strong>
+                                {% else %}
+                                    <strong>—</strong>
+                                {% endif %}
+                            </div>
+                            {% if row.wr_delta is not none %}
+                                <div class="player-ban-stat">
+                                    <span class="player-ban-stat-label">Impact</span>
+                                    <strong class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</strong>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if row.all_pivots %}
+                            <div class="player-ban-pivot-list">
+                                <span class="player-ban-stat-label">Pivots to:</span>
+                                <div class="player-ban-pivot-chips">
+                                    {% for pvt in row.all_pivots[:3] %}
+                                        <div class="player-ban-pivot-chip">
+                                            <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" onerror="this.style.display='none'">
+                                            <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
+                                            <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="player-ban-count" style="margin:0">No pivot data recorded.</p>
                         {% endif %}
                     </div>
+                {% endfor %}
+            </div>
 
-                    {% if row.all_pivots %}
-                        <div class="player-ban-pivot-list">
-                            <span class="player-ban-stat-label">Pivots to:</span>
-                            <div class="player-ban-pivot-chips">
-                                {% for pvt in row.all_pivots[:3] %}
-                                    <div class="player-ban-pivot-chip">
-                                        <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" onerror="this.style.display='none'">
-                                        <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
-                                        <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% else %}
-                        <p class="player-ban-count" style="margin:0">No pivot data recorded.</p>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </div>
-
-        {# Ban impact comparison chart #}
-        {% if player_ban_impact | selectattr("wr_when_banned") | list %}
-            <p class="player-chart-label">Win Rate: Available vs Banned</p>
-            <div class="player-chart-wrap" style="height: {{ [220, player_ban_impact|length * 54 + 60]|max }}px">
+            {# Chart: WR when available vs banned for all banned heroes #}
+            <p class="player-chart-label">Win Rate: Available vs Banned (all targeted heroes)</p>
+            <div class="player-chart-wrap" style="height: {{ [220, banned_rows|length * 54 + 60]|max }}px">
                 <canvas id="playerBanChart"></canvas>
             </div>
+        {% else %}
+            <p class="empty-text">None of {{ player.name }}'s heroes were banned in recorded scrims.</p>
         {% endif %}
-        <script id="playerBanData" type="application/json">{{ player_ban_impact | tojson }}</script>
 
-    {% elif player_ban_impact %}
-        <p class="empty-text">{{ player.name }}'s main heroes have not been banned in any recorded scrims yet.</p>
+        {# Full hero pool ban exposure table #}
+        <h4 style="margin: 20px 0 8px; font-size: 0.9rem; color: var(--text-secondary);">Full Hero Pool — Ban Exposure</h4>
+        <div class="table-wrap">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Hero</th>
+                        <th>Maps Played</th>
+                        <th>Times Banned</th>
+                        <th>WR When Available</th>
+                        <th>WR When Banned</th>
+                        <th>Impact</th>
+                        <th>Top Pivot</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in player_ban_impact %}
+                        <tr>
+                            <td>
+                                <div class="player-inline-hero">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </div>
+                            </td>
+                            <td>{{ row.hero_maps }}</td>
+                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
+                            <td>
+                                {% if row.hero_wr is not none %}
+                                    <span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if row.wr_when_banned is not none %}
+                                    <span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if row.wr_delta is not none %}
+                                    <span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if row.top_pivot %}
+                                    <div class="player-inline-hero">
+                                        <img src="{{ hero_image_url(row.top_pivot.hero) }}" alt="{{ hero_display_name(row.top_pivot.hero) }}" onerror="this.style.display='none'">
+                                        <span>{{ hero_display_name(row.top_pivot.hero) }} ({{ row.top_pivot.count }}×)</span>
+                                    </div>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         <script id="playerBanData" type="application/json">{{ player_ban_impact | tojson }}</script>
     {% else %}
         <p class="empty-text">No hero data available to compute ban impact.</p>
     {% endif %}
 </section>
 
-<section class="panel top-gap">
-    <h3>Recent Map Appearances</h3>
-    {% if player_recent_maps %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Map</th>
-                        <th>Opponent</th>
-                        <th>Result</th>
-                        <th>Heroes Used</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in player_recent_maps %}
+<section class="panel top-gap" id="activityPanel">
+    <div class="pd-tab-bar">
+        <button class="pd-tab active" data-tab="recent">Recent Map Appearances</button>
+        <button class="pd-tab" data-tab="swaps">Round / Submap Swaps</button>
+    </div>
+
+    <div class="pd-tab-pane" id="pd-tab-recent">
+        {% if player_recent_maps %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
                         <tr>
-                            <td>{{ row.scrim_date or '—' }}</td>
-                            <td>{{ row.map_name or '—' }}</td>
-                            <td>{{ row.opponent or '—' }}</td>
-                            <td>{{ row.result or '—' }}</td>
-                            <td>{{ row.heroes | join(', ') if row.heroes else '—' }}</td>
+                            <th>Date</th>
+                            <th>Map</th>
+                            <th>Opponent</th>
+                            <th>Result</th>
+                            <th>Heroes Used</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">No recent map appearances found.</p>
-    {% endif %}
+                    </thead>
+                    <tbody>
+                        {% for row in player_recent_maps %}
+                            <tr>
+                                <td>{{ row.scrim_date or '—' }}</td>
+                                <td>{{ row.map_name or '—' }}</td>
+                                <td>{{ row.opponent or '—' }}</td>
+                                <td>{{ row.result or '—' }}</td>
+                                <td>{{ row.heroes | join(', ') if row.heroes else '—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No recent map appearances found.</p>
+        {% endif %}
+    </div>
+
+    <div class="pd-tab-pane" id="pd-tab-swaps" style="display:none">
+        {% if player_swap_summary.transition_count %}
+            <p class="panel-intro" style="margin-top:0">Tracked {{ player_swap_summary.transition_count }} round-to-round transitions. Swap rate: <strong>{{ player_swap_summary.swap_rate }}%</strong>.</p>
+        {% else %}
+            <p class="panel-intro" style="margin-top:0">No multi-round/submap transitions recorded yet.</p>
+        {% endif %}
+        {% if player_swap_summary.swap_events %}
+            <div class="table-wrap">
+                <table class="stats-table stats-table-compare">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Map</th>
+                            <th>Transition</th>
+                            <th>From</th>
+                            <th>To</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in player_swap_summary.swap_events %}
+                            <tr>
+                                <td>{{ row.scrim_date or '—' }}</td>
+                                <td>{{ row.map_name or '—' }}</td>
+                                <td>{{ row.from_label }} → {{ row.to_label }}</td>
+                                <td>{{ row.from_heroes | join(', ') if row.from_heroes else '—' }}</td>
+                                <td>{{ row.to_heroes | join(', ') if row.to_heroes else '—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-text">No swaps recorded.</p>
+        {% endif %}
+    </div>
+
+    <script>
+    (function () {
+        var tabs = document.querySelectorAll('#activityPanel .pd-tab');
+        tabs.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                tabs.forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                document.querySelectorAll('#activityPanel .pd-tab-pane').forEach(function (p) { p.style.display = 'none'; });
+                document.getElementById('pd-tab-' + btn.dataset.tab).style.display = '';
+            });
+        });
+    })();
+    </script>
 </section>
 
 <script>
@@ -477,8 +550,73 @@
         });
     })();
 
-    /* ── Ban impact grouped bar chart ──────────────────── */
+    /* ── Role breakdown donut ───────────────────────────── */
     (function () {
+        var rows = parseJson('playerHeroData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('playerRoleDonutChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+
+        var HERO_ROLES = {
+            'Angela': 'Vanguard', 'Captain America': 'Vanguard', 'Dr. Strange': 'Vanguard',
+            'Emma Frost': 'Vanguard', 'Groot': 'Vanguard', 'Hulk': 'Vanguard',
+            'Magneto': 'Vanguard', 'Rogue': 'Vanguard', 'Peni Parker': 'Vanguard',
+            'Tankpool': 'Vanguard', 'Thing': 'Vanguard', 'Thor': 'Vanguard', 'Venom': 'Vanguard',
+            'Black Panther': 'Duelist', 'Black Widow': 'Duelist', 'Blade': 'Duelist',
+            'Daredevil': 'Duelist', 'DpsPool': 'Duelist', 'Elsa Bloodstone': 'Duelist',
+            'Hawkeye': 'Duelist', 'Hela': 'Duelist', 'Human Torch': 'Duelist',
+            'Iron Fist': 'Duelist', 'Iron Man': 'Duelist', 'Magik': 'Duelist',
+            'Moon Knight': 'Duelist', 'Mr. Fantastic': 'Duelist', 'Namor': 'Duelist',
+            'Phoenix': 'Duelist', 'Psylocke': 'Duelist', 'Punisher': 'Duelist',
+            'Scarlet Witch': 'Duelist', 'Spider-Man': 'Duelist', 'Squirrel Girl': 'Duelist',
+            'Star-Lord': 'Duelist', 'Storm': 'Duelist', 'Winter Soldier': 'Duelist',
+            'Wolverine': 'Duelist',
+            'Adam Warlock': 'Strategist', 'Cloak & Dagger': 'Strategist', 'Invisible Woman': 'Strategist',
+            'Gambit': 'Strategist', 'Jeff TLS': 'Strategist', 'Loki': 'Strategist',
+            'Luna Snow': 'Strategist', 'Mantis': 'Strategist', 'Rocket Raccoon': 'Strategist',
+            'SupportPool': 'Strategist', 'Ultron': 'Strategist', 'White Fox': 'Strategist',
+        };
+
+        var counts = { Vanguard: 0, Duelist: 0, Strategist: 0 };
+        rows.forEach(function (r) {
+            var role = HERO_ROLES[r.hero] || 'Duelist';
+            counts[role] = (counts[role] || 0) + (r.maps || 0);
+        });
+        var total = counts.Vanguard + counts.Duelist + counts.Strategist;
+        if (!total) return;
+
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Vanguard', 'Duelist', 'Strategist'],
+                datasets: [{
+                    data: [counts.Vanguard, counts.Duelist, counts.Strategist],
+                    backgroundColor: ['rgba(96,165,250,0.85)', 'rgba(248,113,113,0.85)', 'rgba(74,222,128,0.85)'],
+                    borderColor: ['#60a5fa', '#f87171', '#4ade80'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '60%',
+                plugins: {
+                    legend: { display: true, position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var v = ctx.raw;
+                                return ' ' + ctx.label + ': ' + v + ' maps (' + Math.round(v / total * 100) + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+
+    /* ── Ban impact grouped bar chart ──────────────────── */    (function () {
         var rows = parseJson('playerBanData');
         if (!rows || !rows.length) return;
         var canvas = document.getElementById('playerBanChart');

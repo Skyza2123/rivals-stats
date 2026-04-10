@@ -1360,7 +1360,7 @@
                         data-map-games="{{ map_row.maps }}"
                         title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
                     >
-                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('https://marvelrivalsapi.com/rivals{{ map_row.image }}')"{% endif %}></div>
+                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('{{ map_row.image }}')"{% endif %}></div>
                         <div class="team-map-overlay"></div>
                         <div class="team-map-top">
                             <span class="team-map-mode">{{ map_row.mode }}</span>

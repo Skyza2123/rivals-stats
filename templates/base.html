@@ -27,29 +27,27 @@
     </script>
 </head>
 <body>
-    <div class="dashboard-layout">
-        <aside class="sidebar">
-            <div class="sidebar-brand">
-                <h1>Scrim Dashboard</h1>
-                <p>Manual analyst workflow</p>
-            </div>
+    <header class="topnav">
+        <div class="topnav-inner">
+            <a href="{{ url_for('dashboard') }}" class="topnav-brand">Scrim Dashboard</a>
 
-            <nav class="sidebar-nav">
+            <button class="topnav-burger" id="topnavBurger" aria-label="Toggle navigation" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+
+            <nav class="topnav-links" id="topnavLinks">
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
                 <a href="{{ url_for('scrims') }}" class="nav-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
                 <a href="{{ url_for('tournaments') }}" class="nav-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
-                <a href="{{ url_for('draft_simulator') }}" class="nav-link {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Simulator</a>
-                <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams & Players</a>
-                <a href="{{ url_for('teams_compare') }}" class="nav-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Comparison</a>
-                <a href="{{ url_for('player_compare') }}" class="nav-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Comparison</a>
+                <a href="{{ url_for('draft_simulator') }}" class="nav-link {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Sim</a>
+                <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
+                <a href="{{ url_for('teams_compare') }}" class="nav-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
+                <a href="{{ url_for('player_compare') }}" class="nav-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
             </nav>
+        </div>
+    </header>
 
-            <div class="sidebar-legend">
-                <span class="sample-warn-icon">⚠</span>
-                <span class="sidebar-legend-text">Low sample size (&lt;5 maps) — treat win rates with caution</span>
-            </div>
-        </aside>
-
+    <div class="dashboard-layout">
         <main class="main-content">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -63,6 +61,27 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+<script>
+/* Burger menu toggle */
+(function () {
+    var burger = document.getElementById('topnavBurger');
+    var links  = document.getElementById('topnavLinks');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function () {
+        var open = links.classList.toggle('open');
+        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        burger.classList.toggle('is-open', open);
+    });
+    /* Close on nav-link click (mobile) */
+    links.querySelectorAll('.nav-link').forEach(function (a) {
+        a.addEventListener('click', function () {
+            links.classList.remove('open');
+            burger.setAttribute('aria-expanded', 'false');
+            burger.classList.remove('is-open');
+        });
+    });
+})();
+</script>
 <script>
 /* Global: inject pool-role badge on every hero image for Deadpool variants */
 document.addEventListener('DOMContentLoaded', function () {

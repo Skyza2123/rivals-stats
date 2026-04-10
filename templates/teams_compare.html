@@ -7,7 +7,7 @@
     <div class="team-hero-left">
         <div>
             <h2>Team Comparison</h2>
-            <p>Compare two teams from your database across maps, win rate, top heroes, and top maps in scrims or tournaments.</p>
+            <p>Compare two teams across maps, win rate, hero pools, and draft patterns.</p>
         </div>
     </div>
 </div>
@@ -47,119 +47,340 @@
 </section>
 
 {% if team_a and team_b %}
+
+{# ── VS Header ──────────────────────────────────────────── #}
+<section class="panel top-gap tc-vs-panel">
+    <div class="tc-vs-side">
+        <img class="tc-team-logo"
+             src="{{ url_for('static', filename=team_a.team.logo_path) if team_a.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_a.team.name | urlencode) ~ '.png?size=120' }}"
+             alt="{{ team_a.team.name }}"
+             onerror="this.src='https://avatar.vercel.sh/{{ team_a.team.name | urlencode }}.png?size=120'">
+        <div class="tc-team-name">{{ team_a.team.name }}</div>
+        <div class="tc-team-season">{{ team_a.latest_season if team_a.latest_season != 'all' else 'All Seasons' }}</div>
+    </div>
+    <div class="tc-vs-badge">VS</div>
+    <div class="tc-vs-side tc-vs-side-b">
+        <img class="tc-team-logo"
+             src="{{ url_for('static', filename=team_b.team.logo_path) if team_b.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_b.team.name | urlencode) ~ '.png?size=120' }}"
+             alt="{{ team_b.team.name }}"
+             onerror="this.src='https://avatar.vercel.sh/{{ team_b.team.name | urlencode }}.png?size=120'">
+        <div class="tc-team-name">{{ team_b.team.name }}</div>
+        <div class="tc-team-season">{{ team_b.latest_season if team_b.latest_season != 'all' else 'All Seasons' }}</div>
+    </div>
+</section>
+
+{# ── Key Stat Face-Off ──────────────────────────────────── #}
 <section class="panel panel-soft-blue top-gap">
-    <h3>Overview</h3>
-    <p class="panel-intro">
-        Using latest season data:
-        {{ team_a.team.name }} = {{ team_a.latest_season if team_a.latest_season != 'all' else 'All Seasons' }},
-        {{ team_b.team.name }} = {{ team_b.latest_season if team_b.latest_season != 'all' else 'All Seasons' }}.
-    </p>
+    <h3>Key Stats</h3>
+    {% set a = team_a.analytics.summary %}
+    {% set b = team_b.analytics.summary %}
+    <div class="tc-stat-grid">
+        {% set a_wr = a.overall_win_rate | float %}
+        {% set b_wr = b.overall_win_rate | float %}
+        <div class="tc-stat-card">
+            <div class="tc-stat-label">Win Rate</div>
+            <div class="tc-stat-bar-wrap">
+                <span class="tc-stat-val-a {{ 'tc-better' if a_wr > b_wr else ('tc-worse' if a_wr < b_wr else '') }}">{{ a_wr }}%</span>
+                <div class="tc-stat-bar">
+                    <div class="tc-stat-fill-a" style="width:{{ [a_wr, 100] | min }}%"></div>
+                    <div class="tc-stat-fill-b" style="width:{{ [b_wr, 100] | min }}%"></div>
+                </div>
+                <span class="tc-stat-val-b {{ 'tc-better' if b_wr > a_wr else ('tc-worse' if b_wr < a_wr else '') }}">{{ b_wr }}%</span>
+            </div>
+        </div>
+        {% set a_maps = a.total_maps | int %}
+        {% set b_maps = b.total_maps | int %}
+        {% set max_maps = [a_maps, b_maps, 1] | max %}
+        <div class="tc-stat-card">
+            <div class="tc-stat-label">Maps Played</div>
+            <div class="tc-stat-bar-wrap">
+                <span class="tc-stat-val-a">{{ a_maps }}</span>
+                <div class="tc-stat-bar">
+                    <div class="tc-stat-fill-a" style="width:{{ (a_maps / max_maps * 100) | round(1) }}%"></div>
+                    <div class="tc-stat-fill-b" style="width:{{ (b_maps / max_maps * 100) | round(1) }}%"></div>
+                </div>
+                <span class="tc-stat-val-b">{{ b_maps }}</span>
+            </div>
+        </div>
+        {% set a_wins = a.total_wins | int %}
+        {% set b_wins = b.total_wins | int %}
+        {% set max_wins = [a_wins, b_wins, 1] | max %}
+        <div class="tc-stat-card">
+            <div class="tc-stat-label">Wins</div>
+            <div class="tc-stat-bar-wrap">
+                <span class="tc-stat-val-a tc-green">{{ a_wins }}</span>
+                <div class="tc-stat-bar">
+                    <div class="tc-stat-fill-a" style="width:{{ (a_wins / max_wins * 100) | round(1) }}%"></div>
+                    <div class="tc-stat-fill-b" style="width:{{ (b_wins / max_wins * 100) | round(1) }}%"></div>
+                </div>
+                <span class="tc-stat-val-b tc-green">{{ b_wins }}</span>
+            </div>
+        </div>
+        {% set a_losses = a.total_losses | int %}
+        {% set b_losses = b.total_losses | int %}
+        {% set max_losses = [a_losses, b_losses, 1] | max %}
+        <div class="tc-stat-card">
+            <div class="tc-stat-label">Losses</div>
+            <div class="tc-stat-bar-wrap">
+                <span class="tc-stat-val-a tc-red">{{ a_losses }}</span>
+                <div class="tc-stat-bar">
+                    <div class="tc-stat-fill-a" style="width:{{ (a_losses / max_losses * 100) | round(1) }}%"></div>
+                    <div class="tc-stat-fill-b" style="width:{{ (b_losses / max_losses * 100) | round(1) }}%"></div>
+                </div>
+                <span class="tc-stat-val-b tc-red">{{ b_losses }}</span>
+            </div>
+        </div>
+        {% set a_heroes = a.unique_heroes | int %}
+        {% set b_heroes = b.unique_heroes | int %}
+        {% set max_heroes = [a_heroes, b_heroes, 1] | max %}
+        <div class="tc-stat-card">
+            <div class="tc-stat-label">Unique Heroes</div>
+            <div class="tc-stat-bar-wrap">
+                <span class="tc-stat-val-a">{{ a_heroes }}</span>
+                <div class="tc-stat-bar">
+                    <div class="tc-stat-fill-a" style="width:{{ (a_heroes / max_heroes * 100) | round(1) }}%"></div>
+                    <div class="tc-stat-fill-b" style="width:{{ (b_heroes / max_heroes * 100) | round(1) }}%"></div>
+                </div>
+                <span class="tc-stat-val-b">{{ b_heroes }}</span>
+            </div>
+        </div>
+        {% set a_umaps = a.unique_maps | int %}
+        {% set b_umaps = b.unique_maps | int %}
+        {% set max_umaps = [a_umaps, b_umaps, 1] | max %}
+        <div class="tc-stat-card">
+            <div class="tc-stat-label">Unique Maps</div>
+            <div class="tc-stat-bar-wrap">
+                <span class="tc-stat-val-a">{{ a_umaps }}</span>
+                <div class="tc-stat-bar">
+                    <div class="tc-stat-fill-a" style="width:{{ (a_umaps / max_umaps * 100) | round(1) }}%"></div>
+                    <div class="tc-stat-fill-b" style="width:{{ (b_umaps / max_umaps * 100) | round(1) }}%"></div>
+                </div>
+                <span class="tc-stat-val-b">{{ b_umaps }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="player-chart-wrap" style="height:200px; margin-top:20px">
+        <canvas id="tcOverviewChart"></canvas>
+    </div>
+    <script id="tcOverviewData" type="application/json">{{ {
+        "a": team_a.team.name,
+        "b": team_b.team.name,
+        "a_wr": team_a.analytics.summary.overall_win_rate,
+        "b_wr": team_b.analytics.summary.overall_win_rate,
+        "a_maps": team_a.analytics.summary.total_maps,
+        "b_maps": team_b.analytics.summary.total_maps,
+        "a_heroes": team_a.analytics.summary.unique_heroes,
+        "b_heroes": team_b.analytics.summary.unique_heroes,
+        "a_maps_unique": team_a.analytics.summary.unique_maps,
+        "b_maps_unique": team_b.analytics.summary.unique_maps
+    } | tojson }}</script>
+</section>
+
+{# ── Hero Pools ─────────────────────────────────────────── #}
+<section class="panel panel-soft-green top-gap">
+    <h3>Hero Pools</h3>
+    <div class="tc-pools-grid">
+        <div>
+            <h4 class="tc-pool-heading tc-color-a">{{ team_a.team.name }}</h4>
+            <div class="tc-hero-grid">
+                {% for row in team_a.top_heroes %}
+                    {% set wr = row.win_rate %}
+                    {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                    <div class="tc-hero-card">
+                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                        <div class="tc-hero-card-name">{{ hero_display_name(row.hero) }}</div>
+                        <div class="tc-hero-card-meta">
+                            <span class="{{ wr_class }}">{{ wr }}%</span>
+                            <span class="tc-hero-card-maps">{{ row.maps }}m</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <h4 class="tc-pool-heading tc-color-b">{{ team_b.team.name }}</h4>
+            <div class="tc-hero-grid">
+                {% for row in team_b.top_heroes %}
+                    {% set wr = row.win_rate %}
+                    {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                    <div class="tc-hero-card">
+                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                        <div class="tc-hero-card-name">{{ hero_display_name(row.hero) }}</div>
+                        <div class="tc-hero-card-meta">
+                            <span class="{{ wr_class }}">{{ wr }}%</span>
+                            <span class="tc-hero-card-maps">{{ row.maps }}m</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% if shared_heroes_rows %}
+    <h4 style="margin:20px 0 6px; font-size:0.85rem; color:var(--text-secondary)">Shared Hero WR Comparison (top {{ [shared_heroes_rows|length, 10]|min }})</h4>
+    <div class="player-chart-wrap" style="height:{{ [180, ([shared_heroes_rows|length, 10]|min) * 36 + 40]|max }}px">
+        <canvas id="tcSharedHeroChart"></canvas>
+    </div>
+    <script id="tcSharedHeroData" type="application/json">{{ shared_heroes_rows[:10] | tojson }}</script>
+    {% endif %}
+</section>
+
+{# ── Shared Hero Detail Table ───────────────────────────── #}
+{% if shared_heroes_rows %}
+<section class="panel top-gap">
+    <h3>Shared Heroes — WR Breakdown</h3>
+    <p class="panel-intro">Heroes played by both teams, sorted by combined maps.</p>
     <div class="table-wrap">
         <table class="stats-table stats-table-compare">
             <thead>
                 <tr>
-                    <th>Metric</th>
-                    <th>{{ team_a.team.name }}</th>
-                    <th>{{ team_b.team.name }}</th>
+                    <th>Hero</th>
+                    <th>{{ team_a.team.name }} Maps</th>
+                    <th>{{ team_a.team.name }} WR</th>
+                    <th>{{ team_b.team.name }} Maps</th>
+                    <th>{{ team_b.team.name }} WR</th>
+                    <th>WR Edge</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>{% if selected_mode == 'tournaments' %}Tournament Maps{% else %}Total Maps{% endif %}</td>
-                    <td>{{ team_a.analytics.summary.total_maps }}</td>
-                    <td>{{ team_b.analytics.summary.total_maps }}</td>
-                </tr>
-                <tr>
-                    <td>Wins</td>
-                    <td>{{ team_a.analytics.summary.total_wins }}</td>
-                    <td>{{ team_b.analytics.summary.total_wins }}</td>
-                </tr>
-                <tr>
-                    <td>Losses</td>
-                    <td>{{ team_a.analytics.summary.total_losses }}</td>
-                    <td>{{ team_b.analytics.summary.total_losses }}</td>
-                </tr>
-                <tr>
-                    <td>Win Rate</td>
-                    <td>{{ team_a.analytics.summary.overall_win_rate }}%</td>
-                    <td>{{ team_b.analytics.summary.overall_win_rate }}%</td>
-                </tr>
-                <tr>
-                    <td>Unique Heroes Used</td>
-                    <td>{{ team_a.analytics.summary.unique_heroes }}</td>
-                    <td>{{ team_b.analytics.summary.unique_heroes }}</td>
-                </tr>
-                <tr>
-                    <td>Unique Maps</td>
-                    <td>{{ team_a.analytics.summary.unique_maps }}</td>
-                    <td>{{ team_b.analytics.summary.unique_maps }}</td>
-                </tr>
+                {% for row in shared_heroes_rows[:15] %}
+                    <tr>
+                        <td>
+                            <div class="player-inline-hero">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                            </div>
+                        </td>
+                        <td>{{ row.a_maps }}</td>
+                        <td><span class="{{ 'wr-good' if row.a_wr >= 55 else ('wr-ok' if row.a_wr >= 45 else 'wr-bad') }}">{{ row.a_wr }}%</span></td>
+                        <td>{{ row.b_maps }}</td>
+                        <td><span class="{{ 'wr-good' if row.b_wr >= 55 else ('wr-ok' if row.b_wr >= 45 else 'wr-bad') }}">{{ row.b_wr }}%</span></td>
+                        <td>
+                            {% if row.wr_diff > 2 %}
+                                <span class="compare-tag compare-tag-positive">{{ team_a.team.name }} +{{ row.wr_diff }}%</span>
+                            {% elif row.wr_diff < -2 %}
+                                <span class="compare-tag compare-tag-negative">{{ team_b.team.name }} +{{ (-row.wr_diff)|round(1) }}%</span>
+                            {% else %}
+                                <span class="compare-tag compare-tag-neutral">Even</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+{% endif %}
 
-<section class="panel panel-soft-green top-gap">
-    <h3>Top Heroes</h3>
-    <div class="form-grid">
-        <div class="panel">
-            <h4>{{ team_a.team.name }}</h4>
-            {% if team_a.top_heroes %}
-                <div class="table-wrap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Hero</th>
-                                <th>Maps</th>
-                                <th>WR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in team_a.top_heroes %}
-                                <tr>
-                                    <td>{{ hero_display_name(row.hero) }}</td>
-                                    <td>{{ row.maps }}</td>
-                                    <td>{{ row.win_rate }}%</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="empty-text">No hero data.</p>
-            {% endif %}
+{# ── Top Maps with Banners ──────────────────────────────── #}
+<section class="panel panel-soft-violet top-gap">
+    <h3>Top Maps</h3>
+    <div class="tc-pools-grid">
+        <div>
+            <h4 class="tc-pool-heading tc-color-a">{{ team_a.team.name }}</h4>
+            <div class="tc-map-list">
+                {% for row in team_a.top_maps %}
+                    {% set wr = row.win_rate %}
+                    {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                    <div class="tc-map-card">
+                        {% set img = map_images.get(row.map_name, '') %}
+                        {% if img %}
+                            <img class="tc-map-banner" src="{{ img }}" alt="{{ row.map_name }}" onerror="this.style.display='none'">
+                        {% else %}
+                            <div class="tc-map-banner tc-map-banner-empty"></div>
+                        {% endif %}
+                        <div class="tc-map-card-body">
+                            <span class="tc-map-name">{{ row.map_name }}</span>
+                            <span class="{{ wr_class }} tc-map-wr">{{ wr }}%</span>
+                            <span class="tc-map-meta">{{ row.maps }}m</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No map data.</p>
+                {% endfor %}
+            </div>
         </div>
-
-        <div class="panel">
-            <h4>{{ team_b.team.name }}</h4>
-            {% if team_b.top_heroes %}
-                <div class="table-wrap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Hero</th>
-                                <th>Maps</th>
-                                <th>WR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in team_b.top_heroes %}
-                                <tr>
-                                    <td>{{ hero_display_name(row.hero) }}</td>
-                                    <td>{{ row.maps }}</td>
-                                    <td>{{ row.win_rate }}%</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="empty-text">No hero data.</p>
-            {% endif %}
+        <div>
+            <h4 class="tc-pool-heading tc-color-b">{{ team_b.team.name }}</h4>
+            <div class="tc-map-list">
+                {% for row in team_b.top_maps %}
+                    {% set wr = row.win_rate %}
+                    {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                    <div class="tc-map-card">
+                        {% set img = map_images.get(row.map_name, '') %}
+                        {% if img %}
+                            <img class="tc-map-banner" src="{{ img }}" alt="{{ row.map_name }}" onerror="this.style.display='none'">
+                        {% else %}
+                            <div class="tc-map-banner tc-map-banner-empty"></div>
+                        {% endif %}
+                        <div class="tc-map-card-body">
+                            <span class="tc-map-name">{{ row.map_name }}</span>
+                            <span class="{{ wr_class }} tc-map-wr">{{ wr }}%</span>
+                            <span class="tc-map-meta">{{ row.maps }}m</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No map data.</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </section>
 
+{# ── Shared Maps ────────────────────────────────────────── #}
+{% if shared_maps_rows %}
+<section class="panel panel-soft-blue top-gap">
+    <h3>Shared Maps — WR Comparison</h3>
+    <p class="panel-intro">Maps played by both teams.</p>
+    <div class="player-chart-wrap" style="height:{{ [180, ([shared_maps_rows|length, 10]|min) * 36 + 40]|max }}px">
+        <canvas id="tcSharedMapChart"></canvas>
+    </div>
+    <script id="tcSharedMapData" type="application/json">{{ shared_maps_rows[:10] | tojson }}</script>
+    <div class="table-wrap" style="margin-top:16px">
+        <table class="stats-table stats-table-compare">
+            <thead>
+                <tr>
+                    <th>Map</th>
+                    <th>{{ team_a.team.name }} Maps</th>
+                    <th>{{ team_a.team.name }} WR</th>
+                    <th>{{ team_b.team.name }} Maps</th>
+                    <th>{{ team_b.team.name }} WR</th>
+                    <th>WR Edge</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in shared_maps_rows %}
+                    <tr>
+                        <td>
+                            <div class="player-inline-hero">
+                                {% set img = map_images.get(row.map_name, '') %}
+                                {% if img %}
+                                    <img src="{{ img }}" alt="{{ row.map_name }}" style="width:32px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
+                                {% endif %}
+                                <span>{{ row.map_name }}</span>
+                            </div>
+                        </td>
+                        <td>{{ row.a_maps }}</td>
+                        <td><span class="{{ 'wr-good' if row.a_wr >= 55 else ('wr-ok' if row.a_wr >= 45 else 'wr-bad') }}">{{ row.a_wr }}%</span></td>
+                        <td>{{ row.b_maps }}</td>
+                        <td><span class="{{ 'wr-good' if row.b_wr >= 55 else ('wr-ok' if row.b_wr >= 45 else 'wr-bad') }}">{{ row.b_wr }}%</span></td>
+                        <td>
+                            {% if row.wr_diff > 2 %}
+                                <span class="compare-tag compare-tag-positive">{{ team_a.team.name }} +{{ row.wr_diff }}%</span>
+                            {% elif row.wr_diff < -2 %}
+                                <span class="compare-tag compare-tag-negative">{{ team_b.team.name }} +{{ (-row.wr_diff)|round(1) }}%</span>
+                            {% else %}
+                                <span class="compare-tag compare-tag-neutral">Even</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{# ── Ban Matchup Matrix ─────────────────────────────────── #}
 <section class="panel panel-soft-gold top-gap">
     <h3>Ban Matchup Matrix</h3>
     <p class="panel-intro">Compare ban pressure, protect preference, and open-vs-banned outcomes on shared priority heroes.</p>
@@ -220,6 +441,7 @@
     {% endif %}
 </section>
 
+{# ── Draft Response Flow ────────────────────────────────── #}
 <section class="panel panel-soft-blue top-gap">
     <h3>Draft Response Flow</h3>
     <p class="panel-intro">Most common first response patterns when each team bans a hero.</p>
@@ -274,65 +496,156 @@
     </div>
 </section>
 
-<section class="panel panel-soft-violet top-gap">
-    <h3>Top Maps</h3>
-    <div class="form-grid">
-        <div class="panel">
-            <h4>{{ team_a.team.name }}</h4>
-            {% if team_a.top_maps %}
-                <div class="table-wrap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Map</th>
-                                <th>Maps</th>
-                                <th>WR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in team_a.top_maps %}
-                                <tr>
-                                    <td>{{ row.map_name }}</td>
-                                    <td>{{ row.maps }}</td>
-                                    <td>{{ row.win_rate }}%</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="empty-text">No map data.</p>
-            {% endif %}
-        </div>
+{# ── Charts ─────────────────────────────────────────────── #}
+<script>
+(function () {
+    var COL_A = 'rgba(96,165,250,0.8)';
+    var COL_B = 'rgba(251,146,60,0.8)';
+    var COL_A_BORDER = '#60a5fa';
+    var COL_B_BORDER = '#fb923c';
+    var gridColor = 'rgba(255,255,255,0.07)';
+    var labelColor = '#94a3b8';
 
-        <div class="panel">
-            <h4>{{ team_b.team.name }}</h4>
-            {% if team_b.top_maps %}
-                <div class="table-wrap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Map</th>
-                                <th>Maps</th>
-                                <th>WR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in team_b.top_maps %}
-                                <tr>
-                                    <td>{{ row.map_name }}</td>
-                                    <td>{{ row.maps }}</td>
-                                    <td>{{ row.win_rate }}%</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="empty-text">No map data.</p>
-            {% endif %}
-        </div>
-    </div>
-</section>
+    function parseJson(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch(e) { return null; }
+    }
+    if (typeof Chart === 'undefined') return;
+
+    /* ── Overview grouped bar ── */
+    (function () {
+        var d = parseJson('tcOverviewData');
+        if (!d) return;
+        var el = document.getElementById('tcOverviewChart');
+        if (!el) return;
+        new Chart(el, {
+            type: 'bar',
+            data: {
+                labels: ['Win Rate %', 'Maps Played', 'Unique Heroes', 'Unique Maps'],
+                datasets: [
+                    { label: d.a, data: [d.a_wr, d.a_maps, d.a_heroes, d.a_maps_unique], backgroundColor: COL_A, borderColor: COL_A_BORDER, borderWidth: 1, borderRadius: 4, borderSkipped: false },
+                    { label: d.b, data: [d.b_wr, d.b_maps, d.b_heroes, d.b_maps_unique], backgroundColor: COL_B, borderColor: COL_B_BORDER, borderWidth: 1, borderRadius: 4, borderSkipped: false }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: labelColor } } },
+                scales: {
+                    x: { ticks: { color: labelColor }, grid: { color: gridColor } },
+                    y: { ticks: { color: labelColor }, grid: { color: gridColor }, beginAtZero: true }
+                }
+            }
+        });
+    })();
+
+    /* ── Shared Hero WR grouped horizontal bar ── */
+    (function () {
+        var rows = parseJson('tcSharedHeroData');
+        if (!rows || !rows.length) return;
+        var el = document.getElementById('tcSharedHeroChart');
+        if (!el) return;
+        new Chart(el, {
+            type: 'bar',
+            data: {
+                labels: rows.map(function(r) { return r.hero; }),
+                datasets: [
+                    { label: '{{ team_a.team.name }} WR%', data: rows.map(function(r){return r.a_wr;}), backgroundColor: COL_A, borderRadius: 3, borderSkipped: false },
+                    { label: '{{ team_b.team.name }} WR%', data: rows.map(function(r){return r.b_wr;}), backgroundColor: COL_B, borderRadius: 3, borderSkipped: false }
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: labelColor } } },
+                scales: {
+                    x: { ticks: { color: labelColor }, grid: { color: gridColor }, beginAtZero: true, max: 100 },
+                    y: { ticks: { color: labelColor }, grid: { display: false } }
+                }
+            }
+        });
+    })();
+
+    /* ── Shared Map WR grouped horizontal bar ── */
+    (function () {
+        var rows = parseJson('tcSharedMapData');
+        if (!rows || !rows.length) return;
+        var el = document.getElementById('tcSharedMapChart');
+        if (!el) return;
+        new Chart(el, {
+            type: 'bar',
+            data: {
+                labels: rows.map(function(r) { return r.map_name; }),
+                datasets: [
+                    { label: '{{ team_a.team.name }} WR%', data: rows.map(function(r){return r.a_wr;}), backgroundColor: COL_A, borderRadius: 3, borderSkipped: false },
+                    { label: '{{ team_b.team.name }} WR%', data: rows.map(function(r){return r.b_wr;}), backgroundColor: COL_B, borderRadius: 3, borderSkipped: false }
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: labelColor } } },
+                scales: {
+                    x: { ticks: { color: labelColor }, grid: { color: gridColor }, beginAtZero: true, max: 100 },
+                    y: { ticks: { color: labelColor }, grid: { display: false } }
+                }
+            }
+        });
+    })();
+})();
+</script>
+
 {% endif %}
+
+<style>
+/* ── VS Header ── */
+.tc-vs-panel { display:flex; align-items:center; justify-content:center; gap:32px; padding:28px 24px; text-align:center; }
+.tc-vs-side { display:flex; flex-direction:column; align-items:center; gap:8px; flex:1; }
+.tc-team-logo { width:90px; height:90px; border-radius:14px; object-fit:contain; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); padding:4px; }
+.tc-team-name { font-size:1.1rem; font-weight:700; color:var(--text-primary,#e2e8f0); }
+.tc-team-season { font-size:0.75rem; color:var(--text-secondary,#94a3b8); }
+.tc-vs-badge { font-size:1.8rem; font-weight:900; color:rgba(255,255,255,0.18); letter-spacing:2px; flex-shrink:0; }
+
+/* ── Stat face-off ── */
+.tc-stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+.tc-stat-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 14px; }
+.tc-stat-label { font-size:0.72rem; color:var(--text-secondary,#94a3b8); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+.tc-stat-bar-wrap { display:flex; align-items:center; gap:8px; }
+.tc-stat-val-a, .tc-stat-val-b { font-size:0.9rem; font-weight:700; min-width:38px; color:var(--text-primary,#e2e8f0); }
+.tc-stat-val-b { text-align:right; }
+.tc-stat-bar { flex:1; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; display:flex; flex-direction:column; gap:2px; padding:2px 0; }
+.tc-stat-fill-a { height:4px; background:rgba(96,165,250,0.75); border-radius:2px; min-width:2px; }
+.tc-stat-fill-b { height:4px; background:rgba(251,146,60,0.75); border-radius:2px; min-width:2px; }
+.tc-better { color:#4ade80 !important; }
+.tc-worse  { color:#f87171 !important; }
+.tc-green  { color:#4ade80 !important; }
+.tc-red    { color:#f87171 !important; }
+
+/* ── Hero / Map pool grids ── */
+.tc-pools-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.tc-pool-heading { font-size:0.85rem; font-weight:700; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; }
+.tc-color-a { color:#60a5fa; }
+.tc-color-b { color:#fb923c; }
+.tc-hero-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.tc-hero-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:6px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; width:74px; flex-shrink:0; }
+.tc-hero-card img { width:44px; height:44px; border-radius:8px; object-fit:cover; }
+.tc-hero-card-name { font-size:0.6rem; color:var(--text-secondary,#94a3b8); text-align:center; line-height:1.2; word-break:break-word; }
+.tc-hero-card-meta { display:flex; align-items:center; gap:4px; font-size:0.65rem; }
+.tc-hero-card-maps { color:rgba(255,255,255,0.35); }
+
+/* ── Map cards ── */
+.tc-map-list { display:flex; flex-direction:column; gap:6px; }
+.tc-map-card { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; overflow:hidden; }
+.tc-map-banner { width:80px; height:48px; object-fit:cover; flex-shrink:0; }
+.tc-map-banner-empty { width:80px; height:48px; background:rgba(255,255,255,0.05); flex-shrink:0; }
+.tc-map-card-body { display:flex; align-items:center; gap:8px; flex:1; padding-right:10px; }
+.tc-map-name { flex:1; font-size:0.82rem; font-weight:600; color:var(--text-primary,#e2e8f0); }
+.tc-map-wr { font-size:0.82rem; font-weight:700; }
+.tc-map-meta { font-size:0.72rem; color:rgba(255,255,255,0.35); }
+
+@media (max-width:720px) {
+    .tc-vs-panel { flex-direction:column; gap:16px; }
+    .tc-pools-grid { grid-template-columns:1fr; }
+    .tc-stat-grid { grid-template-columns:1fr; }
+}
+</style>
+
 {% endblock %}

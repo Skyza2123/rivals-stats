@@ -147,247 +147,489 @@
 </script>
 
 {% if player_a and player_b %}
+
+{# ── Hero portrait header ─────────────────────────── #}
+<div class="cmp-player-header top-gap">
+    <div class="cmp-player-side">
+        {% if player_a.primary_hero %}
+            <img class="cmp-avatar" src="{{ hero_image_url(player_a.primary_hero.hero) }}" alt="{{ player_a.profile.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player_a.profile.name | urlencode }}.png?size=120'">
+        {% else %}
+            <img class="cmp-avatar" src="https://avatar.vercel.sh/{{ player_a.profile.name | urlencode }}.png?size=120" alt="{{ player_a.profile.name }}">
+        {% endif %}
+        <div>
+            <div class="cmp-player-name">{{ player_a.profile.name }}</div>
+            <div class="cmp-player-sub">{{ player_a.profile.team_name }} &bull; {{ player_a.profile.role or '—' }}</div>
+        </div>
+    </div>
+    <div class="cmp-vs">VS</div>
+    <div class="cmp-player-side cmp-player-side-right">
+        <div style="text-align:right">
+            <div class="cmp-player-name">{{ player_b.profile.name }}</div>
+            <div class="cmp-player-sub">{{ player_b.profile.team_name }} &bull; {{ player_b.profile.role or '—' }}</div>
+        </div>
+        {% if player_b.primary_hero %}
+            <img class="cmp-avatar" src="{{ hero_image_url(player_b.primary_hero.hero) }}" alt="{{ player_b.profile.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player_b.profile.name | urlencode }}.png?size=120'">
+        {% else %}
+            <img class="cmp-avatar" src="https://avatar.vercel.sh/{{ player_b.profile.name | urlencode }}.png?size=120" alt="{{ player_b.profile.name }}">
+        {% endif %}
+    </div>
+</div>
+
+{# ── Key stat cards side-by-side ─────────────────── #}
+<div class="cmp-stat-row top-gap">
+    {% set metrics = [
+        ("Maps Played", player_a.stats.maps_played, player_b.stats.maps_played, false),
+        ("Wins", player_a.stats.wins, player_b.stats.wins, false),
+        ("Losses", player_a.stats.losses, player_b.stats.losses, true),
+        ("Win Rate", player_a.stats.win_rate, player_b.stats.win_rate, false),
+        ("Unique Heroes", player_a.hero_rows_full|length, player_b.hero_rows_full|length, false),
+        ("Event Mentions", player_a.stats.events_mentioned, player_b.stats.events_mentioned, false),
+    ] %}
+    {% for label, va, vb, lower_better in metrics %}
+        {% set a_better = (va > vb and not lower_better) or (va < vb and lower_better) %}
+        {% set b_better = (vb > va and not lower_better) or (vb < va and lower_better) %}
+        <div class="cmp-stat-card">
+            <div class="cmp-stat-label">{{ label }}</div>
+            <div class="cmp-stat-vals">
+                <span class="cmp-val {{ 'cmp-val-win' if a_better else ('cmp-val-lose' if b_better else '') }}">{{ va }}{% if label == 'Win Rate' %}%{% endif %}</span>
+                <span class="cmp-divider">vs</span>
+                <span class="cmp-val {{ 'cmp-val-win' if b_better else ('cmp-val-lose' if a_better else '') }}">{{ vb }}{% if label == 'Win Rate' %}%{% endif %}</span>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{# ── Win Rate + Maps chart ────────────────────────── #}
 <section class="panel panel-soft-blue top-gap">
-    <h3>Overview</h3>
-    <div class="table-wrap">
+    <h3>Overall Comparison</h3>
+    <div class="player-chart-wrap" style="height:200px">
+        <canvas id="cmpOverallChart"></canvas>
+    </div>
+    <script id="cmpOverallData" type="application/json">{{ {
+        "names": [player_a.profile.name, player_b.profile.name],
+        "maps": [player_a.stats.maps_played, player_b.stats.maps_played],
+        "wins": [player_a.stats.wins, player_b.stats.wins],
+        "losses": [player_a.stats.losses, player_b.stats.losses],
+        "win_rate": [player_a.stats.win_rate, player_b.stats.win_rate],
+    } | tojson }}</script>
+</section>
+
+{# ── Hero Pool grids ──────────────────────────────── #}
+<div class="player-side-by-side top-gap">
+<section class="panel panel-soft-blue">
+    <h3>{{ player_a.profile.name }} — Hero Pool</h3>
+    {% if player_a.hero_rows %}
+        <div class="player-hero-grid">
+            {% for row in player_a.hero_rows %}
+                {% set wr = row.win_rate %}
+                {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                <div class="player-hero-card">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                    <div class="player-hero-card-meta">
+                        <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
+                        <span class="player-hero-card-wr {{ wr_class }}">{{ row.maps }} maps &bull; {{ wr }}%</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No hero data yet.</p>
+    {% endif %}
+</section>
+<section class="panel panel-soft-violet">
+    <h3>{{ player_b.profile.name }} — Hero Pool</h3>
+    {% if player_b.hero_rows %}
+        <div class="player-hero-grid">
+            {% for row in player_b.hero_rows %}
+                {% set wr = row.win_rate %}
+                {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                <div class="player-hero-card">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                    <div class="player-hero-card-meta">
+                        <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
+                        <span class="player-hero-card-wr {{ wr_class }}">{{ row.maps }} maps &bull; {{ wr }}%</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No hero data yet.</p>
+    {% endif %}
+</section>
+</div>
+
+{# ── Hero WR comparison chart ─────────────────────── #}
+{% if hero_winrate_differences %}
+<section class="panel panel-soft-green top-gap">
+    <h3>Hero Win Rate Comparison</h3>
+    <p class="panel-intro">All heroes played by either player, sorted by largest win rate gap. Colour shows which player wins on that hero.</p>
+    <div class="player-chart-wrap" style="height:{{ [300, hero_winrate_differences[:16]|length * 42 + 60]|max }}px">
+        <canvas id="cmpHeroWrChart"></canvas>
+    </div>
+    <script id="cmpHeroWrData" type="application/json">{{ hero_winrate_differences[:16] | tojson }}</script>
+    <div class="table-wrap" style="margin-top:16px">
         <table class="stats-table stats-table-compare">
             <thead>
                 <tr>
-                    <th>Metric</th>
-                    <th>{{ player_a.profile.name }}</th>
-                    <th>{{ player_b.profile.name }}</th>
+                    <th>Hero</th>
+                    <th>{{ player_a.profile.name }} WR</th>
+                    <th>{{ player_b.profile.name }} WR</th>
+                    <th>Difference</th>
+                    <th>A Maps</th>
+                    <th>B Maps</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>Team</td>
-                    <td>{{ player_a.profile.team_name }}</td>
-                    <td>{{ player_b.profile.team_name }}</td>
-                </tr>
-                <tr>
-                    <td>Role</td>
-                    <td>{{ player_a.profile.role or '-' }}</td>
-                    <td>{{ player_b.profile.role or '-' }}</td>
-                </tr>
-                <tr>
-                    <td>Main Hero</td>
-                    <td>
-                        {% if player_a.primary_hero %}
+                {% for row in hero_winrate_differences %}
+                    <tr>
+                        <td>
                             <div class="player-inline-hero">
-                                <img src="{{ hero_image_url(player_a.primary_hero.hero) }}" alt="{{ hero_display_name(player_a.primary_hero.hero) }}">
-                                <span>{{ hero_display_name(player_a.primary_hero.hero) }}</span>
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
                             </div>
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if player_b.primary_hero %}
-                            <div class="player-inline-hero">
-                                <img src="{{ hero_image_url(player_b.primary_hero.hero) }}" alt="{{ hero_display_name(player_b.primary_hero.hero) }}">
-                                <span>{{ hero_display_name(player_b.primary_hero.hero) }}</span>
-                            </div>
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <td>Maps Played</td>
-                    <td>{{ player_a.stats.maps_played }}</td>
-                    <td>{{ player_b.stats.maps_played }}</td>
-                </tr>
-                <tr>
-                    <td>Wins</td>
-                    <td>{{ player_a.stats.wins }}</td>
-                    <td>{{ player_b.stats.wins }}</td>
-                </tr>
-                <tr>
-                    <td>Losses</td>
-                    <td>{{ player_a.stats.losses }}</td>
-                    <td>{{ player_b.stats.losses }}</td>
-                </tr>
-                <tr>
-                    <td>ND Maps</td>
-                    <td>{{ player_a.stats.unresolved_maps }}</td>
-                    <td>{{ player_b.stats.unresolved_maps }}</td>
-                </tr>
-                <tr>
-                    <td>Win Rate</td>
-                    <td>{{ player_a.stats.win_rate }}%</td>
-                    <td>{{ player_b.stats.win_rate }}%</td>
-                </tr>
-                <tr>
-                    <td>Decided Maps</td>
-                    <td>{{ player_a.stats.decided_maps }}</td>
-                    <td>{{ player_b.stats.decided_maps }}</td>
-                </tr>
-                <tr>
-                    <td>Event Mentions</td>
-                    <td>{{ player_a.stats.events_mentioned }}</td>
-                    <td>{{ player_b.stats.events_mentioned }}</td>
-                </tr>
+                        </td>
+                        <td>{% if row.player_a_win_rate is not none %}<span class="{{ 'wr-good' if row.player_a_win_rate >= 55 else ('wr-ok' if row.player_a_win_rate >= 45 else 'wr-bad') }}">{{ row.player_a_win_rate }}%</span>{% else %}&mdash;{% endif %}</td>
+                        <td>{% if row.player_b_win_rate is not none %}<span class="{{ 'wr-good' if row.player_b_win_rate >= 55 else ('wr-ok' if row.player_b_win_rate >= 45 else 'wr-bad') }}">{{ row.player_b_win_rate }}%</span>{% else %}&mdash;{% endif %}</td>
+                        <td class="{{ 'diff-positive' if row.win_rate_diff is not none and row.win_rate_diff > 0 else 'diff-negative' if row.win_rate_diff is not none and row.win_rate_diff < 0 else '' }}">
+                            {% if row.win_rate_diff is not none %}{{ '+' if row.win_rate_diff > 0 else '' }}{{ row.win_rate_diff }}%{% else %}&mdash;{% endif %}
+                        </td>
+                        <td>{{ row.player_a_maps }}</td>
+                        <td>{{ row.player_b_maps }}</td>
+                    </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+{% endif %}
 
-<section class="panel panel-soft-green top-gap">
-    <h3>Shared Hero Pool</h3>
-    {% if shared_heroes %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Hero</th>
-                        <th>{{ player_a.profile.name }} Instances</th>
-                        <th>{{ player_b.profile.name }} Instances</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in shared_heroes %}
-                        <tr>
-                            <td>{{ hero_display_name(row.hero) }}</td>
-                            <td>{{ row.player_a_maps }}</td>
-                            <td>{{ row.player_b_maps }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">No shared heroes in recorded comps yet.</p>
-    {% endif %}
-</section>
-
+{# ── Map WR comparison chart ──────────────────────── #}
+{% if map_winrate_differences %}
 <section class="panel panel-soft-violet top-gap">
-    <h3>Shared Maps</h3>
-    {% if shared_maps %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
+    <h3>Map Win Rate Comparison</h3>
+    <div class="player-chart-wrap" style="height:{{ [300, map_winrate_differences[:14]|length * 42 + 60]|max }}px">
+        <canvas id="cmpMapWrChart"></canvas>
+    </div>
+    <script id="cmpMapWrData" type="application/json">{{ map_winrate_differences[:14] | tojson }}</script>
+    <div class="table-wrap" style="margin-top:16px">
+        <table class="stats-table stats-table-compare">
+            <thead>
+                <tr>
+                    <th>Map</th>
+                    <th>{{ player_a.profile.name }} WR</th>
+                    <th>{{ player_b.profile.name }} WR</th>
+                    <th>Difference</th>
+                    <th>A Maps</th>
+                    <th>B Maps</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in map_winrate_differences %}
                     <tr>
-                        <th>Map</th>
-                        <th>{{ player_a.profile.name }} Maps</th>
-                        <th>{{ player_b.profile.name }} Maps</th>
+                        <td>{{ row.map_name }}</td>
+                        <td>{% if row.player_a_win_rate is not none %}<span class="{{ 'wr-good' if row.player_a_win_rate >= 55 else ('wr-ok' if row.player_a_win_rate >= 45 else 'wr-bad') }}">{{ row.player_a_win_rate }}%</span>{% else %}&mdash;{% endif %}</td>
+                        <td>{% if row.player_b_win_rate is not none %}<span class="{{ 'wr-good' if row.player_b_win_rate >= 55 else ('wr-ok' if row.player_b_win_rate >= 45 else 'wr-bad') }}">{{ row.player_b_win_rate }}%</span>{% else %}&mdash;{% endif %}</td>
+                        <td class="{{ 'diff-positive' if row.win_rate_diff is not none and row.win_rate_diff > 0 else 'diff-negative' if row.win_rate_diff is not none and row.win_rate_diff < 0 else '' }}">
+                            {% if row.win_rate_diff is not none %}{{ '+' if row.win_rate_diff > 0 else '' }}{{ row.win_rate_diff }}%{% else %}&mdash;{% endif %}
+                        </td>
+                        <td>{{ row.player_a_maps }}</td>
+                        <td>{{ row.player_b_maps }}</td>
                     </tr>
-                </thead>
-                <tbody>
-                    {% for row in shared_maps %}
-                        <tr>
-                            <td>{{ row.map_name }}</td>
-                            <td>{{ row.player_a_maps }}</td>
-                            <td>{{ row.player_b_maps }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">No shared maps for these players yet.</p>
-    {% endif %}
-</section>
-
-<section class="panel panel-soft-blue top-gap">
-    <h3>Hero Winrate Difference</h3>
-    {% if hero_winrate_differences %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Hero</th>
-                        <th>{{ player_a.profile.name }} WR</th>
-                        <th>{{ player_b.profile.name }} WR</th>
-                        <th>Difference</th>
-                        <th>{{ player_a.profile.name }} Instances</th>
-                        <th>{{ player_b.profile.name }} Instances</th>
-                        <th>Decided Sample</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in hero_winrate_differences %}
-                        <tr>
-                            <td>{{ hero_display_name(row.hero) }}</td>
-                            <td>{% if row.player_a_win_rate is not none %}{{ row.player_a_win_rate }}%{% else %}&mdash;{% endif %}</td>
-                            <td>{% if row.player_b_win_rate is not none %}{{ row.player_b_win_rate }}%{% else %}&mdash;{% endif %}</td>
-                            <td class="{{ 'diff-positive' if row.win_rate_diff is not none and row.win_rate_diff > 0 else 'diff-negative' if row.win_rate_diff is not none and row.win_rate_diff < 0 else '' }}">
-                                {% if row.win_rate_diff is not none %}{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%{% else %}&mdash;{% endif %}
-                            </td>
-                            <td>{{ row.player_a_maps }}</td>
-                            <td>{{ row.player_b_maps }}</td>
-                            <td>{{ row.player_a_decided_maps }} / {{ row.player_b_decided_maps }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">No hero winrate data available yet.</p>
-    {% endif %}
-</section>
-
-<section class="panel panel-soft-green top-gap">
-    <h3>Map Winrate Difference</h3>
-    {% if map_winrate_differences %}
-        <div class="table-wrap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Map</th>
-                        <th>{{ player_a.profile.name }} WR</th>
-                        <th>{{ player_b.profile.name }} WR</th>
-                        <th>Difference</th>
-                        <th>{{ player_a.profile.name }} Maps</th>
-                        <th>{{ player_b.profile.name }} Maps</th>
-                        <th>Decided Sample</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in map_winrate_differences %}
-                        <tr>
-                            <td>{{ row.map_name }}</td>
-                            <td>{% if row.player_a_win_rate is not none %}{{ row.player_a_win_rate }}%{% else %}&mdash;{% endif %}</td>
-                            <td>{% if row.player_b_win_rate is not none %}{{ row.player_b_win_rate }}%{% else %}&mdash;{% endif %}</td>
-                            <td class="{{ 'diff-positive' if row.win_rate_diff is not none and row.win_rate_diff > 0 else 'diff-negative' if row.win_rate_diff is not none and row.win_rate_diff < 0 else '' }}">
-                                {% if row.win_rate_diff is not none %}{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%{% else %}&mdash;{% endif %}
-                            </td>
-                            <td>{{ row.player_a_maps }}</td>
-                            <td>{{ row.player_b_maps }}</td>
-                            <td>{{ row.player_a_decided_maps }} / {{ row.player_b_decided_maps }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">No map winrate data available yet.</p>
-    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 {% endif %}
 
+{# ── Shared heroes ────────────────────────────────── #}
+{% if shared_heroes %}
+<section class="panel panel-soft-gold top-gap">
+    <h3>Shared Hero Pool</h3>
+    <p class="panel-intro">Heroes both players have picked in scrims.</p>
+    <div class="player-hero-grid">
+        {% for row in shared_heroes %}
+            <div class="player-hero-card">
+                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                <div class="player-hero-card-meta">
+                    <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
+                    <span class="player-hero-card-wr wr-ok">A: {{ row.player_a_maps }} &bull; B: {{ row.player_b_maps }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{# ── Ban impact side-by-side ──────────────────────── #}
+{% set a_banned = player_a.ban_impact | selectattr("times_banned") | list %}
+{% set b_banned = player_b.ban_impact | selectattr("times_banned") | list %}
+{% if a_banned or b_banned %}
+<div class="player-side-by-side top-gap">
+<section class="panel panel-soft-orange">
+    <h3>{{ player_a.profile.name }} — Ban Impact</h3>
+    {% if a_banned %}
+        <div class="table-wrap">
+            <table class="stats-table">
+                <thead><tr><th>Hero</th><th>Banned</th><th>WR Avail</th><th>WR Banned</th><th>Δ</th></tr></thead>
+                <tbody>
+                    {% for row in player_a.ban_impact %}
+                        <tr>
+                            <td>
+                                <div class="player-inline-hero">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </div>
+                            </td>
+                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
+                            <td>{% if row.hero_wr is not none %}<span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>{% else %}—{% endif %}</td>
+                            <td>{% if row.wr_when_banned is not none %}<span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>{% else %}—{% endif %}</td>
+                            <td>{% if row.wr_delta is not none %}<span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>{% else %}—{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No heroes banned yet.</p>
+    {% endif %}
+</section>
+<section class="panel panel-soft-orange">
+    <h3>{{ player_b.profile.name }} — Ban Impact</h3>
+    {% if b_banned %}
+        <div class="table-wrap">
+            <table class="stats-table">
+                <thead><tr><th>Hero</th><th>Banned</th><th>WR Avail</th><th>WR Banned</th><th>Δ</th></tr></thead>
+                <tbody>
+                    {% for row in player_b.ban_impact %}
+                        <tr>
+                            <td>
+                                <div class="player-inline-hero">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </div>
+                            </td>
+                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
+                            <td>{% if row.hero_wr is not none %}<span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>{% else %}—{% endif %}</td>
+                            <td>{% if row.wr_when_banned is not none %}<span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>{% else %}—{% endif %}</td>
+                            <td>{% if row.wr_delta is not none %}<span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>{% else %}—{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No heroes banned yet.</p>
+    {% endif %}
+</section>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    var gridColor  = 'rgba(255,255,255,0.07)';
+    var labelColor = '#94a3b8';
+    var colorA = 'rgba(96,165,250,0.80)';
+    var colorB = 'rgba(167,139,250,0.80)';
+
+    function parseJson(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch(e) { return null; }
+    }
+
+    /* ── Overall stat chart ─────────────────────── */
+    (function () {
+        var d = parseJson('cmpOverallData');
+        if (!d || typeof Chart === 'undefined') return;
+        var canvas = document.getElementById('cmpOverallChart');
+        if (!canvas) return;
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Maps Played', 'Wins', 'Losses', 'Win Rate %'],
+                datasets: [
+                    { label: d.names[0], data: [d.maps[0], d.wins[0], d.losses[0], d.win_rate[0]], backgroundColor: colorA, borderRadius: 4 },
+                    { label: d.names[1], data: [d.maps[1], d.wins[1], d.losses[1], d.win_rate[1]], backgroundColor: colorB, borderRadius: 4 },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: labelColor } } },
+                scales: {
+                    x: { grid: { color: gridColor }, ticks: { color: labelColor } },
+                    y: { grid: { color: gridColor }, ticks: { color: labelColor } },
+                }
+            }
+        });
+    })();
+
+    /* ── Hero WR comparison chart ───────────────── */
+    (function () {
+        var rows = parseJson('cmpHeroWrData');
+        if (!rows || !rows.length || typeof Chart === 'undefined') return;
+        var canvas = document.getElementById('cmpHeroWrChart');
+        if (!canvas) return;
+        var labels = rows.map(function (r) { return r.hero; });
+        var aWR = rows.map(function (r) { return r.player_a_win_rate; });
+        var bWR = rows.map(function (r) { return r.player_b_win_rate; });
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: rows[0] && rows[0].player_a_name || 'Player A', data: aWR, backgroundColor: colorA, borderRadius: 4, borderSkipped: false },
+                    { label: rows[0] && rows[0].player_b_name || 'Player B', data: bWR, backgroundColor: colorB, borderRadius: 4, borderSkipped: false },
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: labelColor } },
+                    tooltip: { callbacks: { label: function (ctx) { return ctx.raw !== null ? ' ' + ctx.raw + '%' : ' No data'; } } }
+                },
+                scales: {
+                    x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v){ return v+'%'; }, color: labelColor } },
+                    y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+                }
+            }
+        });
+    })();
+
+    /* ── Map WR comparison chart ────────────────── */
+    (function () {
+        var rows = parseJson('cmpMapWrData');
+        if (!rows || !rows.length || typeof Chart === 'undefined') return;
+        var canvas = document.getElementById('cmpMapWrChart');
+        if (!canvas) return;
+        var labels = rows.map(function (r) { return r.map_name; });
+        var aWR = rows.map(function (r) { return r.player_a_win_rate; });
+        var bWR = rows.map(function (r) { return r.player_b_win_rate; });
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Player A', data: aWR, backgroundColor: colorA, borderRadius: 4, borderSkipped: false },
+                    { label: 'Player B', data: bWR, backgroundColor: colorB, borderRadius: 4, borderSkipped: false },
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: labelColor } },
+                    tooltip: { callbacks: { label: function (ctx) { return ctx.raw !== null ? ' ' + ctx.raw + '%' : ' No data'; } } }
+                },
+                scales: {
+                    x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { callback: function(v){ return v+'%'; }, color: labelColor } },
+                    y: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+                }
+            }
+        });
+    })();
+})();
+</script>
+
+{% endif %}
+
 <style>
-.player-inline-hero {
-    display: inline-flex;
+.diff-positive { color: #4ade80; font-weight: 700; }
+.diff-negative { color: #f87171; font-weight: 700; }
+
+/* ── Compare header ──────────────────────────── */
+.cmp-player-header {
+    display: flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 20px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 20px 24px;
 }
 
-.player-inline-hero img {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+.cmp-player-side {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+}
+
+.cmp-player-side-right {
+    justify-content: flex-end;
+}
+
+.cmp-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
     object-fit: cover;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 2px solid rgba(255,255,255,0.12);
+    flex-shrink: 0;
 }
 
-.diff-positive {
-    color: #1f8f53;
+.cmp-vs {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.cmp-player-name {
+    font-size: 1.15rem;
     font-weight: 700;
 }
 
-.diff-negative {
-    color: #c7433e;
+.cmp-player-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+/* ── Stat row ────────────────────────────────── */
+.cmp-stat-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.cmp-stat-card {
+    flex: 1 1 120px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cmp-stat-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+}
+
+.cmp-stat-vals {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
     font-weight: 700;
+}
+
+.cmp-divider {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.cmp-val-win { color: #4ade80; }
+.cmp-val-lose { color: #f87171; }
+
+@media (max-width: 640px) {
+    .cmp-player-header { flex-direction: column; }
+    .cmp-player-side-right { justify-content: flex-start; flex-direction: row-reverse; }
 }
 </style>
 {% endblock %}
