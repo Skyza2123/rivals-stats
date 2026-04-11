@@ -408,6 +408,12 @@ button:hover {
     gap: 16px;
 }
 
+.two-col-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -2757,9 +2763,15 @@ th {
 
 .ban-visual-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     margin-bottom: 14px;
+}
+
+@media (max-width: 760px) {
+    .ban-visual-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .ban-chart-panel {
@@ -3420,6 +3432,143 @@ th {
     color: var(--muted);
 }
 
+
+/* ── Ban Plan (Quick Plan rework) ──────────────────── */
+.ban-plan-subhead {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 12px 0 8px;
+}
+
+.ban-plan-core-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ban-plan-core-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 160px;
+    min-width: 160px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+}
+
+.ban-plan-core-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.10);
+}
+
+.ban-plan-core-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ban-plan-core-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ban-plan-core-player {
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.ban-plan-core-wr {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ban-plan-scenario-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ban-plan-scenario {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.02);
+    flex-wrap: wrap;
+}
+
+.ban-plan-target,
+.ban-plan-affected,
+.ban-plan-pivot {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 130px;
+}
+
+.ban-plan-section-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.ban-plan-hero-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.10);
+}
+
+.ban-rate-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #f87171;
+    background: rgba(248,113,113,0.12);
+    border: 1px solid rgba(248,113,113,0.25);
+    border-radius: 999px;
+    padding: 2px 8px;
+    width: fit-content;
+}
+
+.ban-plan-player-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    padding: 4px 0;
+}
+
+.ban-plan-arrow {
+    font-size: 1.5rem;
+    font-weight: 800;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.ban-plan-arrow-ban   { color: #f87171; }
+.ban-plan-arrow-pivot { color: #4ade80; }
+
+@media (max-width: 760px) {
+    .ban-plan-core-strip { flex-direction: column; }
+    .ban-plan-scenario { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .ban-plan-arrow { transform: rotate(90deg); margin: 0; }
+}
 
 .prep-comp-grid {
     display: grid;
@@ -4146,7 +4295,8 @@ th {
     }
 
     .mode-performance-grid,
-    .team-map-grid {
+    .team-map-grid,
+    .two-col-grid {
         grid-template-columns: 1fr;
     }
 

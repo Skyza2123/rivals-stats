@@ -215,7 +215,7 @@
                 {% endif %}
             </section>
 
-            <div class="form-grid top-gap">
+            <div class="two-col-grid top-gap">
                 <div class="panel panel-soft-blue">
                     <div class="section-kicker">Draft Flow</div>
                     <h3>When This Team Bans, Opponent Is Likely To Ban</h3>
@@ -265,9 +265,7 @@
                         <p class="empty-text">No ban-to-protect link data yet.</p>
                     {% endif %}
                 </div>
-            </div>
 
-            <div class="form-grid top-gap">
                 <div class="panel panel-soft-violet">
                     <div class="section-kicker">Draft Flow</div>
                     <h3>Second-Order Ban Routes (Ban 2 Into Ban 3 / Protect 2 / Ban 4)</h3>
@@ -356,7 +354,7 @@
                 </div>
             </div>
 
-            <div class="form-grid top-gap">
+            <div class="two-col-grid top-gap">
                 <div class="panel panel-soft-red">
                     <div class="section-kicker">Ban Phase</div>
                     <h3>Main Team Ban Positions</h3>
@@ -492,6 +490,29 @@
                 </div>
             </div>
 
+            {% if team_analytics.ban_position_rows %}
+            <div class="two-col-grid top-gap">
+                <div class="panel">
+                    <div class="section-kicker">Ban Phase Chart</div>
+                    <h3>Our Ban Slot Distribution</h3>
+                    <p class="panel-intro">Which heroes appear most in each of our ban slots.</p>
+                    <script id="teamBanSlotData" type="application/json">{{ team_analytics.ban_position_rows | tojson }}</script>
+                    <div class="prep-chart-wrap top-gap" style="position:relative;">
+                        <canvas id="teamBanSlotChart"></canvas>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="section-kicker">Ban Phase Chart</div>
+                    <h3>Opponent Ban Slot Distribution</h3>
+                    <p class="panel-intro">Which heroes appear most in each of the opponent's ban slots.</p>
+                    <script id="teamEnemyBanSlotData" type="application/json">{{ team_analytics.enemy_ban_position_rows | tojson }}</script>
+                    <div class="prep-chart-wrap top-gap" style="position:relative;">
+                        <canvas id="teamEnemyBanSlotChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="panel panel-soft-green top-gap">
                 <div class="section-kicker">Draft Tendency</div>
                 <h3>Ban Rate In Relation To Protects</h3>
@@ -591,47 +612,141 @@
                 <h3>Ban Difference</h3>
                 <p class="panel-intro">Quickly spot which heroes this team targets more often versus which ones the opponent removes first.</p>
                 {% if team_analytics.ban_diff_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>This Team Ban</th>
-                                    <th>Opponent Ban</th>
-                                    <th>Diff</th>
-                                    <th>Edge</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in team_analytics.ban_diff_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.our_rate }}%</td>
-                                        <td>{{ row.enemy_rate }}%</td>
-                                        <td>{% if row.rate_diff > 0 %}+{% endif %}{{ row.rate_diff }}%</td>
-                                        <td>
-                                            {% if row.rate_diff > 0 %}
-                                                <span class="compare-tag compare-tag-positive">Main team bans more</span>
-                                            {% elif row.rate_diff < 0 %}
-                                                <span class="compare-tag compare-tag-negative">Opponent bans more</span>
-                                            {% else %}
-                                                <span class="compare-tag compare-tag-neutral">Even</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <script id="teamBanDiffData" type="application/json">{{ team_analytics.ban_diff_rows | tojson }}</script>
+                    <div class="prep-chart-wrap top-gap" style="position:relative;">
+                        <canvas id="teamBanDiffChart"></canvas>
                     </div>
                 {% else %}
                     <p class="empty-text">No ban comparison data yet.</p>
                 {% endif %}
             </div>
+
+            {# ── Team Ban Impact ──────────────────────────────── #}
+            {% set team_banned_rows = team_ban_impact | selectattr("times_banned") | list %}
+            {% if team_ban_impact %}
+            <div class="panel panel-soft-orange top-gap">
+                <div class="section-kicker">Ban Impact</div>
+                <h3>{{ team.name }} — Ban Impact</h3>
+                <p class="panel-intro">How the team performs when the enemy targets heroes from their pool (≥5 maps played), and what they pivot to.</p>
+
+                {% if team_banned_rows %}
+                    <div class="player-ban-grid">
+                        {% for row in team_banned_rows %}
+                            <div class="player-ban-card">
+                                <div class="player-ban-card-hero">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <div>
+                                        <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
+                                        <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
+                                    </div>
+                                    <span class="ban-count-badge">Banned {{ row.times_banned }}×</span>
+                                </div>
+
+                                <div class="player-ban-stats">
+                                    <div class="player-ban-stat">
+                                        <span class="player-ban-stat-label">WR when available</span>
+                                        {% if row.hero_wr is not none %}
+                                            <strong class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</strong>
+                                        {% else %}<strong>—</strong>{% endif %}
+                                    </div>
+                                    <div class="player-ban-stat">
+                                        <span class="player-ban-stat-label">WR when banned</span>
+                                        {% if row.wr_when_banned is not none %}
+                                            <strong class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</strong>
+                                        {% else %}<strong>—</strong>{% endif %}
+                                    </div>
+                                    {% if row.wr_delta is not none %}
+                                        <div class="player-ban-stat">
+                                            <span class="player-ban-stat-label">Impact</span>
+                                            <strong class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</strong>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if row.all_pivots %}
+                                    <div class="player-ban-pivot-list">
+                                        <span class="player-ban-stat-label">Pivots to:</span>
+                                        <div class="player-ban-pivot-chips">
+                                            {% for pvt in row.all_pivots[:3] %}
+                                                <div class="player-ban-pivot-chip">
+                                                    <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" onerror="this.style.display='none'">
+                                                    <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
+                                                    <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <p class="player-ban-count" style="margin:0">No pivot data recorded.</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <p class="player-chart-label">Win Rate: Available vs Banned (heroes targeted by enemy)</p>
+                    <div class="prep-chart-wrap top-gap" style="position:relative; height:{{ [220, team_banned_rows|length * 54 + 60]|max }}px">
+                        <canvas id="teamBanImpactChart"></canvas>
+                    </div>
+                {% else %}
+                    <p class="empty-text">None of {{ team.name }}'s heroes have been banned in recorded scrims (with ≥5 maps played).</p>
+                {% endif %}
+
+                <h4 style="margin: 20px 0 8px; font-size: 0.9rem; color: var(--text-secondary);">Full Hero Pool — Ban Exposure</h4>
+                <div class="table-wrap">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Maps Played</th>
+                                <th>Times Banned</th>
+                                <th>WR When Available</th>
+                                <th>WR When Banned</th>
+                                <th>Impact</th>
+                                <th>Top Pivot</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in team_ban_impact %}
+                                <tr>
+                                    <td>
+                                        <div class="player-inline-hero">
+                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                            <span>{{ hero_display_name(row.hero) }}</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ row.hero_maps }}</td>
+                                    <td>{{ row.times_banned if row.times_banned else '—' }}</td>
+                                    <td>
+                                        {% if row.hero_wr is not none %}
+                                            <span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.wr_when_banned is not none %}
+                                            <span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.wr_delta is not none %}
+                                            <span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.top_pivot %}
+                                            <div class="player-inline-hero">
+                                                <img src="{{ hero_image_url(row.top_pivot.hero) }}" alt="{{ hero_display_name(row.top_pivot.hero) }}" onerror="this.style.display='none'">
+                                                <span>{{ hero_display_name(row.top_pivot.hero) }} ({{ row.top_pivot.count }}×)</span>
+                                            </div>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <script id="teamBanImpactData" type="application/json">{{ team_ban_impact | tojson }}</script>
+            </div>
+            {% endif %}
         {% else %}
             <p class="empty-text">No scrim maps recorded for this team yet.</p>
         {% endif %}
@@ -1251,32 +1366,29 @@
     <section class="panel">
         <div class="section-kicker">Mirror Rates</div>
         <h3>Mirror Drafts and Comps</h3>
-        <p class="panel-intro">Soft mirror = 3-5 shared heroes. Hard mirror = all 6 heroes match.</p>
+        <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
         <div class="table-wrap top-gap">
             <table class="stats-table stats-table-compare">
                 <thead>
                     <tr>
                         <th>Type</th>
                         <th>Samples</th>
-                        <th>Soft Mirror</th>
-                        <th>Hard Mirror</th>
-                        <th>Any Mirror</th>
+                        <th>Mirror Count</th>
+                        <th>Mirror Rate</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Draft (6 picks)</td>
                         <td>{{ team_analytics.mirror_rates.draft.samples }}</td>
-                        <td>{{ team_analytics.mirror_rates.draft.soft_count }} ({{ team_analytics.mirror_rates.draft.soft_rate }}%)</td>
-                        <td>{{ team_analytics.mirror_rates.draft.hard_count }} ({{ team_analytics.mirror_rates.draft.hard_rate }}%)</td>
-                        <td>{{ team_analytics.mirror_rates.draft.any_mirror_rate }}%</td>
+                        <td>{{ team_analytics.mirror_rates.draft.mirror_count }}</td>
+                        <td>{{ team_analytics.mirror_rates.draft.mirror_rate }}%</td>
                     </tr>
                     <tr>
                         <td>Comp (6 heroes)</td>
                         <td>{{ team_analytics.mirror_rates.comp.samples }}</td>
-                        <td>{{ team_analytics.mirror_rates.comp.soft_count }} ({{ team_analytics.mirror_rates.comp.soft_rate }}%)</td>
-                        <td>{{ team_analytics.mirror_rates.comp.hard_count }} ({{ team_analytics.mirror_rates.comp.hard_rate }}%)</td>
-                        <td>{{ team_analytics.mirror_rates.comp.any_mirror_rate }}%</td>
+                        <td>{{ team_analytics.mirror_rates.comp.mirror_count }}</td>
+                        <td>{{ team_analytics.mirror_rates.comp.mirror_rate }}%</td>
                     </tr>
                 </tbody>
             </table>
@@ -1285,27 +1397,41 @@
 
     <section class="panel">
         <div class="section-kicker">Comp Difference</div>
-        <h3>Triple Support vs 2-2-2</h3>
-        <p class="panel-intro">Compare how often each comp type appears and the rate gap between them.</p>
+        <h3>Comp Type Breakdown</h3>
+        <p class="panel-intro">How often each comp profile appears and performs — opponent on the left, your team on the right.</p>
         <div class="table-wrap top-gap">
             <table class="stats-table stats-table-compare">
                 <thead>
                     <tr>
                         <th>Comp Type</th>
-                        <th>Maps Seen</th>
-                        <th>Usage Rate</th>
-                        <th>Win Rate</th>
+                        <th>Opp Maps</th>
+                        <th>Opp Rate</th>
+                        <th>Our Maps</th>
+                        <th>Our Rate</th>
+                        <th>Our Win Rate</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Triple Support</td>
+                        <td>{{ team_analytics.comp_difference.enemy_triple_support_count }}</td>
+                        <td>{{ team_analytics.comp_difference.enemy_triple_support_rate }}%</td>
                         <td>{{ team_analytics.comp_difference.triple_support_count }}</td>
                         <td>{{ team_analytics.comp_difference.triple_support_rate }}%</td>
                         <td>{% if team_analytics.comp_difference.triple_support_count %}{{ team_analytics.comp_difference.triple_support_win_rate }}%{% else %}--{% endif %}</td>
                     </tr>
                     <tr>
+                        <td>Triple Tank</td>
+                        <td>{{ team_analytics.comp_difference.enemy_triple_tank_count }}</td>
+                        <td>{{ team_analytics.comp_difference.enemy_triple_tank_rate }}%</td>
+                        <td>{{ team_analytics.comp_difference.triple_tank_count }}</td>
+                        <td>{{ team_analytics.comp_difference.triple_tank_rate }}%</td>
+                        <td>{% if team_analytics.comp_difference.triple_tank_count %}{{ team_analytics.comp_difference.triple_tank_win_rate }}%{% else %}--{% endif %}</td>
+                    </tr>
+                    <tr>
                         <td>2-2-2</td>
+                        <td>--</td>
+                        <td>--</td>
                         <td>{{ team_analytics.comp_difference.two_two_two_count }}</td>
                         <td>{{ team_analytics.comp_difference.two_two_two_rate }}%</td>
                         <td>{% if team_analytics.comp_difference.two_two_two_count %}{{ team_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
@@ -1313,35 +1439,6 @@
                 </tbody>
             </table>
         </div>
-        <p class="panel-intro top-gap">
-            Difference Rate (Triple Support - 2-2-2):
-            <span class="comp-diff-tags">
-            {% if team_analytics.comp_difference.difference_rate > 0 %}
-                <span class="compare-tag compare-tag-positive">+{{ team_analytics.comp_difference.difference_rate }}%</span>
-            {% elif team_analytics.comp_difference.difference_rate < 0 %}
-                <span class="compare-tag compare-tag-negative">{{ team_analytics.comp_difference.difference_rate }}%</span>
-            {% else %}
-                <span class="compare-tag compare-tag-neutral">{{ team_analytics.comp_difference.difference_rate }}%</span>
-            {% endif %}
-            {% if team_analytics.comp_difference.winrate_difference is not none %}
-                <span class="compare-tag {% if team_analytics.comp_difference.winrate_difference > 0 %}compare-tag-positive{% elif team_analytics.comp_difference.winrate_difference < 0 %}compare-tag-negative{% else %}compare-tag-neutral{% endif %}">
-                    Win Rate Gap: {% if team_analytics.comp_difference.winrate_difference > 0 %}+{% endif %}{{ team_analytics.comp_difference.winrate_difference }}%
-                </span>
-            {% endif %}
-            </span>
-        </p>
-        <p class="panel-intro top-gap">
-            Triple Support Prevalence: This Team {{ team_analytics.comp_difference.triple_support_rate }}% ({{ team_analytics.comp_difference.triple_support_count }} maps) vs Opponent {{ team_analytics.comp_difference.enemy_triple_support_rate }}% ({{ team_analytics.comp_difference.enemy_triple_support_count }} maps)
-            <span class="comp-diff-tags">
-            {% if team_analytics.comp_difference.triple_support_prevalence_diff > 0 %}
-                <span class="compare-tag compare-tag-positive">Main +{{ team_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
-            {% elif team_analytics.comp_difference.triple_support_prevalence_diff < 0 %}
-                <span class="compare-tag compare-tag-negative">Enemy {{ team_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
-            {% else %}
-                <span class="compare-tag compare-tag-neutral">Even</span>
-            {% endif %}
-            </span>
-        </p>
     </section>
 
 </div>
@@ -2735,6 +2832,212 @@ if (document.readyState !== 'complete') {
                         grid: { display: false },
                         ticks: { color: labelColor }
                     }
+                }
+            }
+        });
+    })();
+
+    /* ── Ban Difference grouped horizontal bar ── */
+    (function () {
+        var rows = parseJsonEl('teamBanDiffData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('teamBanDiffChart');
+        if (!canvas) return;
+        rows = rows.slice().sort(function (a, b) { return Math.abs(b.rate_diff) - Math.abs(a.rate_diff); });
+        canvas.parentElement.style.height = Math.max(160, rows.length * 38 + 80) + 'px';
+        var labels = rows.map(function (r) { return r.hero; });
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Our Ban Rate',
+                        data: rows.map(function (r) { return r.our_rate; }),
+                        backgroundColor: 'rgba(99,179,237,0.75)',
+                        hoverBackgroundColor: '#63b3ed',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: 'Opp Ban Rate',
+                        data: rows.map(function (r) { return r.enemy_rate; }),
+                        backgroundColor: 'rgba(248,113,113,0.65)',
+                        hoverBackgroundColor: '#f87171',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { color: labelColor } },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + ctx.raw + '%'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                    },
+                    y: { grid: { display: false }, ticks: { color: labelColor } }
+                }
+            }
+        });
+    })();
+
+    /* ── Ban Slot distribution charts (our + enemy) ── */
+    (function () {
+        var SLOT_COLORS = {
+            'Ban 1':     'rgba(248,113,113,0.8)',
+            'Ban 2':     'rgba(251,146,60,0.8)',
+            'Ban 3':     'rgba(251,191,36,0.8)',
+            'Ban 4':     'rgba(167,139,250,0.8)',
+            'Protect 1': 'rgba(74,222,128,0.6)',
+            'Protect 2': 'rgba(56,189,248,0.6)',
+        };
+
+        function buildBanSlotChart(canvasId, dataId) {
+            var slots = parseJsonEl(dataId);
+            if (!slots || !slots.length) return;
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            // Collect all heroes across all slots, deduplicated, ordered by overall presence
+            var heroCounts = {};
+            slots.forEach(function (slot) {
+                if (!slot.hero_rows) return;
+                slot.hero_rows.forEach(function (row) {
+                    heroCounts[row.hero] = (heroCounts[row.hero] || 0) + row.count;
+                });
+            });
+            var heroes = Object.keys(heroCounts).sort(function (a, b) { return heroCounts[b] - heroCounts[a]; }).slice(0, 14);
+
+            var datasets = slots.map(function (slot) {
+                var rateMap = {};
+                (slot.hero_rows || []).forEach(function (row) { rateMap[row.hero] = row.rate; });
+                return {
+                    label: slot.slot_label,
+                    data: heroes.map(function (h) { return rateMap[h] || 0; }),
+                    backgroundColor: SLOT_COLORS[slot.slot_label] || 'rgba(150,150,150,0.6)',
+                    borderRadius: 3,
+                    borderSkipped: false,
+                };
+            });
+
+            canvas.parentElement.style.height = Math.max(200, heroes.length * 34 + 80) + 'px';
+            var existing = Chart.getChart(canvas);
+            if (existing) existing.destroy();
+            new Chart(canvas, {
+                type: 'bar',
+                data: { labels: heroes, datasets: datasets },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 400 },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { color: labelColor, boxWidth: 12 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + ctx.raw + '%'; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0, max: 100,
+                            grid: { color: gridColor },
+                            ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                        },
+                        y: { grid: { display: false }, ticks: { color: labelColor } }
+                    }
+                }
+            });
+        }
+
+        buildBanSlotChart('teamBanSlotChart', 'teamBanSlotData');
+        buildBanSlotChart('teamEnemyBanSlotChart', 'teamEnemyBanSlotData');
+    })();
+
+    /* ── Team Ban Impact grouped horizontal bar ── */
+    (function () {
+        var rows = parseJsonEl('teamBanImpactData');
+        if (!rows || !rows.length) return;
+        var canvas = document.getElementById('teamBanImpactChart');
+        if (!canvas) return;
+
+        var filtered = rows.filter(function (r) { return r.times_banned > 0 && (r.hero_wr !== null || r.wr_when_banned !== null); });
+        if (!filtered.length) return;
+
+        var labels = filtered.map(function (r) { return r.hero; });
+        canvas.parentElement.style.height = Math.max(220, filtered.length * 54 + 60) + 'px';
+
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'WR when available',
+                        data: filtered.map(function (r) { return r.hero_wr; }),
+                        backgroundColor: 'rgba(96,165,250,0.75)',
+                        hoverBackgroundColor: '#60a5fa',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: 'WR when banned',
+                        data: filtered.map(function (r) { return r.wr_when_banned; }),
+                        backgroundColor: 'rgba(250,68,84,0.70)',
+                        hoverBackgroundColor: '#fa4454',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { color: labelColor } },
+                    tooltip: {
+                        callbacks: {
+                            title: function (items) {
+                                var r = filtered[items[0].dataIndex];
+                                return r.hero + '  ·  Banned ' + r.times_banned + '×';
+                            },
+                            label: function (ctx) {
+                                if (ctx.raw === null) return ' No data';
+                                var suffix = ctx.datasetIndex === 0
+                                    ? ' (' + filtered[ctx.dataIndex].hero_maps + ' maps)'
+                                    : ' (' + filtered[ctx.dataIndex].times_banned + ' bans)';
+                                return ' ' + ctx.dataset.label + ': ' + ctx.raw + '%' + suffix;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: gridColor },
+                        ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
+                    },
+                    y: { grid: { display: false }, ticks: { color: labelColor } }
                 }
             }
         });

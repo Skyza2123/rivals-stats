@@ -1647,8 +1647,13 @@ def build_player_ban_impact(player_name: str, scrims: list[dict]) -> list[dict]:
     if not hero_total_maps:
         return []
 
-    # Track every hero the player has ever played — full pool, sorted by most played.
-    all_heroes = sorted(hero_total_maps.keys(), key=lambda h: hero_total_maps[h], reverse=True)
+    # Track heroes with enough play time to be meaningful (≥5 maps), sorted by most played.
+    all_heroes = sorted(
+        (h for h in hero_total_maps if hero_total_maps[h] >= 5),
+        key=lambda h: hero_total_maps[h], reverse=True,
+    )
+    if not all_heroes:
+        return []
 
     # Second pass: for each map check enemy bans, outcome, and player heroes played.
     times_banned: dict[str, int] = defaultdict(int)
@@ -1745,6 +1750,131 @@ def build_player_ban_impact(player_name: str, scrims: list[dict]) -> list[dict]:
         })
 
     # Sort: heroes that are actually banned first (by ban count), then by maps played
+    rows.sort(key=lambda r: (r["times_banned"], r["hero_maps"]), reverse=True)
+    return rows
+
+
+def build_team_ban_impact(scrims: list[dict]) -> list[dict]:
+    """Return ban impact rows for every hero in the team's pool with ≥5 maps played.
+
+    Each row contains:
+      hero, hero_maps, hero_wr, times_banned, wr_when_banned, wr_delta, all_pivots, top_pivot
+    """
+    # First pass: count how many maps each hero was played by this team.
+    hero_total_maps: dict[str, int] = defaultdict(int)
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            seen_heroes: set[str] = set()
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot, []):
+                    h = _canonical_draft_hero(slot.get("hero", ""))
+                    if h and h not in seen_heroes:
+                        hero_total_maps[h] += 1
+                        seen_heroes.add(h)
+
+    if not hero_total_maps:
+        return []
+
+    all_heroes = sorted(
+        (h for h in hero_total_maps if hero_total_maps[h] >= 5),
+        key=lambda h: hero_total_maps[h], reverse=True,
+    )
+    if not all_heroes:
+        return []
+
+    times_banned: dict[str, int] = defaultdict(int)
+    avail_wins: dict[str, int] = defaultdict(int)
+    avail_losses: dict[str, int] = defaultdict(int)
+    ban_wins: dict[str, int] = defaultdict(int)
+    ban_losses: dict[str, int] = defaultdict(int)
+    pivot_stats: dict[str, dict] = {h: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for h in all_heroes}
+
+    for scrim in scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+
+            enemy_slot = "team2" if our_team_slot == "team1" else "team1"
+            draft = map_entry.get("draft", {})
+            enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
+            enemy_bans = {
+                _canonical_draft_hero(v)
+                for k, v in enemy_draft.items()
+                if "ban" in k and _canonical_draft_hero(v)
+            }
+
+            team_heroes: set[str] = set()
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot, []):
+                    h = _canonical_draft_hero(slot.get("hero", ""))
+                    if h:
+                        team_heroes.add(h)
+
+            if not team_heroes:
+                continue
+
+            for hero_h in all_heroes:
+                if hero_h in enemy_bans:
+                    times_banned[hero_h] += 1
+                    if result == "Win":
+                        ban_wins[hero_h] += 1
+                    elif result == "Loss":
+                        ban_losses[hero_h] += 1
+                    for h in team_heroes:
+                        if h != hero_h:
+                            pivot_stats[hero_h][h]["count"] += 1
+                            if result == "Win":
+                                pivot_stats[hero_h][h]["wins"] += 1
+                            elif result == "Loss":
+                                pivot_stats[hero_h][h]["losses"] += 1
+                elif hero_h in team_heroes:
+                    if result == "Win":
+                        avail_wins[hero_h] += 1
+                    elif result == "Loss":
+                        avail_losses[hero_h] += 1
+
+    rows = []
+    for hero_h in all_heroes:
+        a_w = avail_wins[hero_h]
+        a_l = avail_losses[hero_h]
+        a_dec = a_w + a_l
+        hero_wr: float | None = round((a_w / a_dec) * 100, 1) if a_dec else None
+
+        b_w = ban_wins[hero_h]
+        b_l = ban_losses[hero_h]
+        b_dec = b_w + b_l
+        wr_banned: float | None = round((b_w / b_dec) * 100, 1) if b_dec else None
+
+        delta: float | None = round(wr_banned - hero_wr, 1) if (hero_wr is not None and wr_banned is not None) else None
+
+        pvts = []
+        for pvt_h, s in pivot_stats[hero_h].items():
+            pvt_dec = s["wins"] + s["losses"]
+            pvt_wr: float | None = round((s["wins"] / pvt_dec) * 100, 1) if pvt_dec else None
+            pvts.append({"hero": pvt_h, "count": s["count"], "wr": pvt_wr})
+        pvts.sort(key=lambda x: x["count"], reverse=True)
+
+        rows.append({
+            "hero": hero_h,
+            "hero_maps": hero_total_maps.get(hero_h, 0),
+            "hero_wr": hero_wr,
+            "times_banned": times_banned[hero_h],
+            "wr_when_banned": wr_banned,
+            "wr_delta": delta,
+            "all_pivots": pvts,
+            "top_pivot": pvts[0] if pvts else None,
+        })
+
     rows.sort(key=lambda r: (r["times_banned"], r["hero_maps"]), reverse=True)
     return rows
 
@@ -6283,6 +6413,8 @@ def team_detail(team_id: int):
         [row["hero"] for row in hero_graph_rows[:6]],
     )
 
+    team_ban_impact = build_team_ban_impact(team_scrims)
+
     role_order = {"Vanguard": 0, "Duelist": 1, "Strategist": 2}
 
     def _sorted_heroes_for_matchup(raw_heroes: list[str]) -> list[str]:
@@ -6540,6 +6672,7 @@ def team_detail(team_id: int):
         hero_transformations=HERO_TRANSFORMATIONS,
         heroes=HEROES,
         hero_roles=HERO_ROLES,
+        team_ban_impact=team_ban_impact,
         **prep_context,
     )
 

@@ -371,19 +371,17 @@
         try { return JSON.parse(el.textContent); } catch(e) { return null; }
     }
 
-    /* ── Hero bar chart ─────────────────────────────────── */
+    /* ── Hero pool stacked bar chart ────────────────────── */
     (function () {
         var rows = parseJson('playerHeroData');
         if (!rows || !rows.length) return;
         var canvas = document.getElementById('playerHeroBarChart');
         if (!canvas || typeof Chart === 'undefined') return;
 
-        var labels = rows.map(function (r) { return r.hero; });
-        var counts = rows.map(function (r) { return r.maps; });
-        var wrs    = rows.map(function (r) { return r.win_rate; });
-        var barColors = wrs.map(function (wr) {
-            return wr >= 55 ? 'rgba(74,222,128,0.75)' : wr >= 45 ? 'rgba(251,191,36,0.75)' : 'rgba(248,113,113,0.75)';
-        });
+        var labels     = rows.map(function (r) { return r.hero; });
+        var wins       = rows.map(function (r) { return r.wins || 0; });
+        var losses     = rows.map(function (r) { return r.losses || 0; });
+        var unresolved = rows.map(function (r) { return Math.max(0, (r.maps || 0) - (r.wins || 0) - (r.losses || 0)); });
 
         new Chart(canvas, {
             type: 'bar',
@@ -391,23 +389,22 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Maps Played',
-                        data: counts,
-                        backgroundColor: barColors,
-                        hoverBackgroundColor: barColors.map(function (c) { return c.replace('0.75', '1'); }),
-                        borderRadius: 4,
-                        borderSkipped: false,
+                        label: 'Wins',
+                        data: wins,
+                        backgroundColor: 'rgba(74,222,128,0.82)',
+                        stack: 'main',
                     },
                     {
-                        label: 'Win Rate %',
-                        data: wrs,
-                        type: 'line',
-                        borderColor: '#60a5fa',
-                        backgroundColor: 'rgba(96,165,250,0.12)',
-                        pointBackgroundColor: '#60a5fa',
-                        pointRadius: 4,
-                        tension: 0.35,
-                        yAxisID: 'yWR',
+                        label: 'Losses',
+                        data: losses,
+                        backgroundColor: 'rgba(248,113,113,0.80)',
+                        stack: 'main',
+                    },
+                    {
+                        label: 'Unresolved',
+                        data: unresolved,
+                        backgroundColor: 'rgba(148,163,184,0.28)',
+                        stack: 'main',
                     }
                 ]
             },
@@ -415,21 +412,34 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', axis: 'y' },
                 plugins: {
-                    legend: { display: true },
+                    legend: { display: true, labels: { color: labelColor } },
                     tooltip: {
                         callbacks: {
+                            title: function (items) {
+                                var r = rows[items[0].dataIndex];
+                                return r.hero + '  ·  ' + r.maps + ' maps  ·  ' + r.win_rate + '% WR';
+                            },
                             label: function (ctx) {
-                                if (ctx.datasetIndex === 0) return ' ' + ctx.raw + ' maps';
-                                return ' WR: ' + ctx.raw + '%';
+                                if (ctx.raw === 0) return null;
+                                return ' ' + ctx.dataset.label + ': ' + ctx.raw;
                             }
                         }
                     }
                 },
                 scales: {
-                    x:    { grid: { color: gridColor }, ticks: { color: labelColor }, title: { display: true, text: 'Maps Played', color: labelColor } },
-                    yWR:  { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { callback: function(v){ return v+'%'; }, color: '#60a5fa' } },
-                    y:    { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+                    x: {
+                        stacked: true,
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor, precision: 0 },
+                        title: { display: true, text: 'Maps', color: labelColor }
+                    },
+                    y: {
+                        stacked: true,
+                        grid: { color: gridColor },
+                        ticks: { color: labelColor, font: { size: 11 } }
+                    }
                 }
             }
         });
