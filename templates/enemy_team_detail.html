@@ -1081,32 +1081,29 @@
     <section class="panel">
         <div class="section-kicker">Mirror Rates</div>
         <h3>Mirror Drafts and Comps</h3>
-        <p class="panel-intro">Soft mirror = 3-5 shared heroes. Hard mirror = all 6 heroes match.</p>
+        <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
         <div class="table-wrap top-gap">
             <table class="stats-table stats-table-compare">
                 <thead>
                     <tr>
                         <th>Type</th>
                         <th>Samples</th>
-                        <th>Soft Mirror</th>
-                        <th>Hard Mirror</th>
-                        <th>Any Mirror</th>
+                        <th>Mirror Count</th>
+                        <th>Mirror Rate</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Draft (6 picks)</td>
                         <td>{{ enemy_analytics.mirror_rates.draft.samples }}</td>
-                        <td>{{ enemy_analytics.mirror_rates.draft.soft_count }} ({{ enemy_analytics.mirror_rates.draft.soft_rate }}%)</td>
-                        <td>{{ enemy_analytics.mirror_rates.draft.hard_count }} ({{ enemy_analytics.mirror_rates.draft.hard_rate }}%)</td>
-                        <td>{{ enemy_analytics.mirror_rates.draft.any_mirror_rate }}%</td>
+                        <td>{{ enemy_analytics.mirror_rates.draft.mirror_count }}</td>
+                        <td>{{ enemy_analytics.mirror_rates.draft.mirror_rate }}%</td>
                     </tr>
                     <tr>
                         <td>Comp (6 heroes)</td>
                         <td>{{ enemy_analytics.mirror_rates.comp.samples }}</td>
-                        <td>{{ enemy_analytics.mirror_rates.comp.soft_count }} ({{ enemy_analytics.mirror_rates.comp.soft_rate }}%)</td>
-                        <td>{{ enemy_analytics.mirror_rates.comp.hard_count }} ({{ enemy_analytics.mirror_rates.comp.hard_rate }}%)</td>
-                        <td>{{ enemy_analytics.mirror_rates.comp.any_mirror_rate }}%</td>
+                        <td>{{ enemy_analytics.mirror_rates.comp.mirror_count }}</td>
+                        <td>{{ enemy_analytics.mirror_rates.comp.mirror_rate }}%</td>
                     </tr>
                 </tbody>
             </table>
@@ -1115,27 +1112,41 @@
 
     <section class="panel">
         <div class="section-kicker">Comp Difference</div>
-        <h3>Triple Support vs 2-2-2</h3>
-        <p class="panel-intro">Compare how often each comp type appears and the rate gap between them.</p>
+        <h3>Comp Type Breakdown</h3>
+        <p class="panel-intro">How often each comp profile appears and performs — enemy team on the left, your team on the right.</p>
         <div class="table-wrap top-gap">
             <table class="stats-table stats-table-compare">
                 <thead>
                     <tr>
                         <th>Comp Type</th>
-                        <th>Maps Seen</th>
-                        <th>Usage Rate</th>
-                        <th>Win Rate</th>
+                        <th>Enemy Maps</th>
+                        <th>Enemy Rate</th>
+                        <th>Our Maps</th>
+                        <th>Our Rate</th>
+                        <th>Our Win Rate</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Triple Support</td>
+                        <td>{{ enemy_analytics.comp_difference.enemy_triple_support_count }}</td>
+                        <td>{{ enemy_analytics.comp_difference.enemy_triple_support_rate }}%</td>
                         <td>{{ enemy_analytics.comp_difference.triple_support_count }}</td>
                         <td>{{ enemy_analytics.comp_difference.triple_support_rate }}%</td>
                         <td>{% if enemy_analytics.comp_difference.triple_support_count %}{{ enemy_analytics.comp_difference.triple_support_win_rate }}%{% else %}--{% endif %}</td>
                     </tr>
                     <tr>
+                        <td>Triple Tank</td>
+                        <td>{{ enemy_analytics.comp_difference.enemy_triple_tank_count }}</td>
+                        <td>{{ enemy_analytics.comp_difference.enemy_triple_tank_rate }}%</td>
+                        <td>{{ enemy_analytics.comp_difference.triple_tank_count }}</td>
+                        <td>{{ enemy_analytics.comp_difference.triple_tank_rate }}%</td>
+                        <td>{% if enemy_analytics.comp_difference.triple_tank_count %}{{ enemy_analytics.comp_difference.triple_tank_win_rate }}%{% else %}--{% endif %}</td>
+                    </tr>
+                    <tr>
                         <td>2-2-2</td>
+                        <td>--</td>
+                        <td>--</td>
                         <td>{{ enemy_analytics.comp_difference.two_two_two_count }}</td>
                         <td>{{ enemy_analytics.comp_difference.two_two_two_rate }}%</td>
                         <td>{% if enemy_analytics.comp_difference.two_two_two_count %}{{ enemy_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
@@ -1143,35 +1154,6 @@
                 </tbody>
             </table>
         </div>
-        <p class="panel-intro top-gap">
-            Difference Rate (Triple Support - 2-2-2):
-            <span class="comp-diff-tags">
-            {% if enemy_analytics.comp_difference.difference_rate > 0 %}
-                <span class="compare-tag compare-tag-positive">+{{ enemy_analytics.comp_difference.difference_rate }}%</span>
-            {% elif enemy_analytics.comp_difference.difference_rate < 0 %}
-                <span class="compare-tag compare-tag-negative">{{ enemy_analytics.comp_difference.difference_rate }}%</span>
-            {% else %}
-                <span class="compare-tag compare-tag-neutral">{{ enemy_analytics.comp_difference.difference_rate }}%</span>
-            {% endif %}
-            {% if enemy_analytics.comp_difference.winrate_difference is not none %}
-                <span class="compare-tag {% if enemy_analytics.comp_difference.winrate_difference > 0 %}compare-tag-positive{% elif enemy_analytics.comp_difference.winrate_difference < 0 %}compare-tag-negative{% else %}compare-tag-neutral{% endif %}">
-                    Win Rate Gap: {% if enemy_analytics.comp_difference.winrate_difference > 0 %}+{% endif %}{{ enemy_analytics.comp_difference.winrate_difference }}%
-                </span>
-            {% endif %}
-            </span>
-        </p>
-        <p class="panel-intro top-gap">
-            Triple Support Prevalence: Enemy Team {{ enemy_analytics.comp_difference.triple_support_rate }}% ({{ enemy_analytics.comp_difference.triple_support_count }} maps) vs Main Team {{ enemy_analytics.comp_difference.enemy_triple_support_rate }}% ({{ enemy_analytics.comp_difference.enemy_triple_support_count }} maps)
-            <span class="comp-diff-tags">
-            {% if enemy_analytics.comp_difference.triple_support_prevalence_diff > 0 %}
-                <span class="compare-tag compare-tag-positive">Enemy +{{ enemy_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
-            {% elif enemy_analytics.comp_difference.triple_support_prevalence_diff < 0 %}
-                <span class="compare-tag compare-tag-negative">Main {{ enemy_analytics.comp_difference.triple_support_prevalence_diff }}%</span>
-            {% else %}
-                <span class="compare-tag compare-tag-neutral">Even</span>
-            {% endif %}
-            </span>
-        </p>
     </section>
 
     <section class="panel">

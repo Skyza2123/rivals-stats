@@ -10,7 +10,7 @@ import sqlite3
 import importlib
 from difflib import SequenceMatcher
 from itertools import combinations
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
@@ -3089,6 +3089,8 @@ def build_scrim_analytics(
 
         if strategist_count >= 3:
             return "triple_support"
+        if tank_count >= 3:
+            return "triple_tank"
         if strategist_count == 2 and dps_count == 2 and tank_count == 2:
             return "two_two_two"
         return "other"
@@ -3243,9 +3245,7 @@ def build_scrim_analytics(
             if our_draft_heroes and enemy_draft_heroes:
                 shared_draft_heroes = len(set(our_draft_heroes) & set(enemy_draft_heroes))
                 draft_mirror_total += 1
-                if shared_draft_heroes >= 6:
-                    draft_hard_mirror_count += 1
-                elif shared_draft_heroes >= 3:
+                if shared_draft_heroes >= 4:
                     draft_soft_mirror_count += 1
 
             for slot_key, hero in our_draft.items():
@@ -3317,9 +3317,7 @@ def build_scrim_analytics(
                 if section_heroes and enemy_section_heroes:
                     shared_comp_heroes = len(set(section_heroes) & set(enemy_section_heroes))
                     comp_mirror_total += 1
-                    if shared_comp_heroes >= 6:
-                        comp_hard_mirror_count += 1
-                    elif shared_comp_heroes >= 3:
+                    if shared_comp_heroes >= 4:
                         comp_soft_mirror_count += 1
 
             canonical_heroes_in_map = {
@@ -4015,31 +4013,30 @@ def build_scrim_analytics(
     mirror_rates = {
         "draft": {
             "samples": draft_mirror_total,
-            "soft_count": draft_soft_mirror_count,
-            "hard_count": draft_hard_mirror_count,
-            "soft_rate": pct(draft_soft_mirror_count, draft_mirror_total),
-            "hard_rate": pct(draft_hard_mirror_count, draft_mirror_total),
-            "any_mirror_rate": pct(draft_soft_mirror_count + draft_hard_mirror_count, draft_mirror_total),
+            "mirror_count": draft_soft_mirror_count,
+            "mirror_rate": pct(draft_soft_mirror_count, draft_mirror_total),
         },
         "comp": {
             "samples": comp_mirror_total,
-            "soft_count": comp_soft_mirror_count,
-            "hard_count": comp_hard_mirror_count,
-            "soft_rate": pct(comp_soft_mirror_count, comp_mirror_total),
-            "hard_rate": pct(comp_hard_mirror_count, comp_mirror_total),
-            "any_mirror_rate": pct(comp_soft_mirror_count + comp_hard_mirror_count, comp_mirror_total),
+            "mirror_count": comp_soft_mirror_count,
+            "mirror_rate": pct(comp_soft_mirror_count, comp_mirror_total),
         },
     }
 
     triple_support_count = comp_profile_stats["triple_support"]["count"]
     two_two_two_count = comp_profile_stats["two_two_two"]["count"]
+    triple_tank_count = comp_profile_stats["triple_tank"]["count"]
     triple_support_rate = pct(triple_support_count, total_maps)
     two_two_two_rate = pct(two_two_two_count, total_maps)
+    triple_tank_rate = pct(triple_tank_count, total_maps)
     comp_difference_rate = round(triple_support_rate - two_two_two_rate, 1)
     triple_support_win_rate = pct(comp_profile_stats["triple_support"]["wins"], triple_support_count)
     two_two_two_win_rate = pct(comp_profile_stats["two_two_two"]["wins"], two_two_two_count)
+    triple_tank_win_rate = pct(comp_profile_stats["triple_tank"]["wins"], triple_tank_count)
     enemy_triple_support_count = enemy_comp_profile_stats["triple_support"]["count"]
     enemy_triple_support_rate = pct(enemy_triple_support_count, total_maps)
+    enemy_triple_tank_count = enemy_comp_profile_stats["triple_tank"]["count"]
+    enemy_triple_tank_rate = pct(enemy_triple_tank_count, total_maps)
     triple_support_prevalence_diff = round(triple_support_rate - enemy_triple_support_rate, 1)
     comp_winrate_difference = (
         round(triple_support_win_rate - two_two_two_win_rate, 1)
@@ -4097,6 +4094,11 @@ def build_scrim_analytics(
             "enemy_triple_support_count": enemy_triple_support_count,
             "enemy_triple_support_rate": enemy_triple_support_rate,
             "triple_support_prevalence_diff": triple_support_prevalence_diff,
+            "triple_tank_count": triple_tank_count,
+            "triple_tank_rate": triple_tank_rate,
+            "triple_tank_win_rate": triple_tank_win_rate,
+            "enemy_triple_tank_count": enemy_triple_tank_count,
+            "enemy_triple_tank_rate": enemy_triple_tank_rate,
             "two_two_two_count": two_two_two_count,
             "two_two_two_rate": two_two_two_rate,
             "two_two_two_win_rate": two_two_two_win_rate,
@@ -4540,6 +4542,22 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
                 "source": "history",
             }
 
+        # Fallback: check all-time pair counts (not enemy-filtered) for a richer history
+        full_candidates = [
+            (player_name, stats)
+            for (pair_hero, player_name), stats in full_pair_counts.items()
+            if pair_hero == hero_name and player_name not in used_names
+        ]
+        full_candidates.sort(key=lambda row: row[1]["count"], reverse=True)
+        if full_candidates:
+            top_name, top_stats = full_candidates[0]
+            return {
+                "name": top_name,
+                "maps": top_stats["count"],
+                "win_rate": 0,
+                "source": "history_full",
+            }
+
         hero_main_candidates = [player for player in player_by_main_hero.get(hero_name, []) if player["name"] not in used_names]
         if hero_main_candidates:
             pick = hero_main_candidates[0]
@@ -4622,6 +4640,25 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
                 expected_hero_pool.append(hero)
                 pool_set.add(_canonical_draft_hero(hero))
                 pool_by_role.setdefault(role, []).append(hero)
+
+    # Cap the pool to 6 heroes. If role enforcement caused it to exceed 6,
+    # trim excess heroes from the most over-represented roles.
+    while len(expected_hero_pool) > 6:
+        role_counts: dict[str, int] = {}
+        for h in expected_hero_pool:
+            r = _hero_role(h)
+            role_counts[r] = role_counts.get(r, 0) + 1
+        # Remove the last hero whose role exceeds its minimum
+        trimmed = False
+        for i in range(len(expected_hero_pool) - 1, -1, -1):
+            r = _hero_role(expected_hero_pool[i])
+            if role_counts.get(r, 0) > role_mins.get(r, 0):
+                del expected_hero_pool[i]
+                trimmed = True
+                break
+        if not trimmed:
+            # All roles are at or below their minimums; just drop the last entry
+            expected_hero_pool.pop()
 
     expected_core = []
     used_names = set()
@@ -5756,6 +5793,46 @@ def dashboard():
     total_teams = db.execute("SELECT COUNT(*) FROM teams").fetchone()[0]
     total_players = db.execute("SELECT COUNT(*) FROM players").fetchone()[0]
 
+    personal_team_rows = db.execute(
+        "SELECT id, name FROM teams WHERE is_personal = 1"
+    ).fetchall()
+
+    pick_counter: Counter = Counter()
+    ban_counter: Counter = Counter()
+    seen_scrims: set = set()
+
+    for team_row in personal_team_rows:
+        team_scrims = get_scrims_for_team(team_row["id"], team_row["name"])
+        for scrim in team_scrims:
+            scrim_id = scrim.get("id")
+            if scrim_id in seen_scrims:
+                continue
+            seen_scrims.add(scrim_id)
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                our_slot = map_entry.get("our_team_slot", "team1")
+                for section in map_entry.get("comp", []):
+                    if not isinstance(section, dict):
+                        continue
+                    for slot in section.get(our_slot, []):
+                        if not isinstance(slot, dict):
+                            continue
+                        hero = canonicalize_hero_name(slot.get("hero", ""))
+                        if hero:
+                            pick_counter[hero] += 1
+                draft = map_entry.get("draft", {})
+                if isinstance(draft, dict):
+                    our_draft = draft.get(our_slot, {})
+                    if isinstance(our_draft, dict):
+                        for ban_key in ("ban1", "ban2", "ban3", "ban4"):
+                            hero = canonicalize_hero_name(our_draft.get(ban_key, ""))
+                            if hero:
+                                ban_counter[hero] += 1
+
+    top_picks = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
+    top_bans = [{"hero": h, "count": c} for h, c in ban_counter.most_common(5)]
+
     return render_template(
         "dashboard.html",
         total_scrims=total_scrims,
@@ -5766,6 +5843,8 @@ def dashboard():
         total_players=total_players,
         recent_scrims=list(reversed(SCRIMS[-5:])),
         recent_tournaments=list(reversed(TOURNAMENT_MATCHES[-5:])),
+        top_picks=top_picks,
+        top_bans=top_bans,
     )
 
 

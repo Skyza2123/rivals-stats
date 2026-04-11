@@ -63,7 +63,7 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 0 clamp(16px, 6.5vw, 96px);
+    padding: 0 96px;
     height: 52px;
 }
 
@@ -156,7 +156,7 @@ body {
 }
 
 .main-content {
-    padding: clamp(16px, 2.5vw, 28px) clamp(16px, 6.5vw, 96px);
+    padding: clamp(16px, 2.5vw, 28px) 96px;
 }
 
 .flash-stack {
@@ -265,6 +265,72 @@ button:hover {
     gap: 16px;
     margin-bottom: 18px;
 }
+
+.dashboard-duo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.hero-rank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hero-rank-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    border-radius: 10px;
+}
+
+.hero-rank-row:hover {
+    background: var(--panel-2);
+}
+
+.hero-rank-num {
+    width: 18px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.hero-rank-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--panel-2);
+}
+
+.hero-rank-name {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hero-rank-count {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.muted-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
 
 .result-grid {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -816,6 +882,10 @@ th {
 }
 
 @media (max-width: 760px) {
+    .dashboard-duo-grid {
+        grid-template-columns: 1fr;
+    }
+
     .main-header {
         flex-direction: column;
         align-items: flex-start;
