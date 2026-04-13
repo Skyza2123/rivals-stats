@@ -3162,7 +3162,7 @@ def build_scrim_analytics(
             "ban3": defaultdict(int),
             "protect2": defaultdict(int),
             "ban4": defaultdict(int),
-            "totals": {"ban3": 0, "protect2": 0, "ban4": 0},
+            "totals": {"source": 0, "ban3": 0, "protect2": 0, "ban4": 0},
         }
     )
     protect1_influence_targets = defaultdict(
@@ -3171,7 +3171,16 @@ def build_scrim_analytics(
             "ban3": defaultdict(int),
             "protect2": defaultdict(int),
             "ban4": defaultdict(int),
-            "totals": {"ban2": 0, "ban3": 0, "protect2": 0, "ban4": 0},
+            "totals": {"source": 0, "ban2": 0, "ban3": 0, "protect2": 0, "ban4": 0},
+        }
+    )
+    ban1_protect1_route_targets = defaultdict(
+        lambda: {
+            "ban2": defaultdict(int),
+            "ban3": defaultdict(int),
+            "protect2": defaultdict(int),
+            "ban4": defaultdict(int),
+            "totals": {"source": 0, "ban2": 0, "ban3": 0, "protect2": 0, "ban4": 0},
         }
     )
     hero_open_stats = defaultdict(
@@ -3307,28 +3316,46 @@ def build_scrim_analytics(
             if our_ban_slots.get("ban1") and our_protect_slots.get("protect1"):
                 ban_to_protect_pairs[our_ban_slots["ban1"]][our_protect_slots["protect1"]] += 1
 
+                route_key = (our_ban_slots["ban1"], our_protect_slots["protect1"])
+                ban1_protect1_route_targets[route_key]["totals"]["source"] += 1
+                if our_ban_slots.get("ban2"):
+                    ban1_protect1_route_targets[route_key]["ban2"][our_ban_slots["ban2"]] += 1
+                    ban1_protect1_route_targets[route_key]["totals"]["ban2"] += 1
+                if our_ban_slots.get("ban3"):
+                    ban1_protect1_route_targets[route_key]["ban3"][our_ban_slots["ban3"]] += 1
+                    ban1_protect1_route_targets[route_key]["totals"]["ban3"] += 1
+                if our_protect_slots.get("protect2"):
+                    ban1_protect1_route_targets[route_key]["protect2"][our_protect_slots["protect2"]] += 1
+                    ban1_protect1_route_targets[route_key]["totals"]["protect2"] += 1
+                if our_ban_slots.get("ban4"):
+                    ban1_protect1_route_targets[route_key]["ban4"][our_ban_slots["ban4"]] += 1
+                    ban1_protect1_route_targets[route_key]["totals"]["ban4"] += 1
+
             if our_protect_slots.get("protect2"):
                 for slot in ("ban1", "ban2", "ban3"):
                     if our_ban_slots.get(slot):
                         ban_to_protect_pairs[our_ban_slots[slot]][our_protect_slots["protect2"]] += 1
 
+            ban1_hero = our_ban_slots.get("ban1", "")
             ban2_hero = our_ban_slots.get("ban2", "")
-            if ban2_hero:
+            if ban1_hero and ban2_hero:
+                second_order_ban_targets[(ban1_hero, ban2_hero)]["totals"]["source"] += 1
                 ban3_hero = our_ban_slots.get("ban3", "")
                 protect2_hero = our_protect_slots.get("protect2", "")
                 ban4_hero = our_ban_slots.get("ban4", "")
                 if ban3_hero:
-                    second_order_ban_targets[ban2_hero]["ban3"][ban3_hero] += 1
-                    second_order_ban_targets[ban2_hero]["totals"]["ban3"] += 1
+                    second_order_ban_targets[(ban1_hero, ban2_hero)]["ban3"][ban3_hero] += 1
+                    second_order_ban_targets[(ban1_hero, ban2_hero)]["totals"]["ban3"] += 1
                 if protect2_hero:
-                    second_order_ban_targets[ban2_hero]["protect2"][protect2_hero] += 1
-                    second_order_ban_targets[ban2_hero]["totals"]["protect2"] += 1
+                    second_order_ban_targets[(ban1_hero, ban2_hero)]["protect2"][protect2_hero] += 1
+                    second_order_ban_targets[(ban1_hero, ban2_hero)]["totals"]["protect2"] += 1
                 if ban4_hero:
-                    second_order_ban_targets[ban2_hero]["ban4"][ban4_hero] += 1
-                    second_order_ban_targets[ban2_hero]["totals"]["ban4"] += 1
+                    second_order_ban_targets[(ban1_hero, ban2_hero)]["ban4"][ban4_hero] += 1
+                    second_order_ban_targets[(ban1_hero, ban2_hero)]["totals"]["ban4"] += 1
 
             protect1_hero = our_protect_slots.get("protect1", "")
             if protect1_hero:
+                protect1_influence_targets[protect1_hero]["totals"]["source"] += 1
                 if our_ban_slots.get("ban2"):
                     protect1_influence_targets[protect1_hero]["ban2"][our_ban_slots["ban2"]] += 1
                     protect1_influence_targets[protect1_hero]["totals"]["ban2"] += 1
@@ -3671,8 +3698,14 @@ def build_scrim_analytics(
     lead_to_ban_rows = build_lead_rows("ban")
     lead_to_protect_rows = build_lead_rows("protect")
 
+    total_second_order_sources = sum(
+        target_data["totals"].get("source", 0)
+        for target_data in second_order_ban_targets.values()
+    )
+
     second_order_ban_rows = []
-    for ban2_hero, target_data in second_order_ban_targets.items():
+    for (ban1_hero, ban2_hero), target_data in second_order_ban_targets.items():
+        source_total = target_data["totals"].get("source", 0)
         ban3_total = target_data["totals"]["ban3"]
         protect2_total = target_data["totals"]["protect2"]
         ban4_total = target_data["totals"]["ban4"]
@@ -3687,7 +3720,11 @@ def build_scrim_analytics(
 
         second_order_ban_rows.append(
             {
+                "ban1_hero": ban1_hero,
+                "ban1_rate": pct(source_total, total_second_order_sources),
                 "ban2_hero": ban2_hero,
+                "ban2_rate": pct(source_total, total_second_order_sources),
+                "source_total": source_total,
                 "ban3_hero": top_ban3,
                 "ban3_count": top_ban3_count,
                 "ban3_rate": pct(top_ban3_count, ban3_total),
@@ -3715,8 +3752,14 @@ def build_scrim_analytics(
             "rate": pct(count, total),
         }
 
+    total_protect1_sources = sum(
+        target_data["totals"].get("source", 0)
+        for target_data in protect1_influence_targets.values()
+    )
+
     protect1_influence_rows = []
     for protect1_hero, target_data in protect1_influence_targets.items():
+        source_total = target_data["totals"].get("source", 0)
         ban2_top = top_slot_pick(target_data["ban2"], target_data["totals"]["ban2"])
         ban3_top = top_slot_pick(target_data["ban3"], target_data["totals"]["ban3"])
         protect2_top = top_slot_pick(target_data["protect2"], target_data["totals"]["protect2"])
@@ -3724,6 +3767,8 @@ def build_scrim_analytics(
         protect1_influence_rows.append(
             {
                 "protect1_hero": protect1_hero,
+                "protect1_rate": pct(source_total, total_protect1_sources),
+                "source_total": source_total,
                 "ban2": ban2_top,
                 "ban3": ban3_top,
                 "protect2": protect2_top,
@@ -3732,6 +3777,38 @@ def build_scrim_analytics(
             }
         )
     protect1_influence_rows.sort(key=lambda row: row["sample_total"], reverse=True)
+
+    total_ban1_protect1_sources = sum(
+        target_data["totals"].get("source", 0)
+        for target_data in ban1_protect1_route_targets.values()
+    )
+
+    most_likely_ban_route_rows = []
+    for (ban1_hero, protect1_hero), target_data in ban1_protect1_route_targets.items():
+        source_total = target_data["totals"].get("source", 0)
+        next_nodes = []
+        for slot_key, slot_label in (("ban2", "Ban 2"), ("ban3", "Ban 3"), ("protect2", "P2"), ("ban4", "Ban 4")):
+            slot_total = target_data["totals"].get(slot_key, 0)
+            sorted_rows = sorted(target_data[slot_key].items(), key=lambda item: item[1], reverse=True)
+            hero_name, hero_count = sorted_rows[0] if sorted_rows else ("", 0)
+            if hero_name:
+                next_nodes.append({"hero": hero_name, "label": slot_label, "rate": pct(hero_count, slot_total)})
+
+        if next_nodes:
+            source_rate = pct(source_total, total_ban1_protect1_sources)
+            most_likely_ban_route_rows.append(
+                {
+                    "source_nodes": [
+                        {"hero": ban1_hero, "label": "Ban 1", "rate": source_rate},
+                        {"hero": protect1_hero, "label": "Protect 1", "rate": source_rate},
+                    ],
+                    "next_nodes": next_nodes,
+                    "source_total": source_total,
+                    "top_rate": max(node["rate"] for node in next_nodes),
+                }
+            )
+
+    most_likely_ban_route_rows.sort(key=lambda row: (row["source_total"], row["top_rate"]), reverse=True)
 
     overall_win_rate = pct(total_wins, total_maps)
 
@@ -4251,6 +4328,7 @@ def build_scrim_analytics(
         "draft_route_rows": draft_route_rows[:16],
         "second_order_ban_rows": second_order_ban_rows[:12],
         "protect1_influence_rows": protect1_influence_rows[:12],
+        "most_likely_ban_route_rows": most_likely_ban_route_rows[:16],
         "lead_to_ban_rows": lead_to_ban_rows[:12],
         "lead_to_protect_rows": lead_to_protect_rows[:12],
         "ban_protect_rows": ban_protect_rows[:12],

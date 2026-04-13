@@ -217,88 +217,35 @@
             <div class="top-gap">
                 <div class="panel panel-soft-violet">
                     <div class="section-kicker">Draft Flow</div>
-                    <h3>Second-Order Ban Routes (Ban 2 Into Ban 3 / Protect 2 / Ban 4)</h3>
-                    {% if enemy_analytics.second_order_ban_rows %}
+                    <h3>Most Likely Ban Routes (Ban 1 Into Protect 1)</h3>
+                    {% if enemy_analytics.most_likely_ban_route_rows %}
                         <div class="draft-flow-stack">
-                            {% for row in enemy_analytics.second_order_ban_rows %}
+                            {% for row in enemy_analytics.most_likely_ban_route_rows %}
+                                {% set start_node = row.source_nodes[0] %}
                                 <div class="draft-flow-card draft-flow-card-wide">
                                     <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.ban2_hero) }}" alt="{{ row.ban2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2_hero | urlencode }}'">
-                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban2_hero) }}</span><small class="prep-chip-meta">Ban 2</small></span>
+                                        <img src="{{ hero_image_url(start_node.hero) }}" alt="{{ start_node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ start_node.hero | urlencode }}'">
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(start_node.hero) }}</span><small class="prep-chip-meta">{{ start_node.label }} · {{ start_node.rate }}%</small></span>
                                     </span>
-                                    {% if row.ban3_hero %}
+                                    {% for node in row.source_nodes[1:] %}
                                         <span class="prep-flow-arrow">→</span>
                                         <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.ban3_hero) }}" alt="{{ row.ban3_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3_hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban3_hero) }}</span><small class="prep-chip-meta">Ban 3 · {{ row.ban3_rate }}%</small></span>
+                                            <img src="{{ hero_image_url(node.hero) }}" alt="{{ node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ node.hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} · {{ node.rate }}%</small></span>
                                         </span>
-                                    {% endif %}
-                                    {% if row.protect2_hero %}
+                                    {% endfor %}
+                                    {% for node in row.next_nodes %}
                                         <span class="prep-flow-arrow">→</span>
                                         <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.protect2_hero) }}" alt="{{ row.protect2_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2_hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.protect2_hero) }}</span><small class="prep-chip-meta">P2 · {{ row.protect2_rate }}%</small></span>
+                                            <img src="{{ hero_image_url(node.hero) }}" alt="{{ node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ node.hero | urlencode }}'">
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} · {{ node.rate }}%</small></span>
                                         </span>
-                                    {% endif %}
-                                    {% if row.ban4_hero %}
-                                        <span class="prep-flow-arrow">→</span>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.ban4_hero) }}" alt="{{ row.ban4_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4_hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban4_hero) }}</span><small class="prep-chip-meta">Ban 4 · {{ row.ban4_rate }}%</small></span>
-                                        </span>
-                                    {% endif %}
+                                    {% endfor %}
                                 </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="empty-text">No second-order ban route data yet.</p>
-                    {% endif %}
-                </div>
-
-                <div class="panel panel-soft-green">
-                    <div class="section-kicker">Draft Flow</div>
-                    <h3>Protect 1 Influence On Later Bans / Protects</h3>
-                    {% if enemy_analytics.protect1_influence_rows %}
-                        <div class="draft-flow-stack">
-                            {% for row in enemy_analytics.protect1_influence_rows %}
-                                <div class="draft-flow-card draft-flow-card-wide">
-                                    <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.protect1_hero) }}" alt="{{ row.protect1_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect1_hero | urlencode }}'">
-                                        <span class="hero-inline-meta"><span>{{ hero_display_name(row.protect1_hero) }}</span><small class="prep-chip-meta">Protect 1</small></span>
-                                    </span>
-                                    {% if row.ban2.hero %}
-                                        <span class="prep-flow-arrow">→</span>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.ban2.hero) }}" alt="{{ row.ban2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban2.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban2.hero) }}</span><small class="prep-chip-meta">Ban 2 · {{ row.ban2.rate }}%</small></span>
-                                        </span>
-                                    {% endif %}
-                                    {% if row.ban3.hero %}
-                                        <span class="prep-flow-arrow">→</span>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.ban3.hero) }}" alt="{{ row.ban3.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban3.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban3.hero) }}</span><small class="prep-chip-meta">Ban 3 · {{ row.ban3.rate }}%</small></span>
-                                        </span>
-                                    {% endif %}
-                                    {% if row.protect2.hero %}
-                                        <span class="prep-flow-arrow">→</span>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.protect2.hero) }}" alt="{{ row.protect2.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect2.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.protect2.hero) }}</span><small class="prep-chip-meta">P2 · {{ row.protect2.rate }}%</small></span>
-                                        </span>
-                                    {% endif %}
-                                    {% if row.ban4.hero %}
-                                        <span class="prep-flow-arrow">→</span>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.ban4.hero) }}" alt="{{ row.ban4.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban4.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban4.hero) }}</span><small class="prep-chip-meta">Ban 4 · {{ row.ban4.rate }}%</small></span>
-                                        </span>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="empty-text">No protect influence data yet.</p>
+                        <p class="empty-text">No Ban 1 into Protect 1 route data yet.</p>
                     {% endif %}
                 </div>
             </div>
