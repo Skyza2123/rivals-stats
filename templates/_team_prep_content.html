@@ -213,7 +213,7 @@
     <h4 class="top-gap">Most Common 4-Hero Combinations</h4>
     {% if prep_expected_plan.four_hero_combos %}
         <div class="prep-combo4-grid top-gap">
-            {% for row in prep_expected_plan.four_hero_combos[:6] %}
+            {% for row in prep_expected_plan.four_hero_combos %}
                 <article class="prep-combo4-card">
                     <div class="prep-combo4-rank">#{{ loop.index }}</div>
                     <div class="prep-combo4-heroes">
@@ -222,9 +222,19 @@
                                 <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero | urlencode }}'">
                             </span>
                         {% endfor %}
+                        {% if row.flex %}
+                            <span class="prep-combo4-flex-sep">+</span>
+                            {% for flex_hero in row.flex %}
+                                {% if not loop.first %}<span class="prep-combo4-flex-sep prep-combo4-flex-or">or</span>{% endif %}
+                                <span class="hero-inline-cell prep-combo4-flex-hero">
+                                    <img src="{{ hero_image_url(flex_hero) }}" alt="{{ flex_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ flex_hero | urlencode }}'">
+                                </span>
+                            {% endfor %}
+                            <span class="prep-chip-flex-label">flex</span>
+                        {% endif %}
                     </div>
                     <div class="prep-combo4-meta">
-                        <div class="prep-combo4-names">{{ row.heroes|join(' + ') }}</div>
+                        <div class="prep-combo4-names">{{ row.heroes|join(' + ') }}{% if row.flex %} + <em>{{ row.flex|join(' or ') }}</em> (flex){% endif %}</div>
                         <span class="prep-chip-meta">{{ sample_warn(row.maps) }} maps • {{ row.win_rate }}% WR</span>
                     </div>
                 </article>

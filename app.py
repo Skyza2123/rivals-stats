@@ -4881,6 +4881,7 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
         )
 
     combo4_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    combo4_flex_counts: dict[tuple, dict] = defaultdict(lambda: defaultdict(int))
     for heroes, stats in comp_variant_counts.items():
         if len(heroes) < 4:
             continue
@@ -4888,8 +4889,12 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
             combo4_counts[combo_key]["count"] += stats["count"]
             combo4_counts[combo_key]["wins"] += stats["wins"]
             combo4_counts[combo_key]["losses"] += stats["losses"]
+            flex_heroes = set(heroes) - set(combo_key)
+            for flex_h in flex_heroes:
+                combo4_flex_counts[combo_key][flex_h] += stats["count"]
 
     four_hero_combos = []
+    seen_combo4_sets: list[frozenset] = []
     sorted_combo4 = sorted(
         combo4_counts.items(),
         key=lambda row: (
@@ -4898,10 +4903,20 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
         ),
         reverse=True,
     )
-    for heroes, stats in sorted_combo4[:8]:
+    for heroes, stats in sorted_combo4:
+        if len(four_hero_combos) >= 6:
+            break
+        combo_set = frozenset(heroes)
+        # Skip if 2+ heroes overlap with an already-shown combo (keeps cores mostly distinct)
+        if any(len(combo_set & s) >= 2 for s in seen_combo4_sets):
+            continue
+        seen_combo4_sets.append(combo_set)
+        flex_sorted = sorted(combo4_flex_counts[heroes].items(), key=lambda x: x[1], reverse=True)
+        flex_picks = [h for h, _ in flex_sorted[:2]]
         four_hero_combos.append(
             {
                 "heroes": list(heroes),
+                "flex": flex_picks,
                 "maps": stats["count"],
                 "win_rate": round((stats["wins"] / stats["count"]) * 100, 1) if stats["count"] else 0,
             }
