@@ -7869,6 +7869,68 @@ def db_dump_json():
     return redirect(next_url)
 
 
+@app.route("/db/restore-sql", methods=["POST"])
+def db_restore_sql():
+    expected_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
+    supplied_token = (request.headers.get("X-Restore-Token") or "").strip()
+    if not expected_token or supplied_token != expected_token:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    upload = request.files.get("sql_dump")
+    if not upload or not isinstance(upload.filename, str) or not upload.filename.strip().lower().endswith(".sql"):
+        return jsonify({"ok": False, "error": "Attach a .sql file using form field 'sql_dump'."}), 400
+
+    replace_existing = (request.form.get("replace") or "1").strip() not in {"0", "false", "False", "no", "off"}
+
+    try:
+        sql_text = upload.read().decode("utf-8")
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Unable to read SQL file: {exc}"}), 400
+
+    conn = _connect_db()
+    executed = 0
+    dropped = 0
+    try:
+        conn.execute("PRAGMA foreign_keys = OFF")
+
+        if replace_existing:
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+            for row in rows:
+                table_name = row[0] if not isinstance(row, dict) else row.get("name")
+                if not table_name:
+                    continue
+                escaped = str(table_name).replace('"', '""')
+                conn.execute(f'DROP TABLE IF EXISTS "{escaped}"')
+                dropped += 1
+            conn.commit()
+
+        statement_buffer = ""
+        for line in sql_text.splitlines(True):
+            statement_buffer += line
+            if not sqlite3.complete_statement(statement_buffer):
+                continue
+            statement = statement_buffer.strip()
+            statement_buffer = ""
+            if not statement:
+                continue
+            conn.execute(statement)
+            executed += 1
+
+        conn.commit()
+        load_app_state()
+        return jsonify({"ok": True, "executed_statements": executed, "dropped_tables": dropped})
+    except Exception as exc:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return jsonify({"ok": False, "error": str(exc), "executed_statements": executed, "dropped_tables": dropped}), 500
+    finally:
+        conn.close()
+
+
 @app.route("/debug/storage")
 def debug_storage():
     return jsonify(
