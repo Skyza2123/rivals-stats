@@ -127,9 +127,38 @@ def _is_turso_configured() -> bool:
     return bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
 
 
+class _CompatRow:
+    """Row wrapper that supports both row[0] and row['column'] access."""
+
+    __slots__ = ("_columns", "_values", "_map")
+
+    def __init__(self, columns: list[str], values: tuple):
+        self._columns = tuple(columns)
+        self._values = tuple(values)
+        self._map = {name: self._values[idx] for idx, name in enumerate(self._columns)}
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        return self._map[key]
+
+    def get(self, key, default=None):
+        return self._map.get(key, default)
+
+    def keys(self):
+        return self._map.keys()
+
+    def items(self):
+        return self._map.items()
+
+    def __iter__(self):
+        return iter(self._map)
+
+
 def _dict_row_factory(cursor, row):
-    """Dict-based row factory compatible with both sqlite3 and libsql."""
-    return {col[0]: row[i] for i, col in enumerate(cursor.description)}
+    """Return sqlite3.Row-like objects for libsql rows."""
+    columns = [col[0] for col in cursor.description]
+    return _CompatRow(columns, row)
 
 
 def _connect_db(path=None):
