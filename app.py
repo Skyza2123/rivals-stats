@@ -117,11 +117,62 @@ LAST_SCRIMS_ETAG = ""
 MAX_SCRIM_BACKUPS = 100
 
 
+def _is_turso_configured() -> bool:
+    return bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
+
+
+class _CompatRow:
+    """Row wrapper that supports both row[0] and row['column'] access."""
+
+    __slots__ = ("_columns", "_values", "_map")
+
+    def __init__(self, columns: list[str], values: tuple):
+        self._columns = tuple(columns)
+        self._values = tuple(values)
+        self._map = {name: self._values[idx] for idx, name in enumerate(self._columns)}
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        return self._map[key]
+
+    def get(self, key, default=None):
+        return self._map.get(key, default)
+
+    def keys(self):
+        return self._map.keys()
+
+    def items(self):
+        return self._map.items()
+
+    def __iter__(self):
+        return iter(self._map)
+
+
+def _dict_row_factory(cursor, row):
+    columns = [col[0] for col in cursor.description]
+    return _CompatRow(columns, row)
+
+
+def _try_set_row_factory(conn, factory) -> None:
+    # libsql connection types may not expose row_factory.
+    if hasattr(conn, "row_factory"):
+        conn.row_factory = factory
+
+
 def _connect_db(path=None):
-    """Return a sqlite3 connection for local/Render hosted persistence."""
+    """Return a DB connection (sqlite by default, Turso when configured)."""
+    turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
+    if turso_url:
+        turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
+        import libsql_experimental as libsql  # noqa: PLC0415
+
+        conn = libsql.connect(turso_url, auth_token=turso_token)
+        _try_set_row_factory(conn, _dict_row_factory)
+        return conn
     target = path or DB_PATH
     conn = sqlite3.connect(target)
-    conn.row_factory = sqlite3.Row
+    _try_set_row_factory(conn, sqlite3.Row)
     return conn
 
 
@@ -129,6 +180,7 @@ def is_persistent_db_configured() -> bool:
     return bool(
         (os.environ.get("DATABASE_PATH") or "").strip()
         or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
+        or _is_turso_configured()
     )
 
 
@@ -170,7 +222,8 @@ def close_db(_error) -> None:
 
 
 def init_db() -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not _is_turso_configured():
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = _connect_db()
     try:
         conn.execute("PRAGMA foreign_keys = ON")
@@ -277,9 +330,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
-        conn.row_factory = sqlite3.Row
+        _try_set_row_factory(conn, sqlite3.Row)
         migrate_enemy_teams_to_team_database(conn)
-        conn.row_factory = sqlite3.Row
+        _try_set_row_factory(conn, sqlite3.Row)
         conn.commit()
     finally:
         conn.close()
@@ -288,7 +341,7 @@ def init_db() -> None:
 def load_app_state() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
     conn = _connect_db()
-    conn.row_factory = sqlite3.Row
+    _try_set_row_factory(conn, sqlite3.Row)
     try:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
@@ -351,6 +404,11 @@ def refresh_app_state_from_db() -> None:
 
 
 def create_manual_db_backup() -> Path:
+    if _is_turso_configured():
+        raise RuntimeError(
+            "Binary .db backups are not available when using Turso. "
+            "Use the JSON dump (/db/dump-json) to export your data instead."
+        )
     backup_dir = DB_PATH.parent / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -374,7 +432,7 @@ def create_manual_json_dump() -> Path:
     dump_path = dump_dir / f"rivals_stats_dump_{stamp}.json"
 
     conn = _connect_db()
-    conn.row_factory = sqlite3.Row
+    _try_set_row_factory(conn, sqlite3.Row)
     try:
         table_rows = conn.execute(
             """
