@@ -3,6 +3,7 @@ import copy
 import io
 import os
 import json
+import gzip
 import math
 import re
 import hashlib
@@ -7877,13 +7878,20 @@ def db_restore_sql():
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
 
     upload = request.files.get("sql_dump")
-    if not upload or not isinstance(upload.filename, str) or not upload.filename.strip().lower().endswith(".sql"):
-        return jsonify({"ok": False, "error": "Attach a .sql file using form field 'sql_dump'."}), 400
+    filename = (upload.filename if upload and isinstance(upload.filename, str) else "").strip().lower()
+    if not upload or not filename:
+        return jsonify({"ok": False, "error": "Attach a .sql or .sql.gz file using form field 'sql_dump'."}), 400
+    is_gz = filename.endswith(".sql.gz")
+    if not (filename.endswith(".sql") or is_gz):
+        return jsonify({"ok": False, "error": "Only .sql or .sql.gz files are supported."}), 400
 
     replace_existing = (request.form.get("replace") or "1").strip() not in {"0", "false", "False", "no", "off"}
 
     try:
-        sql_text = upload.read().decode("utf-8")
+        raw_bytes = upload.read()
+        if is_gz:
+            raw_bytes = gzip.decompress(raw_bytes)
+        sql_text = raw_bytes.decode("utf-8")
     except Exception as exc:
         return jsonify({"ok": False, "error": f"Unable to read SQL file: {exc}"}), 400
 
