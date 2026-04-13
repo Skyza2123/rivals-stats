@@ -263,7 +263,7 @@
 <section class="panel panel-soft-green top-gap">
     <h3>Hero Win Rate Comparison</h3>
     <p class="panel-intro">All heroes played by either player, sorted by largest win rate gap. Colour shows which player wins on that hero.</p>
-    <div class="player-chart-wrap" style="height:{{ [300, hero_winrate_differences[:16]|length * 42 + 60]|max }}px">
+    <div class="player-chart-wrap">
         <canvas id="cmpHeroWrChart"></canvas>
     </div>
     <script id="cmpHeroWrData" type="application/json">{{ hero_winrate_differences[:16] | tojson }}</script>
@@ -307,7 +307,7 @@
 {% if map_winrate_differences %}
 <section class="panel panel-soft-violet top-gap">
     <h3>Map Win Rate Comparison</h3>
-    <div class="player-chart-wrap" style="height:{{ [300, map_winrate_differences[:14]|length * 42 + 60]|max }}px">
+    <div class="player-chart-wrap">
         <canvas id="cmpMapWrChart"></canvas>
     </div>
     <script id="cmpMapWrData" type="application/json">{{ map_winrate_differences[:14] | tojson }}</script>
@@ -470,6 +470,10 @@
         if (!rows || !rows.length || typeof Chart === 'undefined') return;
         var canvas = document.getElementById('cmpHeroWrChart');
         if (!canvas) return;
+        var heroWrap = canvas.parentElement;
+        if (heroWrap) {
+            heroWrap.style.height = Math.max(300, rows.length * 42 + 60) + 'px';
+        }
         var labels = rows.map(function (r) { return r.hero; });
         var aWR = rows.map(function (r) { return r.player_a_win_rate; });
         var bWR = rows.map(function (r) { return r.player_b_win_rate; });
@@ -502,6 +506,10 @@
         if (!rows || !rows.length || typeof Chart === 'undefined') return;
         var canvas = document.getElementById('cmpMapWrChart');
         if (!canvas) return;
+        var mapWrap = canvas.parentElement;
+        if (mapWrap) {
+            mapWrap.style.height = Math.max(300, rows.length * 42 + 60) + 'px';
+        }
         var labels = rows.map(function (r) { return r.map_name; });
         var aWR = rows.map(function (r) { return r.player_a_win_rate; });
         var bWR = rows.map(function (r) { return r.player_b_win_rate; });

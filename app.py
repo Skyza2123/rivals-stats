@@ -39,6 +39,11 @@ def _default_database_path() -> Path:
     if configured:
         return Path(configured)
 
+    # Vercel serverless: filesystem is read-only except /tmp (ephemeral per cold-start).
+    # Set DATABASE_PATH env var in Vercel project settings to a persistent store.
+    if (os.environ.get("VERCEL") or "").strip():
+        return Path("/tmp") / "rivals_stats.db"
+
     # Render filesystem is ephemeral unless writing to mounted disk.
     render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
     if render_mount:
@@ -117,8 +122,34 @@ LAST_SCRIMS_ETAG = ""
 MAX_SCRIM_BACKUPS = 100
 
 
+def _is_turso_configured() -> bool:
+    return bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
+
+
+def _dict_row_factory(cursor, row):
+    """Dict-based row factory compatible with both sqlite3 and libsql."""
+    return {col[0]: row[i] for i, col in enumerate(cursor.description)}
+
+
+def _connect_db(path=None):
+    """Return a DB connection. Uses Turso/libsql when TURSO_DATABASE_URL is set, otherwise sqlite3."""
+    turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
+    if turso_url:
+        turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
+        import libsql_experimental as libsql  # noqa: PLC0415
+        conn = libsql.connect(turso_url, auth_token=turso_token)
+        conn.row_factory = _dict_row_factory
+        return conn
+    target = path or DB_PATH
+    return sqlite3.connect(target)
+
+
 def is_persistent_db_configured() -> bool:
-    return bool((os.environ.get("DATABASE_PATH") or "").strip() or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip())
+    return bool(
+        (os.environ.get("DATABASE_PATH") or "").strip()
+        or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
+        or _is_turso_configured()
+    )
 
 
 def ensure_state_defaults() -> None:
@@ -146,8 +177,8 @@ def _build_scrims_etag(scrims: list) -> str:
 
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        g.db = _connect_db()
+        g.db.row_factory = _dict_row_factory
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
@@ -160,8 +191,9 @@ def close_db(_error) -> None:
 
 
 def init_db() -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    if not _is_turso_configured():
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = _connect_db()
     try:
         conn.execute("PRAGMA foreign_keys = ON")
         conn.executescript(
@@ -267,7 +299,7 @@ def init_db() -> None:
             conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
-        conn.row_factory = sqlite3.Row
+        conn.row_factory = _dict_row_factory
         migrate_enemy_teams_to_team_database(conn)
         conn.row_factory = None
         conn.commit()
@@ -277,8 +309,8 @@ def init_db() -> None:
 
 def load_app_state() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = _connect_db()
+    conn.row_factory = _dict_row_factory
     try:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
@@ -341,6 +373,11 @@ def refresh_app_state_from_db() -> None:
 
 
 def create_manual_db_backup() -> Path:
+    if _is_turso_configured():
+        raise RuntimeError(
+            "Binary .db backups are not available when using Turso. "
+            "Use the JSON dump (/db/dump-json) to export your data instead."
+        )
     backup_dir = DB_PATH.parent / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -363,8 +400,8 @@ def create_manual_json_dump() -> Path:
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     dump_path = dump_dir / f"rivals_stats_dump_{stamp}.json"
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = _connect_db()
+    conn.row_factory = _dict_row_factory
     try:
         table_rows = conn.execute(
             """
@@ -7805,8 +7842,8 @@ def manual_db_save():
         save_app_state()
         backup_path = create_manual_db_backup()
         flash(f"Manual save complete. DB path: {DB_PATH}. Backup written to {backup_path}.", "success")
-        if (os.environ.get("RENDER") or "").strip().lower() == "true" and not is_persistent_db_configured():
-            flash("Warning: persistent disk env vars are not configured on Render. Data may reset on redeploy.", "warning")
+        if not is_persistent_db_configured():
+            flash("Warning: no persistent storage is configured. Data may reset on redeploy.", "warning")
     except Exception as exc:
         flash(f"Manual save failed: {exc}", "error")
 
