@@ -141,7 +141,9 @@ def _connect_db(path=None):
         conn.row_factory = _dict_row_factory
         return conn
     target = path or DB_PATH
-    return sqlite3.connect(target)
+    conn = sqlite3.connect(target)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def is_persistent_db_configured() -> bool:
@@ -178,7 +180,6 @@ def _build_scrims_etag(scrims: list) -> str:
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
         g.db = _connect_db()
-        g.db.row_factory = _dict_row_factory
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
@@ -299,9 +300,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
-        conn.row_factory = _dict_row_factory
+        conn.row_factory = sqlite3.Row
         migrate_enemy_teams_to_team_database(conn)
-        conn.row_factory = None
+        conn.row_factory = sqlite3.Row
         conn.commit()
     finally:
         conn.close()
@@ -310,7 +311,7 @@ def init_db() -> None:
 def load_app_state() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
     conn = _connect_db()
-    conn.row_factory = _dict_row_factory
+    conn.row_factory = sqlite3.Row
     try:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
@@ -401,7 +402,7 @@ def create_manual_json_dump() -> Path:
     dump_path = dump_dir / f"rivals_stats_dump_{stamp}.json"
 
     conn = _connect_db()
-    conn.row_factory = _dict_row_factory
+    conn.row_factory = sqlite3.Row
     try:
         table_rows = conn.execute(
             """
