@@ -2,4 +2,3 @@ Flask
 gunicorn
 whitenoise
 asgiref
-libsql-experimental

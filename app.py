@@ -3,7 +3,6 @@ import copy
 import io
 import os
 import json
-import gzip
 import math
 import re
 import hashlib
@@ -39,11 +38,6 @@ def _default_database_path() -> Path:
     configured = (os.environ.get("DATABASE_PATH") or "").strip()
     if configured:
         return Path(configured)
-
-    # Vercel serverless: filesystem is read-only except /tmp (ephemeral per cold-start).
-    # Set DATABASE_PATH env var in Vercel project settings to a persistent store.
-    if (os.environ.get("VERCEL") or "").strip():
-        return Path("/tmp") / "rivals_stats.db"
 
     # Render filesystem is ephemeral unless writing to mounted disk.
     render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
@@ -123,62 +117,11 @@ LAST_SCRIMS_ETAG = ""
 MAX_SCRIM_BACKUPS = 100
 
 
-def _is_turso_configured() -> bool:
-    return bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
-
-
-class _CompatRow:
-    """Row wrapper that supports both row[0] and row['column'] access."""
-
-    __slots__ = ("_columns", "_values", "_map")
-
-    def __init__(self, columns: list[str], values: tuple):
-        self._columns = tuple(columns)
-        self._values = tuple(values)
-        self._map = {name: self._values[idx] for idx, name in enumerate(self._columns)}
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return self._values[key]
-        return self._map[key]
-
-    def get(self, key, default=None):
-        return self._map.get(key, default)
-
-    def keys(self):
-        return self._map.keys()
-
-    def items(self):
-        return self._map.items()
-
-    def __iter__(self):
-        return iter(self._map)
-
-
-def _dict_row_factory(cursor, row):
-    """Return sqlite3.Row-like objects for libsql rows."""
-    columns = [col[0] for col in cursor.description]
-    return _CompatRow(columns, row)
-
-
-def _try_set_row_factory(conn, factory) -> None:
-    """Set row_factory only for connection types that expose it."""
-    if hasattr(conn, "row_factory"):
-        conn.row_factory = factory
-
-
 def _connect_db(path=None):
-    """Return a DB connection. Uses Turso/libsql when TURSO_DATABASE_URL is set, otherwise sqlite3."""
-    turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
-    if turso_url:
-        turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
-        import libsql_experimental as libsql  # noqa: PLC0415
-        conn = libsql.connect(turso_url, auth_token=turso_token)
-        _try_set_row_factory(conn, _dict_row_factory)
-        return conn
+    """Return a sqlite3 connection for local/Render hosted persistence."""
     target = path or DB_PATH
     conn = sqlite3.connect(target)
-    _try_set_row_factory(conn, sqlite3.Row)
+    conn.row_factory = sqlite3.Row
     return conn
 
 
@@ -186,7 +129,6 @@ def is_persistent_db_configured() -> bool:
     return bool(
         (os.environ.get("DATABASE_PATH") or "").strip()
         or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
-        or _is_turso_configured()
     )
 
 
@@ -228,8 +170,7 @@ def close_db(_error) -> None:
 
 
 def init_db() -> None:
-    if not _is_turso_configured():
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = _connect_db()
     try:
         conn.execute("PRAGMA foreign_keys = ON")
@@ -336,9 +277,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
-        _try_set_row_factory(conn, sqlite3.Row)
+        conn.row_factory = sqlite3.Row
         migrate_enemy_teams_to_team_database(conn)
-        _try_set_row_factory(conn, sqlite3.Row)
+        conn.row_factory = sqlite3.Row
         conn.commit()
     finally:
         conn.close()
@@ -347,7 +288,7 @@ def init_db() -> None:
 def load_app_state() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
     conn = _connect_db()
-    _try_set_row_factory(conn, sqlite3.Row)
+    conn.row_factory = sqlite3.Row
     try:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
@@ -410,11 +351,6 @@ def refresh_app_state_from_db() -> None:
 
 
 def create_manual_db_backup() -> Path:
-    if _is_turso_configured():
-        raise RuntimeError(
-            "Binary .db backups are not available when using Turso. "
-            "Use the JSON dump (/db/dump-json) to export your data instead."
-        )
     backup_dir = DB_PATH.parent / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -438,7 +374,7 @@ def create_manual_json_dump() -> Path:
     dump_path = dump_dir / f"rivals_stats_dump_{stamp}.json"
 
     conn = _connect_db()
-    _try_set_row_factory(conn, sqlite3.Row)
+    conn.row_factory = sqlite3.Row
     try:
         table_rows = conn.execute(
             """
@@ -7903,75 +7839,6 @@ def db_dump_json():
         flash(f"Database dump failed: {exc}", "error")
 
     return redirect(next_url)
-
-
-@app.route("/db/restore-sql", methods=["POST"])
-def db_restore_sql():
-    expected_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
-    supplied_token = (request.headers.get("X-Restore-Token") or "").strip()
-    if not expected_token or supplied_token != expected_token:
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
-    upload = request.files.get("sql_dump")
-    filename = (upload.filename if upload and isinstance(upload.filename, str) else "").strip().lower()
-    if not upload or not filename:
-        return jsonify({"ok": False, "error": "Attach a .sql or .sql.gz file using form field 'sql_dump'."}), 400
-    is_gz = filename.endswith(".sql.gz")
-    if not (filename.endswith(".sql") or is_gz):
-        return jsonify({"ok": False, "error": "Only .sql or .sql.gz files are supported."}), 400
-
-    replace_existing = (request.form.get("replace") or "1").strip() not in {"0", "false", "False", "no", "off"}
-
-    try:
-        raw_bytes = upload.read()
-        if is_gz:
-            raw_bytes = gzip.decompress(raw_bytes)
-        sql_text = raw_bytes.decode("utf-8")
-    except Exception as exc:
-        return jsonify({"ok": False, "error": f"Unable to read SQL file: {exc}"}), 400
-
-    conn = _connect_db()
-    executed = 0
-    dropped = 0
-    try:
-        conn.execute("PRAGMA foreign_keys = OFF")
-
-        if replace_existing:
-            rows = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-            ).fetchall()
-            for row in rows:
-                table_name = row[0] if not isinstance(row, dict) else row.get("name")
-                if not table_name:
-                    continue
-                escaped = str(table_name).replace('"', '""')
-                conn.execute(f'DROP TABLE IF EXISTS "{escaped}"')
-                dropped += 1
-            conn.commit()
-
-        statement_buffer = ""
-        for line in sql_text.splitlines(True):
-            statement_buffer += line
-            if not sqlite3.complete_statement(statement_buffer):
-                continue
-            statement = statement_buffer.strip()
-            statement_buffer = ""
-            if not statement:
-                continue
-            conn.execute(statement)
-            executed += 1
-
-        conn.commit()
-        load_app_state()
-        return jsonify({"ok": True, "executed_statements": executed, "dropped_tables": dropped})
-    except Exception as exc:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        return jsonify({"ok": False, "error": str(exc), "executed_statements": executed, "dropped_tables": dropped}), 500
-    finally:
-        conn.close()
 
 
 @app.route("/debug/storage")
