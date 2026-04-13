@@ -161,6 +161,12 @@ def _dict_row_factory(cursor, row):
     return _CompatRow(columns, row)
 
 
+def _try_set_row_factory(conn, factory) -> None:
+    """Set row_factory only for connection types that expose it."""
+    if hasattr(conn, "row_factory"):
+        conn.row_factory = factory
+
+
 def _connect_db(path=None):
     """Return a DB connection. Uses Turso/libsql when TURSO_DATABASE_URL is set, otherwise sqlite3."""
     turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
@@ -168,11 +174,11 @@ def _connect_db(path=None):
         turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
         import libsql_experimental as libsql  # noqa: PLC0415
         conn = libsql.connect(turso_url, auth_token=turso_token)
-        conn.row_factory = _dict_row_factory
+        _try_set_row_factory(conn, _dict_row_factory)
         return conn
     target = path or DB_PATH
     conn = sqlite3.connect(target)
-    conn.row_factory = sqlite3.Row
+    _try_set_row_factory(conn, sqlite3.Row)
     return conn
 
 
@@ -330,9 +336,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
-        conn.row_factory = sqlite3.Row
+        _try_set_row_factory(conn, sqlite3.Row)
         migrate_enemy_teams_to_team_database(conn)
-        conn.row_factory = sqlite3.Row
+        _try_set_row_factory(conn, sqlite3.Row)
         conn.commit()
     finally:
         conn.close()
@@ -341,7 +347,7 @@ def init_db() -> None:
 def load_app_state() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
     conn = _connect_db()
-    conn.row_factory = sqlite3.Row
+    _try_set_row_factory(conn, sqlite3.Row)
     try:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
@@ -432,7 +438,7 @@ def create_manual_json_dump() -> Path:
     dump_path = dump_dir / f"rivals_stats_dump_{stamp}.json"
 
     conn = _connect_db()
-    conn.row_factory = sqlite3.Row
+    _try_set_row_factory(conn, sqlite3.Row)
     try:
         table_rows = conn.execute(
             """
