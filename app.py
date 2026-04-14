@@ -10625,8 +10625,15 @@ def draft_simulator():
     )
 
 
-init_db()
-load_app_state()
+try:
+    init_db()
+except Exception as e:
+    app.logger.error(f"Failed to initialize database at startup: {type(e).__name__}: {e}")
+
+try:
+    load_app_state()
+except Exception as e:
+    app.logger.error(f"Failed to load app state at startup: {type(e).__name__}: {e}")
 
 if (os.environ.get("RENDER") or "").strip().lower() == "true" and not is_persistent_db_configured():
     app.logger.warning(
