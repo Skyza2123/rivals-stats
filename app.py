@@ -129,10 +129,17 @@ def _connect_db(path=None):
 
 
 def is_persistent_db_configured() -> bool:
-    return bool(
-        (os.environ.get("DATABASE_PATH") or "").strip()
-        or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
-    )
+    # Check explicit env vars
+    if (os.environ.get("DATABASE_PATH") or "").strip():
+        return True
+    if (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip():
+        return True
+    # Check if Render disk is auto-mounted at default location
+    if (os.environ.get("RENDER") or "").strip().lower() == "true":
+        render_default_mount = Path("/var/data")
+        if render_default_mount.exists() and os.access(render_default_mount, os.W_OK):
+            return True
+    return False
 
 
 def ensure_state_defaults() -> None:
