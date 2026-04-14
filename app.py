@@ -120,133 +120,11 @@ MAX_SCRIM_BACKUPS = 100
 STATE_REFRESH_INTERVAL_SECONDS = max(0.0, float(os.environ.get("STATE_REFRESH_INTERVAL_SECONDS", "2.0")))
 
 
-def _is_turso_configured() -> bool:
-    return bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
-
-
-def _can_use_turso() -> bool:
-    return _is_turso_configured() and importlib.util.find_spec("libsql_experimental") is not None
-
-
-class _CompatRow:
-    """Row wrapper that supports both row[0] and row['column'] access."""
-
-    __slots__ = ("_columns", "_values", "_map")
-
-    def __init__(self, columns: list[str], values: tuple):
-        self._columns = tuple(columns)
-        self._values = tuple(values)
-        self._map = {name: self._values[idx] for idx, name in enumerate(self._columns)}
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return self._values[key]
-        return self._map[key]
-
-    def get(self, key, default=None):
-        return self._map.get(key, default)
-
-    def keys(self):
-        return self._map.keys()
-
-    def items(self):
-        return self._map.items()
-
-    def __iter__(self):
-        return iter(self._map)
-
-
-class _CompatCursor:
-    """Cursor wrapper that converts tuple rows to _CompatRow objects."""
-
-    __slots__ = ("_cursor",)
-
-    def __init__(self, cursor):
-        self._cursor = cursor
-
-    def _wrap_row(self, row):
-        if row is None:
-            return None
-        if isinstance(row, (sqlite3.Row, _CompatRow, dict)):
-            return row
-        description = getattr(self._cursor, "description", None) or []
-        columns = [col[0] for col in description] if description else []
-        if columns and isinstance(row, tuple):
-            return _CompatRow(columns, row)
-        return row
-
-    def fetchone(self):
-        return self._wrap_row(self._cursor.fetchone())
-
-    def fetchall(self):
-        rows = self._cursor.fetchall()
-        return [self._wrap_row(row) for row in rows]
-
-    def fetchmany(self, size=None):
-        rows = self._cursor.fetchmany(size) if size is not None else self._cursor.fetchmany()
-        return [self._wrap_row(row) for row in rows]
-
-    def __iter__(self):
-        for row in self._cursor:
-            yield self._wrap_row(row)
-
-    def __getattr__(self, name):
-        return getattr(self._cursor, name)
-
-
-class _CompatConnection:
-    """Connection wrapper that returns _CompatCursor for execute calls."""
-
-    __slots__ = ("_conn",)
-
-    def __init__(self, conn):
-        self._conn = conn
-
-    def execute(self, *args, **kwargs):
-        return _CompatCursor(self._conn.execute(*args, **kwargs))
-
-    def executemany(self, *args, **kwargs):
-        return _CompatCursor(self._conn.executemany(*args, **kwargs))
-
-    def executescript(self, *args, **kwargs):
-        return self._conn.executescript(*args, **kwargs)
-
-    def cursor(self, *args, **kwargs):
-        return _CompatCursor(self._conn.cursor(*args, **kwargs))
-
-    def __getattr__(self, name):
-        return getattr(self._conn, name)
-
-    def __setattr__(self, name, value):
-        if name == "_conn":
-            object.__setattr__(self, name, value)
-        else:
-            setattr(self._conn, name, value)
-
-
-def _dict_row_factory(cursor, row):
-    columns = [col[0] for col in cursor.description]
-    return _CompatRow(columns, row)
-
-
-def _try_set_row_factory(conn, factory) -> None:
-    # libsql connection types may not expose row_factory.
-    if hasattr(conn, "row_factory"):
-        conn.row_factory = factory
-
-
 def _connect_db(path=None):
-    """Return a DB connection (sqlite by default, Turso when configured)."""
-    turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
-    if turso_url and _can_use_turso():
-        turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
-        libsql = importlib.import_module("libsql_experimental")
-        conn = libsql.connect(turso_url, auth_token=turso_token)
-        _try_set_row_factory(conn, _dict_row_factory)
-        return _CompatConnection(conn)
+    """Return a SQLite database connection."""
     target = path or DB_PATH
     conn = sqlite3.connect(target)
-    _try_set_row_factory(conn, sqlite3.Row)
+    conn.row_factory = sqlite3.Row
     return conn
 
 
@@ -254,7 +132,6 @@ def is_persistent_db_configured() -> bool:
     return bool(
         (os.environ.get("DATABASE_PATH") or "").strip()
         or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
-        or _can_use_turso()
     )
 
 
@@ -296,8 +173,7 @@ def close_db(_error) -> None:
 
 
 def init_db() -> None:
-    if not _can_use_turso():
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = _connect_db()
     try:
         conn.execute("PRAGMA foreign_keys = ON")
@@ -404,9 +280,7 @@ def init_db() -> None:
             conn.execute("ALTER TABLE enemy_players ADD COLUMN is_sub INTEGER NOT NULL DEFAULT 0")
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
-        _try_set_row_factory(conn, sqlite3.Row)
         migrate_enemy_teams_to_team_database(conn)
-        _try_set_row_factory(conn, sqlite3.Row)
         conn.commit()
     finally:
         conn.close()
@@ -415,7 +289,6 @@ def init_db() -> None:
 def load_app_state() -> None:
     global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG, LAST_STATE_REFRESH_AT
     conn = _connect_db()
-    _try_set_row_factory(conn, sqlite3.Row)
     try:
         rows = conn.execute("SELECT state_key, state_value FROM app_state").fetchall()
         state = {row["state_key"]: row["state_value"] for row in rows}
@@ -484,11 +357,6 @@ def refresh_app_state_from_db() -> None:
 
 
 def create_manual_db_backup() -> Path:
-    if _can_use_turso():
-        raise RuntimeError(
-            "Binary .db backups are not available when using Turso. "
-            "Use the JSON dump (/db/dump-json) to export your data instead."
-        )
     backup_dir = DB_PATH.parent / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -512,7 +380,6 @@ def create_manual_json_dump() -> Path:
     dump_path = dump_dir / f"rivals_stats_dump_{stamp}.json"
 
     conn = _connect_db()
-    _try_set_row_factory(conn, sqlite3.Row)
     try:
         table_rows = conn.execute(
             """
@@ -7981,9 +7848,6 @@ def db_dump_json():
 
 @app.route("/debug/storage")
 def debug_storage():
-    turso_module_available = importlib.util.find_spec("libsql_experimental") is not None
-    turso_url_set = bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
-    turso_token_set = bool((os.environ.get("TURSO_AUTH_TOKEN") or "").strip())
     return jsonify(
         {
             "db_path": str(DB_PATH),
@@ -7993,10 +7857,6 @@ def debug_storage():
             "on_render": (os.environ.get("RENDER") or "").strip().lower() == "true",
             "database_path_env": bool((os.environ.get("DATABASE_PATH") or "").strip()),
             "render_disk_mount_env": (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip(),
-            "turso_url_set": turso_url_set,
-            "turso_token_set": turso_token_set,
-            "turso_module_available": turso_module_available,
-            "turso_active": turso_url_set and turso_module_available,
             "persistent_configured": is_persistent_db_configured(),
         }
     )
