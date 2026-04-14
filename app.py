@@ -7905,6 +7905,9 @@ def db_dump_json():
 
 @app.route("/debug/storage")
 def debug_storage():
+    turso_module_available = importlib.util.find_spec("libsql_experimental") is not None
+    turso_url_set = bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
+    turso_token_set = bool((os.environ.get("TURSO_AUTH_TOKEN") or "").strip())
     return jsonify(
         {
             "db_path": str(DB_PATH),
@@ -7914,6 +7917,10 @@ def debug_storage():
             "on_render": (os.environ.get("RENDER") or "").strip().lower() == "true",
             "database_path_env": bool((os.environ.get("DATABASE_PATH") or "").strip()),
             "render_disk_mount_env": (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip(),
+            "turso_url_set": turso_url_set,
+            "turso_token_set": turso_token_set,
+            "turso_module_available": turso_module_available,
+            "turso_active": turso_url_set and turso_module_available,
             "persistent_configured": is_persistent_db_configured(),
         }
     )
