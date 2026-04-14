@@ -153,6 +153,74 @@ class _CompatRow:
         return iter(self._map)
 
 
+class _CompatCursor:
+    """Cursor wrapper that converts tuple rows to _CompatRow objects."""
+
+    __slots__ = ("_cursor",)
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def _wrap_row(self, row):
+        if row is None:
+            return None
+        if isinstance(row, (sqlite3.Row, _CompatRow, dict)):
+            return row
+        description = getattr(self._cursor, "description", None) or []
+        columns = [col[0] for col in description] if description else []
+        if columns and isinstance(row, tuple):
+            return _CompatRow(columns, row)
+        return row
+
+    def fetchone(self):
+        return self._wrap_row(self._cursor.fetchone())
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        return [self._wrap_row(row) for row in rows]
+
+    def fetchmany(self, size=None):
+        rows = self._cursor.fetchmany(size) if size is not None else self._cursor.fetchmany()
+        return [self._wrap_row(row) for row in rows]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield self._wrap_row(row)
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+class _CompatConnection:
+    """Connection wrapper that returns _CompatCursor for execute calls."""
+
+    __slots__ = ("_conn",)
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, *args, **kwargs):
+        return _CompatCursor(self._conn.execute(*args, **kwargs))
+
+    def executemany(self, *args, **kwargs):
+        return _CompatCursor(self._conn.executemany(*args, **kwargs))
+
+    def executescript(self, *args, **kwargs):
+        return self._conn.executescript(*args, **kwargs)
+
+    def cursor(self, *args, **kwargs):
+        return _CompatCursor(self._conn.cursor(*args, **kwargs))
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    def __setattr__(self, name, value):
+        if name == "_conn":
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._conn, name, value)
+
+
 def _dict_row_factory(cursor, row):
     columns = [col[0] for col in cursor.description]
     return _CompatRow(columns, row)
@@ -172,7 +240,7 @@ def _connect_db(path=None):
         libsql = importlib.import_module("libsql_experimental")
         conn = libsql.connect(turso_url, auth_token=turso_token)
         _try_set_row_factory(conn, _dict_row_factory)
-        return conn
+        return _CompatConnection(conn)
     target = path or DB_PATH
     conn = sqlite3.connect(target)
     _try_set_row_factory(conn, sqlite3.Row)
