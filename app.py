@@ -169,8 +169,7 @@ def _connect_db(path=None):
     turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
     if turso_url and _can_use_turso():
         turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
-        import libsql_experimental as libsql  # noqa: PLC0415
-
+        libsql = importlib.import_module("libsql_experimental")
         conn = libsql.connect(turso_url, auth_token=turso_token)
         _try_set_row_factory(conn, _dict_row_factory)
         return conn
