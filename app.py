@@ -7888,8 +7888,8 @@ def db_restore_json():
         data = dump_data["data"]
         
         try:
-            # Clear existing data (except app_state which we'll preserve for next_ids)
-            for table_name in ["scrims_backup", "app_state_backups", "team_saved_drafts", "enemy_players", "enemy_teams", "players", "teams"]:
+            # Clear existing data
+            for table_name in ["app_state", "app_state_backups", "team_saved_drafts", "enemy_players", "enemy_teams", "players", "teams"]:
                 try:
                     conn.execute(f"DELETE FROM {table_name}")
                 except:
@@ -7900,8 +7900,8 @@ def db_restore_json():
                 if not rows:
                     continue
                 
-                # Skip app_state, we handle it separately
-                if table_name == "app_state":
+                # Skip backup history — not needed for restore and very large
+                if table_name == "app_state_backups":
                     continue
                 
                 if table_name == "teams":
@@ -7958,16 +7958,6 @@ def db_restore_json():
                             VALUES (?, ?)
                             """,
                             (row.get("state_key"), row.get("state_value"))
-                        )
-                elif table_name == "app_state_backups":
-                    for row in rows:
-                        conn.execute(
-                            """
-                            INSERT INTO app_state_backups (id, created_at, source, scrims_json)
-                            VALUES (?, ?, ?, ?)
-                            """,
-                            (row.get("id"), row.get("created_at"), row.get("source", "restore"),
-                             row.get("scrims_json"))
                         )
                 elif table_name == "team_saved_drafts":
                     for row in rows:
