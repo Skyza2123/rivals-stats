@@ -7853,6 +7853,142 @@ def db_dump_json():
     return redirect(next_url)
 
 
+@app.route("/db/restore-json", methods=["POST"])
+def db_restore_json():
+    next_url = (request.form.get("next") or "").strip()
+    if not next_url.startswith("/"):
+        next_url = url_for("teams")
+
+    try:
+        # Get the uploaded file
+        if "dump_file" not in request.files:
+            flash("No file selected for restore.", "error")
+            return redirect(next_url)
+        
+        file = request.files["dump_file"]
+        if file.filename == "":
+            flash("No file selected for restore.", "error")
+            return redirect(next_url)
+        
+        # Read and parse JSON
+        dump_content = file.read().decode("utf-8")
+        dump_data = json.loads(dump_content)
+        
+        if "data" not in dump_data:
+            flash("Invalid dump file format (missing 'data' key).", "error")
+            return redirect(next_url)
+        
+        # Restore data to database
+        conn = _connect_db()
+        data = dump_data["data"]
+        
+        try:
+            # Clear existing data (except app_state which we'll preserve for next_ids)
+            for table_name in ["scrims_backup", "app_state_backups", "team_saved_drafts", "enemy_players", "enemy_teams", "players", "teams"]:
+                try:
+                    conn.execute(f"DELETE FROM {table_name}")
+                except:
+                    pass  # Table might not exist
+            
+            # Insert data from dump
+            for table_name, rows in data.items():
+                if not rows:
+                    continue
+                
+                # Skip app_state, we handle it separately
+                if table_name == "app_state":
+                    continue
+                
+                if table_name == "teams":
+                    for row in rows:
+                        # Handle is_enemy from old format
+                        is_enemy = row.pop("is_enemy", False)
+                        conn.execute(
+                            """
+                            INSERT INTO teams (id, name, notes, logo_path, is_personal, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (row.get("id"), row.get("name"), row.get("notes", ""), 
+                             row.get("logo_path", ""), row.get("is_personal", 0), 
+                             row.get("created_at", datetime.utcnow().isoformat()))
+                        )
+                elif table_name == "players":
+                    for row in rows:
+                        is_enemy = row.pop("is_enemy", False)
+                        conn.execute(
+                            """
+                            INSERT INTO players (id, team_id, name, role, is_sub, main_hero, notes, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (row.get("id"), row.get("team_id"), row.get("name"), row.get("role", ""),
+                             row.get("is_sub", 0), row.get("main_hero", ""), row.get("notes", ""),
+                             row.get("created_at", datetime.utcnow().isoformat()))
+                        )
+                elif table_name == "enemy_teams":
+                    for row in rows:
+                        conn.execute(
+                            """
+                            INSERT INTO enemy_teams (id, team_id, name, notes, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (row.get("id"), row.get("team_id"), row.get("name"), row.get("notes", ""),
+                             row.get("created_at", datetime.utcnow().isoformat()))
+                        )
+                elif table_name == "enemy_players":
+                    for row in rows:
+                        conn.execute(
+                            """
+                            INSERT INTO enemy_players (id, enemy_team_id, name, role, is_sub, main_hero, notes, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (row.get("id"), row.get("enemy_team_id"), row.get("name"), row.get("role", ""),
+                             row.get("is_sub", 0), row.get("main_hero", ""), row.get("notes", ""),
+                             row.get("created_at", datetime.utcnow().isoformat()))
+                        )
+                elif table_name == "app_state":
+                    for row in rows:
+                        conn.execute(
+                            """
+                            INSERT OR REPLACE INTO app_state (state_key, state_value)
+                            VALUES (?, ?)
+                            """,
+                            (row.get("state_key"), row.get("state_value"))
+                        )
+                elif table_name == "app_state_backups":
+                    for row in rows:
+                        conn.execute(
+                            """
+                            INSERT INTO app_state_backups (id, created_at, source, scrims_json)
+                            VALUES (?, ?, ?, ?)
+                            """,
+                            (row.get("id"), row.get("created_at"), row.get("source", "restore"),
+                             row.get("scrims_json"))
+                        )
+                elif table_name == "team_saved_drafts":
+                    for row in rows:
+                        conn.execute(
+                            """
+                            INSERT INTO team_saved_drafts (id, team_id, draft_name, season, draft_slots_json, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (row.get("id"), row.get("team_id"), row.get("draft_name"), row.get("season", ""),
+                             row.get("draft_slots_json"), row.get("created_at"))
+                        )
+            
+            conn.commit()
+            load_app_state()  # Reload state from database
+            flash(f"Database restore complete! Imported data from {file.filename}.", "success")
+        finally:
+            conn.close()
+    
+    except json.JSONDecodeError as e:
+        flash(f"Invalid JSON file: {e}", "error")
+    except Exception as exc:
+        flash(f"Database restore failed: {exc}", "error")
+
+    return redirect(next_url)
+
+
 @app.route("/debug/storage")
 def debug_storage():
     return jsonify(

@@ -46,6 +46,11 @@
             <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
             <button type="submit" class="button-secondary">DB Dump JSON</button>
         </form>
+        <form method="post" action="{{ url_for('db_restore_json') }}" enctype="multipart/form-data">
+            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
+            <input type="file" name="dump_file" accept=".json" required>
+            <button type="submit" class="button-secondary">Restore from JSON</button>
+        </form>
         <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
             <button type="submit" class="button-secondary">Delete Team</button>
         </form>
