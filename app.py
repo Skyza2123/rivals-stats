@@ -121,6 +121,10 @@ def _is_turso_configured() -> bool:
     return bool((os.environ.get("TURSO_DATABASE_URL") or "").strip())
 
 
+def _can_use_turso() -> bool:
+    return _is_turso_configured() and importlib.util.find_spec("libsql_experimental") is not None
+
+
 class _CompatRow:
     """Row wrapper that supports both row[0] and row['column'] access."""
 
@@ -163,7 +167,7 @@ def _try_set_row_factory(conn, factory) -> None:
 def _connect_db(path=None):
     """Return a DB connection (sqlite by default, Turso when configured)."""
     turso_url = (os.environ.get("TURSO_DATABASE_URL") or "").strip()
-    if turso_url:
+    if turso_url and _can_use_turso():
         turso_token = (os.environ.get("TURSO_AUTH_TOKEN") or "").strip()
         import libsql_experimental as libsql  # noqa: PLC0415
 
@@ -180,7 +184,7 @@ def is_persistent_db_configured() -> bool:
     return bool(
         (os.environ.get("DATABASE_PATH") or "").strip()
         or (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
-        or _is_turso_configured()
+        or _can_use_turso()
     )
 
 
@@ -222,7 +226,7 @@ def close_db(_error) -> None:
 
 
 def init_db() -> None:
-    if not _is_turso_configured():
+    if not _can_use_turso():
         DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = _connect_db()
     try:
@@ -404,7 +408,7 @@ def refresh_app_state_from_db() -> None:
 
 
 def create_manual_db_backup() -> Path:
-    if _is_turso_configured():
+    if _can_use_turso():
         raise RuntimeError(
             "Binary .db backups are not available when using Turso. "
             "Use the JSON dump (/db/dump-json) to export your data instead."
