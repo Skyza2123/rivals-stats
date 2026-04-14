@@ -5,6 +5,7 @@ import os
 import json
 import math
 import re
+import time
 import hashlib
 import sqlite3
 import importlib
@@ -114,7 +115,9 @@ NEXT_MAP_ID = 1
 NEXT_EVENT_ID = 1
 LAST_SCRIMS_REV = 0
 LAST_SCRIMS_ETAG = ""
+LAST_STATE_REFRESH_AT = 0.0
 MAX_SCRIM_BACKUPS = 100
+STATE_REFRESH_INTERVAL_SECONDS = max(0.0, float(os.environ.get("STATE_REFRESH_INTERVAL_SECONDS", "2.0")))
 
 
 def _is_turso_configured() -> bool:
@@ -410,7 +413,7 @@ def init_db() -> None:
 
 
 def load_app_state() -> None:
-    global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG
+    global SCRIMS, TOURNAMENT_MATCHES, NEXT_SCRIM_ID, NEXT_TOURNAMENT_ID, NEXT_MAP_ID, NEXT_EVENT_ID, LAST_SCRIMS_REV, LAST_SCRIMS_ETAG, LAST_STATE_REFRESH_AT
     conn = _connect_db()
     _try_set_row_factory(conn, sqlite3.Row)
     try:
@@ -464,14 +467,20 @@ def load_app_state() -> None:
                 (str(LAST_SCRIMS_REV), "scrims_rev"),
             )
             conn.commit()
+        LAST_STATE_REFRESH_AT = time.monotonic()
     finally:
         conn.close()
 
 
 @app.before_request
 def refresh_app_state_from_db() -> None:
-    # Keep in-memory state in sync across hosted worker processes.
-    load_app_state()
+    # Keep in-memory state in sync across hosted worker processes without reloading every request.
+    if STATE_REFRESH_INTERVAL_SECONDS <= 0:
+        load_app_state()
+        return
+    elapsed = time.monotonic() - LAST_STATE_REFRESH_AT
+    if elapsed >= STATE_REFRESH_INTERVAL_SECONDS:
+        load_app_state()
 
 
 def create_manual_db_backup() -> Path:
