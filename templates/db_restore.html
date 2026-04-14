@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Restore Database{% endblock %}
+{% block content %}
+<div style="max-width:500px;margin:60px auto;padding:32px;background:#1a2236;border-radius:12px;">
+    <h2 style="margin-bottom:8px;">Restore Database from JSON</h2>
+    <p style="color:#94a3b8;margin-bottom:24px;">
+        Upload a <code>.json</code> backup file to restore all your scrims, teams, tournaments, and players.
+        <strong>This will overwrite existing data.</strong>
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}" style="margin-bottom:16px;">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('db_restore_json') }}" enctype="multipart/form-data">
+        <input type="hidden" name="next" value="/db/restore">
+        <div style="margin-bottom:16px;">
+            <input type="file" name="dump_file" accept=".json" required
+                   style="display:block;width:100%;padding:8px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;">
+        </div>
+        <button type="submit" class="button-primary" style="width:100%;">Restore Database</button>
+    </form>
+
+    <div style="margin-top:24px;border-top:1px solid #30363d;padding-top:16px;">
+        <a href="{{ url_for('index') }}" style="color:#94a3b8;">← Back to home</a>
+    </div>
+</div>
+{% endblock %}

@@ -7691,6 +7691,11 @@ def enemy_draft_predict(enemy_team_id: int):
     """Legacy route: return empty predictor data (team is now in main teams table)."""
     return jsonify(build_draft_predictor([], {}))
 
+@app.route("/db/restore", methods=["GET"])
+def db_restore_page():
+    return render_template("db_restore.html")
+
+
 @app.route("/scrims")
 def scrims():
     season_options = get_scrim_season_options(SCRIMS)
