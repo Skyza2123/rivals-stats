@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Scrim Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #0d1117;
+        }
+        .login-card {
+            background: #161b22;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 360px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .login-card h1 {
+            margin: 0 0 0.25rem;
+            font-size: 1.3rem;
+            color: #e6edf3;
+            font-weight: 600;
+        }
+        .login-card .subtitle {
+            font-size: 0.85rem;
+            color: #6e7681;
+            margin-bottom: 1.75rem;
+        }
+        .login-card label {
+            display: block;
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .login-card input[type="password"] {
+            width: 100%;
+            box-sizing: border-box;
+            background: #0d1117;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 1rem;
+            padding: 0.6rem 0.8rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .login-card input[type="password"]:focus {
+            border-color: #58a6ff;
+        }
+        .login-card button {
+            margin-top: 1.25rem;
+            width: 100%;
+            background: #1f6feb;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.65rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .login-card button:hover {
+            background: #388bfd;
+        }
+        .flash-error {
+            background: rgba(248,81,73,0.12);
+            border: 1px solid rgba(248,81,73,0.3);
+            border-radius: 6px;
+            color: #f85149;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>Scrim Dashboard</h1>
+        <p class="subtitle">Enter the password to continue.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, msg in messages %}
+                <div class="flash-{{ category }}">{{ msg }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autofocus autocomplete="current-password">
+            <button type="submit">Sign in</button>
+        </form>
+    </div>
+</body>
+</html>

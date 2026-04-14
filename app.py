@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
-from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context
+from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context, session
 from markupsafe import Markup
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -350,6 +350,44 @@ def load_app_state() -> None:
         LAST_STATE_REFRESH_AT = time.monotonic()
     finally:
         conn.close()
+
+
+SITE_PASSWORD = os.environ.get("SITE_PASSWORD", "").strip()
+
+_AUTH_EXEMPT = {"/login", "/logout"}
+
+
+@app.before_request
+def check_auth() -> None:
+    """Redirect to login if SITE_PASSWORD is set and user isn't authenticated."""
+    if not SITE_PASSWORD:
+        return  # No password configured — open access
+    if request.path.startswith("/static"):
+        return
+    if request.path in _AUTH_EXEMPT:
+        return
+    if not session.get("logged_in"):
+        return redirect(url_for("login", next=request.path))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        if SITE_PASSWORD and pw == SITE_PASSWORD:
+            session["logged_in"] = True
+            next_url = request.form.get("next", "/").strip()
+            if not next_url.startswith("/"):
+                next_url = "/"
+            return redirect(next_url)
+        flash("Incorrect password.", "error")
+    return render_template("login.html", next=request.args.get("next", "/"))
+
+
+@app.route("/logout")
+def logout():
+    session.pop("logged_in", None)
+    return redirect(url_for("login"))
 
 
 @app.before_request

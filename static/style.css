@@ -90,6 +90,17 @@ body {
     flex-wrap: wrap;
 }
 
+.nav-link-logout {
+    margin-left: auto;
+    color: #6e7681;
+}
+
+.nav-link-logout:hover {
+    color: #f85149 !important;
+    background: rgba(248,81,73,0.08) !important;
+    border-color: rgba(248,81,73,0.2) !important;
+}
+
 .nav-link {
     text-decoration: none;
     color: var(--muted);

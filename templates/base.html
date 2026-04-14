@@ -43,6 +43,7 @@
                 <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
                 <a href="{{ url_for('teams_compare') }}" class="nav-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
                 <a href="{{ url_for('player_compare') }}" class="nav-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
+                <a href="{{ url_for('logout') }}" class="nav-link nav-link-logout">Logout</a>
             </nav>
         </div>
     </header>
