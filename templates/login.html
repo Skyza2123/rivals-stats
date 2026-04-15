@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — Scrim Dashboard</title>
+    <title>{% if setup_mode %}Set Password{% else %}Login{% endif %} — Scrim Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
     <style>
         body {
@@ -87,7 +87,13 @@
 <body>
     <div class="login-card">
         <h1>Scrim Dashboard</h1>
-        <p class="subtitle">Enter the password to continue.</p>
+        <p class="subtitle">
+            {% if setup_mode %}
+                Set a password before using the dashboard.
+            {% else %}
+                Enter the password to continue.
+            {% endif %}
+        </p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, msg in messages %}
@@ -95,11 +101,15 @@
             {% endfor %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('login') }}">
+        <form method="POST" action="{{ form_action }}">
             <input type="hidden" name="next" value="{{ next }}">
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" autofocus autocomplete="current-password">
-            <button type="submit">Sign in</button>
+            <input type="password" id="password" name="password" autofocus autocomplete="{% if setup_mode %}new-password{% else %}current-password{% endif %}">
+            {% if setup_mode %}
+            <label for="confirm_password" style="margin-top: 0.85rem;">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password">
+            {% endif %}
+            <button type="submit">{% if setup_mode %}Set password{% else %}Sign in{% endif %}</button>
         </form>
     </div>
 </body>

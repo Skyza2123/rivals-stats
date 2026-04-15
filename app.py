@@ -19,6 +19,7 @@ from uuid import uuid4
 from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context, session
 from markupsafe import Markup
 from werkzeug.datastructures import FileStorage
+from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from data import (
     HEROES, HERO_ROLES, HERO_TRANSFORMATIONS, MAPS, MAP_IMAGES, MAP_SUBMAPS,
@@ -262,6 +263,7 @@ def init_db() -> None:
             ("next_map_id", "1"),
             ("next_event_id", "1"),
             ("scrims_rev", "0"),
+            ("site_password_hash", ""),
         ):
             conn.execute(
                 "INSERT OR IGNORE INTO app_state (state_key, state_value) VALUES (?, ?)",
@@ -354,34 +356,105 @@ def load_app_state() -> None:
 
 SITE_PASSWORD = os.environ.get("SITE_PASSWORD", "").strip()
 
-_AUTH_EXEMPT = {"/login", "/logout"}
+_AUTH_EXEMPT = {"/login", "/logout", "/setup-password"}
+
+
+def _get_stored_password_hash() -> str:
+    row = get_db().execute(
+        "SELECT state_value FROM app_state WHERE state_key = ?",
+        ("site_password_hash",),
+    ).fetchone()
+    if not row:
+        return ""
+    return (row["state_value"] or "").strip()
+
+
+def _is_password_configured() -> bool:
+    return bool(SITE_PASSWORD or _get_stored_password_hash())
+
+
+def _normalize_next_path(default: str = "/") -> str:
+    next_path = (request.values.get("next") or default).strip()
+    if not next_path.startswith("/"):
+        return default
+    return next_path
 
 
 @app.before_request
 def check_auth() -> None:
-    """Redirect to login if SITE_PASSWORD is set and user isn't authenticated."""
-    if not SITE_PASSWORD:
-        return  # No password configured — open access
+    """Require password setup/login before allowing access."""
     if request.path.startswith("/static"):
         return
     if request.path in _AUTH_EXEMPT:
         return
+    if not _is_password_configured():
+        return redirect(url_for("setup_password", next=request.path))
     if not session.get("logged_in"):
         return redirect(url_for("login", next=request.path))
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if not _is_password_configured():
+        return redirect(url_for("setup_password", next=_normalize_next_path()))
+
     if request.method == "POST":
         pw = request.form.get("password", "")
-        if SITE_PASSWORD and pw == SITE_PASSWORD:
+        stored_hash = _get_stored_password_hash()
+        password_is_valid = False
+        if SITE_PASSWORD:
+            password_is_valid = pw == SITE_PASSWORD
+        elif stored_hash:
+            password_is_valid = check_password_hash(stored_hash, pw)
+
+        if password_is_valid:
             session["logged_in"] = True
-            next_url = request.form.get("next", "/").strip()
-            if not next_url.startswith("/"):
-                next_url = "/"
+            next_url = _normalize_next_path()
             return redirect(next_url)
         flash("Incorrect password.", "error")
-    return render_template("login.html", next=request.args.get("next", "/"))
+    return render_template(
+        "login.html",
+        next=_normalize_next_path(),
+        setup_mode=False,
+        form_action=url_for("login"),
+    )
+
+
+@app.route("/setup-password", methods=["GET", "POST"])
+def setup_password():
+    if SITE_PASSWORD:
+        return redirect(url_for("login", next=_normalize_next_path()))
+
+    if _get_stored_password_hash():
+        return redirect(url_for("login", next=_normalize_next_path()))
+
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+        if not pw.strip():
+            flash("Password is required.", "error")
+        elif len(pw) < 8:
+            flash("Password must be at least 8 characters.", "error")
+        elif pw != confirm:
+            flash("Passwords do not match.", "error")
+        else:
+            result = get_db().execute(
+                "UPDATE app_state SET state_value = ? WHERE state_key = ? AND state_value = ''",
+                (generate_password_hash(pw), "site_password_hash"),
+            )
+            get_db().commit()
+            if result.rowcount == 1:
+                session["logged_in"] = True
+                return redirect(_normalize_next_path())
+            flash("Password has already been set. Please sign in.", "error")
+            return redirect(url_for("login", next=_normalize_next_path()))
+
+    return render_template(
+        "login.html",
+        next=_normalize_next_path(),
+        setup_mode=True,
+        form_action=url_for("setup_password"),
+    )
 
 
 @app.route("/logout")
