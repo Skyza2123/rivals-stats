@@ -1,0 +1,16 @@
+{% macro stats_table(headers, table_class='stats-table stats-table-compare', wrap_class='table-wrap', extra_wrap_class='') -%}
+<div class="{{ wrap_class }}{% if extra_wrap_class %} {{ extra_wrap_class }}{% endif %}">
+    <table class="{{ table_class }}">
+        <thead>
+            <tr>
+                {% for header in headers %}
+                    <th>{{ header }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {{ caller() }}
+        </tbody>
+    </table>
+</div>
+{%- endmacro %}

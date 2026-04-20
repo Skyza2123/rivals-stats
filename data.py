@@ -70,6 +70,12 @@ MAPS = sorted([
     "Yggdrasill Path",
 ])
 
+MAP_TYPES = [
+    "Standard",
+    "PTW",
+    "Test",
+]
+
 MAP_MODES = {
     # Control
     "Hell's Haven": "Control",

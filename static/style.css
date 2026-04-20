@@ -13,22 +13,19 @@ a:focus {
     text-decoration: none;
 }
 
-a:hover {
-    opacity: 0.8;
-}
-
 :root {
-    --bg: #010409;
-    --panel: rgba(13, 17, 23, 0.88);
-    --panel-2: rgba(21, 27, 35, 0.92);
+    --bg: #060a12;
+    --panel: rgba(12, 18, 30, 0.9);
+    --panel-2: rgba(18, 27, 43, 0.92);
     --border: #21262d;
-    --text: #e6edf3;
-    --muted: #8b949e;
+    --text: #e8eef9;
+    --muted: #93a0b4;
     --accent: #fa4454;
     --accent-hover: #ff6b7a;
-    --input: #0d1117;
+    --input: #0d1420;
     --ring: rgba(250, 68, 84, 0.28);
-    --sidebar: rgba(9, 12, 18, 0.96);
+    --sidebar: rgba(8, 13, 22, 0.94);
+    --content-max: 1380px;
 }
 
 * {
@@ -39,12 +36,20 @@ html,
 body {
     margin: 0;
     min-height: 100%;
-    font-family: Inter, Arial, sans-serif;
+    font-family: "Manrope", "Segoe UI", sans-serif;
     background:
-        radial-gradient(circle at top left, rgba(250, 68, 84, 0.08), transparent 20%),
-        radial-gradient(circle at bottom right, rgba(255, 107, 122, 0.08), transparent 20%),
-        #010409;
+        radial-gradient(circle at 18% -10%, rgba(250, 68, 84, 0.16), transparent 32%),
+        radial-gradient(circle at 100% 0%, rgba(76, 139, 245, 0.14), transparent 30%),
+        linear-gradient(180deg, #080d18 0%, #060a12 100%);
     color: var(--text);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    font-family: "Sora", "Manrope", sans-serif;
 }
 
 /* ── Top Navbar ──────────────────────────────────────────── */
@@ -58,12 +63,12 @@ body {
 }
 
 .topnav-inner {
-    max-width: 1600px;
+    max-width: var(--content-max);
     margin: 0 auto;
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 0 96px;
+    padding: 0 clamp(16px, 3vw, 38px);
     height: 52px;
 }
 
@@ -161,13 +166,13 @@ body {
 /* ── Main layout ─────────────────────────────────────────── */
 .dashboard-layout {
     min-height: calc(100vh - 52px);
-    max-width: 1600px;
+    max-width: var(--content-max);
     margin: 0 auto;
     width: 100%;
 }
 
 .main-content {
-    padding: clamp(16px, 2.5vw, 28px) 96px;
+    padding: clamp(14px, 2vw, 24px) clamp(16px, 3vw, 38px);
 }
 
 .flash-stack {
@@ -202,7 +207,7 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
-    margin-bottom: 22px;
+    margin-bottom: 16px;
 }
 
 .main-header h2 {
@@ -243,10 +248,10 @@ button:hover {
 .panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: clamp(14px, 2vw, 22px);
-    margin-bottom: 18px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+    border-radius: 14px;
+    padding: clamp(12px, 1.5vw, 18px);
+    margin-bottom: 14px;
+    box-shadow: 0 10px 24px rgba(1, 4, 9, 0.26);
 }
 
 .panel h3 {
@@ -272,16 +277,16 @@ button:hover {
 .summary-grid,
 .result-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-    margin-bottom: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
 }
 
 .dashboard-duo-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 18px;
+    gap: 12px;
+    margin-bottom: 14px;
 }
 
 .hero-rank-list {
@@ -294,8 +299,8 @@ button:hover {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 4px;
-    border-radius: 10px;
+    padding: 8px 8px;
+    border-radius: 8px;
 }
 
 .hero-rank-row:hover {
@@ -351,8 +356,8 @@ button:hover {
 .result-card {
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 16px;
+    border-radius: 12px;
+    padding: 12px;
 }
 
 .stat-card strong,
@@ -408,9 +413,17 @@ button:hover {
 .stat-card span,
 .result-card span {
     display: block;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: var(--text);
+}
+
+.stat-footnote {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.73rem;
+    color: var(--muted);
+    letter-spacing: 0.02em;
 }
 
 .form-grid {
@@ -443,6 +456,58 @@ button:hover {
 
 .top-gap {
     margin-top: 16px;
+}
+
+.dense-collapsible {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow: clip;
+}
+
+.dense-collapsible > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 11px 14px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text);
+    border-bottom: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+}
+
+.dense-collapsible > summary::-webkit-details-marker {
+    display: none;
+}
+
+.dense-collapsible > summary::before {
+    content: '+';
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    line-height: 1;
+    color: var(--muted);
+}
+
+.dense-collapsible[open] > summary {
+    border-bottom-color: var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.dense-collapsible[open] > summary::before {
+    content: '-';
+}
+
+.dense-collapsible-body {
+    padding: 0 10px 10px;
 }
 
 label {
@@ -497,7 +562,7 @@ textarea:focus {
 .list-stack {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .list-card {
@@ -507,8 +572,8 @@ textarea:focus {
     gap: 16px;
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
+    border-radius: 11px;
+    padding: 12px 13px;
     text-decoration: none;
     color: var(--text);
     transition: 0.15s ease;
@@ -583,6 +648,9 @@ textarea:focus {
 
 .table-wrap {
     overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.015);
 }
 
 table {
@@ -592,10 +660,11 @@ table {
 
 th,
 td {
-    padding: 12px 10px;
+    padding: 10px 10px;
     border-bottom: 1px solid var(--border);
     text-align: left;
-    font-size: 0.94rem;
+    font-size: 0.9rem;
+    line-height: 1.35;
 }
 
 th {
@@ -679,9 +748,9 @@ th {
     border-collapse: separate;
     border-spacing: 0;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.02);
+    border: none;
+    border-radius: 12px;
+    background: transparent;
 }
 
 .stats-table thead th {
@@ -692,6 +761,9 @@ th {
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .stats-table tbody tr:nth-child(even) td {

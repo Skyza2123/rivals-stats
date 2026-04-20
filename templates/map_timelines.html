@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_table_macros.html" import stats_table %}
 
 {% block title %}Map Draft Timelines{% endblock %}
 
@@ -31,27 +32,16 @@
                 {% set _ = map_main_lookup.update({row.slot_key: row}) %}
             {% endfor %}
             <div class="panel-intro">Based on {{ sample_warn(timeline.maps) }} map sample{% if timeline.maps != 1 %}s{% endif %}.</div>
-            <div class="table-wrap top-gap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Slot</th>
-                            <th>{{ participant_one_label }}</th>
-                            <th>{{ participant_two_label }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in timeline.enemy_rows %}
-                            {% set main_row = map_main_lookup[row.slot_key] %}
-                            <tr>
-                                <td>{{ row.slot_label }}</td>
-                                <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
-                                <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Slot', participant_one_label, participant_two_label], extra_wrap_class='top-gap') %}
+                {% for row in timeline.enemy_rows %}
+                    {% set main_row = map_main_lookup[row.slot_key] %}
+                    <tr>
+                        <td>{{ row.slot_label }}</td>
+                        <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
+                        <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No draft timeline data available for {{ map_name }} yet.</p>
         {% endif %}

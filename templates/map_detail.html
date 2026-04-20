@@ -1185,6 +1185,45 @@ document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
     if (h && im) COMP_HERO_IMGS[h] = im.src;
 });
 
+function updateCompHeroAvailability() {
+    if (!activeCompSlot) {
+        document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
+            btn.disabled = false;
+            btn.classList.remove('hero-disabled');
+        });
+        return;
+    }
+
+    var modalId = activeCompSlot.dataset.compModal || '';
+    var activeHeroInput = activeCompSlot.querySelector('input[type=hidden]');
+    var activeInputName = activeHeroInput ? activeHeroInput.name : '';
+    var teamKey = activeInputName.startsWith('team1_') ? 'team1' : 'team2';
+    if (!teamKey || !modalId) {
+        return;
+    }
+
+    var usedHeroes = new Set();
+    var selector = '.comp-pick-slot[data-comp-modal="' + modalId + '"] input[type=hidden][name^="' + teamKey + '_hero_"]';
+    document.querySelectorAll(selector).forEach(function(inp) {
+        if (!inp || inp.name === activeInputName) return;
+        var heroName = (inp.value || '').trim();
+        if (heroName) {
+            usedHeroes.add(heroName);
+        }
+    });
+
+    document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
+        if (btn.dataset.compModal !== modalId) {
+            btn.disabled = false;
+            btn.classList.remove('hero-disabled');
+            return;
+        }
+        var blocked = usedHeroes.has(btn.dataset.hero || '');
+        btn.disabled = blocked;
+        btn.classList.toggle('hero-disabled', blocked);
+    });
+}
+
 function activateCompSlot(el) {
     document.querySelectorAll('.comp-pick-slot').forEach(function(s) {
         s.classList.remove('slot-active');
@@ -1193,6 +1232,7 @@ function activateCompSlot(el) {
     activeCompSlot = el;
     hideCompAssignHover(true);
     syncCompAssignPanelForSlot(el);
+    updateCompHeroAvailability();
 }
 
 function clearCompSlot(el) {
@@ -1224,11 +1264,13 @@ function clearCompSlot(el) {
             syncCompAssignPanelForSlot(el);
         }
     }
+    updateCompHeroAvailability();
 }
 
 function pickCompHero(btn) {
     if (!activeCompSlot) return;
     if (btn.dataset.compModal !== activeCompSlot.dataset.compModal) return;
+    if (btn.disabled) return;
     var hero = btn.dataset.hero;
     var imgSrc = btn.querySelector('img').src;
     var inp = activeCompSlot.querySelector('input[type=hidden]');
@@ -1279,6 +1321,8 @@ function pickCompHero(btn) {
             if (currentSlot) syncCompAssignPanelForSlot(currentSlot);
         }
     }
+
+    updateCompHeroAvailability();
 
 }
 
@@ -1395,6 +1439,8 @@ function copyPreviousCompSection(sectionIndex) {
             applyPlayerValueToControls(currentForm, playerName, fromPlayerValue);
         }
     });
+
+    updateCompHeroAvailability();
 }
 
 </script>

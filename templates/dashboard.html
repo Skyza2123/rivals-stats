@@ -3,10 +3,42 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+{% set metric_cards = [
+    ('Total Scrims', total_scrims, 'Matches logged'),
+    ('Tournaments', total_tournaments, 'Brackets tracked'),
+    ('Total Maps', total_maps, 'Map entries'),
+    ('Events', total_events, 'Timeline events'),
+    ('Teams', total_teams, 'Team records'),
+    ('Players', total_players, 'Player records')
+] %}
+
+{% macro hero_rank_panel(title, entries) -%}
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>{{ title }}</h3>
+        <span class="muted-label">Personal teams</span>
+    </div>
+    {% if entries %}
+        <div class="hero-rank-list">
+            {% for entry in entries %}
+            <div class="hero-rank-row">
+                <span class="hero-rank-num">{{ loop.index }}</span>
+                <img class="hero-rank-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy">
+                <span class="hero-rank-name">{{ entry.hero }}</span>
+                <span class="hero-rank-count">{{ entry.count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No data yet.</p>
+    {% endif %}
+</section>
+{%- endmacro %}
+
 <div class="main-header">
     <div>
         <h2>Dashboard</h2>
-        <p>Overview of scrims, tournaments, maps, player entries, and events.</p>
+        <p>Quick read on activity, hero trends, and recent matches.</p>
     </div>
     <div class="header-actions">
         <a class="button-secondary" href="{{ url_for('tournaments') }}#create-tournament">+ New Tournament</a>
@@ -15,79 +47,18 @@
 </div>
 
 <div class="summary-grid">
+    {% for label, value, helper in metric_cards %}
     <section class="stat-card">
-        <strong>Total Scrims</strong>
-        <span>{{ total_scrims }}</span>
+        <strong>{{ label }}</strong>
+        <span>{{ value }}</span>
+        <small class="stat-footnote">{{ helper }}</small>
     </section>
-
-    <section class="stat-card">
-        <strong>Tournaments</strong>
-        <span>{{ total_tournaments }}</span>
-    </section>
-
-    <section class="stat-card">
-        <strong>Total Maps</strong>
-        <span>{{ total_maps }}</span>
-    </section>
-
-    <section class="stat-card">
-        <strong>Events</strong>
-        <span>{{ total_events }}</span>
-    </section>
-
-    <section class="stat-card">
-        <strong>Teams</strong>
-        <span>{{ total_teams }}</span>
-    </section>
-
-    <section class="stat-card">
-        <strong>Players</strong>
-        <span>{{ total_players }}</span>
-    </section>
+    {% endfor %}
 </div>
 
 <div class="dashboard-duo-grid">
-    <section class="panel">
-        <div class="panel-header-row">
-            <h3>Top Picks</h3>
-            <span class="muted-label">Personal teams</span>
-        </div>
-        {% if top_picks %}
-            <div class="hero-rank-list">
-                {% for entry in top_picks %}
-                <div class="hero-rank-row">
-                    <span class="hero-rank-num">{{ loop.index }}</span>
-                    <img class="hero-rank-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy">
-                    <span class="hero-rank-name">{{ entry.hero }}</span>
-                    <span class="hero-rank-count">{{ entry.count }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty-text">No pick data yet.</p>
-        {% endif %}
-    </section>
-
-    <section class="panel">
-        <div class="panel-header-row">
-            <h3>Top Bans</h3>
-            <span class="muted-label">Personal teams</span>
-        </div>
-        {% if top_bans %}
-            <div class="hero-rank-list">
-                {% for entry in top_bans %}
-                <div class="hero-rank-row">
-                    <span class="hero-rank-num">{{ loop.index }}</span>
-                    <img class="hero-rank-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy">
-                    <span class="hero-rank-name">{{ entry.hero }}</span>
-                    <span class="hero-rank-count">{{ entry.count }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty-text">No ban data yet.</p>
-        {% endif %}
-    </section>
+    {{ hero_rank_panel('Top Picks', top_picks) }}
+    {{ hero_rank_panel('Top Bans', top_bans) }}
 </div>
 
 <div class="dashboard-duo-grid">
@@ -108,7 +79,7 @@
                         </div>
                     </div>
                     <div class="list-meta">
-                        <small>{{ scrim.maps|length }} maps</small>
+                        <span class="pill pill-neutral">{{ scrim.maps|length }} maps</span>
                     </div>
                 </a>
             {% endfor %}
@@ -135,7 +106,7 @@
                         </div>
                     </div>
                     <div class="list-meta">
-                        <small>{{ match.maps|length }} maps</small>
+                        <span class="pill pill-neutral">{{ match.maps|length }} maps</span>
                     </div>
                 </a>
             {% endfor %}

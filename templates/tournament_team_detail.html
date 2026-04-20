@@ -1,4 +1,5 @@
 ﻿{% extends "base.html" %}
+{% from "_table_macros.html" import stats_table %}
 
 {% block title %}{{ tournament_team.name }}{% endblock %}
 
@@ -76,33 +77,21 @@
             </div>
         </div>
         {% if hero_graph_rows %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Hero</th>
-                            <th>Instances</th>
-                            <th>Usage Share</th>
-                            <th>Win Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in hero_graph_rows[:10] %}
-                            <tr>
-                                <td>
-                                    <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                        <span>{{ hero_display_name(row.hero) }}</span>
-                                    </span>
-                                </td>
-                                <td>{{ row.appearances }}</td>
-                                <td>{{ row.usage_rate }}%</td>
-                                <td>{{ row.win_rate }}%</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate']) %}
+                {% for row in hero_graph_rows[:10] %}
+                    <tr>
+                        <td>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                            </span>
+                        </td>
+                        <td>{{ row.appearances }}</td>
+                        <td>{{ row.usage_rate }}%</td>
+                        <td>{{ row.win_rate }}%</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No hero data yet.</p>
         {% endif %}
@@ -152,28 +141,16 @@
             </div>
         </div>
         {% if team_map_mode_rows %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Mode</th>
-                            <th>Maps</th>
-                            <th>Record</th>
-                            <th>Win Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in team_map_mode_rows %}
-                            <tr>
-                                <td>{{ row.mode }}</td>
-                                <td>{{ row.maps }}</td>
-                                <td>{{ row.wins }}W - {{ row.losses }}L</td>
-                                <td>{{ row.win_rate }}%</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Mode', 'Maps', 'Record', 'Win Rate']) %}
+                {% for row in team_map_mode_rows %}
+                    <tr>
+                        <td>{{ row.mode }}</td>
+                        <td>{{ row.maps }}</td>
+                        <td>{{ row.wins }}W - {{ row.losses }}L</td>
+                        <td>{{ row.win_rate }}%</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No mode data yet.</p>
         {% endif %}
@@ -189,33 +166,21 @@
             </div>
         </div>
         {% if hero_graph_rows %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Hero</th>
-                            <th>Maps</th>
-                            <th>Pick Rate</th>
-                            <th>Unmirrored WR</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in hero_graph_rows %}
-                            <tr>
-                                <td>
-                                    <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                        <span>{{ hero_display_name(row.hero) }}</span>
-                                    </span>
-                                </td>
-                                <td>{{ row.maps }}</td>
-                                <td>{{ row.pick_rate }}%</td>
-                                <td>{{ row.unmirrored_win_rate }}%</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Hero', 'Maps', 'Pick Rate', 'Unmirrored WR']) %}
+                {% for row in hero_graph_rows %}
+                    <tr>
+                        <td>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                            </span>
+                        </td>
+                        <td>{{ row.maps }}</td>
+                        <td>{{ row.pick_rate }}%</td>
+                        <td>{{ row.unmirrored_win_rate }}%</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No hero usage yet.</p>
         {% endif %}

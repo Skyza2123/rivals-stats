@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_table_macros.html" import stats_table %}
 
 {% block title %}{{ map_name }} Draft Timeline{% endblock %}
 
@@ -24,33 +25,21 @@
     <div class="section-kicker">Hero Usage</div>
     <h3>{{ participant_one_label }} Most Played Heroes On {{ map_name }}</h3>
     {% if top_hero_rows %}
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Hero</th>
-                        <th>Instances</th>
-                        <th>Usage Share</th>
-                        <th>Win Rate When Used</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in top_hero_rows %}
-                        <tr>
-                            <td>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    <span>{{ hero_display_name(row.hero) }}</span>
-                                </span>
-                            </td>
-                            <td>{{ sample_warn(row.appearances) }}</td>
-                            <td>{{ row.play_rate }}%</td>
-                            <td>{{ row.win_rate }}%</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate When Used'], extra_wrap_class='top-gap') %}
+            {% for row in top_hero_rows %}
+                <tr>
+                    <td>
+                        <span class="hero-inline-cell">
+                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                            <span>{{ hero_display_name(row.hero) }}</span>
+                        </span>
+                    </td>
+                    <td>{{ sample_warn(row.appearances) }}</td>
+                    <td>{{ row.play_rate }}%</td>
+                    <td>{{ row.win_rate }}%</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
     {% else %}
         <p class="empty-text">No hero usage data for this map yet.</p>
     {% endif %}
@@ -60,31 +49,20 @@
     <div class="section-kicker">Enemy Heroes</div>
     <h3>{{ participant_two_label }} Most Played Heroes On {{ map_name }}</h3>
     {% if enemy_top_hero_rows %}
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Hero</th>
-                        <th>Instances</th>
-                        <th>Usage Share</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in enemy_top_hero_rows %}
-                        <tr>
-                            <td>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    <span>{{ hero_display_name(row.hero) }}</span>
-                                </span>
-                            </td>
-                            <td>{{ sample_warn(row.appearances) }}</td>
-                            <td>{{ row.play_rate }}%</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% call stats_table(['Hero', 'Instances', 'Usage Share'], extra_wrap_class='top-gap') %}
+            {% for row in enemy_top_hero_rows %}
+                <tr>
+                    <td>
+                        <span class="hero-inline-cell">
+                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                            <span>{{ hero_display_name(row.hero) }}</span>
+                        </span>
+                    </td>
+                    <td>{{ sample_warn(row.appearances) }}</td>
+                    <td>{{ row.play_rate }}%</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
     {% else %}
         <p class="empty-text">No enemy hero usage data for this map yet.</p>
     {% endif %}
@@ -102,27 +80,16 @@
 
         <div class="panel-intro">Based on {{ sample_warn(map_timeline_row.maps) }} map sample{% if map_timeline_row.maps != 1 %}s{% endif %}.</div>
 
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Draft Slot</th>
-                        <th>{{ participant_one_label }}</th>
-                        <th>{{ participant_two_label }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in map_timeline_row.enemy_rows %}
-                        {% set main_row = map_main_lookup[row.slot_key] %}
-                        <tr>
-                            <td>{{ row.slot_label }}</td>
-                            <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
-                            <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% call stats_table(['Draft Slot', participant_one_label, participant_two_label], extra_wrap_class='top-gap') %}
+            {% for row in map_timeline_row.enemy_rows %}
+                {% set main_row = map_main_lookup[row.slot_key] %}
+                <tr>
+                    <td>{{ row.slot_label }}</td>
+                    <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
+                    <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
     {% else %}
         <p class="empty-text">No draft timeline data available for this map yet.</p>
     {% endif %}

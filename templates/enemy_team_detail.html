@@ -1,4 +1,5 @@
 ﻿{% extends "base.html" %}
+{% from "_table_macros.html" import stats_table %}
 
 {% block title %}{{ enemy_team.name }}{% endblock %}
 
@@ -162,6 +163,9 @@
                 </div>
             </div>
 
+            <details class="dense-collapsible top-gap">
+                <summary>Advanced Draft Flow And Slot Patterns</summary>
+                <div class="dense-collapsible-body">
             <div class="top-gap">
                 <div class="panel panel-soft-gold">
                     <div class="section-kicker">Draft Flow</div>
@@ -888,6 +892,9 @@
             </div>
         </div>
 
+                </div>
+            </details>
+
         <div class="panel panel-soft-green top-gap">
             <div class="section-kicker">Draft Tendency</div>
             <h3>Ban Rate In Relation To Protects</h3>
@@ -899,77 +906,59 @@
                 {% endif %}
             </p>
             {% if enemy_analytics.ban_protect_rows %}
-                <div class="table-wrap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Hero</th>
-                                <th>Ban Rate</th>
-                                <th>Protect Rate</th>
-                                <th>Win Rate (Banned)</th>
-                                <th>Win Rate (Protected)</th>
-                                <th>Win Rate Gap</th>
-                                <th>Impact (Delta)</th>
-                                <th>Protected Delta</th>
-                                <th>Gap</th>
-                                <th>Tendency</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in enemy_analytics.ban_protect_rows %}
-                                <tr>
-                                    <td>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                            <span>{{ hero_display_name(row.hero) }}</span>
-                                        </span>
-                                    </td>
-                                    <td>{{ row.ban_rate }}%</td>
-                                    <td>{{ row.protect_rate }}%</td>
-                                    <td>{% if row.ban_count %}{{ row.ban_win_rate }}%{% else %}--{% endif %}</td>
-                                    <td>{% if row.protect_count %}{{ row.protect_win_rate }}%{% else %}--{% endif %}</td>
-                                    <td>{% if row.winrate_gap is not none %}{% if row.winrate_gap > 0 %}+{% endif %}{{ row.winrate_gap }}%{% else %}--{% endif %}</td>
-                                    <td>
-                                        {% if row.ban_count %}
-                                            {% if row.ban_delta > 0 %}
-                                                <span class="compare-tag compare-tag-positive">+{{ row.ban_delta }}%</span>
-                                            {% elif row.ban_delta < 0 %}
-                                                <span class="compare-tag compare-tag-negative">{{ row.ban_delta }}%</span>
-                                            {% else %}
-                                                <span class="compare-tag compare-tag-neutral">{{ row.ban_delta }}%</span>
-                                            {% endif %}
-                                        {% else %}
-                                            --
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if row.protect_count %}
-                                            {% if row.protect_delta > 0 %}
-                                                <span class="compare-tag compare-tag-positive">+{{ row.protect_delta }}%</span>
-                                            {% elif row.protect_delta < 0 %}
-                                                <span class="compare-tag compare-tag-negative">{{ row.protect_delta }}%</span>
-                                            {% else %}
-                                                <span class="compare-tag compare-tag-neutral">{{ row.protect_delta }}%</span>
-                                            {% endif %}
-                                        {% else %}
-                                            --
-                                        {% endif %}
-                                    </td>
-                                    <td>{% if row.rate_gap > 0 %}+{% endif %}{{ row.rate_gap }}%</td>
-                                    <td>
-                                        {% if row.leaning == 'Ban leaning' %}
-                                            <span class="compare-tag compare-tag-negative">Ban leaning</span>
-                                        {% elif row.leaning == 'Protect leaning' %}
-                                            <span class="compare-tag compare-tag-positive">Protect leaning</span>
-                                        {% else %}
-                                            <span class="compare-tag compare-tag-neutral">Balanced</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                {% call stats_table(['Hero', 'Ban Rate', 'Protect Rate', 'Win Rate (Banned)', 'Win Rate (Protected)', 'Win Rate Gap', 'Impact (Delta)', 'Protected Delta', 'Gap', 'Tendency']) %}
+                    {% for row in enemy_analytics.ban_protect_rows %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.ban_rate }}%</td>
+                            <td>{{ row.protect_rate }}%</td>
+                            <td>{% if row.ban_count %}{{ row.ban_win_rate }}%{% else %}--{% endif %}</td>
+                            <td>{% if row.protect_count %}{{ row.protect_win_rate }}%{% else %}--{% endif %}</td>
+                            <td>{% if row.winrate_gap is not none %}{% if row.winrate_gap > 0 %}+{% endif %}{{ row.winrate_gap }}%{% else %}--{% endif %}</td>
+                            <td>
+                                {% if row.ban_count %}
+                                    {% if row.ban_delta > 0 %}
+                                        <span class="compare-tag compare-tag-positive">+{{ row.ban_delta }}%</span>
+                                    {% elif row.ban_delta < 0 %}
+                                        <span class="compare-tag compare-tag-negative">{{ row.ban_delta }}%</span>
+                                    {% else %}
+                                        <span class="compare-tag compare-tag-neutral">{{ row.ban_delta }}%</span>
+                                    {% endif %}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.protect_count %}
+                                    {% if row.protect_delta > 0 %}
+                                        <span class="compare-tag compare-tag-positive">+{{ row.protect_delta }}%</span>
+                                    {% elif row.protect_delta < 0 %}
+                                        <span class="compare-tag compare-tag-negative">{{ row.protect_delta }}%</span>
+                                    {% else %}
+                                        <span class="compare-tag compare-tag-neutral">{{ row.protect_delta }}%</span>
+                                    {% endif %}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
+                            <td>{% if row.rate_gap > 0 %}+{% endif %}{{ row.rate_gap }}%</td>
+                            <td>
+                                {% if row.leaning == 'Ban leaning' %}
+                                    <span class="compare-tag compare-tag-negative">Ban leaning</span>
+                                {% elif row.leaning == 'Protect leaning' %}
+                                    <span class="compare-tag compare-tag-positive">Protect leaning</span>
+                                {% else %}
+                                    <span class="compare-tag compare-tag-neutral">Balanced</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% endcall %}
             {% else %}
                 <p class="empty-text">No ban/protect tendency data yet.</p>
             {% endif %}
@@ -980,43 +969,30 @@
             <h3>Ban Difference</h3>
             <p class="panel-intro">See whether the enemy team or main team is more likely to remove each hero in this matchup.</p>
             {% if enemy_analytics.ban_diff_rows %}
-                <div class="table-wrap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Hero</th>
-                                <th>Enemy Team Ban</th>
-                                <th>Main Team Ban</th>
-                                <th>Diff</th>
-                                <th>Edge</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in enemy_analytics.ban_diff_rows %}
-                                <tr>
-                                    <td>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                            <span>{{ hero_display_name(row.hero) }}</span>
-                                        </span>
-                                    </td>
-                                    <td>{{ row.our_rate }}%</td>
-                                    <td>{{ row.enemy_rate }}%</td>
-                                    <td>{% if row.rate_diff > 0 %}+{% endif %}{{ row.rate_diff }}%</td>
-                                    <td>
-                                        {% if row.rate_diff > 0 %}
-                                            <span class="compare-tag compare-tag-negative">Enemy team bans more</span>
-                                        {% elif row.rate_diff < 0 %}
-                                            <span class="compare-tag compare-tag-positive">Main team bans more</span>
-                                        {% else %}
-                                            <span class="compare-tag compare-tag-neutral">Even</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                {% call stats_table(['Hero', 'Enemy Team Ban', 'Main Team Ban', 'Diff', 'Edge']) %}
+                    {% for row in enemy_analytics.ban_diff_rows %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.our_rate }}%</td>
+                            <td>{{ row.enemy_rate }}%</td>
+                            <td>{% if row.rate_diff > 0 %}+{% endif %}{{ row.rate_diff }}%</td>
+                            <td>
+                                {% if row.rate_diff > 0 %}
+                                    <span class="compare-tag compare-tag-negative">Enemy team bans more</span>
+                                {% elif row.rate_diff < 0 %}
+                                    <span class="compare-tag compare-tag-positive">Main team bans more</span>
+                                {% else %}
+                                    <span class="compare-tag compare-tag-neutral">Even</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% endcall %}
             {% else %}
                 <p class="empty-text">No ban comparison data yet.</p>
             {% endif %}
@@ -1025,21 +1001,14 @@
 </div>
 
 <div class="tab-content tab-hidden" id="tab-comps">
-    <section class="panel">
-        <div class="section-kicker">Mirror Rates</div>
-        <h3>Mirror Drafts and Comps</h3>
-        <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Samples</th>
-                        <th>Mirror Count</th>
-                        <th>Mirror Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
+    <details class="dense-collapsible top-gap">
+        <summary>Additional Comp Benchmarks</summary>
+        <div class="dense-collapsible-body">
+            <section class="panel top-gap">
+                <div class="section-kicker">Mirror Rates</div>
+                <h3>Mirror Drafts and Comps</h3>
+                <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
+                {% call stats_table(['Type', 'Samples', 'Mirror Count', 'Mirror Rate'], extra_wrap_class='top-gap') %}
                     <tr>
                         <td>Draft (6 picks)</td>
                         <td>{{ enemy_analytics.mirror_rates.draft.samples }}</td>
@@ -1052,28 +1021,14 @@
                         <td>{{ enemy_analytics.mirror_rates.comp.mirror_count }}</td>
                         <td>{{ enemy_analytics.mirror_rates.comp.mirror_rate }}%</td>
                     </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
+                {% endcall %}
+            </section>
 
-    <section class="panel">
-        <div class="section-kicker">Comp Difference</div>
-        <h3>Comp Type Breakdown</h3>
-        <p class="panel-intro">How often each comp profile appears and performs — enemy team on the left, your team on the right.</p>
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Comp Type</th>
-                        <th>Enemy Maps</th>
-                        <th>Enemy Rate</th>
-                        <th>Our Maps</th>
-                        <th>Our Rate</th>
-                        <th>Our Win Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <section class="panel">
+                <div class="section-kicker">Comp Difference</div>
+                <h3>Comp Type Breakdown</h3>
+                <p class="panel-intro">How often each comp profile appears and performs — enemy team on the left, your team on the right.</p>
+                {% call stats_table(['Comp Type', 'Enemy Maps', 'Enemy Rate', 'Our Maps', 'Our Rate', 'Our Win Rate'], extra_wrap_class='top-gap') %}
                     <tr>
                         <td>Triple Support</td>
                         <td>{{ enemy_analytics.comp_difference.enemy_triple_support_count }}</td>
@@ -1098,38 +1053,28 @@
                         <td>{{ enemy_analytics.comp_difference.two_two_two_rate }}%</td>
                         <td>{% if enemy_analytics.comp_difference.two_two_two_count %}{{ enemy_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
                     </tr>
-                </tbody>
-            </table>
+                {% endcall %}
+            </section>
         </div>
-    </section>
+    </details>
 
     <section class="panel">
         <h3>Hero Win Rate</h3>
         {% if enemy_analytics.hero_rows %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Hero</th>
-                            <th>Hero Instances</th>
-                            <th>Win Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in enemy_analytics.hero_rows %}
-                            <tr>
-                                <td>
-                                    <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                        <span>{{ hero_display_name(row.hero) }}</span>
-                                    </span>
-                                </td>
-                                <td>{{ sample_warn(row.maps) }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Hero', 'Hero Instances', 'Win Rate']) %}
+                {% for row in enemy_analytics.hero_rows %}
+                    <tr>
+                        <td>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                            </span>
+                        </td>
+                        <td>{{ sample_warn(row.maps) }}</td>
+                        <td>{{ row.win_rate }}%</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No comp data yet.</p>
         {% endif %}
@@ -1142,52 +1087,40 @@
         <h3>Draft Correlation To Map (Skip Flags)</h3>
         <p class="panel-intro">If a hero is banned overwhelmingly often on a map, treat it as a likely skip for this matchup.</p>
         {% if enemy_analytics.map_draft_rows %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Map</th>
-                            <th>Most Banned</th>
-                            <th>Most Protected</th>
-                            <th>Recommendation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in enemy_analytics.map_draft_rows %}
-                            <tr>
-                                <td>{{ row.map_name }}</td>
-                                <td>
-                                    {% if row.top_ban_hero %}
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.top_ban_hero) }}" alt="{{ row.top_ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_ban_hero | urlencode }}'">
-                                            <span>{{ row.top_ban_hero }} ({{ row.top_ban_rate }}%)</span>
-                                        </span>
-                                    {% else %}
-                                        <span class="empty-text">No ban data</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if row.top_protect_hero %}
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.top_protect_hero) }}" alt="{{ row.top_protect_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect_hero | urlencode }}'">
-                                            <span>{{ row.top_protect_hero }} ({{ row.top_protect_rate }}%)</span>
-                                        </span>
-                                    {% else %}
-                                        <span class="empty-text">No protect data</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if row.skip_flag %}
-                                        <span class="compare-tag compare-tag-negative">{{ row.recommendation }}</span>
-                                    {% else %}
-                                        <span class="compare-tag compare-tag-positive">{{ row.recommendation }}</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Map', 'Most Banned', 'Most Protected', 'Recommendation']) %}
+                {% for row in enemy_analytics.map_draft_rows %}
+                    <tr>
+                        <td>{{ row.map_name }}</td>
+                        <td>
+                            {% if row.top_ban_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_ban_hero) }}" alt="{{ row.top_ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_ban_hero | urlencode }}'">
+                                    <span>{{ row.top_ban_hero }} ({{ row.top_ban_rate }}%)</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">No ban data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.top_protect_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_protect_hero) }}" alt="{{ row.top_protect_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect_hero | urlencode }}'">
+                                    <span>{{ row.top_protect_hero }} ({{ row.top_protect_rate }}%)</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">No protect data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.skip_flag %}
+                                <span class="compare-tag compare-tag-negative">{{ row.recommendation }}</span>
+                            {% else %}
+                                <span class="compare-tag compare-tag-positive">{{ row.recommendation }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No map draft correlation data yet.</p>
         {% endif %}
@@ -1201,30 +1134,17 @@
                 <div id="enemyChartTooltip" class="chart-tooltip" hidden></div>
             </div>
             <script id="enemyTimelineData" type="application/json">{{ enemy_timeline_points | tojson }}</script>
-            <div class="table-wrap top-gap">
-                <table class="stats-table stats-table-timeline">
-                    <thead>
-                        <tr>
-                            <th>Scrim</th>
-                            <th>Maps</th>
-                            <th>W-L</th>
-                            <th>Scrim Win Rate</th>
-                            <th>Cumulative Win Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for point in enemy_timeline_points %}
-                            <tr>
-                                <td>{{ point.label }}</td>
-                                <td>{{ point.maps }}</td>
-                                <td>{{ point.wins }}-{{ point.losses }}</td>
-                                <td>{{ point.scrim_win_rate }}%</td>
-                                <td>{{ point.cumulative_win_rate }}%</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Scrim', 'Maps', 'W-L', 'Scrim Win Rate', 'Cumulative Win Rate'], table_class='stats-table stats-table-timeline', extra_wrap_class='top-gap') %}
+                {% for point in enemy_timeline_points %}
+                    <tr>
+                        <td>{{ point.label }}</td>
+                        <td>{{ point.maps }}</td>
+                        <td>{{ point.wins }}-{{ point.losses }}</td>
+                        <td>{{ point.scrim_win_rate }}%</td>
+                        <td>{{ point.cumulative_win_rate }}%</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No timeline data yet. Add maps to scrims against this enemy team.</p>
         {% endif %}
@@ -1355,47 +1275,34 @@
             <button id="openPlayerModal" type="button" class="button-small">Add / Edit Player</button>
         </div>
         {% if players %}
-            <div class="table-wrap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th>Role</th>
-                            <th>Main Hero</th>
-                            <th>Notes</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for player in players %}
-                            <tr>
-                                <td>{{ player.name }}</td>
-                                <td>{{ player.role or '-' }}</td>
-                                <td>{{ player.main_hero or '-' }}</td>
-                                <td>{{ player.notes or '-' }}</td>
-                                <td>
-                                    <div class="inline-actions">
-                                        <button
-                                            type="button"
-                                            class="button-secondary button-small open-edit-enemy-player"
-                                            data-player-id="{{ player.id }}"
-                                            data-player-name="{{ player.name }}"
-                                            data-player-role="{{ player.role }}"
-                                            data-player-hero="{{ player.main_hero }}"
-                                            data-player-notes="{{ player.notes }}"
-                                        >
-                                            Edit
-                                        </button>
-                                        <form method="post" action="{{ url_for('delete_enemy_player', enemy_player_id=player.id) }}" onsubmit="return confirm('Remove this player?');">
-                                            <button type="submit" class="button-secondary button-small">Remove</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            {% call stats_table(['Player', 'Role', 'Main Hero', 'Notes', 'Actions']) %}
+                {% for player in players %}
+                    <tr>
+                        <td>{{ player.name }}</td>
+                        <td>{{ player.role or '-' }}</td>
+                        <td>{{ player.main_hero or '-' }}</td>
+                        <td>{{ player.notes or '-' }}</td>
+                        <td>
+                            <div class="inline-actions">
+                                <button
+                                    type="button"
+                                    class="button-secondary button-small open-edit-enemy-player"
+                                    data-player-id="{{ player.id }}"
+                                    data-player-name="{{ player.name }}"
+                                    data-player-role="{{ player.role }}"
+                                    data-player-hero="{{ player.main_hero }}"
+                                    data-player-notes="{{ player.notes }}"
+                                >
+                                    Edit
+                                </button>
+                                <form method="post" action="{{ url_for('delete_enemy_player', enemy_player_id=player.id) }}" onsubmit="return confirm('Remove this player?');">
+                                    <button type="submit" class="button-secondary button-small">Remove</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
         {% else %}
             <p class="empty-text">No players on this team yet.</p>
         {% endif %}

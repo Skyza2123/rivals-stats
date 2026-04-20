@@ -138,6 +138,9 @@
                                 <div class="pill pill-neutral">
                                     Winner: {{ map_winner_label }}
                                 </div>
+                                <div class="pill pill-neutral">
+                                    Type: {{ map_entry.get('map_type', 'Standard') }}
+                                </div>
                             </div>
                             <div class="map-card-bottom">
                                 <div class="map-card-title">{{ map_entry.map_name }}</div>
@@ -364,6 +367,15 @@
                         <option value="">Select a map</option>
                         {% for map_name in maps %}
                             <option value="{{ map_name }}">{{ map_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="map_type">Map Type</label>
+                    <select id="map_type" name="map_type" required>
+                        {% for map_type in map_types %}
+                            <option value="{{ map_type }}" {% if map_type == 'Standard' %}selected{% endif %}>{{ map_type }}</option>
                         {% endfor %}
                     </select>
                 </div>

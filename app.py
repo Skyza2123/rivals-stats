@@ -23,7 +23,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from data import (
     HEROES, HERO_ROLES, HERO_TRANSFORMATIONS, MAPS, MAP_IMAGES, MAP_SUBMAPS,
-    SIDES, RESULTS, EVENT_TYPES, ATTACK_DEFENSE_MAPS, MAP_MODES,
+    SIDES, RESULTS, EVENT_TYPES, ATTACK_DEFENSE_MAPS, MAP_MODES, MAP_TYPES,
 )
 
 app = Flask(__name__)
@@ -58,6 +58,14 @@ DB_PATH = _default_database_path()
 TEAM_LOGO_DIR = Path(app.static_folder) / "uploads" / "team_logos"
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
+DEFAULT_MAP_TYPE = "Standard"
+MAP_TYPE_ALIASES = {
+    "standard": "Standard",
+    "scrim": "Standard",
+    "ptw": "PTW",
+    "test": "Test",
+    "trial": "Test",
+}
 DRAFT_SLOT_ORDER = ("ban1", "protect1", "ban2", "ban3", "protect2", "ban4")
 PREDICTOR_INPUT_ORDER = (
     "t1_ban1",
@@ -373,6 +381,33 @@ def _is_password_configured() -> bool:
     return bool(SITE_PASSWORD or _get_stored_password_hash())
 
 
+def _current_auth_revision() -> str:
+    if SITE_PASSWORD:
+        raw_value = f"env:{SITE_PASSWORD}"
+    else:
+        stored_hash = _get_stored_password_hash()
+        if not stored_hash:
+            return ""
+        raw_value = f"db:{stored_hash}"
+    return hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
+
+
+def _is_session_authenticated() -> bool:
+    if not session.get("logged_in"):
+        return False
+    return session.get("auth_revision") == _current_auth_revision()
+
+
+def _mark_session_authenticated() -> None:
+    session["logged_in"] = True
+    session["auth_revision"] = _current_auth_revision()
+
+
+def _clear_auth_session() -> None:
+    session.pop("logged_in", None)
+    session.pop("auth_revision", None)
+
+
 def _normalize_next_path(default: str = "/") -> str:
     next_path = (request.values.get("next") or default).strip()
     if not next_path.startswith("/"):
@@ -389,7 +424,8 @@ def check_auth() -> None:
         return
     if not _is_password_configured():
         return redirect(url_for("setup_password", next=request.path))
-    if not session.get("logged_in"):
+    if not _is_session_authenticated():
+        _clear_auth_session()
         return redirect(url_for("login", next=request.path))
 
 
@@ -408,7 +444,7 @@ def login():
             password_is_valid = check_password_hash(stored_hash, pw)
 
         if password_is_valid:
-            session["logged_in"] = True
+            _mark_session_authenticated()
             next_url = _normalize_next_path()
             return redirect(next_url)
         flash("Incorrect password.", "error")
@@ -444,7 +480,7 @@ def setup_password():
             )
             get_db().commit()
             if result.rowcount == 1:
-                session["logged_in"] = True
+                _mark_session_authenticated()
                 return redirect(_normalize_next_path())
             flash("Password has already been set. Please sign in.", "error")
             return redirect(url_for("login", next=_normalize_next_path()))
@@ -459,7 +495,7 @@ def setup_password():
 
 @app.route("/logout")
 def logout():
-    session.pop("logged_in", None)
+    _clear_auth_session()
     return redirect(url_for("login"))
 
 
@@ -2654,6 +2690,19 @@ def build_comp_slot_player_order(player_pool: list[dict], slot_count: int = 6) -
     return selected
 
 
+def team_has_duplicate_heroes(team_slots: list[dict]) -> bool:
+    seen: set[str] = set()
+    for slot in team_slots:
+        hero = str((slot or {}).get("hero", "")).strip()
+        if not hero:
+            continue
+        hero_key = hero.lower()
+        if hero_key in seen:
+            return True
+        seen.add(hero_key)
+    return False
+
+
 def parse_team_id(raw_team_id: str) -> int | None:
     value = (raw_team_id or "").strip()
     if not value:
@@ -2756,6 +2805,7 @@ def build_match_map_entry_from_form() -> dict:
     global NEXT_MAP_ID
 
     map_name = request.form.get("map_name", "").strip()
+    map_type = normalize_map_type_value(request.form.get("map_type", ""))
     result = request.form.get("result", "").strip()
     if result not in RESULTS:
         result = ""
@@ -2787,6 +2837,7 @@ def build_match_map_entry_from_form() -> dict:
     map_entry = {
         "id": NEXT_MAP_ID,
         "map_name": map_name,
+        "map_type": map_type,
         "side": "",
         "our_team_slot": our_team_slot,
         "result": result,
@@ -2804,6 +2855,8 @@ def build_match_map_entry_from_form() -> dict:
 def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_tournament: bool, tournament_record: dict | None = None) -> dict:
     if map_entry.get("our_team_slot") not in TEAM_SLOTS:
         map_entry["our_team_slot"] = "team1"
+    if map_entry.get("map_type") not in MAP_TYPES:
+        map_entry["map_type"] = DEFAULT_MAP_TYPE
 
     if "comp" not in map_entry or isinstance(map_entry["comp"], dict):
         old = map_entry.get("comp", {})
@@ -8141,6 +8194,33 @@ _CSV_R_TH_RES  = 31
 _CSV_R_TH_H    = slice(32, 38)   # Tank,Tank,DPS,DPS,Supp,Supp (them)
 _CSV_MIN_COLS  = 38
 
+_TEMPLATE_CSV_REPLAY_CODE = 1
+_TEMPLATE_CSV_MAP_TYPE = 2
+_TEMPLATE_CSV_TEAM1 = 3
+_TEMPLATE_CSV_TEAM2 = 4
+_TEMPLATE_CSV_MAP = 5
+_TEMPLATE_CSV_DATE = 6
+_TEMPLATE_CSV_SEASON = 7
+_TEMPLATE_CSV_TEAM1_BAN1 = 8
+_TEMPLATE_CSV_TEAM1_BAN2 = 9
+_TEMPLATE_CSV_TEAM1_SAVE1 = 10
+_TEMPLATE_CSV_TEAM1_BAN3 = 11
+_TEMPLATE_CSV_TEAM1_SAVE2 = 12
+_TEMPLATE_CSV_TEAM1_BAN4 = 13
+_TEMPLATE_CSV_TEAM2_BAN1 = 14
+_TEMPLATE_CSV_TEAM2_SAVE1 = 15
+_TEMPLATE_CSV_TEAM2_BAN2 = 16
+_TEMPLATE_CSV_TEAM2_BAN3 = 17
+_TEMPLATE_CSV_TEAM2_BAN4 = 18
+_TEMPLATE_CSV_TEAM2_SAVE2 = 19
+_TEMPLATE_CSV_TEAM1_PLAYERS = ((20, 21), (22, 23), (24, 25), (26, 27), (28, 29), (30, 31))
+_TEMPLATE_CSV_TEAM2_PLAYERS = ((32, 33), (34, 35), (36, 37), (38, 39), (40, 41), (42, 43))
+_TEMPLATE_CSV_RESULT = 44
+_TEMPLATE_CSV_SCORE_TEAM1 = 45
+_TEMPLATE_CSV_SCORE_TEAM2 = 46
+_TEMPLATE_CSV_NOTE = 47
+_TEMPLATE_CSV_MIN_COLS = 48
+
 # Build a lookup: lowercase submap name → parent map name (e.g. "frozen airfield" → "Hell's Haven")
 _SUBMAP_PARENT: dict[str, str] = {}
 for _parent, _subs in MAP_SUBMAPS.items():
@@ -8153,6 +8233,43 @@ def _strip_bracket_hint(name: str) -> str:
     return re.sub(r"\s*\([^)]*\)\s*$", "", name).strip()
 
 
+def _team_name_match_keys(raw_value: str | None) -> set[str]:
+    normalized = (raw_value or "").strip().lower()
+    compact = _compact_text(normalized)
+    if not compact:
+        return set()
+
+    keys = {compact}
+    alias_groups = [
+        {"100t", "100thieves"},
+        {"swamp", "swampgaming"},
+    ]
+    for group in alias_groups:
+        if compact in group:
+            keys.update(group)
+
+    tokens = re.findall(r"[a-z0-9]+", normalized)
+    filtered_tokens = [
+        token for token in tokens
+        if token not in {"gaming", "esports", "esport", "team", "club"}
+    ]
+    if filtered_tokens:
+        keys.add("".join(filtered_tokens))
+
+    return {key for key in keys if key}
+
+
+def _team_names_match(left: str | None, right: str | None) -> bool:
+    left_keys = _team_name_match_keys(left)
+    right_keys = _team_name_match_keys(right)
+    return bool(left_keys and right_keys and left_keys.intersection(right_keys))
+
+
+def normalize_map_type_value(raw_value: str | None) -> str:
+    normalized = _compact_text(raw_value or "")
+    return MAP_TYPE_ALIASES.get(normalized, DEFAULT_MAP_TYPE)
+
+
 def _match_map_name(raw: str) -> str:
     """
     Try to find the closest canonical map name from MAPS for a raw string.
@@ -8160,14 +8277,43 @@ def _match_map_name(raw: str) -> str:
     """
     base = _strip_bracket_hint(raw)
     base_lower = base.lower()
+    compact = _compact_text(base)
+
+    alias_lookup = {
+        "hellsheaven": "Hell's Haven",
+        "hellshaven": "Hell's Haven",
+        "birnintchalla": "Birin T'Challa",
+        "birintchalla": "Birin T'Challa",
+        "celestialhusk": "Celestial",
+    }
+    aliased = alias_lookup.get(compact)
+    if aliased:
+        return aliased
+
     # Exact match
     for m in MAPS:
         if m.lower() == base_lower:
             return m
+    compact_map = {_compact_text(m): m for m in MAPS}
+    if compact in compact_map:
+        return compact_map[compact]
     # Prefix match: raw starts with canonical map name
     for m in sorted(MAPS, key=len, reverse=True):
         if base_lower.startswith(m.lower()):
             return m
+        compact_name = _compact_text(m)
+        if compact and compact_name and compact.startswith(compact_name):
+            return m
+
+    best_match = None
+    best_score = 0.0
+    for m in MAPS:
+        score = SequenceMatcher(None, compact, _compact_text(m)).ratio()
+        if score > best_score:
+            best_score = score
+            best_match = m
+    if best_match and best_score >= 0.74:
+        return best_match
     return base
 
 
@@ -8709,6 +8855,204 @@ def _parse_csv_into_scrims(
     return all_scrims, warnings
 
 
+def _parse_template_csv_into_scrims(
+    raw_text: str,
+    team_id: int | None,
+    team_name: str,
+) -> tuple[list[dict], list[str]]:
+    warnings: list[str] = []
+
+    reader = csv.reader(io.StringIO(raw_text))
+    rows = list(reader)
+    if not rows:
+        return [], ["CSV file is empty."]
+
+    data_rows = rows[1:]
+    selected_team_name = (team_name or "").strip()
+
+    from collections import OrderedDict
+    buckets: OrderedDict[tuple[str, str], list[list[str]]] = OrderedDict()
+
+    def _pad(row: list[str]) -> list[str]:
+        while len(row) < _TEMPLATE_CSV_MIN_COLS:
+            row.append("")
+        return row
+
+    def _cell(row: list[str], idx: int) -> str:
+        return row[idx].strip() if idx < len(row) else ""
+
+    def _build_team_comp(row: list[str], pairs: tuple[tuple[int, int], ...]) -> list[dict]:
+        slots: list[dict] = []
+        for player_idx, hero_idx in pairs:
+            slots.append(
+                {
+                    "player": _cell(row, player_idx),
+                    "hero": _cell(row, hero_idx),
+                }
+            )
+        return slots
+
+    def _result_for_selected_team(result_value: str, team1_name: str, team2_name: str, our_slot: str) -> str:
+        normalized = (result_value or "").strip().lower()
+        if not normalized:
+            return ""
+        if normalized in {"draw", "tie"}:
+            return ""
+        if normalized in {"win", "won"}:
+            return "Win"
+        if normalized in {"loss", "lost"}:
+            return "Loss"
+
+        team1_normalized = (team1_name or "").strip().lower()
+        team2_normalized = (team2_name or "").strip().lower()
+        if normalized == team1_normalized:
+            return "Win" if our_slot == "team1" else "Loss"
+        if normalized == team2_normalized:
+            return "Win" if our_slot == "team2" else "Loss"
+        return ""
+
+    for raw_row in data_rows:
+        if not any(cell.strip() for cell in raw_row):
+            continue
+        row = _pad(list(raw_row))
+
+        team1_name = _cell(row, _TEMPLATE_CSV_TEAM1)
+        team2_name = _cell(row, _TEMPLATE_CSV_TEAM2)
+        map_name = _cell(row, _TEMPLATE_CSV_MAP)
+        scrim_date = _cell(row, _TEMPLATE_CSV_DATE)
+
+        if not team1_name or not team2_name or not map_name or not scrim_date:
+            continue
+
+        if _team_names_match(team1_name, selected_team_name):
+            enemy_name = team2_name
+        elif _team_names_match(team2_name, selected_team_name):
+            enemy_name = team1_name
+        else:
+            warnings.append(f"Skipped row for {team1_name} vs {team2_name} on {scrim_date}: selected team not found in row.")
+            continue
+
+        buckets.setdefault((scrim_date, enemy_name), []).append(row)
+
+    if not buckets:
+        return [], warnings or ["No matching rows found for the selected team in CSV."]
+
+    all_scrims: list[dict] = []
+
+    for (scrim_date, enemy_name), bucket_rows in buckets.items():
+        maps: list[dict] = []
+        for row in bucket_rows:
+            team1_name = _cell(row, _TEMPLATE_CSV_TEAM1)
+            team2_name = _cell(row, _TEMPLATE_CSV_TEAM2)
+            canonical_map = _match_map_name(_cell(row, _TEMPLATE_CSV_MAP))
+            our_team_slot = "team1" if _team_names_match(team1_name, selected_team_name) else "team2"
+
+            team1_score = _cell(row, _TEMPLATE_CSV_SCORE_TEAM1)
+            team2_score = _cell(row, _TEMPLATE_CSV_SCORE_TEAM2)
+            score_text = build_score_text(team1_score, team2_score)
+            result_text = infer_result_from_score_text(score_text, slot=our_team_slot)
+            if not result_text:
+                result_text = _result_for_selected_team(_cell(row, _TEMPLATE_CSV_RESULT), team1_name, team2_name, our_team_slot)
+
+            draft = {
+                "team1": {
+                    "ban1": _cell(row, _TEMPLATE_CSV_TEAM1_BAN1),
+                    "ban2": _cell(row, _TEMPLATE_CSV_TEAM1_BAN2),
+                    "protect1": _cell(row, _TEMPLATE_CSV_TEAM1_SAVE1),
+                    "ban3": _cell(row, _TEMPLATE_CSV_TEAM1_BAN3),
+                    "protect2": _cell(row, _TEMPLATE_CSV_TEAM1_SAVE2),
+                    "ban4": _cell(row, _TEMPLATE_CSV_TEAM1_BAN4),
+                },
+                "team2": {
+                    "ban1": _cell(row, _TEMPLATE_CSV_TEAM2_BAN1),
+                    "ban2": _cell(row, _TEMPLATE_CSV_TEAM2_BAN2),
+                    "protect1": _cell(row, _TEMPLATE_CSV_TEAM2_SAVE1),
+                    "ban3": _cell(row, _TEMPLATE_CSV_TEAM2_BAN3),
+                    "protect2": _cell(row, _TEMPLATE_CSV_TEAM2_SAVE2),
+                    "ban4": _cell(row, _TEMPLATE_CSV_TEAM2_BAN4),
+                },
+            }
+
+            comp_sections = build_default_comp_sections(canonical_map)
+            if comp_sections:
+                comp_sections[0]["score"] = score_text
+                comp_sections[0]["team1"] = _build_team_comp(row, _TEMPLATE_CSV_TEAM1_PLAYERS)
+                comp_sections[0]["team2"] = _build_team_comp(row, _TEMPLATE_CSV_TEAM2_PLAYERS)
+
+            maps.append(
+                {
+                    "map_name": canonical_map,
+                    "map_type": normalize_map_type_value(_cell(row, _TEMPLATE_CSV_MAP_TYPE)),
+                    "side": "",
+                    "our_team_slot": our_team_slot,
+                    "result": result_text,
+                    "score": score_text,
+                    "draft": draft,
+                    "comp": comp_sections,
+                    "notes": _cell(row, _TEMPLATE_CSV_NOTE),
+                    "vod_url": "",
+                    "events": [],
+                    "team1_name": team1_name,
+                    "team2_name": team2_name,
+                }
+            )
+
+        if not maps:
+            continue
+
+        all_scrims.append(
+            {
+                "opponent": enemy_name,
+                "enemy_team": enemy_name,
+                "enemy_team_id": None,
+                "scrim_date": scrim_date,
+                "season": "",
+                "team_id": team_id,
+                "team_name": team_name,
+                "notes": "",
+                "maps": maps,
+            }
+        )
+
+    return all_scrims, warnings
+
+
+def parse_csv_into_scrims(
+    raw_text: str,
+    team_id: int | None,
+    team_name: str,
+) -> tuple[list[dict], list[str]]:
+    reader = csv.reader(io.StringIO(raw_text))
+    rows = list(reader)
+    if not rows:
+        return [], ["CSV file is empty."]
+
+    header = [cell.strip().lower() for cell in rows[0]]
+    is_template_csv = (
+        len(header) >= _TEMPLATE_CSV_MIN_COLS
+        and "replay code" in header
+        and "map type" in header
+        and "team 1" in header
+        and "team 2" in header
+        and "map" in header
+    )
+
+    if is_template_csv:
+        return _parse_template_csv_into_scrims(raw_text, team_id, team_name)
+    return _parse_csv_into_scrims(raw_text, team_id, team_name)
+
+
+def summarize_import_warnings(warnings: list[str], *, preview_count: int = 5) -> str:
+    if not warnings:
+        return ""
+    preview = warnings[:preview_count]
+    remaining = len(warnings) - len(preview)
+    message = " | ".join(preview)
+    if remaining > 0:
+        message += f" | {remaining} more warning(s)"
+    return message
+
+
 @app.route("/scrims/import-csv", methods=["POST"])
 def import_csv_scrims():
     global NEXT_SCRIM_ID, NEXT_MAP_ID
@@ -8743,10 +9087,11 @@ def import_csv_scrims():
             flash("Could not decode the CSV file. Make sure it is UTF-8 encoded.", "error")
             return redirect(url_for("scrims"))
 
-    parsed_scrims, warnings = _parse_csv_into_scrims(raw_text, team_id, team_name)
+    parsed_scrims, warnings = parse_csv_into_scrims(raw_text, team_id, team_name)
 
     if not parsed_scrims:
-        flash("No scrims could be imported from that CSV. " + " ".join(warnings), "error")
+        warning_summary = summarize_import_warnings(warnings)
+        flash("No scrims could be imported from that CSV. " + warning_summary, "error")
         return redirect(url_for("scrims"))
 
     # Try to match enemy team names to existing teams in the global team database
@@ -8755,7 +9100,10 @@ def import_csv_scrims():
     enemy_rows = db.execute(
         "SELECT id, name FROM teams WHERE id != ?", (team_id,)
     ).fetchall() if team_id else []
-    enemy_lookup = {r["name"].lower(): r["id"] for r in enemy_rows}
+    enemy_lookup: dict[str, int] = {}
+    for row in enemy_rows:
+        for key in _team_name_match_keys(row["name"]):
+            enemy_lookup.setdefault(key, row["id"])
 
     imported = 0
     for scrim in parsed_scrims:
@@ -8766,9 +9114,10 @@ def import_csv_scrims():
         NEXT_SCRIM_ID += 1
 
         # Try to match enemy team
-        ename_lower = scrim["enemy_team"].lower()
-        if ename_lower in enemy_lookup:
-            scrim["enemy_team_id"] = enemy_lookup[ename_lower]
+        for enemy_key in _team_name_match_keys(scrim["enemy_team"]):
+            if enemy_key in enemy_lookup:
+                scrim["enemy_team_id"] = enemy_lookup[enemy_key]
+                break
 
         for map_entry in scrim["maps"]:
             map_entry["id"] = NEXT_MAP_ID
@@ -8784,7 +9133,7 @@ def import_csv_scrims():
 
     msg = f"Imported {imported} scrim{'s' if imported != 1 else ''}."
     if warnings:
-        msg += " Warnings: " + " | ".join(warnings)
+        msg += " Warnings: " + summarize_import_warnings(warnings)
     flash(msg, "success")
     return redirect(url_for("scrims"))
 
@@ -9136,6 +9485,7 @@ def scrim_detail(scrim_id: int):
         "scrim_detail.html",
         scrim=scrim,
         maps=MAPS,
+        map_types=MAP_TYPES,
         map_images=MAP_IMAGES,
         map_submaps=MAP_SUBMAPS,
         sides=SIDES,
@@ -10502,6 +10852,9 @@ def update_comp(scrim_id: int, map_id: int):
                 hero = request.form.get(f"sec_{s}_{team}_hero_{i}", "").strip()
                 player = request.form.get(f"sec_{s}_{team}_player_{i}", "").strip()
                 sec[team].append({"hero": hero, "player": player})
+        if team_has_duplicate_heroes(sec["team1"]) or team_has_duplicate_heroes(sec["team2"]):
+            flash("Each team roster must use unique heroes in a section.", "error")
+            return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
         auto_assign_section_players_from_heroes(
             scrim,
             map_entry,
@@ -10541,6 +10894,9 @@ def update_tournament_comp(tournament_id: int, map_id: int):
                 hero = request.form.get(f"sec_{s}_{team}_hero_{i}", "").strip()
                 player = request.form.get(f"sec_{s}_{team}_player_{i}", "").strip()
                 sec[team].append({"hero": hero, "player": player})
+        if team_has_duplicate_heroes(sec["team1"]) or team_has_duplicate_heroes(sec["team2"]):
+            flash("Each team roster must use unique heroes in a section.", "error")
+            return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
         auto_assign_section_players_from_heroes(
             tournament_match,
             map_entry,
@@ -10595,6 +10951,10 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
             team_slots.append({"hero": hero, "player": player})
         section[team] = team_slots
 
+    if team_has_duplicate_heroes(section["team1"]) or team_has_duplicate_heroes(section["team2"]):
+        flash("Each team roster must use unique heroes in a section.", "error")
+        return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+
     auto_assign_section_players_from_heroes(
         scrim,
         map_entry,
@@ -10647,6 +11007,10 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
             player = request.form.get(f"{team}_player_{i}", "").strip()
             team_slots.append({"hero": hero, "player": player})
         section[team] = team_slots
+
+    if team_has_duplicate_heroes(section["team1"]) or team_has_duplicate_heroes(section["team2"]):
+        flash("Each team roster must use unique heroes in a section.", "error")
+        return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
     auto_assign_section_players_from_heroes(
         tournament_match,
