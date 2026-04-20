@@ -175,7 +175,7 @@ HERO_ROLES = {
         "Magneto", "Rogue", "Peni Parker", "Tankpool", "Thing", "Thor", "Venom",
     ]),
     "Duelist": sorted([
-        "Black Panther", "Black Widow", "Blade", "Daredevil",
+        "Black Cat","Black Panther", "Black Widow", "Blade", "Daredevil",
         "DpsPool", "Elsa Bloodstone", "Hawkeye", "Hela",
         "Human Torch", "Iron Fist", "Iron Man", "Magik", "Moon Knight",
         "Mr. Fantastic", "Namor", "Phoenix", "Psylocke", "Punisher",
@@ -192,6 +192,7 @@ HERO_ROLES = {
 HERO_TRANSFORMATIONS = {
     "Adam Warlock": ["/heroes/transformations/adam-warlock-headbig-0.webp"],
     "Angela": ["/heroes/transformations/angela-headbig-0.webp"],
+    "Black Cat": ["/heroes/transformations/black-cat-headbig-0.webp"],
     "Black Panther": ["/heroes/transformations/black-panther-headbig-0.webp"],
     "Black Widow": ["/heroes/transformations/black-widow-headbig-0.webp"],
     "Blade": ["/heroes/transformations/blade-headbig-0.webp"],
