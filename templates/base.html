@@ -105,6 +105,10 @@
                         <a href="{{ url_for('player_compare') }}" class="nav-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
                     </div>
                 </details>
+                {% set access_level = session.get('access_level', 'view') %}
+                <span class="access-badge {% if access_level == 'edit' %}access-badge-edit{% else %}access-badge-view{% endif %}">
+                    {{ 'EDIT MODE' if access_level == 'edit' else 'VIEW MODE' }}
+                </span>
                 <button type="button" id="themeToggle" class="nav-theme-toggle" aria-label="Toggle theme">Light</button>
                 <a href="{{ url_for('logout') }}" class="nav-link nav-link-logout">Logout</a>
             </nav>

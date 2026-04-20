@@ -334,6 +334,7 @@ def init_db() -> None:
             ("next_event_id", "1"),
             ("scrims_rev", "0"),
             ("site_password_hash", ""),
+            ("view_password_hash", ""),
         ):
             conn.execute(
                 "INSERT OR IGNORE INTO app_state (state_key, state_value) VALUES (?, ?)",
@@ -427,8 +428,19 @@ def load_app_state() -> None:
 
 
 SITE_PASSWORD = os.environ.get("SITE_PASSWORD", "").strip()
+EDIT_PASSWORD = os.environ.get("EDIT_PASSWORD", "").strip()
+VIEW_PASSWORD = os.environ.get("VIEW_PASSWORD", "").strip()
+AUTH_ROLES = {"view", "edit"}
 
 _AUTH_EXEMPT = {"/login", "/logout", "/setup-password"}
+
+
+def _is_write_request() -> bool:
+    return request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _is_edit_session() -> bool:
+    return session.get("access_level") == "edit"
 
 
 def _get_stored_password_hash() -> str:
@@ -441,34 +453,64 @@ def _get_stored_password_hash() -> str:
     return (row["state_value"] or "").strip()
 
 
+def _get_stored_view_password_hash() -> str:
+    row = get_db().execute(
+        "SELECT state_value FROM app_state WHERE state_key = ?",
+        ("view_password_hash",),
+    ).fetchone()
+    if not row:
+        return ""
+    return (row["state_value"] or "").strip()
+
+
+def _resolve_edit_password_secret() -> str:
+    if EDIT_PASSWORD:
+        return EDIT_PASSWORD
+    if SITE_PASSWORD:
+        return SITE_PASSWORD
+    return _get_stored_password_hash()
+
+
+def _resolve_view_password_secret() -> str:
+    if VIEW_PASSWORD:
+        return VIEW_PASSWORD
+    stored_view_hash = _get_stored_view_password_hash()
+    if stored_view_hash:
+        return stored_view_hash
+    # Backward compatibility: fall back to edit password when dedicated view password is unset.
+    return _resolve_edit_password_secret()
+
+
 def _is_password_configured() -> bool:
-    return bool(SITE_PASSWORD or _get_stored_password_hash())
+    return bool(_resolve_edit_password_secret())
 
 
 def _current_auth_revision() -> str:
-    if SITE_PASSWORD:
-        raw_value = f"env:{SITE_PASSWORD}"
-    else:
-        stored_hash = _get_stored_password_hash()
-        if not stored_hash:
-            return ""
-        raw_value = f"db:{stored_hash}"
+    edit_secret = _resolve_edit_password_secret()
+    view_secret = _resolve_view_password_secret()
+    if not edit_secret:
+        return ""
+    raw_value = f"edit:{edit_secret}|view:{view_secret}"
     return hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
 
 
 def _is_session_authenticated() -> bool:
     if not session.get("logged_in"):
         return False
+    if session.get("access_level") not in AUTH_ROLES:
+        return False
     return session.get("auth_revision") == _current_auth_revision()
 
 
-def _mark_session_authenticated() -> None:
+def _mark_session_authenticated(access_level: str) -> None:
     session["logged_in"] = True
+    session["access_level"] = access_level
     session["auth_revision"] = _current_auth_revision()
 
 
 def _clear_auth_session() -> None:
     session.pop("logged_in", None)
+    session.pop("access_level", None)
     session.pop("auth_revision", None)
 
 
@@ -491,6 +533,11 @@ def check_auth() -> None:
     if not _is_session_authenticated():
         _clear_auth_session()
         return redirect(url_for("login", next=request.path))
+    if _is_write_request() and not _is_edit_session():
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "error": "Edit access required"}), 403
+        flash("Edit access required for changes. Sign in with edit access.", "error")
+        return redirect(url_for("login", next=request.path, role="edit"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -498,23 +545,44 @@ def login():
     if not _is_password_configured():
         return redirect(url_for("setup_password", next=_normalize_next_path()))
 
+    requested_role = (request.values.get("role") or "view").strip().lower()
+    if requested_role not in AUTH_ROLES:
+        requested_role = "view"
+
     if request.method == "POST":
         pw = request.form.get("password", "")
-        stored_hash = _get_stored_password_hash()
+        requested_role = (request.form.get("role") or "view").strip().lower()
+        if requested_role not in AUTH_ROLES:
+            requested_role = "view"
+
+        edit_secret = _resolve_edit_password_secret()
+        view_secret = _resolve_view_password_secret()
         password_is_valid = False
-        if SITE_PASSWORD:
-            password_is_valid = pw == SITE_PASSWORD
-        elif stored_hash:
-            password_is_valid = check_password_hash(stored_hash, pw)
+
+        if requested_role == "edit":
+            if EDIT_PASSWORD or SITE_PASSWORD:
+                password_is_valid = bool(edit_secret) and (pw == edit_secret)
+            else:
+                password_is_valid = bool(edit_secret) and check_password_hash(edit_secret, pw)
+        else:
+            if VIEW_PASSWORD:
+                password_is_valid = pw == VIEW_PASSWORD
+            elif _get_stored_view_password_hash():
+                password_is_valid = check_password_hash(view_secret, pw)
+            elif EDIT_PASSWORD or SITE_PASSWORD:
+                password_is_valid = bool(edit_secret) and (pw == edit_secret)
+            else:
+                password_is_valid = bool(edit_secret) and check_password_hash(edit_secret, pw)
 
         if password_is_valid:
-            _mark_session_authenticated()
+            _mark_session_authenticated(requested_role)
             next_url = _normalize_next_path()
             return redirect(next_url)
         flash("Incorrect password.", "error")
     return render_template(
         "login.html",
         next=_normalize_next_path(),
+        selected_role=requested_role,
         setup_mode=False,
         form_action=url_for("login"),
     )
@@ -522,29 +590,35 @@ def login():
 
 @app.route("/setup-password", methods=["GET", "POST"])
 def setup_password():
-    if SITE_PASSWORD:
+    if SITE_PASSWORD or EDIT_PASSWORD or VIEW_PASSWORD:
         return redirect(url_for("login", next=_normalize_next_path()))
 
     if _get_stored_password_hash():
         return redirect(url_for("login", next=_normalize_next_path()))
 
     if request.method == "POST":
-        pw = request.form.get("password", "")
-        confirm = request.form.get("confirm_password", "")
-        if not pw.strip():
-            flash("Password is required.", "error")
-        elif len(pw) < 8:
-            flash("Password must be at least 8 characters.", "error")
-        elif pw != confirm:
-            flash("Passwords do not match.", "error")
+        edit_pw = request.form.get("edit_password", "")
+        confirm_edit = request.form.get("confirm_edit_password", "")
+        view_pw = request.form.get("view_password", "")
+        confirm_view = request.form.get("confirm_view_password", "")
+        if not edit_pw.strip() or not view_pw.strip():
+            flash("Both edit and view passwords are required.", "error")
+        elif len(edit_pw) < 8 or len(view_pw) < 8:
+            flash("Passwords must be at least 8 characters.", "error")
+        elif edit_pw != confirm_edit or view_pw != confirm_view:
+            flash("Passwords do not match their confirmation.", "error")
         else:
-            result = get_db().execute(
+            edit_result = get_db().execute(
                 "UPDATE app_state SET state_value = ? WHERE state_key = ? AND state_value = ''",
-                (generate_password_hash(pw), "site_password_hash"),
+                (generate_password_hash(edit_pw), "site_password_hash"),
+            )
+            view_result = get_db().execute(
+                "UPDATE app_state SET state_value = ? WHERE state_key = ? AND state_value = ''",
+                (generate_password_hash(view_pw), "view_password_hash"),
             )
             get_db().commit()
-            if result.rowcount == 1:
-                _mark_session_authenticated()
+            if edit_result.rowcount == 1 and view_result.rowcount == 1:
+                _mark_session_authenticated("edit")
                 return redirect(_normalize_next_path())
             flash("Password has already been set. Please sign in.", "error")
             return redirect(url_for("login", next=_normalize_next_path()))

@@ -228,6 +228,29 @@ h5 {
     display: flex;
 }
 
+.access-badge {
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.access-badge-view {
+    color: #89c8ff;
+    background: rgba(34, 116, 255, 0.14);
+    border-color: rgba(113, 167, 255, 0.35);
+}
+
+.access-badge-edit {
+    color: #7dffca;
+    background: rgba(26, 162, 104, 0.16);
+    border-color: rgba(95, 225, 165, 0.35);
+}
+
 .nav-link-logout {
     margin-left: auto;
     color: #6e7681;
@@ -1294,6 +1317,11 @@ th {
 
     .nav-link {
         padding: 11px 14px;
+    }
+
+    .access-badge {
+        align-self: flex-start;
+        margin: 4px 0;
     }
 
     .topnav {

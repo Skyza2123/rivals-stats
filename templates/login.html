@@ -89,9 +89,9 @@
         <h1>Scrim Dashboard</h1>
         <p class="subtitle">
             {% if setup_mode %}
-                Set a password before using the dashboard.
+                Set separate passwords for View and Edit access.
             {% else %}
-                Enter the password to continue.
+                Sign in as View (read-only) or Edit (can change data).
             {% endif %}
         </p>
 
@@ -103,11 +103,27 @@
 
         <form method="POST" action="{{ form_action }}">
             <input type="hidden" name="next" value="{{ next }}">
+            {% if not setup_mode %}
+            <label for="role">Access Level</label>
+            <select id="role" name="role" style="width:100%; box-sizing:border-box; background:#0d1117; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:#e6edf3; font-size:1rem; padding:0.6rem 0.8rem; margin-bottom:0.85rem;">
+                <option value="view" {% if selected_role == 'view' %}selected{% endif %}>View</option>
+                <option value="edit" {% if selected_role == 'edit' %}selected{% endif %}>Edit</option>
+            </select>
+            {% endif %}
+
+            {% if setup_mode %}
+            <label for="edit_password">Edit Password</label>
+            <input type="password" id="edit_password" name="edit_password" autofocus autocomplete="new-password">
+            <label for="confirm_edit_password" style="margin-top: 0.85rem;">Confirm Edit Password</label>
+            <input type="password" id="confirm_edit_password" name="confirm_edit_password" autocomplete="new-password">
+
+            <label for="view_password" style="margin-top: 0.85rem;">View Password</label>
+            <input type="password" id="view_password" name="view_password" autocomplete="new-password">
+            <label for="confirm_view_password" style="margin-top: 0.85rem;">Confirm View Password</label>
+            <input type="password" id="confirm_view_password" name="confirm_view_password" autocomplete="new-password">
+            {% else %}
             <label for="password">Password</label>
             <input type="password" id="password" name="password" autofocus autocomplete="{% if setup_mode %}new-password{% else %}current-password{% endif %}">
-            {% if setup_mode %}
-            <label for="confirm_password" style="margin-top: 0.85rem;">Confirm Password</label>
-            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password">
             {% endif %}
             <button type="submit">{% if setup_mode %}Set password{% else %}Sign in{% endif %}</button>
         </form>
