@@ -15,8 +15,10 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 from uuid import uuid4
-from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context, session
+from flask import Flask, render_template, request, redirect, url_for, abort, g, flash, jsonify, has_request_context, session, Response
 from markupsafe import Markup
 from werkzeug.datastructures import FileStorage
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -58,6 +60,7 @@ DB_PATH = _default_database_path()
 TEAM_LOGO_DIR = Path(app.static_folder) / "uploads" / "team_logos"
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
+TEAM_QUALITY_TAG_OPTIONS = ("Prefered", "Semi Prefer", "Good", "Avoid")
 DEFAULT_MAP_TYPE = "Standard"
 MAP_TYPE_ALIASES = {
     "standard": "Standard",
@@ -257,6 +260,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 notes TEXT NOT NULL DEFAULT '',
+                quality_tag TEXT NOT NULL DEFAULT '',
                 logo_path TEXT NOT NULL DEFAULT '',
                 is_personal INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -337,6 +341,8 @@ def init_db() -> None:
             )
 
         team_columns = {row[1] for row in conn.execute("PRAGMA table_info(teams)").fetchall()}
+        if "quality_tag" not in team_columns:
+            conn.execute("ALTER TABLE teams ADD COLUMN quality_tag TEXT NOT NULL DEFAULT ''")
         if "logo_path" not in team_columns:
             conn.execute("ALTER TABLE teams ADD COLUMN logo_path TEXT NOT NULL DEFAULT ''")
         if "is_personal" not in team_columns:
@@ -476,7 +482,7 @@ def _normalize_next_path(default: str = "/") -> str:
 @app.before_request
 def check_auth() -> None:
     """Require password setup/login before allowing access."""
-    if request.path.startswith("/static"):
+    if request.path.startswith("/static") or request.path.startswith("/hero-image"):
         return
     if request.path in _AUTH_EXEMPT:
         return
@@ -6834,7 +6840,7 @@ def teams():
     migrate_enemy_teams_to_team_database(db)
     team_rows = db.execute(
         """
-        SELECT t.id, t.name, t.notes, t.logo_path, t.is_personal, COUNT(p.id) AS player_count
+        SELECT t.id, t.name, t.notes, t.quality_tag, t.logo_path, t.is_personal, COUNT(p.id) AS player_count
         FROM teams t
         LEFT JOIN players p ON p.team_id = t.id
         GROUP BY t.id
@@ -6870,6 +6876,7 @@ def teams():
                 "id": row["id"],
                 "name": row["name"],
                 "notes": row["notes"],
+                "quality_tag": row["quality_tag"],
                 "logo_path": row["logo_path"],
                 "is_personal": bool(row["is_personal"]),
                 "player_count": row["player_count"],
@@ -7034,6 +7041,8 @@ def create_team():
     db = get_db()
     name = request.form.get("name", "").strip()
     notes = request.form.get("notes", "").strip()
+    quality_tag_raw = " ".join(request.form.get("quality_tag", "").strip().split())[:32]
+    quality_tag = quality_tag_raw if quality_tag_raw in TEAM_QUALITY_TAG_OPTIONS else ""
     logo_path = save_team_logo(request.files.get("logo"), name)
     is_personal = 1 if request.form.get("is_personal", "").strip() == "1" else 0
 
@@ -7043,8 +7052,8 @@ def create_team():
 
     try:
         db.execute(
-            "INSERT INTO teams (name, notes, logo_path, is_personal) VALUES (?, ?, ?, ?)",
-            (name, notes, logo_path, is_personal),
+            "INSERT INTO teams (name, notes, quality_tag, logo_path, is_personal) VALUES (?, ?, ?, ?, ?)",
+            (name, notes, quality_tag, logo_path, is_personal),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -7064,6 +7073,8 @@ def edit_team(team_id: int):
 
     name = request.form.get("name", "").strip()
     notes = request.form.get("notes", "").strip()
+    quality_tag_raw = " ".join(request.form.get("quality_tag", "").strip().split())[:32]
+    quality_tag = quality_tag_raw if quality_tag_raw in TEAM_QUALITY_TAG_OPTIONS else ""
     remove_logo = request.form.get("remove_logo", "").strip() == "1"
     new_logo_path = save_team_logo(request.files.get("logo"), name)
     raw_personal = request.form.get("is_personal")
@@ -7086,8 +7097,8 @@ def edit_team(team_id: int):
             logo_path = ""
             delete_team_logo_file(current_logo_path)
         db.execute(
-            "UPDATE teams SET name = ?, notes = ?, logo_path = ?, is_personal = ? WHERE id = ?",
-            (name, notes, logo_path, is_personal, team_id),
+            "UPDATE teams SET name = ?, notes = ?, quality_tag = ?, logo_path = ?, is_personal = ? WHERE id = ?",
+            (name, notes, quality_tag, logo_path, is_personal, team_id),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -9048,13 +9059,78 @@ def _resolve_hero_transform_key(hero_name: str) -> str | None:
 
 
 def _hero_image_url(hero_name: str) -> str:
+    safe_name = (hero_name or "Hero").strip() or "Hero"
+    return f"/hero-image/{quote(safe_name[:80], safe='')}"
+
+
+HERO_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24
+_HERO_IMAGE_CACHE: dict[str, tuple[float, bytes, str]] = {}
+
+
+def _hero_image_candidate_urls(hero_name: str) -> list[str]:
     transform_key = _resolve_hero_transform_key(hero_name)
+    candidates: list[str] = []
+
     if transform_key:
         images = HERO_TRANSFORMATIONS.get(transform_key) or []
         if images:
-            return f"https://marvelrivalsapi.com/rivals{images[0]}"
-    safe_text = quote((hero_name or "Hero")[:24])
-    return f"https://via.placeholder.com/80/111827/e6edf3?text={safe_text}"
+            filename = Path(images[0]).name
+            dotgg_filename = re.sub(r"-\d+(?=\.webp$)", "", filename)
+            candidates.append(f"https://static.dotgg.gg/rivals/characters/{dotgg_filename}")
+
+    return candidates
+
+
+def _hero_image_placeholder_svg(hero_name: str) -> str:
+    text = (hero_name or "Hero").strip()[:24] or "Hero"
+    return (
+        "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'>"
+        "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0%' stop-color='#111827'/><stop offset='100%' stop-color='#1f2937'/></linearGradient></defs>"
+        "<rect width='80' height='80' fill='url(#g)' rx='10'/>"
+        f"<text x='40' y='44' text-anchor='middle' font-size='11' font-family='Arial, sans-serif' fill='#e6edf3'>{text}</text>"
+        "</svg>"
+    )
+
+
+@app.route("/hero-image/<path:hero_name>")
+def hero_image_proxy(hero_name: str):
+    requested = (hero_name or "").strip() or "Hero"
+    cache_key = _resolve_hero_transform_key(requested) or requested
+    now = time.time()
+    cached = _HERO_IMAGE_CACHE.get(cache_key)
+    if cached and (now - cached[0]) < HERO_IMAGE_CACHE_TTL_SECONDS:
+        return Response(
+            cached[1],
+            mimetype=cached[2],
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    for image_url in _hero_image_candidate_urls(requested):
+        try:
+            remote_request = Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(remote_request, timeout=4) as remote_response:
+                content_type = remote_response.headers.get_content_type() or "image/webp"
+                if not content_type.startswith("image/"):
+                    continue
+                payload = remote_response.read()
+                if not payload:
+                    continue
+                _HERO_IMAGE_CACHE[cache_key] = (now, payload, content_type)
+                return Response(
+                    payload,
+                    mimetype=content_type,
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+        except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+            continue
+
+    placeholder = _hero_image_placeholder_svg(requested).encode("utf-8")
+    return Response(
+        placeholder,
+        mimetype="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 def _hero_pool_label(hero_name: str) -> str:

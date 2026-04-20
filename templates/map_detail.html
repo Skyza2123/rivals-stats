@@ -80,7 +80,7 @@
                 <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
                     <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
                     {% if hero and hero in hero_transformations %}
-                    <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                    <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
                     {% endif %}
                     <span class="slot-hero-name">{{ hero or '---' }}</span>
                 </div>
@@ -95,7 +95,7 @@
                 <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
                     <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
                     {% if hero and hero in hero_transformations %}
-                    <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                    <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
                     {% endif %}
                     <span class="slot-hero-name">{{ hero or '---' }}</span>
                 </div>
@@ -125,7 +125,7 @@
                     {% for entry in sec.team1 %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
                         {% if entry.hero and entry.hero in hero_transformations %}
-                        <div class="comp-hero-img"><img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}"></div>
+                        <div class="comp-hero-img"><img src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}"></div>
                         {% else %}
                         <div class="comp-hero-img comp-empty"></div>
                         {% endif %}
@@ -143,7 +143,7 @@
                     {% for entry in sec.team2 %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
                         {% if entry.hero and entry.hero in hero_transformations %}
-                        <div class="comp-hero-img"><img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}"></div>
+                        <div class="comp-hero-img"><img src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}"></div>
                         {% else %}
                         <div class="comp-hero-img comp-empty"></div>
                         {% endif %}
@@ -334,7 +334,7 @@
                              data-player-slot="team1_player_{{ i }}"
                              onclick="activateCompSlot(this)">
                             {% if entry.hero and entry.hero in hero_transformations %}
-                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
+                            <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
                             <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Click slot to assign player' }}</span>
@@ -355,7 +355,7 @@
                              data-player-slot="team2_player_{{ i }}"
                              onclick="activateCompSlot(this)">
                             {% if entry.hero and entry.hero in hero_transformations %}
-                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[entry.hero][0] }}" alt="{{ entry.hero }}" loading="lazy"></div>
+                            <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
                             <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Click slot to assign player' }}</span>
@@ -405,7 +405,7 @@
                                 onclick="pickCompHero(this)"
                                 title="{{ hero_display_name(hero) }}">
                             <div class="hero-img-wrap">
-                                <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                                <img src="{{ hero_image_url(hero) }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
                             <span class="hero-pick-name {% if hero in ['Tankpool', 'DpsPool', 'SupportPool'] %}pool-name-hidden{% endif %}">{{ hero_display_name(hero) }}</span>
@@ -445,7 +445,7 @@
                         <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="team1_{{ slot_key }}" onclick="activateDraftSlot(this)">
                             <span class="slot-label {{ 'protect-label' if 'protect' in slot_key else 'ban-label' }}">{{ slot_label }}</span>
                             {% if hero and hero in hero_transformations %}
-                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                            <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
                             {% endif %}
                             <span class="slot-hero">{{ hero or '—' }}</span>
                             <input type="hidden" name="team1_{{ slot_key }}" value="{{ hero }}">
@@ -461,7 +461,7 @@
                         <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="team2_{{ slot_key }}" onclick="activateDraftSlot(this)">
                             <span class="slot-label {{ 'protect-label' if 'protect' in slot_key else 'ban-label' }}">{{ slot_label }}</span>
                             {% if hero and hero in hero_transformations %}
-                            <div class="slot-img-wrap"><img class="slot-img" src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}" alt="{{ hero }}"></div>
+                            <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
                             {% endif %}
                             <span class="slot-hero">{{ hero or '—' }}</span>
                             <input type="hidden" name="team2_{{ slot_key }}" value="{{ hero }}">
@@ -482,7 +482,7 @@
                         <button type="button" class="hero-pick-btn draft-hero-btn" data-hero="{{ hero }}"
                                 onclick="pickDraftHero(this)" title="{{ hero_display_name(hero) }}">
                             <div class="hero-img-wrap">
-                                <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                                <img src="{{ hero_image_url(hero) }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
                             <span class="hero-pick-name {% if hero in ['Tankpool', 'DpsPool', 'SupportPool'] %}pool-name-hidden{% endif %}">{{ hero_display_name(hero) }}</span>
@@ -1445,3 +1445,4 @@ function copyPreviousCompSection(sectionIndex) {
 
 </script>
 {% endblock %}
+

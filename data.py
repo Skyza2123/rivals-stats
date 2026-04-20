@@ -60,6 +60,7 @@ MAPS = sorted([
     "Heart of Heaven",
     "Hell's Haven",
     "Krakoa",
+    "Lower Manhattan",
     "Midtown",
     "Museum of Contemplation",
     "Royal Palace",
@@ -94,6 +95,7 @@ MAP_MODES = {
     "Symbiotic Surface": "Hybrid",
     "Shin-Shibuya": "Hybrid",
     "Heart of Heaven": "Hybrid",
+    "Lower Manhattan": "Hybrid",
 }
 
 ATTACK_DEFENSE_MAPS = {
@@ -150,7 +152,8 @@ MAP_IMAGES = {
     "Symbiotic Surface": "https://marvelrivalsapi.com/rivals/maps/large/map_1290.png",
     "Throne of Knull": "https://marvelrivalsapi.com/rivals/maps/large/map_1320.png",
     "Yggdrasill Path": "https://marvelrivalsapi.com/rivals/maps/large/map_1231.png",
-    "Museum of Contemplation": "https://marvelrivalsapi.com/rivals/maps/large/map_1413.png",
+    "Museum of Contemplation": "https://static.wikia.nocookie.net/marvel-rivals/images/7/75/Museum_of_Contemplation_Map.png/revision/latest?cb=20260129210235",
+    "Lower Manhattan": "https://static.wikia.nocookie.net/marvel-rivals/images/3/3e/Lower_Manhattan_Map.png/revision/latest?cb=20260402122249",
     # Submaps
     "Frozen Airfield": "https://marvelrivalsapi.com/rivals/maps/large/map_1243.png",
     "Super-Soldier Factory": "https://marvelrivalsapi.com/rivals/maps/large/map_1244.png",

@@ -189,7 +189,7 @@
                         onclick="pickHero(this)"
                     title="{{ hero_display_name(hero) }}{% if hero_pool_label(hero) %} ({{ hero_pool_label(hero) }}){% endif %}">
                     <div class="hero-img-wrap">
-                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                        <img src="{{ hero_image_url(hero) }}"
                              alt="{{ hero }}" loading="lazy">
                         {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
                         {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
@@ -261,7 +261,7 @@
                         onclick="pickHero(this)"
                     title="{{ hero_display_name(hero) }}{% if hero_pool_label(hero) %} ({{ hero_pool_label(hero) }}){% endif %}">
                     <div class="hero-img-wrap">
-                        <img src="https://marvelrivalsapi.com/rivals{{ hero_transformations[hero][0] }}"
+                        <img src="{{ hero_image_url(hero) }}"
                              alt="{{ hero }}" loading="lazy">
                         {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
                         {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}

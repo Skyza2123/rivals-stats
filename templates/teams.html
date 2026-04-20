@@ -87,6 +87,9 @@
                                 alt="{{ team.name }} logo"
                             >
                             <div class="team-dash-title">{{ team.name }}</div>
+                            {% if team.quality_tag %}
+                                <div class="muted-label">Quality: {{ team.quality_tag }}</div>
+                            {% endif %}
                             <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
                             <div class="team-dash-stats">
                                 <span>{{ team.scrim_count }} scrims</span>
@@ -126,6 +129,9 @@
                                 alt="{{ team.name }} logo"
                             >
                             <div class="team-dash-title">{{ team.name }}</div>
+                            {% if team.quality_tag %}
+                                <div class="muted-label">Quality: {{ team.quality_tag }}</div>
+                            {% endif %}
                             <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
                             <div class="team-dash-stats">
                                 <span>{{ team.scrim_count }} scrims</span>
@@ -166,6 +172,16 @@
             <div class="field">
                 <label for="modal_team_notes">Notes</label>
                 <input id="modal_team_notes" name="notes" type="text" placeholder="Optional context">
+            </div>
+            <div class="field">
+                <label for="modal_team_quality_tag">Quality Tag</label>
+                <select id="modal_team_quality_tag" name="quality_tag">
+                    <option value="">Select quality</option>
+                    <option value="Prefered">Prefered</option>
+                    <option value="Semi Prefer">Semi Prefer</option>
+                    <option value="Good">Good</option>
+                    <option value="Avoid">Avoid</option>
+                </select>
             </div>
             <div class="field field-full">
                 <label>

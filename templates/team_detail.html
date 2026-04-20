@@ -11,6 +11,9 @@
         <div>
             <h2>{{ team.name }}</h2>
             <div class="team-kpi-chips gap-md">
+                {% if team.quality_tag %}
+                    <span class="team-kpi-chip">Quality: {{ team.quality_tag }}</span>
+                {% endif %}
                 <span class="team-kpi-chip">{{ team_scrim_count }} scrims</span>
                 <span class="team-kpi-chip">{{ team_analytics.summary.total_maps }} maps</span>
                 <span class="team-kpi-chip">{{ team_analytics.summary.overall_win_rate }}% win rate</span>
@@ -2037,6 +2040,16 @@
             <div class="field">
                 <label for="team_notes">Team Notes</label>
                 <input id="team_notes" name="notes" type="text" value="{{ team.notes }}">
+            </div>
+            <div class="field">
+                <label for="team_quality_tag">Quality Tag</label>
+                <select id="team_quality_tag" name="quality_tag">
+                    <option value="" {% if not team.quality_tag %}selected{% endif %}>Select quality</option>
+                    <option value="Preferred" {% if team.quality_tag == 'Preferred' %}selected{% endif %}>Preferred</option>
+                    <option value="Semi Preferred" {% if team.quality_tag == 'Semi Preferred' %}selected{% endif %}>Semi Preferred</option>
+                    <option value="Good" {% if team.quality_tag == 'Good' %}selected{% endif %}>Good</option>
+                    <option value="Avoid" {% if team.quality_tag == 'Avoid' %}selected{% endif %}>Avoid</option>
+                </select>
             </div>
             <div class="field field-full">
                 <label>
