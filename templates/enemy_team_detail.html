@@ -4,16 +4,21 @@
 {% block title %}{{ enemy_team.name }}{% endblock %}
 
 {% block content %}
-<div class="team-hero">
+<div class="team-hero gap-lg">
     <div class="team-hero-left">
         <img class="team-avatar" src="{{ url_for('static', filename=enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ enemy_team.name }}">
         <div>
             <h2>{{ enemy_team.name }}</h2>
-            <p class="team-record-line">
+            <div class="team-kpi-chips gap-md">
+                <span class="team-kpi-chip">{{ enemy_scrim_count }} scrims</span>
+                <span class="team-kpi-chip">{{ enemy_analytics.summary.total_maps }} maps</span>
+                <span class="team-kpi-chip">{{ enemy_analytics.summary.overall_win_rate }}% win rate</span>
+            </div>
+            <p class="team-record-line muted-label">
                 Record vs {{ main_team.name }}: {{ enemy_analytics.summary.total_wins }}W - {{ enemy_analytics.summary.total_losses }}L
                 &bull; {{ enemy_analytics.summary.overall_win_rate }}% Win Rate
             </p>
-            <p>
+            <p class="muted-label">
                 {{ enemy_team.notes or 'No team notes yet.' }}
                 &bull;
                 {% if selected_season == 'all' %}
@@ -26,9 +31,9 @@
             </p>
         </div>
     </div>
-    <div class="header-actions team-hero-actions">
-        <form method="GET" action="{{ url_for('enemy_team_detail', enemy_team_id=enemy_team.id) }}" style="display:contents">
-            <select name="season" aria-label="Season filter" class="team-range-select" onchange="this.form.submit()">
+    <div class="header-actions team-hero-actions gap-md">
+        <form method="GET" action="{{ url_for('enemy_team_detail', enemy_team_id=enemy_team.id) }}" class="form-contents">
+            <select name="season" aria-label="Season filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
                 <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
                 {% if has_unseasoned_scrims %}
                     <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
@@ -39,18 +44,30 @@
             </select>
         </form>
         <a href="{{ url_for('team_detail', team_id=main_team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=main_team.id) }}" class="button-secondary">Back to {{ main_team.name }}</a>
-        <form method="post" action="{{ url_for('delete_enemy_team', enemy_team_id=enemy_team.id) }}" onsubmit="return confirm('Delete this enemy team and all players?');">
-            <button type="submit" class="button-secondary">Delete Team</button>
-        </form>
     </div>
 </div>
 
-<div class="tab-bar">
-    <button class="tab-btn tab-active" data-tab="bans" type="button">Bans</button>
-    <button class="tab-btn" data-tab="comps" type="button">Comps</button>
-    <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
-    <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+<div class="section-divider"></div>
+
+<div class="team-page-tabs">
+    <div class="tab-bar">
+        <button class="tab-btn tab-active" data-tab="bans" type="button">Bans</button>
+        <button class="tab-btn" data-tab="comps" type="button">Comps</button>
+        <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
+        <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+    </div>
 </div>
+
+<details class="dense-collapsible top-gap">
+    <summary>Advanced Team Actions</summary>
+    <div class="dense-collapsible-body">
+        <div class="header-actions">
+            <form method="post" action="{{ url_for('delete_enemy_team', enemy_team_id=enemy_team.id) }}" onsubmit="return confirm('Delete this enemy team and all players?');">
+                <button type="submit" class="button-secondary">Delete Team</button>
+            </form>
+        </div>
+    </div>
+</details>
 
 <div class="tab-content" id="tab-bans">
     <section class="panel">
@@ -98,6 +115,72 @@
                     <span class="ban-kpi-label">Draft Heroes Touched</span>
                     <strong class="ban-kpi-value">{{ enemy_analytics.summary.unique_bans + enemy_analytics.summary.unique_protects }}</strong>
                     <span class="ban-kpi-sub">Unique heroes in bans/protects</span>
+                </article>
+            </div>
+
+            {% set enemy_ban_edge = enemy_analytics.ban_diff_rows[0] if enemy_analytics.ban_diff_rows else None %}
+            <div class="ban-intel-grid">
+                <article class="ban-intel-card">
+                    <h4>Top 5 Ban Priorities</h4>
+                    {% if enemy_analytics.ban_rows %}
+                        <div class="ban-intel-list">
+                            {% for row in enemy_analytics.ban_rows[:5] %}
+                                <div class="ban-intel-row">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ hero_display_name(row.hero) }}</span>
+                                    </span>
+                                    <small>{{ row.ban_rate }}%</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban priority data yet.</p>
+                    {% endif %}
+                </article>
+
+                <article class="ban-intel-card">
+                    <h4>Top 5 Protect Priorities</h4>
+                    {% if enemy_analytics.protect_rows %}
+                        <div class="ban-intel-list">
+                            {% for row in enemy_analytics.protect_rows[:5] %}
+                                <div class="ban-intel-row">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ hero_display_name(row.hero) }}</span>
+                                    </span>
+                                    <small>{{ row.protect_rate }}%</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect priority data yet.</p>
+                    {% endif %}
+                </article>
+
+                <article class="ban-intel-card">
+                    <h4>Matchup Read</h4>
+                    <div class="ban-intel-note">
+                        {% if enemy_ban_edge %}
+                            Biggest ban-gap hero is <strong>{{ hero_display_name(enemy_ban_edge.hero) }}</strong> at {% if enemy_ban_edge.rate_diff > 0 %}+{% endif %}{{ enemy_ban_edge.rate_diff }}% in this matchup.
+                        {% else %}
+                            Not enough ban-difference data yet.
+                        {% endif %}
+                    </div>
+                    <div class="ban-intel-note">
+                        {% if enemy_analytics.ban_phase_variation.main.signal == 'strong' %}
+                            <span class="compare-tag compare-tag-positive">Enemy ban slots vary strongly</span>
+                        {% elif enemy_analytics.ban_phase_variation.main.signal == 'moderate' %}
+                            <span class="compare-tag compare-tag-neutral">Enemy ban slots vary moderately</span>
+                        {% else %}
+                            <span class="compare-tag compare-tag-negative">Enemy ban slots are predictable</span>
+                        {% endif %}
+                    </div>
+                    <div class="ban-intel-note">
+                        {% if top_ban and top_protect %}
+                            Current enemy draft core: ban <strong>{{ hero_display_name(top_ban.hero) }}</strong>, protect <strong>{{ hero_display_name(top_protect.hero) }}</strong>.
+                        {% endif %}
+                    </div>
                 </article>
             </div>
 

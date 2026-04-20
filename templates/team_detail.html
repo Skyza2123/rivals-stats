@@ -4,16 +4,21 @@
 {% block title %}{{ team.name }}{% endblock %}
 
 {% block content %}
-<div class="team-hero">
+
+<div class="team-hero gap-lg">
     <div class="team-hero-left">
         <img class="team-avatar" src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
         <div>
             <h2>{{ team.name }}</h2>
-            <p class="team-record-line">
-                Overall Record: {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L
-                &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
-            </p>
-            <p>
+            <div class="team-kpi-chips gap-md">
+                <span class="team-kpi-chip">{{ team_scrim_count }} scrims</span>
+                <span class="team-kpi-chip">{{ team_analytics.summary.total_maps }} maps</span>
+                <span class="team-kpi-chip">{{ team_analytics.summary.overall_win_rate }}% win rate</span>
+            </div>
+            <div class="muted-label team-record-line">
+                {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
+            </div>
+            <div class="muted-label team-notes-line">
                 {{ team.notes or 'No team notes yet.' }}
                 &bull;
                 {% if selected_season == 'all' %}
@@ -23,12 +28,12 @@
                 {% else %}
                     {{ team_scrim_count }} scrims in Season {{ selected_season }} ({{ team_scrim_total_count }} total)
                 {% endif %}
-            </p>
+            </div>
         </div>
     </div>
-    <div class="header-actions team-hero-actions">
-        <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" style="display:contents">
-            <select name="season" aria-label="Season filter" class="team-range-select" onchange="this.form.submit()">
+    <div class="header-actions team-hero-actions gap-md">
+        <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" class="form-contents">
+            <select name="season" aria-label="Season filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
                 <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
                 {% if has_unseasoned_scrims %}
                     <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
@@ -37,36 +42,225 @@
                     <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
                 {% endfor %}
             </select>
+            <select name="map_type" aria-label="Map type filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
+                <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
+                {% for map_type in map_type_options %}
+                    <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
+                {% endfor %}
+            </select>
         </form>
         <a href="{{ url_for('teams') }}" class="button-secondary">Back to Teams</a>
-        <form method="post" action="{{ url_for('manual_db_save') }}">
-            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
-            <button type="submit" class="button-secondary">Manual Save</button>
-        </form>
-        <form method="post" action="{{ url_for('db_dump_json') }}">
-            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
-            <button type="submit" class="button-secondary">DB Dump JSON</button>
-        </form>
-        <form method="post" action="{{ url_for('db_restore_json') }}" enctype="multipart/form-data">
-            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
-            <input type="file" name="dump_file" accept=".json" required>
-            <button type="submit" class="button-secondary">Restore from JSON</button>
-        </form>
-        <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
-            <button type="submit" class="button-secondary">Delete Team</button>
-        </form>
     </div>
 </div>
 
-<div class="tab-bar">
-    <button class="tab-btn tab-active" data-tab="prep" type="button">Prep</button>
-    <button class="tab-btn" data-tab="bans" type="button">Bans</button>
-    <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
-    <button class="tab-btn" data-tab="comps" type="button">Comps</button>
-    <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
-    <button class="tab-btn" data-tab="maps" type="button">Map Stats</button>
-    <button class="tab-btn" data-tab="tournaments" type="button">Tournaments</button>
-    <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+<div class="section-divider"></div>
+
+<div class="team-page-tabs">
+    <div class="tab-bar tab-bar-group">
+        <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
+        <button class="tab-btn" data-tab="prep" type="button">Prep</button>
+        <button class="tab-btn" data-tab="maps" type="button">Maps</button>
+        <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
+        <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+        <button class="tab-btn" data-tab="bans" type="button">Bans</button>
+        <button class="tab-btn" data-tab="comps" type="button">Comps</button>
+        <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
+        <button class="tab-btn" data-tab="tournaments" type="button">Tournaments</button>
+        <button class="tab-btn" data-tab="summary" type="button">Summary</button>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-overview">
+    {% set overview_top_hero = hero_graph_rows[0] if hero_graph_rows else None %}
+    {% set overview_top_ban = team_analytics.ban_rows[0] if team_analytics.ban_rows else None %}
+    {% set overview_top_protect = team_analytics.protect_rows[0] if team_analytics.protect_rows else None %}
+    {% set overview_maps_by_playtime = team_map_cards | sort(attribute='maps', reverse=true) if team_map_cards else [] %}
+    {% set overview_best_map = overview_maps_by_playtime[0] if overview_maps_by_playtime else None %}
+    {% set overview_worst_map = (team_map_cards | sort(attribute='win_rate'))[0] if team_map_cards else None %}
+    {% set activity = namespace(wins=0, losses=0, active_days=[]) %}
+    {% for row in recent_map_visual_rows %}
+        {% if row.outcome == 'Win' %}{% set activity.wins = activity.wins + 1 %}{% endif %}
+        {% if row.outcome == 'Loss' %}{% set activity.losses = activity.losses + 1 %}{% endif %}
+        {% if row.scrim_date and row.scrim_date not in activity.active_days %}
+            {% set activity.active_days = activity.active_days + [row.scrim_date] %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="overview-surface">
+
+        <section class="panel overview-quick-panel">
+            <h3>Quick Stats</h3>
+            <div class="overview-quick-grid top-gap">
+                <article class="overview-quick-item">
+                    <span>Last {{ recent_map_visual_rows|length }} Maps</span>
+                    {% set recent_total = activity.wins + activity.losses %}
+                    <strong>{{ ((activity.wins / recent_total) * 100)|round(0, 'floor')|int if recent_total else 0 }}%</strong>
+                    <small>{{ activity.wins }}W - {{ activity.losses }}L</small>
+                </article>
+                <article class="overview-quick-item">
+                    <span>Best Map</span>
+                    <strong>{{ overview_best_map.map_name if overview_best_map else 'N/A' }}</strong>
+                    <small>{% if overview_best_map %}{{ overview_best_map.win_rate }}% WR{% else %}No data{% endif %}</small>
+                </article>
+                <article class="overview-quick-item">
+                    <span>Top Hero</span>
+                    <strong>{{ hero_display_name(overview_top_hero.hero) if overview_top_hero else 'N/A' }}</strong>
+                    <small>{% if overview_top_hero %}{{ overview_top_hero.usage_rate }}% usage{% else %}No data{% endif %}</small>
+                </article>
+                <article class="overview-quick-item">
+                    <span>Draft Identity</span>
+                    <strong>{{ hero_display_name(overview_top_ban.hero) if overview_top_ban else 'N/A' }}</strong>
+                    <small>{% if overview_top_ban %}Ban {{ overview_top_ban.ban_rate }}%{% else %}No data{% endif %}</small>
+                </article>
+            </div>
+        </section>
+
+        <div class="overview-main-grid top-gap">
+            <section class="panel overview-roster-panel">
+                <div class="panel-header-row">
+                    <h3>Team Roster</h3>
+                    <span class="muted-label">{{ players|length }} players</span>
+                </div>
+                {% if players %}
+                    <div class="overview-roster-bubbles top-gap">
+                        {% for player in players %}
+                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="overview-player-bubble-card">
+                                <span class="overview-player-bubble">{{ player.name[:2] | upper }}</span>
+                                <strong>{{ player.name }}</strong>
+                                <small>{{ player.role or 'No role' }}</small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">No players on roster yet.</p>
+                {% endif %}
+            </section>
+
+            <section class="panel overview-activity-panel">
+                <h3>Recent Activity</h3>
+                <div class="overview-activity-metrics top-gap">
+                    <article>
+                        <strong>{{ team_scrim_count }}</strong>
+                        <span>Total Scrims</span>
+                    </article>
+                    <article>
+                        <strong>{{ activity.active_days|length }}</strong>
+                        <span>Active Days</span>
+                    </article>
+                    <article>
+                        <strong>{{ recent_map_visual_rows|length }}</strong>
+                        <span>Recent Maps</span>
+                    </article>
+                </div>
+                {% if recent_map_visual_rows %}
+                    <div class="overview-activity-frame top-gap">
+                        <div class="overview-activity-months">
+                            <span>Oct</span>
+                            <span>Nov</span>
+                            <span>Dec</span>
+                            <span>Jan</span>
+                            <span>Feb</span>
+                            <span>Mar</span>
+                            <span>Apr</span>
+                        </div>
+                        <div class="overview-activity-grid-wrap">
+                            <div class="overview-activity-days">
+                                <span>Mon</span>
+                                <span>Wed</span>
+                                <span>Fri</span>
+                            </div>
+                            <div class="overview-activity-dots">
+                                {% for row in recent_map_visual_rows[:56] %}
+                                    <span class="overview-activity-dot {% if row.outcome == 'Win' %}overview-activity-dot-win{% elif row.outcome == 'Loss' %}overview-activity-dot-loss{% else %}overview-activity-dot-neutral{% endif %}" title="{{ row.scrim_date }} • {{ row.map_name }} • {{ row.outcome }}"></span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="overview-activity-legend">
+                            <span>Less</span>
+                            <i class="overview-activity-dot overview-activity-dot-neutral"></i>
+                            <i class="overview-activity-dot"></i>
+                            <i class="overview-activity-dot overview-activity-dot-win"></i>
+                            <i class="overview-activity-dot overview-activity-dot-win"></i>
+                            <span>More</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No recent activity data yet.</p>
+                {% endif %}
+            </section>
+        </div>
+
+        <div class="overview-bottom-grid top-gap">
+            <section class="panel">
+                <h3>Top Maps by Playtime</h3>
+                {% if overview_maps_by_playtime %}
+                    {% set top_maps_max = overview_maps_by_playtime[0].maps %}
+                    <div class="overview-list top-gap">
+                        {% for row in overview_maps_by_playtime[:5] %}
+                            <article class="overview-list-item">
+                                <div class="overview-list-head">
+                                    <strong>{{ row.map_name }}</strong>
+                                    <span>{{ row.maps }} maps</span>
+                                </div>
+                                <div class="quick-bar-track">
+                                    <span class="quick-bar-fill" style="--share: {{ ((row.maps / top_maps_max) * 100) if top_maps_max else 0 }}%"></span>
+                                </div>
+                                <small>{{ row.win_rate }}% WR • {{ row.mode }}</small>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">No map data available yet.</p>
+                {% endif %}
+            </section>
+
+            <section class="panel">
+                <h3>Strengths & Weaknesses</h3>
+                <div class="overview-strength-grid top-gap">
+                    <article class="overview-strength-card">
+                        <span class="compare-tag compare-tag-positive">Strength</span>
+                        <p>
+                            {% if team_analytics.summary.overall_win_rate >= 55 %}
+                                Team is running above target at {{ team_analytics.summary.overall_win_rate }}% win rate.
+                            {% elif overview_top_protect %}
+                                Protecting {{ hero_display_name(overview_top_protect.hero) }} is a consistent setup pattern ({{ overview_top_protect.protect_rate }}%).
+                            {% else %}
+                                Build consistency around your strongest map and repeatable draft openers.
+                            {% endif %}
+                        </p>
+                    </article>
+                    <article class="overview-strength-card">
+                        <span class="compare-tag compare-tag-negative">Weakness</span>
+                        <p>
+                            {% if overview_worst_map and overview_worst_map.win_rate < 45 %}
+                                {{ overview_worst_map.map_name }} is a pressure point at {{ overview_worst_map.win_rate }}% WR.
+                            {% elif overview_top_hero and overview_top_hero.usage_rate >= 30 %}
+                                Hero pool leans heavily on {{ hero_display_name(overview_top_hero.hero) }} ({{ overview_top_hero.usage_rate }}% usage).
+                            {% else %}
+                                Low sample in key segments can hide weak map-mode pockets.
+                            {% endif %}
+                        </p>
+                    </article>
+                </div>
+            </section>
+        </div>
+
+        <section class="panel top-gap">
+            <h3>Role Balance</h3>
+            <div class="overview-role-grid top-gap">
+                {% for role in player_roles %}
+                    {% set role_count = namespace(value=0) %}
+                    {% for player in players %}
+                        {% if player.role == role %}{% set role_count.value = role_count.value + 1 %}{% endif %}
+                    {% endfor %}
+                    <article class="overview-role-item">
+                        <strong>{{ role }}</strong>
+                        <span>{{ role_count.value }}</span>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
 </div>
 
 <div class="tab-content tab-hidden" id="tab-bans">
@@ -77,30 +271,22 @@
         <p class="panel-intro">
             Phase order: 1st Phase (each team bans once and protects once), 2nd Phase (each team takes two uninterrupted bans), 3rd Phase (each team protects, then takes one final ban).
         </p>
-        <div class="summary-grid">
-            <section class="stat-card">
-                <strong>Total Maps</strong>
-                <span>{{ team_analytics.summary.total_maps }}</span>
-            </section>
-            <section class="stat-card">
-                <strong>Overall Win Rate</strong>
-                <span>{{ team_analytics.summary.overall_win_rate }}%</span>
-            </section>
-            <section class="stat-card">
-                <strong>Unique Bans</strong>
-                <span>{{ team_analytics.summary.unique_bans }}</span>
-            </section>
-            <section class="stat-card">
-                <strong>Unique Protects</strong>
-                <span>{{ team_analytics.summary.unique_protects }}</span>
-            </section>
-        </div>
 
         {% if team_analytics.summary.total_maps > 0 %}
             {% set top_ban = team_analytics.ban_rows[0] if team_analytics.ban_rows else None %}
             {% set top_protect = team_analytics.protect_rows[0] if team_analytics.protect_rows else None %}
 
             <div class="ban-kpi-grid">
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Total Maps</span>
+                    <strong class="ban-kpi-value">{{ team_analytics.summary.total_maps }}</strong>
+                    <span class="ban-kpi-sub">Sample size in current filter</span>
+                </article>
+                <article class="ban-kpi-card">
+                    <span class="ban-kpi-label">Overall Win Rate</span>
+                    <strong class="ban-kpi-value">{{ team_analytics.summary.overall_win_rate }}%</strong>
+                    <span class="ban-kpi-sub">All map outcomes</span>
+                </article>
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Top Banned Hero</span>
                     <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else '—' }}</strong>
@@ -112,9 +298,75 @@
                     <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects • {{ top_protect.protect_rate if top_protect else 0 }}%</span>
                 </article>
                 <article class="ban-kpi-card">
-                    <span class="ban-kpi-label">Ban/Protect Events</span>
+                    <span class="ban-kpi-label">Unique Draft Heroes</span>
                     <strong class="ban-kpi-value">{{ team_analytics.summary.unique_bans + team_analytics.summary.unique_protects }}</strong>
-                    <span class="ban-kpi-sub">Unique heroes touched in draft</span>
+                    <span class="ban-kpi-sub">{{ team_analytics.summary.unique_bans }} banned • {{ team_analytics.summary.unique_protects }} protected</span>
+                </article>
+            </div>
+
+            {% set team_ban_edge = team_analytics.ban_diff_rows[0] if team_analytics.ban_diff_rows else None %}
+            <div class="ban-intel-grid">
+                <article class="ban-intel-card">
+                    <h4>Top 5 Ban Priorities</h4>
+                    {% if team_analytics.ban_rows %}
+                        <div class="ban-intel-list">
+                            {% for row in team_analytics.ban_rows[:5] %}
+                                <div class="ban-intel-row">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ hero_display_name(row.hero) }}</span>
+                                    </span>
+                                    <small>{{ row.ban_rate }}%</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No ban priority data yet.</p>
+                    {% endif %}
+                </article>
+
+                <article class="ban-intel-card">
+                    <h4>Top 5 Protect Priorities</h4>
+                    {% if team_analytics.protect_rows %}
+                        <div class="ban-intel-list">
+                            {% for row in team_analytics.protect_rows[:5] %}
+                                <div class="ban-intel-row">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span>{{ hero_display_name(row.hero) }}</span>
+                                    </span>
+                                    <small>{{ row.protect_rate }}%</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No protect priority data yet.</p>
+                    {% endif %}
+                </article>
+
+                <article class="ban-intel-card">
+                    <h4>Matchup Read</h4>
+                    <div class="ban-intel-note">
+                        {% if team_ban_edge %}
+                            Biggest ban-gap hero is <strong>{{ hero_display_name(team_ban_edge.hero) }}</strong> at {% if team_ban_edge.rate_diff > 0 %}+{% endif %}{{ team_ban_edge.rate_diff }}% versus opponent behavior.
+                        {% else %}
+                            Not enough ban-difference data yet.
+                        {% endif %}
+                    </div>
+                    <div class="ban-intel-note">
+                        {% if team_analytics.ban_phase_variation.main.signal == 'strong' %}
+                            <span class="compare-tag compare-tag-positive">Our ban slots vary strongly</span>
+                        {% elif team_analytics.ban_phase_variation.main.signal == 'moderate' %}
+                            <span class="compare-tag compare-tag-neutral">Our ban slots vary moderately</span>
+                        {% else %}
+                            <span class="compare-tag compare-tag-negative">Our ban slots are predictable</span>
+                        {% endif %}
+                    </div>
+                    <div class="ban-intel-note">
+                        {% if top_ban and top_protect %}
+                            Current draft core: ban <strong>{{ hero_display_name(top_ban.hero) }}</strong>, protect <strong>{{ hero_display_name(top_protect.hero) }}</strong>.
+                        {% endif %}
+                    </div>
                 </article>
             </div>
 
@@ -447,7 +699,7 @@
             </div>
 
             {% if team_analytics.ban_position_rows %}
-            <div class="two-col-grid top-gap">
+            <div class="two-col-grid top-gap chart-hub-grid">
                 <div class="panel">
                     <div class="section-kicker">Ban Phase Chart</div>
                     <h3>Our Ban Slot Distribution</h3>
@@ -472,7 +724,7 @@
                 </div>
             </details>
 
-            <div class="panel panel-soft-green top-gap">
+            <div class="panel panel-soft-green top-gap chart-stack-panel">
                 <div class="section-kicker">Draft Tendency</div>
                 <h3>Ban Rate In Relation To Protects</h3>
                 <p class="panel-intro">
@@ -548,7 +800,7 @@
                 {% endif %}
             </div>
 
-            <div class="panel panel-soft-violet top-gap">
+            <div class="panel panel-soft-violet top-gap chart-stack-panel">
                 <div class="section-kicker">Comparison</div>
                 <h3>Ban Difference</h3>
                 <p class="panel-intro">Quickly spot which heroes this team targets more often versus which ones the opponent removes first.</p>
@@ -679,7 +931,7 @@
     </section>
 </div>
 
-<div class="tab-content" id="tab-prep">
+<div class="tab-content tab-hidden" id="tab-prep">
     <section class="panel">
         <div class="section-kicker">Draft Overview</div>
         <h3>{{ team.name }} Quick Draft Snapshot</h3>
@@ -717,6 +969,7 @@
         <p class="panel-intro">Select slots and heroes to simulate the draft. Start simulation to see live likely responses.</p>
         <form method="get" class="top-gap" id="draft-predict-form-team">
             <input type="hidden" name="season" value="{{ selected_season }}">
+            <input type="hidden" name="map_type" value="{{ selected_map_type }}">
             <div class="field" style="max-width: 260px;">
                 <label for="sim-side-team">Simulation Side</label>
                 <select id="sim-side-team" aria-label="Simulation Side">
@@ -839,6 +1092,7 @@
             const team1Heading = board.querySelector('.draft-column:nth-child(1) h4');
             const team2Heading = board.querySelector('.draft-column:nth-child(2) h4');
             const seasonValue = '{{ selected_season }}';
+            const mapTypeValue = '{{ selected_map_type }}';
             const endpointUrl = '{{ url_for("team_draft_predict", team_id=team.id) }}';
 
             const groups = [
@@ -994,6 +1248,9 @@
                 const query = new URLSearchParams();
                 if (seasonValue && seasonValue !== 'all') {
                     query.set('season', seasonValue);
+                }
+                if (mapTypeValue && mapTypeValue !== 'all') {
+                    query.set('map_type', mapTypeValue);
                 }
                 const payload = collectInputs();
                 Object.entries(payload).forEach(([key, value]) => query.set(key, value));
@@ -1450,7 +1707,7 @@
             <div class="hero-usage-list top-gap">
                 {% for row in hero_graph_rows %}
                     {% set width = ((row.appearances / usage_max) * 100) if usage_max else 0 %}
-                    <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season) }}">
+                    <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season, map_type=selected_map_type) }}">
                         <span class="hero-usage-name">
                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                             {{ hero_display_name(row.hero) }}
@@ -1544,7 +1801,7 @@
                         {% for row in player_map_matrix_rows %}
                             <tr>
                                 <td class="matrix-sticky-col matrix-player-cell">
-                                    <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id, season=selected_season) }}">
+                                    <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id, season=selected_season, map_type=selected_map_type) }}">
                                         {{ row.player_name }}{% if row.role %} ({{ row.role }}){% endif %}
                                     </a>
                                 </td>
@@ -1824,7 +2081,10 @@
                 {% for player in players %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season) }}">{{ player.name }}</a>
+                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="player-inline-hero">
+                                <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://avatar.vercel.sh/' ~ (player.name | urlencode) ~ '.png?size=64' }}" alt="{{ player.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=64'">
+                                <span>{{ player.name }}</span>
+                            </a>
                         </td>
                         <td>
                             {% if player.top_hero %}
@@ -1881,8 +2141,210 @@
         {% endif %}
     </section>
 
+    <details class="dense-collapsible top-gap">
+        <summary>Advanced Team Actions</summary>
+        <div class="dense-collapsible-body">
+            <div class="header-actions">
+                <form method="post" action="{{ url_for('manual_db_save') }}">
+                    <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
+                    <button type="submit" class="button-secondary">Manual Save</button>
+                </form>
+                <form method="post" action="{{ url_for('db_dump_json') }}">
+                    <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
+                    <button type="submit" class="button-secondary">DB Dump JSON</button>
+                </form>
+                <form method="post" action="{{ url_for('db_restore_json') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
+                    <input type="file" name="dump_file" accept=".json" required>
+                    <button type="submit" class="button-secondary">Restore from JSON</button>
+                </form>
+                <form method="post" action="{{ url_for('delete_team', team_id=team.id) }}" onsubmit="return confirm('Delete this team and all players?');">
+                    <button type="submit" class="button-secondary">Delete Team</button>
+                </form>
+            </div>
+        </div>
+    </details>
 
 
+
+</div>
+
+<div class="tab-content tab-hidden" id="tab-summary">
+    {% set summary_top_ban = team_analytics.ban_rows[0] if team_analytics.ban_rows else None %}
+    {% set summary_top_protect = team_analytics.protect_rows[0] if team_analytics.protect_rows else None %}
+    {% set summary_top_hero = hero_graph_rows[0] if hero_graph_rows else None %}
+    {% set summary_best_map = team_map_cards[0] if team_map_cards else None %}
+    {% set summary_worst_map = (team_map_cards | sort(attribute='win_rate'))[0] if team_map_cards else None %}
+    {% set summary_wr = team_analytics.summary.overall_win_rate %}
+    {% set summary_maps = team_analytics.summary.total_maps %}
+
+    <section class="panel panel-soft-blue">
+        <div class="section-kicker">Analysis Summary</div>
+        <h3>{{ team.name }} Data-Driven Read</h3>
+        <p class="panel-intro">Autogenerated summary from current filters (season and map type), combining trends across all tabs.</p>
+
+        <div class="summary-grid top-gap">
+            <section class="stat-card">
+                <strong>Confidence</strong>
+                <span>
+                    {% if summary_maps >= 40 %}
+                        High
+                    {% elif summary_maps >= 15 %}
+                        Medium
+                    {% else %}
+                        Low
+                    {% endif %}
+                </span>
+            </section>
+            <section class="stat-card">
+                <strong>Overall Grade</strong>
+                <span>
+                    {% if summary_wr >= 65 %}
+                        Elite
+                    {% elif summary_wr >= 55 %}
+                        Strong
+                    {% elif summary_wr >= 48 %}
+                        Stable
+                    {% else %}
+                        Rebuild
+                    {% endif %}
+                </span>
+            </section>
+            <section class="stat-card">
+                <strong>Record</strong>
+                <span>{{ team_analytics.summary.total_wins }}-{{ team_analytics.summary.total_losses }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Win Rate</strong>
+                <span>{{ summary_wr }}%</span>
+            </section>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Key Reads</div>
+        <h3>What The Data Says</h3>
+        <div class="insight-stack-grid top-gap">
+            <article class="insight-card">
+                <h3>Performance Trend</h3>
+                <p>
+                    {% if summary_wr >= 60 %}
+                        Team is outperforming most matchups with a {{ summary_wr }}% win rate across {{ summary_maps }} maps.
+                    {% elif summary_wr >= 50 %}
+                        Team is competitive at {{ summary_wr }}% over {{ summary_maps }} maps, with room to sharpen map and draft edges.
+                    {% else %}
+                        Team is under 50% ({{ summary_wr }}%) across {{ summary_maps }} maps; priority should be stabilizing comfort drafts and map picks.
+                    {% endif %}
+                </p>
+            </article>
+
+            <article class="insight-card">
+                <h3>Draft Identity</h3>
+                <p>
+                    {% if summary_top_ban and summary_top_protect %}
+                        Most common pressure point is banning {{ hero_display_name(summary_top_ban.hero) }} ({{ summary_top_ban.ban_rate }}%), while preferred keep is {{ hero_display_name(summary_top_protect.hero) }} ({{ summary_top_protect.protect_rate }}%).
+                    {% elif summary_top_ban %}
+                        Draft identity is currently ban-led through {{ hero_display_name(summary_top_ban.hero) }} at {{ summary_top_ban.ban_rate }}%.
+                    {% elif summary_top_protect %}
+                        Draft identity is currently protect-led through {{ hero_display_name(summary_top_protect.hero) }} at {{ summary_top_protect.protect_rate }}%.
+                    {% else %}
+                        Not enough ban/protect volume yet to define a reliable draft identity.
+                    {% endif %}
+                </p>
+            </article>
+
+            <article class="insight-card">
+                <h3>Hero Core</h3>
+                <p>
+                    {% if summary_top_hero %}
+                        Most-played anchor hero is {{ hero_display_name(summary_top_hero.hero) }} with {{ summary_top_hero.appearances }} tracked instances, {{ summary_top_hero.usage_rate }}% usage share, and {{ summary_top_hero.win_rate }}% win rate.
+                    {% else %}
+                        Hero usage sample is too small to identify a clear anchor hero.
+                    {% endif %}
+                </p>
+            </article>
+
+            <article class="insight-card">
+                <h3>Map Outlook</h3>
+                <p>
+                    {% if summary_best_map and summary_worst_map %}
+                        Best current map is {{ summary_best_map.map_name }} ({{ summary_best_map.win_rate }}% WR), while biggest risk is {{ summary_worst_map.map_name }} ({{ summary_worst_map.win_rate }}% WR).
+                    {% elif summary_best_map %}
+                        Strongest visible map is {{ summary_best_map.map_name }} at {{ summary_best_map.win_rate }}% WR.
+                    {% else %}
+                        No map sample available for map-level outlook.
+                    {% endif %}
+                </p>
+            </article>
+
+            <article class="insight-card">
+                <h3>Composition Signal</h3>
+                <p>
+                    Team comp profile shows Triple Support at {{ team_analytics.comp_difference.triple_support_rate }}%, Triple Tank at {{ team_analytics.comp_difference.triple_tank_rate }}%, and 2-2-2 at {{ team_analytics.comp_difference.two_two_two_rate }}%.
+                </p>
+            </article>
+
+            <article class="insight-card">
+                <h3>Tournament Read</h3>
+                <p>
+                    {% if team_tournament_rows %}
+                        Tournament history includes {{ team_tournament_rows|length }} tracked entries in this filter, suggesting repeat competitive exposure beyond scrim-only samples.
+                    {% else %}
+                        No tournament entries in this filter; assessment currently relies on scrim and map history.
+                    {% endif %}
+                </p>
+            </article>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Actionables</div>
+        <h3>Suggested Focus For Next Prep Cycle</h3>
+        <div class="summary-grid top-gap">
+            <section class="stat-card">
+                <strong>Draft Focus</strong>
+                <span>
+                    {% if summary_top_ban %}
+                        Review {{ hero_display_name(summary_top_ban.hero) }} response plans
+                    {% else %}
+                        Increase draft sample size
+                    {% endif %}
+                </span>
+            </section>
+            <section class="stat-card">
+                <strong>Hero Pool Focus</strong>
+                <span>
+                    {% if summary_top_hero %}
+                        Build alternatives to {{ hero_display_name(summary_top_hero.hero) }}
+                    {% else %}
+                        Establish core hero identities
+                    {% endif %}
+                </span>
+            </section>
+            <section class="stat-card">
+                <strong>Map Focus</strong>
+                <span>
+                    {% if summary_worst_map %}
+                        Improve {{ summary_worst_map.map_name }} plan
+                    {% else %}
+                        Log more map reps
+                    {% endif %}
+                </span>
+            </section>
+            <section class="stat-card">
+                <strong>Data Focus</strong>
+                <span>
+                    {% if summary_maps < 15 %}
+                        Add 10-15 maps for confidence
+                    {% elif summary_maps < 40 %}
+                        Add targeted reps by weak mode
+                    {% else %}
+                        Maintain and refine edge cases
+                    {% endif %}
+                </span>
+            </section>
+        </div>
+    </section>
 </div>
 
 <!-- PLAYER MANAGEMENT MODAL -->
@@ -1993,10 +2455,10 @@
 (() => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-content");
-    const validTabs = new Set(["prep", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster"]);
+    const validTabs = new Set(["overview", "prep", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster", "summary"]);
 
     const switchTeamTab = (tabName) => {
-        const nextTab = validTabs.has(tabName) ? tabName : "prep";
+        const nextTab = validTabs.has(tabName) ? tabName : "overview";
         tabButtons.forEach((button) => {
             button.classList.toggle("tab-active", button.dataset.tab === nextTab);
         });
@@ -2007,6 +2469,12 @@
         });
 
         window.history.replaceState(null, "", `#${nextTab}`);
+
+        const advancedTabs = new Set(["bans", "comps", "simulator", "tournaments"]);
+        const moreTabsToggle = document.querySelector('.team-more-tabs');
+        if (moreTabsToggle) {
+            moreTabsToggle.open = advancedTabs.has(nextTab);
+        }
 
         // Chart.js can't measure hidden (display:none) canvases — resize after reveal
         if (nextTab === "heroes") {
@@ -2029,6 +2497,7 @@
     const prepContainer = document.getElementById("teamPrepContent");
     const prepEndpoint = "{{ url_for('team_prep_fragment', team_id=team.id) }}";
     const prepSeason = "{{ selected_season }}";
+    const prepMapType = "{{ selected_map_type }}";
     let prepRequestId = 0;
 
     const bindPrepControls = () => {
@@ -2061,6 +2530,9 @@
         const params = new URLSearchParams();
         if (prepSeason && prepSeason !== "all") {
             params.set("season", prepSeason);
+        }
+        if (prepMapType && prepMapType !== "all") {
+            params.set("map_type", prepMapType);
         }
         if (enemySelector && enemySelector.value) {
             params.set("prep_enemy_id", enemySelector.value);
@@ -2407,8 +2879,17 @@ if (document.readyState !== 'complete') {
     'use strict';
     if (typeof Chart === 'undefined') return;
 
-    var gridColor  = 'rgba(255,255,255,0.07)';
-    var labelColor = '#94a3b8';
+    function cssVar(name, fallback) {
+        var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+    }
+
+    var gridColor  = cssVar('--chart-grid', 'rgba(255,255,255,0.12)');
+    var labelColor = cssVar('--chart-label', '#9eabc0');
+    var chartWin = cssVar('--chart-win', '#38d39f');
+    var chartMid = cssVar('--chart-mid', '#8aa0ff');
+    var chartLoss = cssVar('--chart-loss', '#f5858f');
+    var chartAccent = cssVar('--accent', '#5f79ff');
 
     var HERO_ROLES = {
         'Angela': 'Vanguard', 'Captain America': 'Vanguard', 'Dr. Strange': 'Vanguard',
@@ -2467,8 +2948,8 @@ if (document.readyState !== 'complete') {
                 labels: ['Vanguard', 'Duelist', 'Strategist'],
                 datasets: [{
                     data: [counts.Vanguard, counts.Duelist, counts.Strategist],
-                    backgroundColor: ['rgba(96,165,250,0.85)', 'rgba(248,113,113,0.85)', 'rgba(74,222,128,0.85)'],
-                    borderColor: ['#60a5fa', '#f87171', '#4ade80'],
+                    backgroundColor: [chartMid, chartLoss, chartWin],
+                    borderColor: [chartMid, chartLoss, chartWin],
                     borderWidth: 2,
                 }]
             },
@@ -2519,9 +3000,9 @@ if (document.readyState !== 'complete') {
                         label: 'Win Rate %',
                         data: wrs,
                         type: 'line',
-                        borderColor: '#4ade80',
-                        backgroundColor: 'rgba(74,222,128,0.12)',
-                        pointBackgroundColor: '#4ade80',
+                        borderColor: chartWin,
+                        backgroundColor: chartWin,
+                        pointBackgroundColor: chartWin,
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         tension: 0.3,
@@ -2570,41 +3051,44 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Ban vs Protect Rate grouped horizontal bar ── */
+    /* ── Ban vs Protect Rate line graph ── */
     (function () {
         var rows = parseJsonEl('teamBanProtectData');
         if (!rows || !rows.length) return;
         var canvas = document.getElementById('teamBanProtectChart');
         if (!canvas) return;
-        canvas.parentElement.style.height = Math.max(160, rows.length * 42 + 80) + 'px';
+        canvas.parentElement.style.height = Math.max(260, rows.length * 12 + 180) + 'px';
         var labels = rows.map(function (r) { return r.hero; });
         var existing = Chart.getChart(canvas);
         if (existing) existing.destroy();
         new Chart(canvas, {
-            type: 'bar',
+            type: 'line',
             data: {
                 labels: labels,
                 datasets: [
                     {
                         label: 'Ban Rate',
                         data: rows.map(function (r) { return r.ban_rate; }),
-                        backgroundColor: 'rgba(248,113,113,0.75)',
-                        hoverBackgroundColor: '#f87171',
-                        borderRadius: 4,
-                        borderSkipped: false,
+                        borderColor: chartLoss,
+                        backgroundColor: 'rgba(245, 133, 143, 0.12)',
+                        pointBackgroundColor: chartLoss,
+                        pointRadius: 4,
+                        tension: 0.25,
+                        fill: false,
                     },
                     {
                         label: 'Protect Rate',
                         data: rows.map(function (r) { return r.protect_rate; }),
-                        backgroundColor: 'rgba(74,222,128,0.65)',
-                        hoverBackgroundColor: '#4ade80',
-                        borderRadius: 4,
-                        borderSkipped: false,
+                        borderColor: chartWin,
+                        backgroundColor: 'rgba(56, 211, 159, 0.12)',
+                        pointBackgroundColor: chartWin,
+                        pointRadius: 4,
+                        tension: 0.25,
+                        fill: false,
                     }
                 ]
             },
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: { duration: 400 },
@@ -2619,13 +3103,13 @@ if (document.readyState !== 'complete') {
                     }
                 },
                 scales: {
-                    x: {
+                    y: {
                         min: 0, max: 100,
                         grid: { color: gridColor },
                         ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
                     },
-                    y: {
-                        grid: { display: false },
+                    x: {
+                        grid: { color: gridColor },
                         ticks: { color: labelColor }
                     }
                 }
@@ -2633,35 +3117,37 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Map Win Rate horizontal bar ── */
+    /* ── Map Win Rate line graph ── */
     (function () {
         var rows = parseJsonEl('teamMapWrData');
         if (!rows || !rows.length) return;
         var canvas = document.getElementById('teamMapWrChart');
         if (!canvas) return;
         rows = rows.slice().sort(function (a, b) { return (b.win_rate || 0) - (a.win_rate || 0); });
-        canvas.parentElement.style.height = Math.max(160, rows.length * 38 + 60) + 'px';
+        canvas.parentElement.style.height = Math.max(260, rows.length * 14 + 160) + 'px';
         var labels = rows.map(function (r) { return r.map_name; });
         var wrs    = rows.map(function (r) { return r.win_rate || 0; });
-        var colors = wrs.map(function (wr) {
-            return wr >= 60 ? 'rgba(74,222,128,0.8)' : wr >= 45 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)';
-        });
         var existing = Chart.getChart(canvas);
         if (existing) existing.destroy();
         new Chart(canvas, {
-            type: 'bar',
+            type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Win Rate %',
                     data: wrs,
-                    backgroundColor: colors,
-                    borderRadius: 4,
-                    borderSkipped: false,
+                    borderColor: chartMid,
+                    backgroundColor: 'rgba(138, 160, 255, 0.16)',
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: wrs.map(function (wr) {
+                        return wr >= 60 ? chartWin : wr >= 45 ? chartMid : chartLoss;
+                    }),
                 }]
             },
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: { duration: 400 },
@@ -2677,13 +3163,13 @@ if (document.readyState !== 'complete') {
                     }
                 },
                 scales: {
-                    x: {
+                    y: {
                         min: 0, max: 100,
                         grid: { color: gridColor },
                         ticks: { callback: function (v) { return v + '%'; }, color: labelColor }
                     },
-                    y: {
-                        grid: { display: false },
+                    x: {
+                        grid: { color: gridColor },
                         ticks: { color: labelColor }
                     }
                 }
@@ -2718,8 +3204,8 @@ if (document.readyState !== 'complete') {
                     {
                         label: 'Opp Ban Rate',
                         data: rows.map(function (r) { return r.enemy_rate; }),
-                        backgroundColor: 'rgba(248,113,113,0.65)',
-                        hoverBackgroundColor: '#f87171',
+                        backgroundColor: chartLoss,
+                        hoverBackgroundColor: chartLoss,
                         borderRadius: 4,
                         borderSkipped: false,
                     }
@@ -2753,11 +3239,11 @@ if (document.readyState !== 'complete') {
     /* ── Ban Slot distribution charts (our + enemy) ── */
     (function () {
         var SLOT_COLORS = {
-            'Ban 1':     'rgba(248,113,113,0.8)',
+            'Ban 1':     chartLoss,
             'Ban 2':     'rgba(251,146,60,0.8)',
-            'Ban 3':     'rgba(251,191,36,0.8)',
+            'Ban 3':     chartMid,
             'Ban 4':     'rgba(167,139,250,0.8)',
-            'Protect 1': 'rgba(74,222,128,0.6)',
+            'Protect 1': chartWin,
             'Protect 2': 'rgba(56,189,248,0.6)',
         };
 
@@ -2848,7 +3334,7 @@ if (document.readyState !== 'complete') {
                         label: 'WR when available',
                         data: filtered.map(function (r) { return r.hero_wr; }),
                         backgroundColor: 'rgba(96,165,250,0.75)',
-                        hoverBackgroundColor: '#60a5fa',
+                        hoverBackgroundColor: chartAccent,
                         borderRadius: 4,
                         borderSkipped: false,
                     },
@@ -2856,7 +3342,7 @@ if (document.readyState !== 'complete') {
                         label: 'WR when banned',
                         data: filtered.map(function (r) { return r.wr_when_banned; }),
                         backgroundColor: 'rgba(250,68,84,0.70)',
-                        hoverBackgroundColor: '#fa4454',
+                        hoverBackgroundColor: chartLoss,
                         borderRadius: 4,
                         borderSkipped: false,
                     }

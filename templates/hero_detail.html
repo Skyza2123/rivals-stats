@@ -3,6 +3,7 @@
 {% block title %}{{ hero_insights.hero }} - {{ team.name }}{% endblock %}
 
 {% block content %}
+<div class="hero-detail-page">
 <div class="team-hero">
     <div class="team-hero-left">
         <img class="team-avatar" src="{{ hero_insights.hero_image_url }}" alt="{{ hero_insights.hero }}">
@@ -17,7 +18,7 @@
         </div>
     </div>
     <div class="header-actions team-hero-actions">
-        <a href="{{ url_for('team_detail', team_id=team.id, season=selected_season) }}#comps" class="button-secondary">Back to Team Comps</a>
+        <a href="{{ url_for('team_detail', team_id=team.id, season=selected_season, map_type=selected_map_type) }}#comps" class="button-secondary">Back to Team Comps</a>
     </div>
 </div>
 
@@ -42,7 +43,80 @@
     </div>
 </section>
 
-<div class="form-grid top-gap">
+{% set ban_impact = hero_insights.ban_impact %}
+<section class="panel top-gap">
+    <div class="section-kicker">Key Reads</div>
+    <h3>How {{ hero_insights.hero }} Bans Affect Team Performance</h3>
+    <div class="summary-grid top-gap">
+        <section class="stat-card">
+            <strong>Ban Exposure</strong>
+            <span>{{ ban_impact.banned_rate }}%</span>
+            <small class="stat-footnote">{{ ban_impact.banned_maps }} / {{ ban_impact.tracked_maps }} tracked draft maps</small>
+        </section>
+        <section class="stat-card">
+            <strong>WR When Open</strong>
+            <span>{{ (ban_impact.win_rate_when_open ~ '%') if ban_impact.win_rate_when_open is not none else 'N/A' }}</span>
+            <small class="stat-footnote">{{ ban_impact.open_decisions }} decided maps</small>
+        </section>
+        <section class="stat-card">
+            <strong>WR When Banned</strong>
+            <span>{{ (ban_impact.win_rate_when_banned ~ '%') if ban_impact.win_rate_when_banned is not none else 'N/A' }}</span>
+            <small class="stat-footnote">{{ ban_impact.banned_decisions }} decided maps</small>
+        </section>
+        <section class="stat-card">
+            <strong>Open vs Banned Delta</strong>
+            <span>
+                {% if ban_impact.open_vs_banned_delta is not none %}
+                    {% if ban_impact.open_vs_banned_delta > 0 %}+{% endif %}{{ ban_impact.open_vs_banned_delta }}%
+                {% else %}
+                    N/A
+                {% endif %}
+            </span>
+            <small class="stat-footnote">Positive means better when hero is available</small>
+        </section>
+    </div>
+
+    <div class="insight-stack-grid top-gap">
+        <section class="insight-card">
+            <h3>Performance Read</h3>
+            <p>
+                {% if ban_impact.open_vs_banned_delta is not none and ban_impact.open_vs_banned_delta >= 8 %}
+                    This hero looks like a high-impact target. Team performance drops by {{ ban_impact.open_vs_banned_delta }}% when {{ hero_insights.hero }} is banned.
+                {% elif ban_impact.open_vs_banned_delta is not none and ban_impact.open_vs_banned_delta <= -5 %}
+                    Team is not dependent on this hero in current sample; results are stronger when banned by {{ (ban_impact.open_vs_banned_delta * -1)|round(1) }}%.
+                {% elif ban_impact.open_vs_banned_delta is not none %}
+                    Impact is moderate. Ban effect is within {{ ban_impact.open_vs_banned_delta }}%, so draft outcomes likely depend more on comp execution than this single ban.
+                {% else %}
+                    Not enough decided open/banned samples yet to estimate reliable ban impact.
+                {% endif %}
+            </p>
+        </section>
+
+        <section class="insight-card">
+            <h3>Most Common Pivots When Banned</h3>
+            {% if ban_impact.top_pivots %}
+                <div class="ban-intel-list top-gap">
+                    {% for row in ban_impact.top_pivots %}
+                        <div class="ban-intel-row">
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                <span>{{ row.hero }}</span>
+                            </span>
+                            <small>
+                                {{ row.count }} picks
+                                {% if row.win_rate is not none %}• {{ row.win_rate }}% WR{% endif %}
+                            </small>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No pivot sample yet when this hero gets banned.</p>
+            {% endif %}
+        </section>
+    </div>
+</section>
+
+<div class="form-grid hero-detail-main-grid top-gap">
     <section class="panel">
         <div class="insight-stack-grid">
             <section class="insight-card">
@@ -239,4 +313,5 @@
     });
 })();
 </script>
+</div>
 {% endblock %}

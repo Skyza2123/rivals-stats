@@ -3,26 +3,30 @@
 {% block title %}Teams{% endblock %}
 
 {% block content %}
-<div class="main-header">
+
+<div class="main-header gap-lg">
     <div>
         <h2>Team Database</h2>
-        <p>Store every team in one database, then pin favorites to Personal for quick access.</p>
+        <p class="muted-label">Store every team in one database, then pin favorites to Personal for quick access.</p>
         {% if selected_season != 'all' %}
-            <p style="margin-top: 0.4rem; margin-bottom: 0;">
-                <strong style="color: var(--accent-color, #0066cc);">
+            <p class="teams-filter-note muted-label">
+                <strong>
                     {% if selected_season == unspecified_season_token %}
                         Filtered: scrims with no season set
                     {% else %}
                         Filtered: Season {{ selected_season }}
                     {% endif %}
                 </strong>
-                &nbsp;<a href="{{ url_for('teams') }}" style="font-size: 0.85rem; color: #888;">Clear ×</a>
+                <a href="{{ url_for('teams') }}">Clear ×</a>
             </p>
         {% endif %}
     </div>
-    <div class="header-actions">
-        <form method="GET" action="{{ url_for('teams') }}" style="display:contents">
-            <select name="season" aria-label="Season filter" class="team-range-select" onchange="this.form.submit()">
+</div>
+
+<section class="panel panel-toolbar">
+    <div class="page-toolbar">
+        <form method="GET" action="{{ url_for('teams') }}" class="page-toolbar-group form-contents">
+            <select name="season" aria-label="Season filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
                 <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
                 {% if has_unseasoned_scrims %}
                     <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
@@ -32,10 +36,31 @@
                 {% endfor %}
             </select>
         </form>
-        <button id="openAddTeamModal" type="button" class="button-small">+ Add Team</button>
-        <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
+        <div class="page-toolbar-group">
+            <button id="openAddTeamModal" type="button" class="button-small">+ Add Team</button>
+            <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
+        </div>
     </div>
-</div>
+</section>
+
+<div class="section-divider"></div>
+
+{% if personal_teams %}
+<section class="panel gap-md">
+    <div class="panel-header-row">
+        <h3>Personal Team Quick Links</h3>
+        <span class="muted-label">{{ personal_teams|length }} pinned</span>
+    </div>
+    <div class="dashboard-quick-links gap-sm">
+        {% for team in personal_teams %}
+            <a class="quick-link-chip quick-link-chip-soft" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">
+                <span class="quick-link-name">{{ team.name }}</span>
+                <span class="quick-link-meta">{{ team.scrim_count }} scrims</span>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <section class="panel">
     <div class="tab-bar">
@@ -269,13 +294,21 @@
     rows = rows.slice().sort(function (a, b) { return (b.map_win_rate || 0) - (a.map_win_rate || 0); });
     canvas.parentElement.style.height = Math.max(140, rows.length * 36 + 60) + 'px';
 
-    var gridColor  = 'rgba(255,255,255,0.07)';
-    var labelColor = '#94a3b8';
+    function cssVar(name, fallback) {
+        var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+    }
+
+    var gridColor  = cssVar('--chart-grid', 'rgba(255,255,255,0.12)');
+    var labelColor = cssVar('--chart-label', '#9eabc0');
+    var chartWin = cssVar('--chart-win', '#38d39f');
+    var chartMid = cssVar('--chart-mid', '#8aa0ff');
+    var chartLoss = cssVar('--chart-loss', '#f5858f');
     var labels = rows.map(function (r) { return r.name; });
     var wrs    = rows.map(function (r) { return r.map_win_rate || 0; });
     var counts = rows.map(function (r) { return r.map_count || 0; });
     var colors = wrs.map(function (wr) {
-        return wr >= 60 ? 'rgba(74,222,128,0.8)' : wr >= 45 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)';
+        return wr >= 60 ? chartWin : wr >= 45 ? chartMid : chartLoss;
     });
 
     var existing = Chart.getChart(canvas);

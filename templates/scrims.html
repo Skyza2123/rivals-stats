@@ -8,8 +8,11 @@
         <h2>Scrims</h2>
         <p>Browse all scrims.</p>
     </div>
-    <div class="header-actions">
-        <form method="GET" action="{{ url_for('scrims') }}" style="display:contents">
+</div>
+
+<section class="panel panel-toolbar">
+    <div class="page-toolbar">
+        <form method="GET" action="{{ url_for('scrims') }}" class="page-toolbar-group form-contents">
             <select name="season" aria-label="Filter by season" class="team-range-select" onchange="this.form.submit()">
                 <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
                 {% if has_unseasoned_scrims %}
@@ -26,14 +29,19 @@
                 {% endfor %}
             </select>
         </form>
-        <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
-        <button id="openScrimModal" class="button-link" type="button">+ New Scrim</button>
+        <div class="page-toolbar-group">
+            <form method="post" action="{{ url_for('clear_scrim_duplicates') }}" onsubmit="return confirm('Clear duplicate scrims now? This will merge duplicate entries into one record.');" class="form-contents">
+                <button class="button-secondary" type="submit">Clear Duplicates</button>
+            </form>
+            <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
+            <button id="openScrimModal" class="button-link" type="button">+ New Scrim</button>
+        </div>
     </div>
-</div>
+</section>
 
-<section class="panel">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-        <p style="margin: 0; font-size: 0.95rem; color: #555;">
+<section class="panel top-gap">
+    <div class="page-filterbar">
+        <p class="page-filtertext">
             {% if selected_season == 'all' and not selected_team_id %}
                 Showing all <strong>{{ scrims|length }}</strong> scrims
             {% else %}
@@ -49,7 +57,7 @@
             {% endif %}
         </p>
         {% if selected_season != 'all' or selected_team_id %}
-            <a href="{{ url_for('scrims') }}" style="font-size: 0.85rem; color: #888; text-decoration: none;">Clear filters ×</a>
+            <a href="{{ url_for('scrims') }}" class="page-filterclear">Clear filters ×</a>
         {% endif %}
     </div>
     {% if scrims %}

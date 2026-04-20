@@ -66,6 +66,64 @@ MAP_TYPE_ALIASES = {
     "test": "Test",
     "trial": "Test",
 }
+HERO_NAME_ALIASES = {
+    "adam": "Adam Warlock",
+    "adamwarlock": "Adam Warlock",
+    "bucky": "Winter Soldier",
+    "buckybarnes": "Winter Soldier",
+    "captainamerica": "Captain America",
+    "captianamerica": "Captain America",
+    "cap": "Captain America",
+    "cloak": "Cloak & Dagger",
+    "cloakdagger": "Cloak & Dagger",
+    "deadpools": "SupportPool",
+    "deadpoolsupport": "SupportPool",
+    "deadpoolt": "Tankpool",
+    "deadpooltank": "Tankpool",
+    "deadpoolvanguard": "Tankpool",
+    "dp": "DpsPool",
+    "dpd": "DpsPool",
+    "dps": "SupportPool",
+    "dpspool": "DpsPool",
+    "dpt": "Tankpool",
+    "dpss": "SupportPool",
+    "daredevil": "Daredevil",
+    "devil": "Daredevil",
+    "doctorstrange": "Dr. Strange",
+    "drstrange": "Dr. Strange",
+    "emma": "Emma Frost",
+    "elsa": "Elsa Bloodstone",
+    "fox": "White Fox",
+    "fist": "Iron Fist",
+    "hawk": "Hawkeye",
+    "human": "Human Torch",
+    "invisiblewoman": "Invisible Woman",
+    "iw": "Invisible Woman",
+    "jeff": "Jeff TLS",
+    "jeffthelandshark": "Jeff TLS",
+    "jefftls": "Jeff TLS",
+    "landshark": "Jeff TLS",
+    "luna": "Luna Snow",
+    "mag": "Magneto",
+    "moon": "Moon Knight",
+    "peni": "Peni Parker",
+    "penni": "Peni Parker",
+    "psy": "Psylocke",
+    "puni": "Punisher",
+    "rocket": "Rocket Raccoon",
+    "rocketracoon": "Rocket Raccoon",
+    "sue": "Invisible Woman",
+    "starlord": "Star-Lord",
+    "star": "Star-Lord",
+    "strange": "Dr. Strange",
+    "supportpool": "SupportPool",
+    "thething": "Thing",
+    "thing": "Thing",
+    "tankpool": "Tankpool",
+    "wintersoldier": "Winter Soldier",
+    "wintersolider": "Winter Soldier",
+    "wolve": "Wolverine",
+}
 DRAFT_SLOT_ORDER = ("ban1", "protect1", "ban2", "ban3", "protect2", "ban4")
 PREDICTOR_INPUT_ORDER = (
     "t1_ban1",
@@ -1169,10 +1227,38 @@ def normalize_scrim_record(scrim: dict) -> dict:
         scrim["opponent"] = scrim.get("enemy_team", "")
     scrim.setdefault("team1_id", scrim.get("team_id"))
     scrim.setdefault("team2_id", scrim.get("enemy_team_id"))
+    scrim["team1_players"] = parse_name_list("\n".join(scrim.get("team1_players", [])))
+    scrim["team2_players"] = parse_name_list("\n".join(scrim.get("team2_players", [])))
     if not scrim.get("team1_name"):
         scrim["team1_name"] = str(scrim.get("team_name", "")).strip()
     if not scrim.get("team2_name"):
         scrim["team2_name"] = str(scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
+    for map_entry in scrim.get("maps", []):
+        if not isinstance(map_entry, dict):
+            continue
+        draft = map_entry.get("draft", {})
+        if isinstance(draft, dict):
+            for side in TEAM_SLOTS:
+                team_draft = draft.get(side, {})
+                if not isinstance(team_draft, dict):
+                    continue
+                for slot_key, hero_name in list(team_draft.items()):
+                    team_draft[slot_key] = normalize_hero_slot_value(hero_name)
+
+        comp_sections = map_entry.get("comp", [])
+        if isinstance(comp_sections, list):
+            for section in comp_sections:
+                if not isinstance(section, dict):
+                    continue
+                for side in TEAM_SLOTS:
+                    slots = section.get(side, [])
+                    if not isinstance(slots, list):
+                        continue
+                    for slot in slots:
+                        if not isinstance(slot, dict):
+                            continue
+                        slot["player"] = str(slot.get("player", "")).strip()
+                        slot["hero"] = normalize_hero_slot_value(slot.get("hero", ""))
     return scrim
 
 
@@ -1480,6 +1566,39 @@ def filter_scrims_by_season(scrims: list[dict], season: str) -> list[dict]:
     if selected == UNSPECIFIED_SEASON_TOKEN:
         return [scrim for scrim in scrims if not normalize_season_value(scrim.get("season", ""))]
     return [scrim for scrim in scrims if normalize_season_value(scrim.get("season", "")) == selected]
+
+
+def get_selected_map_type(raw_value: str) -> str:
+    raw = (raw_value or "").strip()
+    if not raw or raw.lower() == "all":
+        return "all"
+
+    normalized = normalize_map_type_value(raw)
+    return normalized if normalized in MAP_TYPES else "all"
+
+
+def filter_scrims_by_map_type(scrims: list[dict], selected_map_type: str) -> list[dict]:
+    selected = get_selected_map_type(selected_map_type)
+    if selected == "all":
+        return scrims
+
+    filtered_scrims: list[dict] = []
+    for scrim in scrims:
+        if not isinstance(scrim, dict):
+            continue
+        filtered_maps = [
+            map_entry
+            for map_entry in scrim.get("maps", [])
+            if isinstance(map_entry, dict)
+            and normalize_map_type_value(map_entry.get("map_type", "")) == selected
+        ]
+        if not filtered_maps:
+            continue
+        filtered_scrim = dict(scrim)
+        filtered_scrim["maps"] = filtered_maps
+        filtered_scrims.append(filtered_scrim)
+
+    return filtered_scrims
 
 
 def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> dict:
@@ -2164,7 +2283,11 @@ def parse_name_list(raw: str) -> list[str]:
     return cleaned
 
 
-def upsert_team_and_players(team_name: str, player_names: list[str]) -> int | None:
+def upsert_team_and_players(
+    team_name: str,
+    player_names: list[str],
+    player_main_heroes: dict[str, str] | None = None,
+) -> int | None:
     normalized_team_name = str(team_name or "").strip()
     if not normalized_team_name:
         return None
@@ -2192,7 +2315,13 @@ def upsert_team_and_players(team_name: str, player_names: list[str]) -> int | No
 
     team_id = int(team_row["id"])
     deduped_players = parse_name_list("\n".join(player_names or []))
+    normalized_player_mains = {
+        str(player_name).strip().lower(): normalize_hero_slot_value(hero_name)
+        for player_name, hero_name in (player_main_heroes or {}).items()
+        if str(player_name).strip() and normalize_hero_slot_value(hero_name)
+    }
     for player_name in deduped_players:
+        player_main_hero = normalized_player_mains.get(player_name.lower(), "")
         try:
             db.execute(
                 """
@@ -2203,12 +2332,343 @@ def upsert_team_and_players(team_name: str, player_names: list[str]) -> int | No
             )
             created_or_updated = True
         except sqlite3.IntegrityError:
-            continue
+            pass
+
+        if player_main_hero:
+            updated_row = db.execute(
+                """
+                UPDATE players
+                SET main_hero = ?
+                WHERE team_id = ?
+                  AND lower(name) = lower(?)
+                  AND trim(coalesce(main_hero, '')) = ''
+                """,
+                (player_main_hero, team_id, player_name),
+            )
+            if updated_row.rowcount:
+                created_or_updated = True
 
     if created_or_updated:
         db.commit()
 
     return team_id
+
+
+def _resolve_import_enemy_team_id(enemy_name: str, enemy_lookup: dict[str, int]) -> int | None:
+    for enemy_key in _team_name_match_keys(enemy_name):
+        if enemy_key in enemy_lookup:
+            return enemy_lookup[enemy_key]
+    return None
+
+
+def _collect_scrim_roster_data(scrim: dict) -> tuple[dict[str, list[str]], dict[str, dict[str, str]]]:
+    players_by_side: dict[str, list[str]] = {
+        "team1": list(scrim.get("team1_players", [])),
+        "team2": list(scrim.get("team2_players", [])),
+    }
+    seen_names: dict[str, set[str]] = {
+        side: {name.lower() for name in players_by_side.get(side, []) if name}
+        for side in TEAM_SLOTS
+    }
+    hero_counts: dict[str, dict[str, Counter[str]]] = {
+        "team1": defaultdict(Counter),
+        "team2": defaultdict(Counter),
+    }
+
+    for map_entry in scrim.get("maps", []):
+        if not isinstance(map_entry, dict):
+            continue
+        for section in map_entry.get("comp", []):
+            if not isinstance(section, dict):
+                continue
+            for side in TEAM_SLOTS:
+                slots = section.get(side, [])
+                if not isinstance(slots, list):
+                    continue
+                for slot in slots:
+                    if not isinstance(slot, dict):
+                        continue
+                    player_name = str(slot.get("player", "")).strip()
+                    hero_name = canonicalize_hero_name(slot.get("hero", ""))
+                    if player_name:
+                        player_key = player_name.lower()
+                        if player_key not in seen_names[side]:
+                            players_by_side[side].append(player_name)
+                            seen_names[side].add(player_key)
+                    if player_name and hero_name:
+                        hero_counts[side][player_name][hero_name] += 1
+
+    player_main_heroes: dict[str, dict[str, str]] = {"team1": {}, "team2": {}}
+    for side in TEAM_SLOTS:
+        players_by_side[side] = parse_name_list("\n".join(players_by_side[side]))
+        for player_name, counts in hero_counts[side].items():
+            if not counts:
+                continue
+            best_hero = max(counts.items(), key=lambda item: (item[1], item[0]))[0]
+            if best_hero:
+                player_main_heroes[side][player_name] = best_hero
+
+    return players_by_side, player_main_heroes
+
+
+def _prepare_imported_scrim_context(
+    scrim: dict,
+    selected_team_id: int,
+    selected_team_name: str,
+    enemy_lookup: dict[str, int],
+) -> None:
+    first_map = next((map_entry for map_entry in scrim.get("maps", []) if isinstance(map_entry, dict)), None)
+    selected_name = str(selected_team_name or "").strip()
+    our_slot = normalize_match_team_slot((first_map or {}).get("our_team_slot", scrim.get("team_slot", "team1")))
+    team1_name = str((first_map or {}).get("team1_name") or scrim.get("team1_name") or "").strip()
+    team2_name = str((first_map or {}).get("team2_name") or scrim.get("team2_name") or "").strip()
+
+    if our_slot == "team1":
+        enemy_name = team2_name or str(scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
+        enemy_id = _resolve_import_enemy_team_id(enemy_name, enemy_lookup)
+        canonical_enemy_name = get_team_name_by_id(enemy_id) if enemy_id else enemy_name
+        scrim.update(
+            {
+                "team_slot": "team1",
+                "team_id": selected_team_id,
+                "team_name": selected_name,
+                "team1_id": selected_team_id,
+                "team1_name": selected_name or team1_name,
+                "team2_id": enemy_id,
+                "team2_name": canonical_enemy_name,
+                "enemy_team_id": enemy_id,
+                "enemy_team": canonical_enemy_name,
+                "opponent": canonical_enemy_name,
+            }
+        )
+        return
+
+    enemy_name = team1_name or str(scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
+    enemy_id = _resolve_import_enemy_team_id(enemy_name, enemy_lookup)
+    canonical_enemy_name = get_team_name_by_id(enemy_id) if enemy_id else enemy_name
+    scrim.update(
+        {
+            "team_slot": "team2",
+            "team_id": selected_team_id,
+            "team_name": selected_name,
+            "team1_id": enemy_id,
+            "team1_name": canonical_enemy_name,
+            "team2_id": selected_team_id,
+            "team2_name": selected_name or team2_name,
+            "enemy_team_id": enemy_id,
+            "enemy_team": canonical_enemy_name,
+            "opponent": canonical_enemy_name,
+        }
+    )
+
+
+def _sync_scrim_rosters_with_database(scrim: dict) -> None:
+    players_by_side, player_main_heroes = _collect_scrim_roster_data(scrim)
+    scrim["team1_players"] = players_by_side["team1"]
+    scrim["team2_players"] = players_by_side["team2"]
+
+    team1_name = str(scrim.get("team1_name", "")).strip()
+    team2_name = str(scrim.get("team2_name", "")).strip()
+    team1_id = upsert_team_and_players(team1_name, players_by_side["team1"], player_main_heroes["team1"]) if team1_name else None
+    team2_id = upsert_team_and_players(team2_name, players_by_side["team2"], player_main_heroes["team2"]) if team2_name else None
+
+    if team1_id:
+        scrim["team1_id"] = team1_id
+    if team2_id:
+        scrim["team2_id"] = team2_id
+
+    our_slot = normalize_match_team_slot(scrim.get("team_slot", "team1"))
+    enemy_slot = "team2" if our_slot == "team1" else "team1"
+    scrim["team_id"] = scrim.get(f"{our_slot}_id")
+    scrim["team_name"] = str(scrim.get(f"{our_slot}_name", "")).strip()
+    scrim["enemy_team_id"] = scrim.get(f"{enemy_slot}_id")
+    scrim["enemy_team"] = str(scrim.get(f"{enemy_slot}_name", "")).strip()
+    scrim["opponent"] = scrim["enemy_team"]
+
+
+def _map_name_signature(scrim: dict) -> tuple[str, ...]:
+    return tuple(
+        _compact_text(map_entry.get("map_name", ""))
+        for map_entry in scrim.get("maps", [])
+        if isinstance(map_entry, dict) and str(map_entry.get("map_name", "")).strip()
+    )
+
+
+def _find_duplicate_scrim_for_import(imported_scrim: dict, candidates: list[dict] | None = None) -> dict | None:
+    imported_team_id = imported_scrim.get("team_id")
+    imported_enemy_id = imported_scrim.get("enemy_team_id")
+    imported_maps = Counter(_map_name_signature(imported_scrim))
+    imported_date = str(imported_scrim.get("scrim_date", "")).strip()
+    best_match: dict | None = None
+    best_score = -1
+
+    for existing_scrim in (candidates if candidates is not None else SCRIMS):
+        if not isinstance(existing_scrim, dict):
+            continue
+        if str(existing_scrim.get("scrim_date", "")).strip() != imported_date:
+            continue
+
+        team_matches = False
+        if imported_team_id and existing_scrim.get("team_id") == imported_team_id:
+            team_matches = True
+        elif _team_names_match(existing_scrim.get("team_name"), imported_scrim.get("team_name")):
+            team_matches = True
+        if not team_matches:
+            continue
+
+        enemy_matches = False
+        if imported_enemy_id and existing_scrim.get("enemy_team_id") == imported_enemy_id:
+            enemy_matches = True
+        elif _team_names_match(existing_scrim.get("enemy_team"), imported_scrim.get("enemy_team")):
+            enemy_matches = True
+        if not enemy_matches:
+            continue
+
+        score = 0
+        if imported_team_id and existing_scrim.get("team_id") == imported_team_id:
+            score += 20
+        if imported_enemy_id and existing_scrim.get("enemy_team_id") == imported_enemy_id:
+            score += 20
+
+        existing_maps = Counter(_map_name_signature(existing_scrim))
+        overlap = sum((existing_maps & imported_maps).values())
+        score += overlap * 5
+        if tuple(existing_maps.elements()) == tuple(imported_maps.elements()) and imported_maps:
+            score += 15
+
+        if score > best_score:
+            best_score = score
+            best_match = existing_scrim
+
+    # One-map scrims can still be true duplicates if date/team/opponent/map align,
+    # and their score naturally tops out lower than multi-map series.
+    return best_match if best_score >= 20 else None
+
+
+def _merge_imported_map(existing_map: dict, imported_map: dict) -> dict:
+    merged_map = copy.deepcopy(imported_map)
+    merged_map["id"] = existing_map.get("id")
+    if not merged_map.get("notes"):
+        merged_map["notes"] = existing_map.get("notes", "")
+    if not merged_map.get("vod_url"):
+        merged_map["vod_url"] = existing_map.get("vod_url", "")
+    if not merged_map.get("events"):
+        merged_map["events"] = copy.deepcopy(existing_map.get("events", []))
+    return merged_map
+
+
+def _merge_imported_scrim(existing_scrim: dict, imported_scrim: dict) -> None:
+    existing_maps = list(existing_scrim.get("maps", []))
+    indexed_existing_maps: dict[str, list[int]] = defaultdict(list)
+    for idx, map_entry in enumerate(existing_maps):
+        if not isinstance(map_entry, dict):
+            continue
+        indexed_existing_maps[_compact_text(map_entry.get("map_name", ""))].append(idx)
+
+    merged_scrim = copy.deepcopy(imported_scrim)
+    merged_scrim["id"] = existing_scrim.get("id")
+    if not merged_scrim.get("notes"):
+        merged_scrim["notes"] = existing_scrim.get("notes", "")
+
+    merged_maps: list[dict] = []
+    used_indexes: set[int] = set()
+    for map_index, imported_map in enumerate(imported_scrim.get("maps", [])):
+        map_key = _compact_text(imported_map.get("map_name", ""))
+        match_index = next((idx for idx in indexed_existing_maps.get(map_key, []) if idx not in used_indexes), None)
+        if match_index is None and map_index < len(existing_maps) and map_index not in used_indexes:
+            match_index = map_index
+
+        if match_index is None:
+            merged_maps.append(copy.deepcopy(imported_map))
+            continue
+
+        used_indexes.add(match_index)
+        merged_maps.append(_merge_imported_map(existing_maps[match_index], imported_map))
+
+    merged_scrim["maps"] = merged_maps
+    existing_scrim.clear()
+    existing_scrim.update(merged_scrim)
+
+
+def _assign_missing_scrim_ids(scrim: dict) -> None:
+    global NEXT_MAP_ID, NEXT_EVENT_ID
+
+    for map_entry in scrim.get("maps", []):
+        if not isinstance(map_entry, dict):
+            continue
+        if not isinstance(map_entry.get("id"), int) or int(map_entry.get("id", 0)) <= 0:
+            map_entry["id"] = NEXT_MAP_ID
+            NEXT_MAP_ID += 1
+        for event in map_entry.get("events", []):
+            if not isinstance(event, dict):
+                continue
+            if not isinstance(event.get("id"), int) or int(event.get("id", 0)) <= 0:
+                event["id"] = NEXT_EVENT_ID
+                NEXT_EVENT_ID += 1
+
+
+def _recompute_scrim_next_ids_from_state() -> None:
+    global NEXT_SCRIM_ID, NEXT_MAP_ID, NEXT_EVENT_ID
+
+    max_scrim_id = 0
+    max_map_id = 0
+    max_event_id = 0
+
+    for scrim in SCRIMS:
+        if not isinstance(scrim, dict):
+            continue
+        scrim_id = scrim.get("id")
+        if isinstance(scrim_id, int):
+            max_scrim_id = max(max_scrim_id, scrim_id)
+
+        for map_entry in scrim.get("maps", []):
+            if not isinstance(map_entry, dict):
+                continue
+            map_id = map_entry.get("id")
+            if isinstance(map_id, int):
+                max_map_id = max(max_map_id, map_id)
+
+            for event in map_entry.get("events", []):
+                if not isinstance(event, dict):
+                    continue
+                event_id = event.get("id")
+                if isinstance(event_id, int):
+                    max_event_id = max(max_event_id, event_id)
+
+    NEXT_SCRIM_ID = max(1, max_scrim_id + 1)
+    NEXT_MAP_ID = max(1, max_map_id + 1)
+    NEXT_EVENT_ID = max(1, max_event_id + 1)
+
+
+def _dedupe_existing_scrims() -> tuple[int, int]:
+    if not SCRIMS:
+        return 0, 0
+
+    ordered_scrims = sorted(
+        [scrim for scrim in SCRIMS if isinstance(scrim, dict)],
+        key=lambda scrim: int(scrim.get("id") or 0),
+    )
+    survivors: list[dict] = []
+    duplicates_removed = 0
+    merged_updates = 0
+
+    for scrim in ordered_scrims:
+        normalize_scrim_record(scrim)
+        existing = _find_duplicate_scrim_for_import(scrim, candidates=survivors)
+        if existing is None:
+            survivors.append(scrim)
+            continue
+
+        _merge_imported_scrim(existing, scrim)
+        _assign_missing_scrim_ids(existing)
+        duplicates_removed += 1
+        merged_updates += 1
+
+    if duplicates_removed:
+        SCRIMS[:] = survivors
+        _recompute_scrim_next_ids_from_state()
+
+    return duplicates_removed, merged_updates
 
 
 def find_tournament_team_by_id(tournament_teams: list[dict], tournament_team_id: int | None) -> dict | None:
@@ -2570,10 +3030,7 @@ def build_tournament_overview_analytics(tournament_record: dict) -> dict:
 
 
 def canonicalize_hero_name(raw_hero: str) -> str:
-    hero_text = (raw_hero or "").strip()
-    if not hero_text:
-        return ""
-    return _resolve_hero_transform_key(hero_text) or hero_text
+    return normalize_hero_slot_value(raw_hero)
 
 
 def is_map_draft_mirrored(map_entry: dict) -> bool:
@@ -4543,10 +5000,7 @@ def _draft_slot_label(slot_key: str) -> str:
 
 
 def _canonical_draft_hero(raw_hero: str) -> str:
-    hero_text = (raw_hero or "").strip()
-    if not hero_text:
-        return ""
-    return _resolve_hero_transform_key(hero_text) or hero_text
+    return normalize_hero_slot_value(raw_hero)
 
 
 def _summarize_draft_phase_slot_counts(slot_counts: dict[str, dict[str, int]]) -> list[dict]:
@@ -5626,6 +6080,9 @@ def to_enemy_perspective_scrims(scrims: list[dict]) -> list[dict]:
 def build_map_mode_breakdown(scrims: list[dict]) -> tuple[list[dict], list[dict], dict | None, dict | None]:
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
+    map_type_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
+    opponent_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
+    recent_map_visual_rows: list[dict] = []
     map_timeline_targets: dict[str, int] = {}
     side_score_records = defaultdict(
         lambda: {
@@ -5781,6 +6238,15 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
     total_instances = 0
     timeline_points = []
 
+    ban_tracked_maps = 0
+    banned_maps = 0
+    open_maps = 0
+    banned_wins = 0
+    banned_losses = 0
+    open_wins = 0
+    open_losses = 0
+    ban_pivot_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+
     sorted_scrims = sorted(team_scrims, key=lambda s: (s.get("scrim_date", ""), s.get("id", 0)))
 
     for scrim in sorted_scrims:
@@ -5793,6 +6259,32 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
             result = get_map_outcome_for_slot(map_entry, our_team_slot)
+
+            enemy_team_slot = "team2" if our_team_slot == "team1" else "team1"
+            draft = map_entry.get("draft") if isinstance(map_entry.get("draft"), dict) else {}
+            enemy_draft = draft.get(enemy_team_slot) if isinstance(draft.get(enemy_team_slot), dict) else {}
+            enemy_ban_keys = ["ban1", "ban2", "ban3", "ban4"]
+            enemy_bans = [
+                _canonical_draft_hero(enemy_draft.get(k, ""))
+                for k in enemy_ban_keys
+                if _canonical_draft_hero(enemy_draft.get(k, ""))
+            ]
+            has_enemy_ban_data = bool(enemy_bans)
+            target_banned = any(_hero_match_key(b) == target_key for b in enemy_bans)
+            if has_enemy_ban_data:
+                ban_tracked_maps += 1
+                if target_banned:
+                    banned_maps += 1
+                    if result == "Win":
+                        banned_wins += 1
+                    elif result == "Loss":
+                        banned_losses += 1
+                else:
+                    open_maps += 1
+                    if result == "Win":
+                        open_wins += 1
+                    elif result == "Loss":
+                        open_losses += 1
 
             map_has_hero = False
             map_instances = 0
@@ -5836,6 +6328,14 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                         comp_stats[comp_signature]["wins"] += 1
                     elif result == "Loss":
                         comp_stats[comp_signature]["losses"] += 1
+
+                if target_banned:
+                    for pivot_hero in teammates:
+                        ban_pivot_stats[pivot_hero]["count"] += 1
+                        if result == "Win":
+                            ban_pivot_stats[pivot_hero]["wins"] += 1
+                        elif result == "Loss":
+                            ban_pivot_stats[pivot_hero]["losses"] += 1
 
             if not map_has_hero:
                 continue
@@ -5923,6 +6423,27 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         )
     map_rows.sort(key=lambda r: (r["maps"], r["win_rate"]), reverse=True)
 
+    open_decisions = open_wins + open_losses
+    banned_decisions = banned_wins + banned_losses
+    open_wr = round((open_wins / open_decisions) * 100, 1) if open_decisions else None
+    banned_wr = round((banned_wins / banned_decisions) * 100, 1) if banned_decisions else None
+    open_vs_banned_delta = round(open_wr - banned_wr, 1) if (open_wr is not None and banned_wr is not None) else None
+
+    ban_pivot_rows = []
+    for pivot_hero, stats in ban_pivot_stats.items():
+        count = stats["count"]
+        if not count:
+            continue
+        decisions = stats["wins"] + stats["losses"]
+        ban_pivot_rows.append(
+            {
+                "hero": pivot_hero,
+                "count": count,
+                "win_rate": round((stats["wins"] / decisions) * 100, 1) if decisions else None,
+            }
+        )
+    ban_pivot_rows.sort(key=lambda row: (row["count"], row["win_rate"] or 0), reverse=True)
+
     return {
         "hero": display_name,
         "target_role": target_role,
@@ -5940,6 +6461,18 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         "comp_rows": comp_rows,
         "map_rows": map_rows,
         "timeline_points": timeline_points,
+        "ban_impact": {
+            "tracked_maps": ban_tracked_maps,
+            "banned_maps": banned_maps,
+            "open_maps": open_maps,
+            "banned_rate": round((banned_maps / ban_tracked_maps) * 100, 1) if ban_tracked_maps else 0,
+            "win_rate_when_open": open_wr,
+            "win_rate_when_banned": banned_wr,
+            "open_vs_banned_delta": open_vs_banned_delta,
+            "open_decisions": open_decisions,
+            "banned_decisions": banned_decisions,
+            "top_pivots": ban_pivot_rows[:5],
+        },
     }
 
 
@@ -6208,15 +6741,42 @@ def dashboard():
 
     pick_counter: Counter = Counter()
     ban_counter: Counter = Counter()
+    opponent_records = defaultdict(lambda: {"team_id": None, "name": "", "scrims": 0, "maps": 0})
+    personal_quick_teams = []
     seen_scrims: set = set()
 
     for team_row in personal_team_rows:
         team_scrims = get_scrims_for_team(team_row["id"], team_row["name"])
+        personal_quick_teams.append(
+            {
+                "id": team_row["id"],
+                "name": team_row["name"],
+                "scrims": len(team_scrims),
+                "maps": sum(len(scrim.get("maps", [])) for scrim in team_scrims),
+            }
+        )
         for scrim in team_scrims:
             scrim_id = scrim.get("id")
             if scrim_id in seen_scrims:
                 continue
             seen_scrims.add(scrim_id)
+
+            opponent_name = (
+                (scrim.get("enemy_team", "") or "").strip()
+                or (scrim.get("opponent", "") or "").strip()
+                or "Opponent"
+            )
+            opponent_team_id = scrim.get("enemy_team_id")
+            opponent_key = (
+                f"id:{int(opponent_team_id)}"
+                if isinstance(opponent_team_id, int) and opponent_team_id > 0
+                else f"name:{opponent_name.lower()}"
+            )
+            opponent_records[opponent_key]["team_id"] = opponent_team_id if isinstance(opponent_team_id, int) and opponent_team_id > 0 else None
+            opponent_records[opponent_key]["name"] = opponent_name
+            opponent_records[opponent_key]["scrims"] += 1
+            opponent_records[opponent_key]["maps"] += len(scrim.get("maps", []))
+
             for map_entry in scrim.get("maps", []):
                 if not isinstance(map_entry, dict):
                     continue
@@ -6241,6 +6801,15 @@ def dashboard():
 
     top_picks = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
     top_bans = [{"hero": h, "count": c} for h, c in ban_counter.most_common(5)]
+    personal_quick_teams.sort(
+        key=lambda row: (row["maps"], row["scrims"], row["name"].lower()),
+        reverse=True,
+    )
+    quick_opponents = sorted(
+        opponent_records.values(),
+        key=lambda row: (row["maps"], row["scrims"], row["name"]),
+        reverse=True,
+    )[:8]
 
     return render_template(
         "dashboard.html",
@@ -6254,6 +6823,8 @@ def dashboard():
         recent_tournaments=list(reversed(TOURNAMENT_MATCHES[-5:])),
         top_picks=top_picks,
         top_bans=top_bans,
+        personal_quick_teams=personal_quick_teams,
+        quick_opponents=quick_opponents,
     )
 
 
@@ -6568,7 +7139,9 @@ def team_detail(team_id: int):
         allow_unspecified=has_unseasoned_scrims,
         default_season=default_season,
     )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
         for field_key in PREDICTOR_INPUT_ORDER
@@ -6586,6 +7159,9 @@ def team_detail(team_id: int):
 
     map_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
     mode_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
+    map_type_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
+    opponent_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
+    recent_map_visual_rows: list[dict] = []
     map_timeline_targets: dict[str, int] = {}
 
     for scrim in team_scrims:
@@ -6598,24 +7174,53 @@ def team_detail(team_id: int):
                 map_timeline_targets[map_name] = scrim.get("id")
 
             mode_name = MAP_MODES.get(map_name, "Other")
+            map_type_name = normalize_map_type_value(map_entry.get("map_type", ""))
             outcome = get_map_outcome_for_slot(map_entry, map_entry.get("our_team_slot", "team1"))
+            opponent_name = (
+                (scrim.get("enemy_team", "") or "").strip()
+                or (scrim.get("opponent", "") or "").strip()
+                or "Opponent"
+            )
 
             map_records[map_name]["maps"] += 1
             mode_records[mode_name]["maps"] += 1
+            map_type_records[map_type_name]["maps"] += 1
+            opponent_records[opponent_name]["maps"] += 1
+
+            recent_map_visual_rows.append(
+                {
+                    "scrim_date": scrim.get("scrim_date", ""),
+                    "map_name": map_name,
+                    "mode": mode_name,
+                    "map_type": map_type_name,
+                    "outcome": outcome,
+                    "opponent": opponent_name,
+                }
+            )
 
             if outcome == "Win":
                 map_records[map_name]["wins"] += 1
                 map_records[map_name]["decided"] += 1
                 mode_records[mode_name]["wins"] += 1
                 mode_records[mode_name]["decided"] += 1
+                map_type_records[map_type_name]["wins"] += 1
+                map_type_records[map_type_name]["decided"] += 1
+                opponent_records[opponent_name]["wins"] += 1
+                opponent_records[opponent_name]["decided"] += 1
             elif outcome == "Loss":
                 map_records[map_name]["losses"] += 1
                 map_records[map_name]["decided"] += 1
                 mode_records[mode_name]["losses"] += 1
                 mode_records[mode_name]["decided"] += 1
+                map_type_records[map_type_name]["losses"] += 1
+                map_type_records[map_type_name]["decided"] += 1
+                opponent_records[opponent_name]["losses"] += 1
+                opponent_records[opponent_name]["decided"] += 1
             else:
                 map_records[map_name]["unresolved"] += 1
                 mode_records[mode_name]["unresolved"] += 1
+                map_type_records[map_type_name]["unresolved"] += 1
+                opponent_records[opponent_name]["unresolved"] += 1
 
     team_map_cards = []
     for map_name, stats in map_records.items():
@@ -6663,6 +7268,48 @@ def team_detail(team_id: int):
 
     best_mode = team_map_mode_rows[0] if team_map_mode_rows else None
     worst_mode = team_map_mode_rows[-1] if team_map_mode_rows else None
+
+    map_type_visual_rows = []
+    for map_type in MAP_TYPES:
+        stats = map_type_records.get(map_type)
+        if not stats or not stats["maps"]:
+            continue
+        decided_maps = stats["decided"]
+        win_rate = round((stats["wins"] / decided_maps) * 100, 1) if decided_maps else 0
+        map_type_visual_rows.append(
+            {
+                "map_type": map_type,
+                "maps": stats["maps"],
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "unresolved": stats["unresolved"],
+                "win_rate": win_rate,
+            }
+        )
+
+    total_maps_for_type_visual = sum(row["maps"] for row in map_type_visual_rows)
+    for row in map_type_visual_rows:
+        row["share"] = round((row["maps"] / total_maps_for_type_visual) * 100, 1) if total_maps_for_type_visual else 0
+    map_type_visual_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+    opponent_visual_rows = []
+    for opponent_name, stats in opponent_records.items():
+        decided_maps = stats["decided"]
+        win_rate = round((stats["wins"] / decided_maps) * 100, 1) if decided_maps else 0
+        opponent_visual_rows.append(
+            {
+                "opponent": opponent_name,
+                "maps": stats["maps"],
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "unresolved": stats["unresolved"],
+                "win_rate": win_rate,
+            }
+        )
+    opponent_visual_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+    opponent_visual_rows = opponent_visual_rows[:8]
+
+    recent_map_visual_rows = list(reversed(recent_map_visual_rows[-24:]))
 
     player_rows = db.execute(
         "SELECT * FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
@@ -6932,6 +7579,8 @@ def team_detail(team_id: int):
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
         has_unseasoned_scrims=has_unseasoned_scrims,
         selected_season=selected_season,
+        selected_map_type=selected_map_type,
+        map_type_options=MAP_TYPES,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
         team_scrim_count=len(team_scrims),
@@ -6940,6 +7589,9 @@ def team_detail(team_id: int):
         team_map_mode_rows=team_map_mode_rows,
         best_mode=best_mode,
         worst_mode=worst_mode,
+        map_type_visual_rows=map_type_visual_rows,
+        opponent_visual_rows=opponent_visual_rows,
+        recent_map_visual_rows=recent_map_visual_rows,
         map_modes=MAP_MODES,
         map_images=MAP_IMAGES,
         draft_predictor=draft_predictor,
@@ -7117,7 +7769,9 @@ def team_prep_fragment(team_id: int):
         allow_unspecified=has_unseasoned_scrims,
         default_season=default_season,
     )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
 
     enemy_team_rows = db.execute(
         "SELECT id, name, notes, logo_path, created_at FROM teams WHERE id != ? ORDER BY name COLLATE NOCASE",
@@ -7143,6 +7797,7 @@ def team_prep_fragment(team_id: int):
         team=team,
         enemy_teams=enemy_teams,
         selected_season=selected_season,
+        selected_map_type=selected_map_type,
         **prep_context,
     )
 
@@ -7164,7 +7819,9 @@ def team_draft_predict(team_id: int):
         allow_unspecified=has_unseasoned_scrims,
         default_season=default_season,
     )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
     predictor_inputs = {
         field_key: (request.args.get(field_key) or "").strip()
         for field_key in PREDICTOR_INPUT_ORDER
@@ -7193,12 +7850,14 @@ def team_hero_detail(team_id: int, hero_name: str):
         allow_unspecified=has_unseasoned_scrims,
         default_season=default_season,
     )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
 
     hero_insights = build_team_hero_insights(team_scrims, target_hero)
     if not hero_insights["summary"]["maps_played"]:
         flash(f"No comp data found for {target_hero}.", "error")
-        return redirect(url_for("team_detail", team_id=team_id, season=selected_season) + "#comps")
+        return redirect(url_for("team_detail", team_id=team_id, season=selected_season, map_type=selected_map_type) + "#comps")
 
     return render_template(
         "hero_detail.html",
@@ -7206,6 +7865,7 @@ def team_hero_detail(team_id: int, hero_name: str):
         hero_insights=hero_insights,
         map_images=MAP_IMAGES,
         selected_season=selected_season,
+        selected_map_type=selected_map_type,
         season_options=season_options,
         has_unseasoned_scrims=has_unseasoned_scrims,
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
@@ -7236,7 +7896,9 @@ def player_detail(team_id: int, player_id: int):
         allow_unspecified=has_unseasoned_scrims,
         default_season=default_season,
     )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
 
     player_stats = compute_player_stats(player["name"], team_scrims)
     breakdown = build_player_hero_map_breakdown(player["name"], team_scrims)
@@ -7266,6 +7928,8 @@ def player_detail(team_id: int, player_id: int):
         player_ban_impact=player_ban_impact,
         player_insights=player_insights,
         selected_season=selected_season,
+        selected_map_type=selected_map_type,
+        map_type_options=MAP_TYPES,
         season_options=season_options,
         has_unseasoned_scrims=has_unseasoned_scrims,
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
@@ -7986,6 +8650,17 @@ def recover_latest_scrim_backup():
         flash("No missing scrims were found in the latest backup.", "warning")
     return redirect(url_for("scrims"))
 
+
+@app.route("/scrims/clear-duplicates", methods=["POST"])
+def clear_scrim_duplicates():
+    removed, merged = _dedupe_existing_scrims()
+    if removed:
+        save_app_state(allow_scrim_removal=True)
+        flash(f"Cleared {removed} duplicate scrim{'s' if removed != 1 else ''} ({merged} merged update{'s' if merged != 1 else ''}).", "success")
+    else:
+        flash("No duplicate scrims were found.", "info")
+    return redirect(url_for("scrims"))
+
 @app.route("/db/manual-save", methods=["POST"])
 def manual_db_save():
     next_url = (request.form.get("next") or "").strip()
@@ -8321,6 +8996,15 @@ def _compact_text(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", (value or "").strip().lower())
 
 
+def normalize_hero_slot_value(raw_hero: str | None) -> str:
+    hero_text = (raw_hero or "").strip()
+    if not hero_text:
+        return ""
+
+    resolved = _resolve_hero_transform_key(hero_text)
+    return resolved or hero_text
+
+
 def _resolve_hero_transform_key(hero_name: str) -> str | None:
     """Return the best HERO_TRANSFORMATIONS key for a potentially misspelled hero name."""
     raw = (hero_name or "").strip()
@@ -8334,20 +9018,17 @@ def _resolve_hero_transform_key(hero_name: str) -> str | None:
     if not compact:
         return None
 
-    alias_lookup = {
-        "daredevil": "Daredevil",
-        "captainamerica": "Captain America",
-        "captianamerica": "Captain America",
-        "starlord": "Star-Lord",
-        "spiderman": "Spider-Man",
-        "wintersolider": "Winter Soldier",
-        "cloakdagger": "Cloak & Dagger",
-        "rocketraccoon": "Rocket Raccoon",
-        "adamwarlock": "Adam Warlock",
-    }
-    mapped = alias_lookup.get(compact)
-    if mapped and mapped in HERO_TRANSFORMATIONS:
+    mapped = HERO_NAME_ALIASES.get(compact)
+    if mapped:
         return mapped
+
+    if compact.startswith("deadpool"):
+        if any(token in compact for token in ("tank", "vanguard")):
+            return "Tankpool"
+        if any(token in compact for token in ("support", "strategist", "supp")):
+            return "SupportPool"
+        if "dps" in compact or "duelist" in compact:
+            return "DpsPool"
 
     compact_map = { _compact_text(k): k for k in HERO_TRANSFORMATIONS.keys() }
     if compact in compact_map:
@@ -8597,7 +9278,7 @@ def _parse_csv_into_scrims(
         return row[idx].strip() if idx < len(row) else ""
 
     def _heroes(row: list[str], sl: slice) -> list[dict]:
-        return [{"hero": h.strip(), "player": ""} for h in row[sl]]
+        return [{"hero": normalize_hero_slot_value(h), "player": ""} for h in row[sl]]
 
     # ── group rows into (date, enemy) buckets keeping insertion order ──────
     # We preserve the order that maps appear so that sub-rows stay near parents.
@@ -8887,7 +9568,7 @@ def _parse_template_csv_into_scrims(
             slots.append(
                 {
                     "player": _cell(row, player_idx),
-                    "hero": _cell(row, hero_idx),
+                    "hero": normalize_hero_slot_value(_cell(row, hero_idx)),
                 }
             )
         return slots
@@ -8975,9 +9656,13 @@ def _parse_template_csv_into_scrims(
 
             comp_sections = build_default_comp_sections(canonical_map)
             if comp_sections:
-                comp_sections[0]["score"] = score_text
-                comp_sections[0]["team1"] = _build_team_comp(row, _TEMPLATE_CSV_TEAM1_PLAYERS)
-                comp_sections[0]["team2"] = _build_team_comp(row, _TEMPLATE_CSV_TEAM2_PLAYERS)
+                team1_comp = _build_team_comp(row, _TEMPLATE_CSV_TEAM1_PLAYERS)
+                team2_comp = _build_team_comp(row, _TEMPLATE_CSV_TEAM2_PLAYERS)
+                for idx, section in enumerate(comp_sections):
+                    section["team1"] = copy.deepcopy(team1_comp)
+                    section["team2"] = copy.deepcopy(team2_comp)
+                    if idx == 0:
+                        section["score"] = score_text
 
             maps.append(
                 {
@@ -9055,7 +9740,7 @@ def summarize_import_warnings(warnings: list[str], *, preview_count: int = 5) ->
 
 @app.route("/scrims/import-csv", methods=["POST"])
 def import_csv_scrims():
-    global NEXT_SCRIM_ID, NEXT_MAP_ID
+    global NEXT_SCRIM_ID
 
     team_id  = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
@@ -9106,32 +9791,38 @@ def import_csv_scrims():
             enemy_lookup.setdefault(key, row["id"])
 
     imported = 0
+    updated = 0
     for scrim in parsed_scrims:
         scrim["season"] = season
         normalize_scrim_record(scrim)
-        # Assign IDs
+        _prepare_imported_scrim_context(scrim, team_id, team_name, enemy_lookup)
+        _sync_scrim_rosters_with_database(scrim)
+
+        if scrim.get("enemy_team_id"):
+            for enemy_key in _team_name_match_keys(scrim["enemy_team"]):
+                enemy_lookup[enemy_key] = scrim["enemy_team_id"]
+
+        existing_scrim = _find_duplicate_scrim_for_import(scrim)
+        if existing_scrim is not None:
+            _merge_imported_scrim(existing_scrim, scrim)
+            _assign_missing_scrim_ids(existing_scrim)
+            updated += 1
+            continue
+
         scrim["id"] = NEXT_SCRIM_ID
         NEXT_SCRIM_ID += 1
-
-        # Try to match enemy team
-        for enemy_key in _team_name_match_keys(scrim["enemy_team"]):
-            if enemy_key in enemy_lookup:
-                scrim["enemy_team_id"] = enemy_lookup[enemy_key]
-                break
-
-        for map_entry in scrim["maps"]:
-            map_entry["id"] = NEXT_MAP_ID
-            NEXT_MAP_ID += 1
-            for event in map_entry.get("events", []):
-                event["id"] = NEXT_EVENT_ID
-                NEXT_EVENT_ID += 1
-
+        _assign_missing_scrim_ids(scrim)
         SCRIMS.append(scrim)
         imported += 1
 
     save_app_state()
 
-    msg = f"Imported {imported} scrim{'s' if imported != 1 else ''}."
+    msg_parts = []
+    if imported:
+        msg_parts.append(f"Imported {imported} scrim{'s' if imported != 1 else ''}")
+    if updated:
+        msg_parts.append(f"updated {updated} duplicate{'s' if updated != 1 else ''}")
+    msg = ". ".join(msg_parts) + "."
     if warnings:
         msg += " Warnings: " + summarize_import_warnings(warnings)
     flash(msg, "success")

@@ -40,11 +40,40 @@
         <h2>Dashboard</h2>
         <p>Quick read on activity, hero trends, and recent matches.</p>
     </div>
-    <div class="header-actions">
-        <a class="button-secondary" href="{{ url_for('tournaments') }}#create-tournament">+ New Tournament</a>
-        <a class="button-link" href="{{ url_for('scrims') }}#create-scrim">+ New Scrim</a>
-    </div>
 </div>
+
+<section class="panel panel-toolbar">
+    <div class="page-toolbar">
+        <div class="page-toolbar-group">
+            <span class="muted-label">Quick actions</span>
+            <a class="button-link" href="{{ url_for('scrims') }}#create-scrim">+ New Scrim</a>
+            <a class="button-secondary" href="{{ url_for('tournaments') }}#create-tournament">+ New Tournament</a>
+        </div>
+        <div class="page-toolbar-group">
+            <a class="button-secondary" href="{{ url_for('teams') }}">Teams</a>
+            <a class="button-secondary" href="{{ url_for('scrims') }}">All Scrims</a>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Personal Teams</h3>
+        <a href="{{ url_for('teams') }}">Manage teams</a>
+    </div>
+    {% if personal_quick_teams %}
+        <div class="dashboard-quick-links">
+            {% for team_row in personal_quick_teams %}
+                <a class="quick-link-chip" href="{{ url_for('team_detail', team_id=team_row.id) }}">
+                    <span class="quick-link-name">{{ team_row.name }}</span>
+                    <span class="quick-link-meta">{{ team_row.scrims }} scrims • {{ team_row.maps }} maps</span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No personal teams yet. Mark a team as personal from the teams page.</p>
+    {% endif %}
+</section>
 
 <div class="summary-grid">
     {% for label, value, helper in metric_cards %}
@@ -55,6 +84,32 @@
     </section>
     {% endfor %}
 </div>
+
+<section class="panel">
+    <div class="panel-header-row">
+        <h3>Most Played Opponents</h3>
+        <span class="muted-label">Quick links</span>
+    </div>
+    {% if quick_opponents %}
+        <div class="dashboard-quick-links">
+            {% for row in quick_opponents %}
+                {% if row.team_id %}
+                    <a class="quick-link-chip" href="{{ url_for('team_detail', team_id=row.team_id) }}">
+                        <span class="quick-link-name">{{ row.name }}</span>
+                        <span class="quick-link-meta">{{ row.maps }} maps</span>
+                    </a>
+                {% else %}
+                    <span class="quick-link-chip quick-link-chip-muted" title="No team profile linked yet">
+                        <span class="quick-link-name">{{ row.name }}</span>
+                        <span class="quick-link-meta">{{ row.maps }} maps</span>
+                    </span>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No opponent history yet.</p>
+    {% endif %}
+</section>
 
 <div class="dashboard-duo-grid">
     {{ hero_rank_panel('Top Picks', top_picks) }}

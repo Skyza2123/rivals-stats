@@ -1,5 +1,5 @@
 ﻿<div class="prep-content-root">
-<section class="panel">
+<section class="panel" id="prep-scout">
     <div class="panel-header-row">
         <div>
             <div class="section-kicker">Opponent Prep Report</div>
@@ -7,6 +7,7 @@
             <p class="panel-intro">A focused read on opponent ban pressure, likely pivots, comp shape, and where the draft usually bends across the current sample.</p>
         </div>
         <div class="header-actions">
+            <span class="prep-filter-pill">Map Type: {{ selected_map_type }}</span>
             <label for="prepEnemySelector" class="sr-only">Opponent selector</label>
             <select id="prepEnemySelector" class="team-range-select">
                 <option value="">All Opponents</option>
@@ -76,7 +77,15 @@
     {% endif %}
 </section>
 
-<section class="panel panel-soft-blue top-gap">
+<nav class="prep-overview-nav top-gap" aria-label="Overview sections">
+    <a href="#prep-scout" class="prep-overview-link">Scouting Snapshot</a>
+    <a href="#prep-open-hero" class="prep-overview-link">Open Hero Impact</a>
+    <a href="#prep-expected-comps" class="prep-overview-link">Expected Comps</a>
+    <a href="#prep-player-pivots" class="prep-overview-link">Player Ban Pivots</a>
+    <a href="#prep-specialist-diff" class="prep-overview-link">Specialist Difference</a>
+</nav>
+
+<section class="panel panel-soft-blue top-gap" id="prep-open-hero">
     <div class="section-kicker">Open Hero Impact</div>
     <h3>When Heroes Are Open, Do We Play Them?</h3>
     <p class="panel-intro">Uses the current opponent selector. Open means the opponent did not ban the hero on that map. This stays focused on how often we field a hero when it is available, plus whether results improve when that hero is open.</p>
@@ -167,7 +176,7 @@
 </section>
 
 
-<section class="panel panel-soft-gold top-gap">
+<section class="panel panel-soft-gold top-gap" id="prep-expected-comps">
     <div class="section-kicker">Expected Comps</div>
     <h3>Potential Comps + Assigned Players + 4-Hero Core Combos</h3>
     <p class="panel-intro">Each comp shows the 5-hero core that appeared most together, with the most common flex pick shown separately. Similar comps (differing by 1 hero) are grouped.</p>
@@ -245,132 +254,142 @@
     {% endif %}
 </section>
 
-<section class="panel panel-soft-teal top-gap">
-    <div class="section-kicker">Ban Impact Per Player</div>
-    <h3>When Their Main Gets Banned, What Do They Play?</h3>
-    <p class="panel-intro">Based on each player's most-played heroes (up to 3, min 2 maps). Shows what they switched to when that hero was enemy-banned — and the win rate of those pivot games. <span class="sample-warning-inline">⚠ = low sample (&lt;5 maps), treat with caution.</span></p>
-    {% if prep_expected_plan.player_pivot_rows %}
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Player</th>
-                        <th>Main Hero</th>
-                        <th>Main Maps</th>
-                        <th>Main WR</th>
-                        <th>Times Banned</th>
-                        <th>Pivot Hero</th>
-                        <th>Pivot Maps</th>
-                        <th>Pivot WR</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% set ns = namespace(last_player='') %}
-                    {% for row in prep_expected_plan.player_pivot_rows %}
-                        {% if row.player_name != ns.last_player %}
-                            {% set ns.last_player = row.player_name %}
-                            {% if not loop.first %}
-                                <tr class="row-divider"><td colspan="8"></td></tr>
-                            {% endif %}
-                        {% endif %}
-                        <tr>
-                            <td><strong>{{ row.player_name }}</strong></td>
-                            <td>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.main_hero) }}" alt="{{ row.main_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text=?'">
-                                    <span>{{ hero_display_name(row.main_hero) }}</span>
-                                </span>
-                            </td>
-                            <td>
-                                {{ row.main_hero_maps }}
-                                {% if row.main_hero_maps < 5 %}<span class="sample-warn-icon" title="Low sample size">⚠</span>{% endif %}
-                            </td>
-                            <td>
-                                <span class="metric-text {% if row.main_hero_win_rate >= 55 %}metric-good{% elif row.main_hero_win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                    {{ row.main_hero_win_rate }}%
-                                </span>
-                                {% if row.main_hero_maps < 5 %}<span class="sample-warn-icon" title="Low sample size">⚠</span>{% endif %}
-                            </td>
-                            <td>
-                                {{ row.banned_maps }}
-                                {% if row.banned_maps > 0 and row.banned_maps < 3 %}<span class="sample-warn-icon" title="Very few ban observations">⚠</span>{% endif %}
-                            </td>
-                            <td>
-                                {% if row.pivot_hero %}
-                                    <span class="hero-inline-cell">
-                                        <img src="{{ hero_image_url(row.pivot_hero) }}" alt="{{ row.pivot_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text=?'">
-                                        <span>{{ hero_display_name(row.pivot_hero) }}</span>
-                                    </span>
-                                {% else %}
-                                    <span class="empty-text">No data</span>
+<details class="dense-collapsible top-gap" id="prep-player-pivots">
+    <summary>Player Ban Pivots</summary>
+    <div class="dense-collapsible-body">
+        <section class="panel panel-soft-teal">
+            <div class="section-kicker">Ban Impact Per Player</div>
+            <h3>When Their Main Gets Banned, What Do They Play?</h3>
+            <p class="panel-intro">Based on each player's most-played heroes (up to 3, min 2 maps). Shows what they switched to when that hero was enemy-banned — and the win rate of those pivot games. <span class="sample-warning-inline">⚠ = low sample (&lt;5 maps), treat with caution.</span></p>
+            {% if prep_expected_plan.player_pivot_rows %}
+                <div class="table-wrap top-gap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Main Hero</th>
+                                <th>Main Maps</th>
+                                <th>Main WR</th>
+                                <th>Times Banned</th>
+                                <th>Pivot Hero</th>
+                                <th>Pivot Maps</th>
+                                <th>Pivot WR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set ns = namespace(last_player='') %}
+                            {% for row in prep_expected_plan.player_pivot_rows %}
+                                {% if row.player_name != ns.last_player %}
+                                    {% set ns.last_player = row.player_name %}
+                                    {% if not loop.first %}
+                                        <tr class="row-divider"><td colspan="8"></td></tr>
+                                    {% endif %}
                                 {% endif %}
-                            </td>
-                            <td>
-                                {{ row.pivot_maps if row.pivot_maps else '—' }}
-                                {% if row.pivot_maps > 0 and row.pivot_maps < 3 %}<span class="sample-warn-icon" title="Very few pivot observations">⚠</span>{% endif %}
-                            </td>
-                            <td>
-                                {% if row.pivot_maps %}
-                                    <span class="metric-text {% if row.pivot_win_rate >= 55 %}metric-good{% elif row.pivot_win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
-                                        {{ row.pivot_win_rate }}%
-                                    </span>
-                                    {% if row.pivot_maps < 3 %}<span class="sample-warn-icon" title="Very few pivot observations">⚠</span>{% endif %}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">Not enough player + draft data to calculate ban pivots yet.</p>
-    {% endif %}
-</section>
+                                <tr>
+                                    <td><strong>{{ row.player_name }}</strong></td>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.main_hero) }}" alt="{{ row.main_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text=?'">
+                                            <span>{{ hero_display_name(row.main_hero) }}</span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {{ row.main_hero_maps }}
+                                        {% if row.main_hero_maps < 5 %}<span class="sample-warn-icon" title="Low sample size">⚠</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="metric-text {% if row.main_hero_win_rate >= 55 %}metric-good{% elif row.main_hero_win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                            {{ row.main_hero_win_rate }}%
+                                        </span>
+                                        {% if row.main_hero_maps < 5 %}<span class="sample-warn-icon" title="Low sample size">⚠</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        {{ row.banned_maps }}
+                                        {% if row.banned_maps > 0 and row.banned_maps < 3 %}<span class="sample-warn-icon" title="Very few ban observations">⚠</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.pivot_hero %}
+                                            <span class="hero-inline-cell">
+                                                <img src="{{ hero_image_url(row.pivot_hero) }}" alt="{{ row.pivot_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text=?'">
+                                                <span>{{ hero_display_name(row.pivot_hero) }}</span>
+                                            </span>
+                                        {% else %}
+                                            <span class="empty-text">No data</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ row.pivot_maps if row.pivot_maps else '—' }}
+                                        {% if row.pivot_maps > 0 and row.pivot_maps < 3 %}<span class="sample-warn-icon" title="Very few pivot observations">⚠</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.pivot_maps %}
+                                            <span class="metric-text {% if row.pivot_win_rate >= 55 %}metric-good{% elif row.pivot_win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                {{ row.pivot_win_rate }}%
+                                            </span>
+                                            {% if row.pivot_maps < 3 %}<span class="sample-warn-icon" title="Very few pivot observations">⚠</span>{% endif %}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">Not enough player + draft data to calculate ban pivots yet.</p>
+            {% endif %}
+        </section>
+    </div>
+</details>
 
-<section class="panel panel-soft-violet top-gap">
-    <div class="section-kicker">Player vs Player On Hero</div>
-    <h3>Hero Specialist Difference</h3>
-    <p class="panel-intro">Highlights heroes where performance shifts depending on who pilots the hero.</p>
-    {% if prep_expected_plan.hero_player_differences %}
-        <div class="table-wrap top-gap">
-            <table class="stats-table stats-table-compare">
-                <thead>
-                    <tr>
-                        <th>Hero</th>
-                        <th>Higher WR Player</th>
-                        <th>WR</th>
-                        <th>Alt Player</th>
-                        <th>WR</th>
-                        <th>Difference</th>
-                        <th>Samples</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in prep_expected_plan.hero_player_differences %}
-                        <tr>
-                            <td>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                    <span>{{ hero_display_name(row.hero) }}</span>
-                                </span>
-                            </td>
-                            <td>{{ row.best_player.player_name }}</td>
-                            <td>{{ row.best_player.win_rate }}% ({{ sample_warn(row.best_player.maps) }} maps)</td>
-                            <td>{{ row.alt_player.player_name }}</td>
-                            <td>{{ row.alt_player.win_rate }}% ({{ sample_warn(row.alt_player.maps) }} maps)</td>
-                            <td>{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%</td>
-                            <td>{{ sample_warn(row.sample_total) }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-text">Not enough hero-player overlap yet to compare different players on the same hero.</p>
-    {% endif %}
-</section>
+<details class="dense-collapsible top-gap" id="prep-specialist-diff">
+    <summary>Hero Specialist Difference</summary>
+    <div class="dense-collapsible-body">
+        <section class="panel panel-soft-violet">
+            <div class="section-kicker">Player vs Player On Hero</div>
+            <h3>Hero Specialist Difference</h3>
+            <p class="panel-intro">Highlights heroes where performance shifts depending on who pilots the hero.</p>
+            {% if prep_expected_plan.hero_player_differences %}
+                <div class="table-wrap top-gap">
+                    <table class="stats-table stats-table-compare">
+                        <thead>
+                            <tr>
+                                <th>Hero</th>
+                                <th>Higher WR Player</th>
+                                <th>WR</th>
+                                <th>Alt Player</th>
+                                <th>WR</th>
+                                <th>Difference</th>
+                                <th>Samples</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in prep_expected_plan.hero_player_differences %}
+                                <tr>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                            <span>{{ hero_display_name(row.hero) }}</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ row.best_player.player_name }}</td>
+                                    <td>{{ row.best_player.win_rate }}% ({{ sample_warn(row.best_player.maps) }} maps)</td>
+                                    <td>{{ row.alt_player.player_name }}</td>
+                                    <td>{{ row.alt_player.win_rate }}% ({{ sample_warn(row.alt_player.maps) }} maps)</td>
+                                    <td>{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%</td>
+                                    <td>{{ sample_warn(row.sample_total) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">Not enough hero-player overlap yet to compare different players on the same hero.</p>
+            {% endif %}
+        </section>
+    </div>
+</details>
 
 
  </div>

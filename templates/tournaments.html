@@ -8,8 +8,11 @@
         <h2>Tournaments</h2>
         <p>Create named tournaments, then add teams inside the tournament view.</p>
     </div>
-    <div class="header-actions">
-        <form method="GET" action="{{ url_for('tournaments') }}" style="display:contents">
+</div>
+
+<section class="panel panel-toolbar">
+    <div class="page-toolbar">
+        <form method="GET" action="{{ url_for('tournaments') }}" class="page-toolbar-group form-contents">
             <select name="season" aria-label="Filter by season" class="team-range-select" onchange="this.form.submit()">
                 <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
                 {% if has_unseasoned_tournaments %}
@@ -26,21 +29,23 @@
                 {% endfor %}
             </select>
         </form>
-        <button id="openTournamentModal" class="button-link" type="button">Open / New Tournament</button>
+        <div class="page-toolbar-group">
+            <button id="openTournamentModal" class="button-link" type="button">Open / New Tournament</button>
+        </div>
     </div>
-</div>
+</section>
 
-<section class="panel">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-        <p style="margin: 0; font-size: 0.95rem; color: #555;">
+<section class="panel top-gap">
+    <div class="page-filterbar">
+        <p class="page-filtertext">
             {% if selected_season == 'all' and not selected_team_id %}
                 Showing all <strong>{{ tournaments|length }}</strong> tournaments
             {% else %}
-                <strong style="color: var(--accent-color, #0066cc);">{{ tournaments|length }} of {{ total_tournament_count }}</strong> tournaments
+                <strong>{{ tournaments|length }} of {{ total_tournament_count }}</strong> tournaments
             {% endif %}
         </p>
         {% if selected_season != 'all' or selected_team_id %}
-            <a href="{{ url_for('tournaments') }}" style="font-size: 0.85rem; color: #888;">Clear filters ×</a>
+            <a href="{{ url_for('tournaments') }}" class="page-filterclear">Clear filters ×</a>
         {% endif %}
     </div>
 
@@ -74,7 +79,7 @@
             <button id="closeTournamentModal" class="modal-close" type="button" aria-label="Close">&times;</button>
         </div>
 
-        <div class="button-row" style="justify-content: flex-start; margin-bottom: 1rem;">
+        <div class="button-row button-row-left modal-tab-row">
             <button id="tabOpenTournament" type="button" class="button-secondary button-small tab-button tab-active">Open Tournament</button>
             <button id="tabCreateTournament" type="button" class="button-secondary button-small tab-button">Create Tournament</button>
         </div>
@@ -101,7 +106,7 @@
             {% endif %}
         </div>
 
-        <div id="tournamentCreatePanel" style="display:none;">
+        <div id="tournamentCreatePanel" class="tab-hidden">
             <form id="createTournamentForm" action="{{ url_for('create_tournament') }}" method="post">
                 <div class="form-grid">
                     <div class="field">

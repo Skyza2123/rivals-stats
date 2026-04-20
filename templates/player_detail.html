@@ -3,7 +3,7 @@
 {% block title %}{{ player.name }}{% endblock %}
 
 {% block content %}
-<div class="team-hero">
+<div class="team-hero gap-lg">
     <div class="team-hero-left">
         {% if player_insights.primary_hero %}
             <img class="team-avatar" src="{{ hero_image_url(player_insights.primary_hero.hero) }}" alt="{{ player_insights.primary_hero.hero }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=140'">
@@ -12,19 +12,22 @@
         {% endif %}
         <div>
             <h2>{{ player.name }}</h2>
-            <p class="team-record-line">
+            <div class="team-kpi-chips gap-md">
+                <span class="team-kpi-chip">{{ player_stats.maps_played }} maps</span>
+                <span class="team-kpi-chip">{{ player_stats.win_rate }}% win rate</span>
+                <span class="team-kpi-chip">{{ player_insights.unique_heroes }} heroes</span>
+            </div>
+            <p class="team-record-line muted-label">
                 {{ team.name }}
                 &bull; {{ player.role or 'Role not set' }}
                 {% if player_insights.primary_hero %}&bull; Most Played: {{ hero_display_name(player_insights.primary_hero.hero) }}{% endif %}
             </p>
-            <p>
-                {{ player.notes or 'No notes yet.' }}
-            </p>
+            <p class="muted-label">{{ player.notes or 'No notes yet.' }}</p>
         </div>
     </div>
-    <div class="header-actions team-hero-actions">
-        <form method="GET" action="{{ url_for('player_detail', team_id=team.id, player_id=player.id) }}" style="display:contents">
-            <select name="season" aria-label="Season filter" class="team-range-select" onchange="this.form.submit()">
+    <div class="header-actions team-hero-actions gap-md">
+        <form method="GET" action="{{ url_for('player_detail', team_id=team.id, player_id=player.id) }}" class="form-contents">
+            <select name="season" aria-label="Season filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
                 <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
                 {% if has_unseasoned_scrims %}
                     <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
@@ -33,10 +36,29 @@
                     <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
                 {% endfor %}
             </select>
+            <select name="map_type" aria-label="Map type filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
+                <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
+                {% for map_type in map_type_options %}
+                    <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
+                {% endfor %}
+            </select>
         </form>
-        <a href="{{ url_for('team_detail', team_id=team.id) }}#roster" class="button-secondary">Back to Team</a>
+        <a href="{{ url_for('team_detail', team_id=team.id, season=selected_season, map_type=selected_map_type) }}#roster" class="button-secondary">Back to Team</a>
     </div>
 </div>
+
+<div class="section-divider"></div>
+
+<div class="team-page-tabs player-page-tabs">
+    <div class="tab-bar tab-bar-group">
+        <button class="tab-btn tab-active" data-player-tab="overview" type="button">Overview</button>
+        <button class="tab-btn" data-player-tab="performance" type="button">Performance</button>
+        <button class="tab-btn" data-player-tab="impact" type="button">Impact</button>
+        <button class="tab-btn" data-player-tab="activity" type="button">Activity</button>
+    </div>
+</div>
+
+<div class="tab-content" id="player-tab-overview">
 
 <section class="panel">
     <div class="summary-grid">
@@ -55,6 +77,18 @@
         <section class="stat-card"><strong>Worst Map</strong><span>{{ player_insights.worst_map.map_name if player_insights.worst_map else '—' }}</span></section>
     </div>
 </section>
+
+<section class="panel panel-soft-teal top-gap">
+    <h3>Performance Trend</h3>
+    <p class="panel-intro">Cumulative win rate over the last {{ player_recent_maps|length }} maps, in chronological order.</p>
+    <div class="player-chart-wrap">
+        <canvas id="playerTrendChart"></canvas>
+    </div>
+    <script id="playerRecentData" type="application/json">{{ player_recent_maps | tojson }}</script>
+</section>
+</div>
+
+<div class="tab-content tab-hidden" id="player-tab-performance">
 
 <section class="panel panel-soft-blue top-gap">
     <h3>Hero Pool</h3>
@@ -76,7 +110,7 @@
 
         {# Bar chart: hero play count #}
         <p class="player-chart-label">Play Count by Hero</p>
-        <div class="player-chart-wrap" style="height: {{ [260, player_hero_rows[:12]|length * 36 + 40]|max }}px">
+        <div class="player-chart-wrap" data-chart-height="{{ [260, player_hero_rows[:12]|length * 36 + 40]|max }}">
             <canvas id="playerHeroBarChart"></canvas>
         </div>
         <script id="playerHeroData" type="application/json">{{ player_hero_rows[:12] | tojson }}</script>
@@ -103,7 +137,7 @@
                     {% if row.image %}
                         <img class="player-map-card-banner" src="{{ row.image }}" alt="{{ row.map_name }}" onerror="this.style.display='none'">
                     {% else %}
-                        <div class="player-map-card-banner" style="background: var(--panel-bg);"></div>
+                        <div class="player-map-card-banner player-map-card-banner-fallback"></div>
                     {% endif %}
                     <div class="player-map-card-body">
                         <div class="player-map-card-name">{{ row.map_name }}</div>
@@ -118,7 +152,7 @@
 
         {# Map WR bar chart #}
         <p class="player-chart-label">Win Rate by Map</p>
-        <div class="player-chart-wrap" style="height: {{ [260, player_map_rows[:12]|length * 36 + 40]|max }}px">
+        <div class="player-chart-wrap" data-chart-height="{{ [260, player_map_rows[:12]|length * 36 + 40]|max }}">
             <canvas id="playerMapChart"></canvas>
         </div>
         <script id="playerMapData" type="application/json">{{ player_map_rows[:12] | tojson }}</script>
@@ -127,14 +161,9 @@
     {% endif %}
 </section>
 
-<section class="panel panel-soft-teal top-gap">
-    <h3>Performance Trend</h3>
-    <p class="panel-intro">Cumulative win rate over the last {{ player_recent_maps|length }} maps, in chronological order.</p>
-    <div class="player-chart-wrap">
-        <canvas id="playerTrendChart"></canvas>
-    </div>
-    <script id="playerRecentData" type="application/json">{{ player_recent_maps | tojson }}</script>
-</section>
+</div>
+
+<div class="tab-content tab-hidden" id="player-tab-impact">
 
 <section class="panel panel-soft-orange top-gap">
     <h3>Ban Impact</h3>
@@ -197,7 +226,7 @@
                                 </div>
                             </div>
                         {% else %}
-                            <p class="player-ban-count" style="margin:0">No pivot data recorded.</p>
+                            <p class="player-ban-count player-ban-count-compact">No pivot data recorded.</p>
                         {% endif %}
                     </div>
                 {% endfor %}
@@ -205,7 +234,7 @@
 
             {# Chart: WR when available vs banned for all banned heroes #}
             <p class="player-chart-label">Win Rate: Available vs Banned (all targeted heroes)</p>
-            <div class="player-chart-wrap" style="height: {{ [220, banned_rows|length * 54 + 60]|max }}px">
+            <div class="player-chart-wrap" data-chart-height="{{ [220, banned_rows|length * 54 + 60]|max }}">
                 <canvas id="playerBanChart"></canvas>
             </div>
         {% else %}
@@ -213,7 +242,7 @@
         {% endif %}
 
         {# Full hero pool ban exposure table #}
-        <h4 style="margin: 20px 0 8px; font-size: 0.9rem; color: var(--text-secondary);">Full Hero Pool — Ban Exposure</h4>
+        <h4 class="player-subsection-title">Full Hero Pool — Ban Exposure</h4>
         <div class="table-wrap">
             <table class="stats-table">
                 <thead>
@@ -272,6 +301,10 @@
     {% endif %}
 </section>
 
+</div>
+
+<div class="tab-content tab-hidden" id="player-tab-activity">
+
 <section class="panel top-gap" id="activityPanel">
     <div class="pd-tab-bar">
         <button class="pd-tab active" data-tab="recent">Recent Map Appearances</button>
@@ -309,11 +342,11 @@
         {% endif %}
     </div>
 
-    <div class="pd-tab-pane" id="pd-tab-swaps" style="display:none">
+    <div class="pd-tab-pane tab-hidden" id="pd-tab-swaps">
         {% if player_swap_summary.transition_count %}
-            <p class="panel-intro" style="margin-top:0">Tracked {{ player_swap_summary.transition_count }} round-to-round transitions. Swap rate: <strong>{{ player_swap_summary.swap_rate }}%</strong>.</p>
+            <p class="panel-intro player-intro-tight">Tracked {{ player_swap_summary.transition_count }} round-to-round transitions. Swap rate: <strong>{{ player_swap_summary.swap_rate }}%</strong>.</p>
         {% else %}
-            <p class="panel-intro" style="margin-top:0">No multi-round/submap transitions recorded yet.</p>
+            <p class="panel-intro player-intro-tight">No multi-round/submap transitions recorded yet.</p>
         {% endif %}
         {% if player_swap_summary.swap_events %}
             <div class="table-wrap">
@@ -352,18 +385,75 @@
             btn.addEventListener('click', function () {
                 tabs.forEach(function (b) { b.classList.remove('active'); });
                 btn.classList.add('active');
-                document.querySelectorAll('#activityPanel .pd-tab-pane').forEach(function (p) { p.style.display = 'none'; });
-                document.getElementById('pd-tab-' + btn.dataset.tab).style.display = '';
+                document.querySelectorAll('#activityPanel .pd-tab-pane').forEach(function (p) { p.classList.add('tab-hidden'); });
+                document.getElementById('pd-tab-' + btn.dataset.tab).classList.remove('tab-hidden');
             });
         });
     })();
     </script>
 </section>
 
+</div>
+
 <script>
 (function () {
-    var gridColor  = 'rgba(255,255,255,0.07)';
-    var labelColor = '#94a3b8';
+    var tabButtons = document.querySelectorAll('[data-player-tab]');
+    var tabPanels = {
+        overview: document.getElementById('player-tab-overview'),
+        performance: document.getElementById('player-tab-performance'),
+        impact: document.getElementById('player-tab-impact'),
+        activity: document.getElementById('player-tab-activity')
+    };
+
+    function switchPlayerTab(tabName) {
+        var next = tabPanels[tabName] ? tabName : 'overview';
+        tabButtons.forEach(function (btn) {
+            btn.classList.toggle('tab-active', btn.dataset.playerTab === next);
+        });
+        Object.keys(tabPanels).forEach(function (key) {
+            tabPanels[key].classList.toggle('tab-hidden', key !== next);
+        });
+        if (typeof Chart !== 'undefined') {
+            setTimeout(function () {
+                Object.values(Chart.instances || {}).forEach(function (chart) {
+                    if (chart && typeof chart.resize === 'function') {
+                        chart.resize();
+                    }
+                });
+            }, 0);
+        }
+    }
+
+    tabButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            switchPlayerTab(btn.dataset.playerTab);
+        });
+    });
+
+    switchPlayerTab('overview');
+})();
+</script>
+
+<script>
+(function () {
+    document.querySelectorAll('.player-chart-wrap[data-chart-height]').forEach(function (el) {
+        var raw = Number(el.getAttribute('data-chart-height') || 0);
+        if (raw > 0) {
+            el.style.height = raw + 'px';
+        }
+    });
+
+    function cssVar(name, fallback) {
+        var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+    }
+
+    var gridColor  = cssVar('--chart-grid', 'rgba(255,255,255,0.12)');
+    var labelColor = cssVar('--chart-label', '#9eabc0');
+    var chartWin = cssVar('--chart-win', '#38d39f');
+    var chartMid = cssVar('--chart-mid', '#8aa0ff');
+    var chartLoss = cssVar('--chart-loss', '#f5858f');
+    var chartAccent = cssVar('--accent', '#5f79ff');
 
     function parseJson(id) {
         var el = document.getElementById(id);
@@ -391,13 +481,13 @@
                     {
                         label: 'Wins',
                         data: wins,
-                        backgroundColor: 'rgba(74,222,128,0.82)',
+                        backgroundColor: chartWin,
                         stack: 'main',
                     },
                     {
                         label: 'Losses',
                         data: losses,
-                        backgroundColor: 'rgba(248,113,113,0.80)',
+                        backgroundColor: chartLoss,
                         stack: 'main',
                     },
                     {
@@ -456,7 +546,7 @@
         var wrs    = rows.map(function (r) { return r.win_rate; });
         var counts = rows.map(function (r) { return r.maps; });
         var barColors = wrs.map(function (wr) {
-            return wr >= 55 ? 'rgba(74,222,128,0.75)' : wr >= 45 ? 'rgba(251,191,36,0.75)' : 'rgba(248,113,113,0.75)';
+            return wr >= 55 ? chartWin : wr >= 45 ? chartMid : chartLoss;
         });
 
         new Chart(canvas, {
@@ -521,13 +611,13 @@
                 datasets: [{
                     label: 'Cumulative WR %',
                     data: cumWR,
-                    borderColor: '#fa4454',
+                    borderColor: chartAccent,
                     backgroundColor: 'rgba(250,68,84,0.10)',
                     fill: true,
                     tension: 0.4,
                     pointRadius: 4,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: '#fa4454',
+                    pointBackgroundColor: chartAccent,
                     spanGaps: true,
                 }]
             },
@@ -603,8 +693,8 @@
                 labels: ['Vanguard', 'Duelist', 'Strategist'],
                 datasets: [{
                     data: [counts.Vanguard, counts.Duelist, counts.Strategist],
-                    backgroundColor: ['rgba(96,165,250,0.85)', 'rgba(248,113,113,0.85)', 'rgba(74,222,128,0.85)'],
-                    borderColor: ['#60a5fa', '#f87171', '#4ade80'],
+                    backgroundColor: [chartMid, chartLoss, chartWin],
+                    borderColor: [chartMid, chartLoss, chartWin],
                     borderWidth: 2,
                 }]
             },
