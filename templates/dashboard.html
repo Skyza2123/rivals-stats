@@ -46,8 +46,10 @@
     <div class="page-toolbar">
         <div class="page-toolbar-group">
             <span class="muted-label">Quick actions</span>
+            {% if session.get('access_level') == 'edit' %}
             <a class="button-link" href="{{ url_for('scrims') }}#create-scrim">+ New Scrim</a>
             <a class="button-secondary" href="{{ url_for('tournaments') }}#create-tournament">+ New Tournament</a>
+            {% endif %}
         </div>
         <div class="page-toolbar-group">
             <a class="button-secondary" href="{{ url_for('teams') }}">Teams</a>

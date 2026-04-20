@@ -58,6 +58,7 @@
     </div>
 </div>
 
+{% if session.get('access_level') == 'edit' %}
 <details class="dense-collapsible top-gap">
     <summary>Advanced Team Actions</summary>
     <div class="dense-collapsible-body">
@@ -68,6 +69,7 @@
         </div>
     </div>
 </details>
+{% endif %}
 
 <div class="tab-content" id="tab-bans">
     <section class="panel">
@@ -1317,6 +1319,7 @@
 </div>
 
 <div class="tab-content tab-hidden" id="tab-roster">
+    {% if session.get('access_level') == 'edit' %}
     <section class="panel">
         <h3>Edit Team</h3>
         <form id="editEnemyTeamForm" method="post" action="{{ url_for('edit_enemy_team', enemy_team_id=enemy_team.id) }}" class="form-grid" enctype="multipart/form-data">
@@ -1351,11 +1354,12 @@
             </div>
         </form>
     </section>
+    {% endif %}
 
     <section class="panel">
         <div class="panel-header-row">
             <h3>Roster</h3>
-            <button id="openPlayerModal" type="button" class="button-small">Add / Edit Player</button>
+            {% if session.get('access_level') == 'edit' %}<button id="openPlayerModal" type="button" class="button-small">Add / Edit Player</button>{% endif %}
         </div>
         {% if players %}
             {% call stats_table(['Player', 'Role', 'Main Hero', 'Notes', 'Actions']) %}
@@ -1367,6 +1371,7 @@
                         <td>{{ player.notes or '-' }}</td>
                         <td>
                             <div class="inline-actions">
+                                {% if session.get('access_level') == 'edit' %}
                                 <button
                                     type="button"
                                     class="button-secondary button-small open-edit-enemy-player"
@@ -1381,6 +1386,7 @@
                                 <form method="post" action="{{ url_for('delete_enemy_player', enemy_player_id=player.id) }}" onsubmit="return confirm('Remove this player?');">
                                     <button type="submit" class="button-secondary button-small">Remove</button>
                                 </form>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -1392,6 +1398,7 @@
     </section>
 </div>
 
+{% if session.get('access_level') == 'edit' %}
 <div id="playerModal" class="modal-overlay" aria-hidden="true">
     <div class="modal-card">
         <div class="modal-header">
@@ -1435,6 +1442,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
 (() => {

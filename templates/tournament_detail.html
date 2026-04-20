@@ -14,10 +14,12 @@
     </div>
     <div class="header-actions">
         <a href="{{ url_for('tournaments') }}" class="button-secondary">Back to Tournaments</a>
+        {% if session.get('access_level') == 'edit' %}
         <button type="button" class="button-secondary" onclick="openModal('editTournamentModal')">Edit</button>
         <button type="button" class="button-secondary" onclick="openModal('addTeamModal')">Add Team</button>
         <button type="button" class="button-link" onclick="openModal('addMatchModal')">+ Add Match</button>
         <button type="button" class="btn-danger-sm" onclick="confirmDeleteTournament()">Delete Tournament</button>
+        {% endif %}
     </div>
 </div>
 
@@ -522,7 +524,7 @@
             <h3>Tournament Teams</h3>
             <p class="panel-intro">Open a team page to see tournament-only stats, hero trends, and most-picked maps.</p>
         </div>
-        <button type="button" class="button-small" onclick="openModal('addTeamModal')">Add Team</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addTeamModal')">Add Team</button>{% endif %}
     </div>
 
     {% if tournament.tournament_teams %}
@@ -534,9 +536,11 @@
                             <div class="section-kicker">Tournament Team {{ loop.index }}</div>
                             <h3>{{ tournament_team.name }}</h3>
                         </div>
+                        {% if session.get('access_level') == 'edit' %}
                         <form method="post" action="{{ url_for('delete_tournament_team', tournament_id=tournament.id, tournament_team_id=tournament_team.id) }}" onsubmit="return confirm('Delete this tournament team?');">
                             <button type="submit" class="button-secondary button-small">Delete</button>
                         </form>
+                        {% endif %}
                     </div>
                     <p class="panel-intro">{{ tournament_team.players|length }} players registered</p>
                     {% if tournament_team.players %}
@@ -572,7 +576,7 @@
             <h3>Matches</h3>
             <p class="panel-intro">Matches work like scrims. Open one to add maps, comps, notes, and who picked each map.</p>
         </div>
-        <button type="button" class="button-small" onclick="openModal('addMatchModal')" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Add Match</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addMatchModal')" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Add Match</button>{% endif %}
     </div>
 
     {% if match_summaries %}
@@ -601,6 +605,7 @@
 </section>
 </div>
 
+{% if session.get('access_level') == 'edit' %}
 <form id="deleteTournamentForm" action="{{ url_for('delete_tournament', tournament_id=tournament.id) }}" method="post" style="display:none;"></form>
 
 <div id="editTournamentModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'editTournamentModal')">
@@ -725,6 +730,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
 function openModal(id) {

@@ -29,9 +29,11 @@
                 {% endfor %}
             </select>
         </form>
+        {% if session.get('access_level') == 'edit' %}
         <div class="page-toolbar-group">
             <button id="openTournamentModal" class="button-link" type="button">Open / New Tournament</button>
         </div>
+        {% endif %}
     </div>
 </section>
 
@@ -69,6 +71,7 @@
     {% endif %}
 </section>
 
+{% if session.get('access_level') == 'edit' %}
 <div id="tournamentModal" class="modal-overlay" aria-hidden="true">
     <div class="modal-card" onclick="event.stopPropagation()">
         <div class="modal-header">
@@ -157,6 +160,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
 (() => {

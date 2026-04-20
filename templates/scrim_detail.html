@@ -21,12 +21,14 @@
     </div>
     <div class="header-actions">
         <a href="{{ url_for(match_list_endpoint) }}" class="button-secondary">Back to {{ match_label }}s</a>
+        {% if session.get('access_level') == 'edit' %}
         <button type="button" class="button-secondary" onclick="openEditScrimModal()">Edit</button>
         {% if not show_team_selector %}
         <button type="button" class="button-secondary" onclick="openManageTeamsModal()">Manage Teams</button>
         {% endif %}
         <button type="button" class="button-link" onclick="openMapModal()">+ Add Map</button>
         <button type="button" class="btn-danger-sm" onclick="confirmDeleteScrim()">Delete {{ match_label }}</button>
+        {% endif %}
     </div>
 </div>
 
@@ -82,7 +84,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Tournament Teams</h3>
-        <button type="button" class="button-small" onclick="openManageTeamsModal()">Manage Teams</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openManageTeamsModal()">Manage Teams</button>{% endif %}
     </div>
 
     {% if scrim.tournament_teams %}
@@ -92,9 +94,11 @@
                     <div class="section-kicker">Tournament Team {{ loop.index }}</div>
                     <div class="panel-header-row">
                         <h3>{{ team.name }}</h3>
-                        <form method="post" action="{{ url_for('delete_tournament_team', tournament_id=scrim.id, tournament_team_id=team.id) }}" onsubmit="return confirm('Delete this tournament team? Maps using it will need reassignment.');">
+                        {% if session.get('access_level') == 'edit' %}
+                    <form method="post" action="{{ url_for('delete_tournament_team', tournament_id=scrim.id, tournament_team_id=team.id) }}" onsubmit="return confirm('Delete this tournament team? Maps using it will need reassignment.');">
                             <button type="submit" class="button-secondary button-small">Delete</button>
                         </form>
+                    {% endif %}
                     </div>
                     {% if team.players %}
                         <div class="list-stack top-gap">
@@ -119,7 +123,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Maps</h3>
-        <button type="button" class="button-small" onclick="openMapModal()">Add Map</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openMapModal()">Add Map</button>{% endif %}
     </div>
 
     {% if scrim.maps %}
@@ -171,6 +175,7 @@
                         </div>
                     </a>
                         {% set map_slot = map_entry.our_team_slot if map_entry.our_team_slot in ['team1', 'team2'] else 'team1' %}
+                        {% if session.get('access_level') == 'edit' %}
                         <button
                             type="button"
                             class="map-card-edit"
@@ -191,6 +196,7 @@
                             onclick="confirmDeleteMapFromButton(this)"
                             title="Delete map"
                         >&times;</button>
+                        {% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -199,12 +205,15 @@
     {% endif %}
 </section>
 
+{% if session.get('access_level') == 'edit' %}
 <!-- Hidden delete forms -->
 <form id="deleteScrimForm" action="{{ url_for(match_delete_endpoint, tournament_id=scrim.id, scrim_id=scrim.id) }}" method="post" style="display:none;"></form>
 {% for map_entry in scrim.maps %}
 <form id="deleteMapForm{{ map_entry.id }}" action="{{ url_for(delete_map_endpoint, tournament_id=scrim.id, scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
 {% endfor %}
+{% endif %}
 
+{% if session.get('access_level') == 'edit' %}
 <!-- Edit Map Result Modal -->
 <div id="editMapModal" class="modal-overlay" onclick="closeEditMapModal(event)">
     <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
@@ -409,6 +418,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script id="mapSubmapsData" type="application/json">{{ map_submaps | tojson }}</script>
 <script>

@@ -42,8 +42,10 @@
             <div class="header-actions">
                 <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
                 <div class="pill pill-neutral">Winner: {{ winner_label }}</div>
+                {% if session.get('access_level') == 'edit' %}
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -69,7 +71,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Draft</h3>
-        <button type="button" class="button-small" onclick="openModal('draftModal')">Edit Draft</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('draftModal')">Edit Draft</button>{% endif %}
     </div>
     <div class="draft-grid">
         <div class="draft-column draft-display">
@@ -116,7 +118,7 @@
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
             <span class="comp-submap-name">{{ sec.submap or ('Round ' ~ (s + 1)) }}</span>
-            <button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ sec.submap or ('Round ' ~ (s + 1)) }}</button>
+            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ sec.submap or ('Round ' ~ (s + 1)) }}</button>{% endif %}
         </div>
         <div class="comp-grid">
             <div class="comp-team">
@@ -169,7 +171,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Event Log</h3>
-        <button type="button" class="button-small" onclick="openModal('addEventModal')">Add Event</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addEventModal')">Add Event</button>{% endif %}
     </div>
     {% if map_entry.events %}
         <div class="list-stack">
@@ -179,9 +181,11 @@
                         <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
                         <div class="list-subtitle">{{ event.description or "No description" }}</div>
                     </div>
+                    {% if session.get('access_level') == 'edit' %}
                     <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
                         <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
                     </form>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -196,7 +200,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>VOD Link</h3>
-        <button type="button" class="button-small" onclick="openModal('editVodModal')">Edit VOD</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editVodModal')">Edit VOD</button>{% endif %}
     </div>
     {% if map_entry.get('vod_url') %}
         <div class="summary-box">{{ map_entry.get('vod_url') }}</div>
@@ -214,7 +218,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Map Notes</h3>
-        <button type="button" class="button-small" onclick="openModal('editNotesModal')">Edit Notes</button>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editNotesModal')">Edit Notes</button>{% endif %}
     </div>
     {% if map_entry.notes %}
         <div class="summary-box">{{ map_entry.notes }}</div>
@@ -224,6 +228,7 @@
 </section>
 </div>
 
+{% if session.get('access_level') == 'edit' %}
 <!-- Hidden delete form -->
 <form id="deleteMapForm" action="{{ url_for(delete_map_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
 
@@ -574,6 +579,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script id="compPlayerOptionsData" type="application/json">
 {{ {'team1': team1_player_options, 'team2': team2_player_options}|tojson }}

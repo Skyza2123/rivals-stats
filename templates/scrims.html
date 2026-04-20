@@ -29,6 +29,7 @@
                 {% endfor %}
             </select>
         </form>
+        {% if session.get('access_level') == 'edit' %}
         <div class="page-toolbar-group">
             <form method="post" action="{{ url_for('clear_scrim_duplicates') }}" onsubmit="return confirm('Clear duplicate scrims now? This will merge duplicate entries into one record.');" class="form-contents">
                 <button class="button-secondary" type="submit">Clear Duplicates</button>
@@ -36,6 +37,7 @@
             <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
             <button id="openScrimModal" class="button-link" type="button">+ New Scrim</button>
         </div>
+        {% endif %}
     </div>
 </section>
 
@@ -84,6 +86,7 @@
     {% endif %}
 </section>
 
+{% if session.get('access_level') == 'edit' %}
 <div id="scrimModal" class="modal-overlay" aria-hidden="true">
     <div class="modal-card" onclick="event.stopPropagation()">
         <div class="modal-header">
@@ -139,7 +142,11 @@
     </div>
 </div>
 
+</div>
+{% endif %}
+
 {# ── CSV Import Modal ─────────────────────────────────────────────────── #}
+{% if session.get('access_level') == 'edit' %}
 <div id="importModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="importModalTitle">
     <div class="modal-card import-modal-card">
         <div class="modal-header">
@@ -204,6 +211,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
 (() => {

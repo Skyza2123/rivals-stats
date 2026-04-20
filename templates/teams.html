@@ -37,7 +37,9 @@
             </select>
         </form>
         <div class="page-toolbar-group">
+            {% if session.get('access_level') == 'edit' %}
             <button id="openAddTeamModal" type="button" class="button-small">+ Add Team</button>
+            {% endif %}
             <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
         </div>
     </div>
@@ -99,6 +101,7 @@
                         </a>
                         <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
                         <div class="team-dash-players">{{ team.player_count }} players</div>
+                        {% if session.get('access_level') == 'edit' %}
                         <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
                             <input type="hidden" name="season" value="{{ selected_season }}">
                             {% if team.is_personal %}
@@ -109,6 +112,7 @@
                                 <button type="submit" class="button-secondary button-small">Add To Personal</button>
                             {% endif %}
                         </form>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </div>
@@ -141,11 +145,13 @@
                         </a>
                         <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
                         <div class="team-dash-players">{{ team.player_count }} players</div>
+                        {% if session.get('access_level') == 'edit' %}
                         <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
                             <input type="hidden" name="season" value="{{ selected_season }}">
                             <input type="hidden" name="action" value="remove">
                             <button type="submit" class="button-secondary button-small">Remove From Personal</button>
                         </form>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </div>
@@ -155,6 +161,7 @@
     </div>
 </section>
 
+{% if session.get('access_level') == 'edit' %}
 <div id="addTeamModal" class="modal-overlay" aria-hidden="true">
     <div class="modal-card modal-card-sm">
         <div class="modal-header">
@@ -207,6 +214,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
 (() => {
