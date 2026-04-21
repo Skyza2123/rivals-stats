@@ -12,7 +12,9 @@
             <h2>{{ team.name }}</h2>
             <div class="team-kpi-chips gap-md">
                 {% if team.quality_tag %}
-                    <span class="team-kpi-chip">Quality: {{ team.quality_tag }}</span>
+                    {% set qt = team.quality_tag %}
+                    {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
+                    <span class="team-kpi-chip quality-tag-badge {{ qt_class }}">{{ qt }}</span>
                 {% endif %}
                 <span class="team-kpi-chip">{{ team_scrim_count }} scrims</span>
                 <span class="team-kpi-chip">{{ team_analytics.summary.total_maps }} maps</span>
