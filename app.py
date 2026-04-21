@@ -60,7 +60,7 @@ DB_PATH = _default_database_path()
 TEAM_LOGO_DIR = Path(app.static_folder) / "uploads" / "team_logos"
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
-TEAM_QUALITY_TAG_OPTIONS = ("Prefered", "Semi Prefer", "Good", "Avoid")
+TEAM_QUALITY_TAG_OPTIONS = ("Preferred", "Semi Preferred", "Good", "Avoid")
 DEFAULT_MAP_TYPE = "Standard"
 MAP_TYPE_ALIASES = {
     "standard": "Standard",
