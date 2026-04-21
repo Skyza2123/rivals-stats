@@ -249,19 +249,41 @@
         </div>
 
         <section class="panel top-gap">
-            <h3>Role Balance</h3>
-            <div class="overview-role-grid top-gap">
-                {% for role in player_roles %}
-                    {% set role_count = namespace(value=0) %}
+            <h3>Hero Pool</h3>
+            {% if players %}
+                <div class="pool-roster">
                     {% for player in players %}
-                        {% if player.role == role %}{% set role_count.value = role_count.value + 1 %}{% endif %}
+                        {% if player.hero_rows %}
+                            <div class="pool-roster-row">
+                                <a class="pool-player-info" href="{{ url_for('player_detail', team_id=team.id, player_id=player.id) }}">
+                                    <div class="pool-player-avatar">
+                                        <img src="{{ hero_image_url(player.hero_rows[0].hero) }}" alt="" loading="lazy" onerror="this.style.display='none'">
+                                    </div>
+                                    <div class="pool-player-text">
+                                        <span class="pool-player-name">{{ player.name }}</span>
+                                        <span class="pool-player-role">{{ player.role or '—' }}</span>
+                                    </div>
+                                </a>
+                                <div class="pool-hero-strip">
+                                    {% for row in player.hero_rows[:6] %}
+                                        {% set wr = row.win_rate %}
+                                        {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                                        <div class="pool-hero-chip">
+                                            <img class="pool-hero-img" src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" loading="lazy" onerror="this.style.display='none'">
+                                            <div class="pool-hero-info">
+                                                <span class="pool-hero-name">{{ hero_display_name(row.hero) }}</span>
+                                                <span class="pool-hero-wr {{ wr_class }}">{{ row.maps }}m &bull; {{ wr }}%</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
                     {% endfor %}
-                    <article class="overview-role-item">
-                        <strong>{{ role }}</strong>
-                        <span>{{ role_count.value }}</span>
-                    </article>
-                {% endfor %}
-            </div>
+                </div>
+            {% else %}
+                <p class="empty-text">No hero data yet.</p>
+            {% endif %}
         </section>
     </div>
 </div>

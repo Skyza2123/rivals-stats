@@ -127,6 +127,20 @@ HERO_NAME_ALIASES = {
     "wintersolider": "Winter Soldier",
     "wolve": "Wolverine",
 }
+PLAYER_NAME_ALIASES = {
+    "drstrange": "Dr Strange",
+}
+_RINGER_NAME_MARKERS = (
+    "r",
+    "ringer",
+    "standin",
+    "stand-in",
+    "sub",
+    "substitute",
+    "merc",
+    "mercenary",
+)
+_RINGER_NAME_MARKER_KEYS = {re.sub(r"[^a-z0-9]+", "", marker.lower()) for marker in _RINGER_NAME_MARKERS}
 DRAFT_SLOT_ORDER = ("ban1", "protect1", "ban2", "ban3", "protect2", "ban4")
 PREDICTOR_INPUT_ORDER = (
     "t1_ban1",
@@ -911,6 +925,28 @@ def _parse_scrim_date(raw_value: str) -> date | None:
     return None
 
 
+def _get_season_from_date(scrim_date_str: str) -> str:
+    """Determine season from scrim_date based on season windows:
+    - Season 7: March 20 and after
+    - Season 6.5: Feb 13 to March 19
+    - Season 6: Jan 16 to Feb 12
+    """
+    parsed_date = _parse_scrim_date(scrim_date_str)
+    if not parsed_date:
+        return ""
+    
+    # Season 7: March 20 and after
+    if parsed_date >= date(2026, 3, 20):
+        return "7"
+    # Season 6.5: Feb 13 to March 19
+    elif parsed_date >= date(2026, 2, 13):
+        return "6.5"
+    # Season 6: Jan 16 to Feb 12
+    elif parsed_date >= date(2026, 1, 16):
+        return "6"
+    return ""
+
+
 def normalize_season_value(raw_value: str) -> str:
     return " ".join((raw_value or "").strip().split())
 
@@ -1299,7 +1335,11 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
 
 
 def normalize_scrim_record(scrim: dict) -> dict:
-    scrim["season"] = normalize_season_value(scrim.get("season", ""))
+    # Auto-assign season from scrim_date if season is empty
+    season = normalize_season_value(scrim.get("season", ""))
+    if not season:
+        season = _get_season_from_date(scrim.get("scrim_date", ""))
+    scrim["season"] = season
     scrim["team_slot"] = normalize_match_team_slot(scrim.get("team_slot", "team1"))
     if not scrim.get("enemy_team") and scrim.get("opponent"):
         scrim["enemy_team"] = scrim.get("opponent", "")
@@ -1337,7 +1377,11 @@ def normalize_scrim_record(scrim: dict) -> dict:
                     for slot in slots:
                         if not isinstance(slot, dict):
                             continue
-                        slot["player"] = str(slot.get("player", "")).strip()
+                        raw_player_name = str(slot.get("player", "")).strip()
+                        if is_ringer_player_name(raw_player_name):
+                            slot["player"] = ""
+                        else:
+                            slot["player"] = normalize_player_name(raw_player_name)
                         slot["hero"] = normalize_hero_slot_value(slot.get("hero", ""))
     return scrim
 
@@ -1358,8 +1402,8 @@ def normalize_tournament_record(match: dict) -> dict:
     match.setdefault("team2_enemy_id", None)
     match.setdefault("team2_name", "")
     match.setdefault("team2_players", [])
-    match["team1_players"] = [str(player).strip() for player in match.get("team1_players", []) if str(player).strip()]
-    match["team2_players"] = [str(player).strip() for player in match.get("team2_players", []) if str(player).strip()]
+    match["team1_players"] = parse_name_list("\n".join(str(player) for player in match.get("team1_players", [])))
+    match["team2_players"] = parse_name_list("\n".join(str(player) for player in match.get("team2_players", [])))
 
     normalized_teams: list[dict] = []
     next_team_id = 1
@@ -1372,7 +1416,7 @@ def normalize_tournament_record(match: dict) -> dict:
         raw_id = team.get("id")
         team_id = raw_id if isinstance(raw_id, int) and raw_id > 0 else next_team_id
         next_team_id = max(next_team_id, team_id + 1)
-        players = [str(player).strip() for player in team.get("players", []) if str(player).strip()]
+        players = parse_name_list("\n".join(str(player) for player in team.get("players", [])))
         normalized_teams.append({
             "id": team_id,
             "name": name,
@@ -1598,6 +1642,34 @@ def normalize_tournament_match_record(tournament_match: dict, tournament_teams: 
                 map_entry["picked_by_tournament_team_id"] = picker["id"]
         picker = find_tournament_team_by_id(tournament_teams, map_entry.get("picked_by_tournament_team_id"))
         map_entry["picked_by_name"] = picker.get("name", "") if picker is not None else str(map_entry.get("picked_by_name", "")).strip()
+
+        draft = map_entry.get("draft", {})
+        if isinstance(draft, dict):
+            for side in TEAM_SLOTS:
+                team_draft = draft.get(side, {})
+                if not isinstance(team_draft, dict):
+                    continue
+                for slot_key, hero_name in list(team_draft.items()):
+                    team_draft[slot_key] = normalize_hero_slot_value(hero_name)
+
+        comp_sections = map_entry.get("comp", [])
+        if isinstance(comp_sections, list):
+            for section in comp_sections:
+                if not isinstance(section, dict):
+                    continue
+                for side in TEAM_SLOTS:
+                    slots = section.get(side, [])
+                    if not isinstance(slots, list):
+                        continue
+                    for slot in slots:
+                        if not isinstance(slot, dict):
+                            continue
+                        raw_player_name = str(slot.get("player", "")).strip()
+                        if is_ringer_player_name(raw_player_name):
+                            slot["player"] = ""
+                        else:
+                            slot["player"] = normalize_player_name(raw_player_name)
+                        slot["hero"] = normalize_hero_slot_value(slot.get("hero", ""))
 
     return tournament_match
 
@@ -2347,15 +2419,51 @@ def parse_comma_list(raw: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def is_ringer_player_name(raw_name: str | None) -> bool:
+    name = str(raw_name or "").strip()
+    if not name:
+        return False
+
+    lowered = name.lower()
+    if re.match(r"^(?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)\s*[:\-]", lowered):
+        return True
+    if re.search(r"[\[(](?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)[\])]\s*$", lowered):
+        return True
+
+    compact = _compact_text(name)
+    return compact in _RINGER_NAME_MARKER_KEYS
+
+
+def normalize_player_name(raw_name: str | None) -> str:
+    name = str(raw_name or "").strip()
+    if not name:
+        return ""
+
+    name = re.sub(r"\s+", " ", name)
+    name = name.strip("`\"'")
+    name = re.sub(r"^(?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)\s*[:\-]\s*", "", name, flags=re.IGNORECASE)
+    name = re.sub(r"\s*[\[(](?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)[\])]\s*$", "", name, flags=re.IGNORECASE)
+    name = name.strip()
+
+    if not name:
+        return ""
+
+    alias = PLAYER_NAME_ALIASES.get(_compact_text(name))
+    return alias or name
+
+
 def parse_name_list(raw: str) -> list[str]:
     parts = re.split(r"[\r\n,]+", raw or "")
     cleaned: list[str] = []
     seen: set[str] = set()
     for part in parts:
-        name = part.strip()
+        original = part.strip()
+        if not original or is_ringer_player_name(original):
+            continue
+        name = normalize_player_name(original)
         if not name:
             continue
-        key = name.lower()
+        key = _compact_text(name) or name.lower()
         if key in seen:
             continue
         seen.add(key)
@@ -2468,10 +2576,13 @@ def _collect_scrim_roster_data(scrim: dict) -> tuple[dict[str, list[str]], dict[
                 for slot in slots:
                     if not isinstance(slot, dict):
                         continue
-                    player_name = str(slot.get("player", "")).strip()
+                    raw_player_name = str(slot.get("player", "")).strip()
+                    if is_ringer_player_name(raw_player_name):
+                        continue
+                    player_name = normalize_player_name(raw_player_name)
                     hero_name = canonicalize_hero_name(slot.get("hero", ""))
                     if player_name:
-                        player_key = player_name.lower()
+                        player_key = _compact_text(player_name) or player_name.lower()
                         if player_key not in seen_names[side]:
                             players_by_side[side].append(player_name)
                             seen_names[side].add(player_key)
@@ -6776,8 +6887,8 @@ def build_team_hero_profile(team_scrims: list[dict], players: list[dict]) -> dic
 
     specialists.sort(
         key=lambda row: (
+            row["focus_appearances"],
             row["focus_rate"],
-            row["top_two_rate"],
             row["appearances"],
             row["player_name"].lower(),
         ),
@@ -6891,6 +7002,19 @@ def dashboard():
         reverse=True,
     )[:8]
 
+    all_team_rows = db.execute(
+        "SELECT id, name, logo_path, is_personal FROM teams ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    all_teams_for_quick_access = [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "logo_path": row["logo_path"],
+            "is_personal": bool(row["is_personal"]),
+        }
+        for row in all_team_rows
+    ]
+
     return render_template(
         "dashboard.html",
         total_scrims=total_scrims,
@@ -6905,7 +7029,25 @@ def dashboard():
         top_bans=top_bans,
         personal_quick_teams=personal_quick_teams,
         quick_opponents=quick_opponents,
+        all_teams_for_quick_access=all_teams_for_quick_access,
     )
+
+
+@app.route("/api/teams/<int:team_id>/set-personal", methods=["POST"])
+def api_set_personal_team(team_id: int):
+    if not _is_edit_session():
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    db = get_db()
+    team = db.execute("SELECT id FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if not team:
+        return jsonify({"error": "Team not found"}), 404
+    
+    db.execute("UPDATE teams SET is_personal = 0")
+    db.execute("UPDATE teams SET is_personal = 1 WHERE id = ?", (team_id,))
+    db.commit()
+    
+    return jsonify({"success": True})
 
 
 @app.route("/teams")
@@ -6945,6 +7087,25 @@ def teams():
         )
         team_win_rate = round((team_wins / team_maps) * 100, 1) if team_maps else 0
 
+        # Calculate hero pool (top 5 heroes)
+        pick_counter: Counter = Counter()
+        for scrim in team_scrims:
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                our_slot = map_entry.get("our_team_slot", "team1")
+                for section in map_entry.get("comp", []):
+                    if not isinstance(section, dict):
+                        continue
+                    for slot in section.get(our_slot, []):
+                        if not isinstance(slot, dict):
+                            continue
+                        hero = canonicalize_hero_name(slot.get("hero", ""))
+                        if hero:
+                            pick_counter[hero] += 1
+
+        hero_pool = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
+
         teams_with_scrim_stats.append(
             {
                 "id": row["id"],
@@ -6957,6 +7118,7 @@ def teams():
                 "scrim_count": len(team_scrims),
                 "map_count": team_maps,
                 "map_win_rate": team_win_rate,
+                "hero_pool": hero_pool,
             }
         )
 
@@ -7113,7 +7275,8 @@ def teams_compare():
 @app.route("/teams/create", methods=["POST"])
 def create_team():
     db = get_db()
-    name = request.form.get("name", "").strip()
+    raw_name = request.form.get("name", "")
+    name = normalize_player_name(raw_name)
     notes = request.form.get("notes", "").strip()
     quality_tag_raw = " ".join(request.form.get("quality_tag", "").strip().split())[:32]
     quality_tag = quality_tag_raw if quality_tag_raw in TEAM_QUALITY_TAG_OPTIONS else ""
@@ -7145,7 +7308,8 @@ def edit_team(team_id: int):
     if current is None:
         abort(404)
 
-    name = request.form.get("name", "").strip()
+    raw_name = request.form.get("name", "")
+    name = normalize_player_name(raw_name)
     notes = request.form.get("notes", "").strip()
     quality_tag_raw = " ".join(request.form.get("quality_tag", "").strip().split())[:32]
     quality_tag = quality_tag_raw if quality_tag_raw in TEAM_QUALITY_TAG_OPTIONS else ""
@@ -7415,6 +7579,7 @@ def team_detail(team_id: int):
             "top_hero": primary_hero,
             "notes": row["notes"],
             "stats": stats,
+            "hero_rows": player_breakdown.get("hero_rows", []),
         })
 
     team_hero_profile = build_team_hero_profile(team_scrims, players)
@@ -9715,9 +9880,10 @@ def _parse_template_csv_into_scrims(
     def _build_team_comp(row: list[str], pairs: tuple[tuple[int, int], ...]) -> list[dict]:
         slots: list[dict] = []
         for player_idx, hero_idx in pairs:
+            raw_player_name = _cell(row, player_idx)
             slots.append(
                 {
-                    "player": _cell(row, player_idx),
+                    "player": "" if is_ringer_player_name(raw_player_name) else normalize_player_name(raw_player_name),
                     "hero": normalize_hero_slot_value(_cell(row, hero_idx)),
                 }
             )
@@ -11961,5 +12127,6 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", "5000")),
-        debug=os.environ.get("FLASK_DEBUG", "0") == "1",
+        debug=True,
+        use_reloader=True,
     )

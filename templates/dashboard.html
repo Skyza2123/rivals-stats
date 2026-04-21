@@ -60,20 +60,31 @@
 
 <section class="panel">
     <div class="panel-header-row">
-        <h3>Personal Teams</h3>
+        <h3>Teams</h3>
         <a href="{{ url_for('teams') }}">Manage teams</a>
     </div>
-    {% if personal_quick_teams %}
-        <div class="dashboard-quick-links">
-            {% for team_row in personal_quick_teams %}
-                <a class="quick-link-chip" href="{{ url_for('team_detail', team_id=team_row.id) }}">
-                    <span class="quick-link-name">{{ team_row.name }}</span>
-                    <span class="quick-link-meta">{{ team_row.scrims }} scrims • {{ team_row.maps }} maps</span>
+    {% if all_teams_for_quick_access %}
+        <div class="dash-teams-grid">
+            {% for team in all_teams_for_quick_access %}
+                <a class="dash-team-card{% if team.is_personal %} dash-team-card-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
+                    <div class="dash-team-logo-wrap">
+                        {% if team.logo_path %}
+                            <img src="{{ url_for('static', filename=team.logo_path) }}" alt="{{ team.name }}" class="dash-team-logo">
+                        {% else %}
+                            <div class="dash-team-logo-fallback">{{ team.name[0] if team.name else '?' }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="dash-team-info">
+                        <span class="dash-team-name">{{ team.name }}</span>
+                        {% if team.is_personal %}
+                            <span class="dash-team-badge">★ Personal</span>
+                        {% endif %}
+                    </div>
                 </a>
             {% endfor %}
         </div>
     {% else %}
-        <p class="empty-text">No personal teams yet. Mark a team as personal from the teams page.</p>
+        <p class="empty-text">No teams yet.</p>
     {% endif %}
 </section>
 
@@ -173,4 +184,37 @@
     {% endif %}
 </section>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const setPersonalButtons = document.querySelectorAll('.set-personal-btn');
+    
+    setPersonalButtons.forEach(button => {
+        button.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const teamId = this.dataset.teamId;
+            
+            try {
+                const response = await fetch(`/api/teams/${teamId}/set-personal`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload the page to reflect the changes
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to set personal team'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error: ' + error.message);
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
