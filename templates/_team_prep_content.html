@@ -82,7 +82,7 @@
     <a href="#prep-open-hero" class="prep-overview-link">Open Hero Impact</a>
     <a href="#prep-expected-comps" class="prep-overview-link">Expected Comps</a>
     <a href="#prep-player-pivots" class="prep-overview-link">Player Ban Pivots</a>
-    <a href="#prep-specialist-diff" class="prep-overview-link">Specialist Difference</a>
+
 </nav>
 
 <section class="panel panel-soft-blue top-gap" id="prep-open-hero">
@@ -343,53 +343,7 @@
     </div>
 </details>
 
-<details class="dense-collapsible top-gap" id="prep-specialist-diff">
-    <summary>Hero Specialist Difference</summary>
-    <div class="dense-collapsible-body">
-        <section class="panel panel-soft-violet">
-            <div class="section-kicker">Player vs Player On Hero</div>
-            <h3>Hero Specialist Difference</h3>
-            <p class="panel-intro">Highlights heroes where performance shifts depending on who pilots the hero.</p>
-            {% if prep_expected_plan.hero_player_differences %}
-                <div class="table-wrap top-gap">
-                    <table class="stats-table stats-table-compare">
-                        <thead>
-                            <tr>
-                                <th>Hero</th>
-                                <th>Higher WR Player</th>
-                                <th>WR</th>
-                                <th>Alt Player</th>
-                                <th>WR</th>
-                                <th>Difference</th>
-                                <th>Samples</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in prep_expected_plan.hero_player_differences %}
-                                <tr>
-                                    <td>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                            <span>{{ hero_display_name(row.hero) }}</span>
-                                        </span>
-                                    </td>
-                                    <td>{{ row.best_player.player_name }}</td>
-                                    <td>{{ row.best_player.win_rate }}% ({{ sample_warn(row.best_player.maps) }} maps)</td>
-                                    <td>{{ row.alt_player.player_name }}</td>
-                                    <td>{{ row.alt_player.win_rate }}% ({{ sample_warn(row.alt_player.maps) }} maps)</td>
-                                    <td>{% if row.win_rate_diff > 0 %}+{% endif %}{{ row.win_rate_diff }}%</td>
-                                    <td>{{ sample_warn(row.sample_total) }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="empty-text">Not enough hero-player overlap yet to compare different players on the same hero.</p>
-            {% endif %}
-        </section>
-    </div>
-</details>
+
 
 
  </div>

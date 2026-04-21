@@ -5974,7 +5974,7 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
     for hero_name, rows in hero_player_rows.items():
         if len(rows) < 2:
             continue
-        rows.sort(key=lambda row: (row["win_rate"], row["maps"], row["wins"]), reverse=True)
+        rows.sort(key=lambda row: (row["maps"], row["wins"]), reverse=True)
         best = rows[0]
         alt = rows[1]
         hero_player_differences.append(
@@ -7370,6 +7370,240 @@ def toggle_team_quick_access(team_id: int):
     return redirect(url_for("teams", season=request.form.get("season", "all")))
 
 
+def build_pivot_wr(team_scrims: list[dict]) -> dict:
+    """Track hero-switch (pivot) win rates on attack rounds for Escort/Hybrid maps.
+
+    A pivot is detected when a player:
+      1. Played hero X on attack and the attack was LOST.
+      2. In their next recorded attack appearance, played a DIFFERENT hero Y.
+
+    Returns per-player and per-hero-pair pivot stats.
+    """
+    from collections import defaultdict
+
+    # Accumulate per-player ordered list of (hero, atk_won) for attack rounds only.
+    player_atk_history: dict[str, list[tuple[str, bool]]] = defaultdict(list)
+
+    for scrim in team_scrims:
+        for map_entry in scrim.get("maps", []):
+            map_name = (map_entry.get("map_name") or "").strip()
+            if map_name not in ATTACK_DEFENSE_MAPS:
+                continue
+
+            our_atk_raw = map_entry.get("our_attack_score", "")
+            enemy_atk_raw = map_entry.get("enemy_attack_score", "")
+            if our_atk_raw in ("", None) or enemy_atk_raw in ("", None):
+                continue
+            try:
+                our_atk = int(our_atk_raw)
+                enemy_atk = int(enemy_atk_raw)
+            except (ValueError, TypeError):
+                continue
+
+            atk_won = our_atk > enemy_atk
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in ("team1", "team2"):
+                our_team_slot = "team1"
+
+            for section in map_entry.get("comp", []):
+                if (section.get("side") or "").strip() != "Attack":
+                    continue
+                for slot in section.get(our_team_slot, []):
+                    hero = (slot.get("hero") or "").strip()
+                    player = (slot.get("player") or "").strip()
+                    if not hero or not player:
+                        continue
+                    player_atk_history[player].append((hero, atk_won))
+
+    # Pivot = hero change after a loss.
+    # Per-player aggregates.
+    per_player: dict[str, dict] = {}
+    # Per (from_hero → to_hero) pair aggregates.
+    pair_stats: dict[tuple[str, str], dict] = defaultdict(lambda: {"attempts": 0, "wins": 0, "players": set()})
+
+    for player, history in player_atk_history.items():
+        p_attempts = 0
+        p_wins = 0
+        # Also track which pairs this player used.
+        for i in range(1, len(history)):
+            prev_hero, prev_won = history[i - 1]
+            curr_hero, curr_won = history[i]
+            if not prev_won and curr_hero != prev_hero:
+                # This is a pivot.
+                p_attempts += 1
+                if curr_won:
+                    p_wins += 1
+                pair_stats[(prev_hero, curr_hero)]["attempts"] += 1
+                if curr_won:
+                    pair_stats[(prev_hero, curr_hero)]["wins"] += 1
+                pair_stats[(prev_hero, curr_hero)]["players"].add(player)
+        if p_attempts == 0:
+            continue
+        per_player[player] = {
+            "player": player,
+            "pivot_attempts": p_attempts,
+            "pivot_wins": p_wins,
+            "pivot_wr": round(p_wins / p_attempts * 100, 1),
+        }
+
+    per_player_rows = sorted(per_player.values(), key=lambda x: -x["pivot_attempts"])
+
+    per_pair_rows = []
+    for (from_hero, to_hero), stats in pair_stats.items():
+        per_pair_rows.append({
+            "from_hero": from_hero,
+            "to_hero": to_hero,
+            "attempts": stats["attempts"],
+            "wins": stats["wins"],
+            "win_rate": round(stats["wins"] / stats["attempts"] * 100, 1) if stats["attempts"] else 0,
+            "players": sorted(stats["players"]),
+        })
+    per_pair_rows.sort(key=lambda x: (-x["attempts"], x["from_hero"].lower()))
+
+    total_attempts = sum(p["pivot_attempts"] for p in per_player.values())
+    total_wins = sum(p["pivot_wins"] for p in per_player.values())
+
+    return {
+        "total_attempts": total_attempts,
+        "total_wins": total_wins,
+        "overall_wr": round(total_wins / total_attempts * 100, 1) if total_attempts else 0,
+        "per_player": per_player_rows,
+        "per_pair": per_pair_rows,
+    }
+
+
+def build_atk_def_wr(team_scrims: list[dict]) -> dict:
+    """Compute attack/defense round win-rate stats for Escort and Hybrid maps."""
+    rounds = 0
+    total_atk_score = 0
+    total_def_conceded = 0
+    atk_wins = 0
+    atk_losses = 0
+    atk_draws = 0
+    full_clears = 0
+    full_holds = 0
+
+    per_map: dict[str, dict] = defaultdict(lambda: {
+        "rounds": 0, "total_atk": 0, "total_def": 0,
+        "wins": 0, "losses": 0, "draws": 0, "full_clears": 0, "full_holds": 0,
+    })
+    per_hero: dict[str, dict] = defaultdict(lambda: {
+        "atk_apps": 0, "atk_wins": 0, "def_apps": 0, "def_wins": 0,
+    })
+
+    for scrim in team_scrims:
+        for map_entry in scrim.get("maps", []):
+            map_name = (map_entry.get("map_name") or "").strip()
+            if map_name not in ATTACK_DEFENSE_MAPS:
+                continue
+
+            our_atk_raw = map_entry.get("our_attack_score", "")
+            enemy_atk_raw = map_entry.get("enemy_attack_score", "")
+            if our_atk_raw == "" or our_atk_raw is None or enemy_atk_raw == "" or enemy_atk_raw is None:
+                continue
+            try:
+                our_atk = int(our_atk_raw)
+                enemy_atk = int(enemy_atk_raw)
+            except (ValueError, TypeError):
+                continue
+
+            rounds += 1
+            total_atk_score += our_atk
+            total_def_conceded += enemy_atk
+            pm = per_map[map_name]
+            pm["rounds"] += 1
+            pm["total_atk"] += our_atk
+            pm["total_def"] += enemy_atk
+
+            if our_atk > enemy_atk:
+                atk_wins += 1
+                pm["wins"] += 1
+            elif our_atk < enemy_atk:
+                atk_losses += 1
+                pm["losses"] += 1
+            else:
+                atk_draws += 1
+                pm["draws"] += 1
+
+            if our_atk >= 3:
+                full_clears += 1
+                pm["full_clears"] += 1
+            if enemy_atk == 0:
+                full_holds += 1
+                pm["full_holds"] += 1
+
+            round_atk_won = our_atk > enemy_atk
+            round_def_won = enemy_atk < our_atk  # same comparison, reported separately per section
+
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in ("team1", "team2"):
+                our_team_slot = "team1"
+
+            for section in map_entry.get("comp", []):
+                section_side = (section.get("side") or "").strip()
+                heroes_in_section = [
+                    (slot.get("hero") or "").strip()
+                    for slot in section.get(our_team_slot, [])
+                    if (slot.get("hero") or "").strip()
+                ]
+                for hero in heroes_in_section:
+                    if section_side == "Attack":
+                        per_hero[hero]["atk_apps"] += 1
+                        if round_atk_won:
+                            per_hero[hero]["atk_wins"] += 1
+                    elif section_side == "Defense":
+                        per_hero[hero]["def_apps"] += 1
+                        if round_def_won:
+                            per_hero[hero]["def_wins"] += 1
+
+    per_map_rows = []
+    for map_name, stats in per_map.items():
+        r = stats["rounds"]
+        decided = stats["wins"] + stats["losses"]
+        per_map_rows.append({
+            "map_name": map_name,
+            "rounds": r,
+            "atk_avg": round(stats["total_atk"] / r, 2) if r else 0,
+            "def_avg": round(stats["total_def"] / r, 2) if r else 0,
+            "wins": stats["wins"],
+            "losses": stats["losses"],
+            "draws": stats["draws"],
+            "win_rate": round(stats["wins"] / decided * 100, 1) if decided else 0,
+            "full_clear_rate": round(stats["full_clears"] / r * 100, 1) if r else 0,
+            "full_hold_rate": round(stats["full_holds"] / r * 100, 1) if r else 0,
+        })
+    per_map_rows.sort(key=lambda x: (-x["rounds"], x["map_name"].lower()))
+
+    per_hero_rows = []
+    for hero, stats in per_hero.items():
+        total_apps = stats["atk_apps"] + stats["def_apps"]
+        if total_apps == 0:
+            continue
+        per_hero_rows.append({
+            "hero": hero,
+            "atk_apps": stats["atk_apps"],
+            "atk_win_rate": round(stats["atk_wins"] / stats["atk_apps"] * 100, 1) if stats["atk_apps"] else None,
+            "def_apps": stats["def_apps"],
+            "def_win_rate": round(stats["def_wins"] / stats["def_apps"] * 100, 1) if stats["def_apps"] else None,
+        })
+    per_hero_rows.sort(key=lambda x: -(x["atk_apps"] + x["def_apps"]))
+
+    decided = atk_wins + atk_losses
+    return {
+        "rounds": rounds,
+        "atk_avg": round(total_atk_score / rounds, 2) if rounds else 0,
+        "def_avg": round(total_def_conceded / rounds, 2) if rounds else 0,
+        "wins": atk_wins,
+        "losses": atk_losses,
+        "draws": atk_draws,
+        "win_rate": round(atk_wins / decided * 100, 1) if decided else 0,
+        "full_clear_rate": round(full_clears / rounds * 100, 1) if rounds else 0,
+        "full_hold_rate": round(full_holds / rounds * 100, 1) if rounds else 0,
+        "per_map": per_map_rows,
+        "per_hero": per_hero_rows,
+    }
+
+
 @app.route("/teams/<int:team_id>")
 def team_detail(team_id: int):
     db = get_db()
@@ -7590,6 +7824,15 @@ def team_detail(team_id: int):
     )
 
     team_ban_impact = build_team_ban_impact(team_scrims)
+
+    atk_def_wr = build_atk_def_wr(team_scrims)
+    pivot_wr = build_pivot_wr(team_scrims)
+    # Enrich team_map_cards with per-map attack/defense averages
+    _atk_def_by_map = {row["map_name"]: row for row in atk_def_wr["per_map"]}
+    for _card in team_map_cards:
+        _stats = _atk_def_by_map.get(_card["map_name"])
+        _card["attack_score_avg"] = _stats["atk_avg"] if _stats else None
+        _card["defense_score_avg"] = _stats["def_avg"] if _stats else None
 
     role_order = {"Vanguard": 0, "Duelist": 1, "Strategist": 2}
 
@@ -7854,6 +8097,8 @@ def team_detail(team_id: int):
         heroes=HEROES,
         hero_roles=HERO_ROLES,
         team_ban_impact=team_ban_impact,
+        atk_def_wr=atk_def_wr,
+        pivot_wr=pivot_wr,
         **prep_context,
     )
 
@@ -10519,6 +10764,7 @@ def scrim_detail(scrim_id: int):
         split_score_pair=split_score_pair,
         opponent_field_label="Enemy Team",
         show_team_selector=True,
+        attack_defense_maps=sorted(ATTACK_DEFENSE_MAPS),
     )
 
 
@@ -11718,9 +11964,20 @@ def update_map_info(scrim_id: int, map_id: int):
     score_team1 = request.form.get("score_team1", "").strip()
     score_team2 = request.form.get("score_team2", "").strip()
     score = request.form.get("score", "").strip()
-    
+    our_atk = request.form.get("our_attack_score", "").strip()
+    enemy_atk = request.form.get("enemy_attack_score", "").strip()
+
+    # Attack/defense score input takes priority for non-control maps
+    if our_atk or enemy_atk:
+        map_entry["our_attack_score"] = our_atk
+        map_entry["enemy_attack_score"] = enemy_atk
+        our_team_slot = map_entry.get("our_team_slot", "team1")
+        if our_team_slot == "team1":
+            map_entry["score"] = f"{our_atk}-{enemy_atk}"
+        else:
+            map_entry["score"] = f"{enemy_atk}-{our_atk}"
     # Prefer team-specific scores if provided
-    if score_team1 or score_team2:
+    elif score_team1 or score_team2:
         map_entry["score"] = f"{score_team1}-{score_team2}".strip("-")
     else:
         map_entry["score"] = score
@@ -11729,7 +11986,21 @@ def update_map_info(scrim_id: int, map_id: int):
     result = request.form.get("result", "").strip()
     map_entry["result"] = result if result in RESULTS else ""
 
-    # If result is left blank, infer from score/progress by side (team1 vs team2).
+    # If result is left blank, infer from attack-defense scores directly (most reliable).
+    if not map_entry["result"] and (our_atk or enemy_atk):
+        try:
+            o = int(our_atk) if our_atk else 0
+            e = int(enemy_atk) if enemy_atk else 0
+            if o > e:
+                map_entry["result"] = "Win"
+            elif e > o:
+                map_entry["result"] = "Loss"
+            else:
+                map_entry["result"] = "Draw"
+        except ValueError:
+            pass
+
+    # If result still blank, infer from score text string.
     if not map_entry["result"] and map_entry.get("score"):
         inferred = infer_result_from_score_text(
             map_entry.get("score", ""),
