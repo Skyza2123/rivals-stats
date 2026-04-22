@@ -4194,6 +4194,15 @@ th {
     filter: drop-shadow(0 0 1px rgba(0,0,0,0.8));
 }
 
+/* Make overlay icon smaller and more offset for hero images in slot-img-wrap (map/scrim pages) */
+.slot-img-wrap .hero-pool-icon-overlay {
+    width: 9px;
+    height: 9px;
+    left: 4px;
+    bottom: 4px;
+    z-index: 2;
+}
+
 .hero-pool-icon-overlay.pool-icon-tankpool {
     background: rgba(59, 130, 246, 0.85);
     padding: 1px;

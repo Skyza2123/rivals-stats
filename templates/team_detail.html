@@ -2574,7 +2574,7 @@
                         </td>
                         <td class="nowrap">{{ row.score or '—' }}</td>
                         <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-bans">
+                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ team.name if team and team.name else 'Us' }} Bans">
                             {% for hero in row.our_bans %}
                                 {% if hero in hero_transformations %}
                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
@@ -2587,7 +2587,7 @@
                             </div>
                         </td>
                         <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-protects">
+                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ team.name if team and team.name else 'Us' }} Protects">
                             {% for hero in row.our_protects %}
                                 {% if hero in hero_transformations %}
                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
@@ -2600,7 +2600,7 @@
                             </div>
                         </td>
                         <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-bans">
+                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Bans">
                             {% for hero in row.enemy_bans %}
                                 {% if hero in hero_transformations %}
                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
@@ -2613,7 +2613,7 @@
                             </div>
                         </td>
                         <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-protects">
+                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Protects">
                             {% for hero in row.enemy_protects %}
                                 {% if hero in hero_transformations %}
                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
@@ -2631,9 +2631,9 @@
                         <td colspan="7" class="scrim-sections-cell">
                             <div class="scrim-sections-panel">
                                 <div class="scrim-sections-header-row">
-                                    <span class="scrim-sections-team-label">Us</span>
+                                    <span class="scrim-sections-team-label">{{ team.name if team and team.name else 'Us' }}</span>
                                     <span class="scrim-sections-round-label"></span>
-                                    <span class="scrim-sections-team-label scrim-sections-team-label-right">Them</span>
+                                    <span class="scrim-sections-team-label scrim-sections-team-label-right">{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }}</span>
                                 </div>
                                 {% for sec in row.sections %}
                                 <div class="scrim-section-entry {% if sec.result == 'Win' %}sec-win{% elif sec.result == 'Loss' %}sec-loss{% endif %}">
