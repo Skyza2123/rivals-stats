@@ -1500,6 +1500,58 @@
 
 <div class="tab-content tab-hidden" id="tab-comps">
     <section class="panel panel-soft-blue">
+        <div class="section-kicker">Mirror Rates</div>
+        <h3>Mirror Drafts and Comps</h3>
+        <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
+        {% call stats_table(['Type', 'Samples', 'Mirror Count', 'Mirror Rate'], extra_wrap_class='top-gap') %}
+            <tr>
+                <td>Draft (6 picks)</td>
+                <td>{{ team_analytics.mirror_rates.draft.samples }}</td>
+                <td>{{ team_analytics.mirror_rates.draft.mirror_count }}</td>
+                <td>{{ team_analytics.mirror_rates.draft.mirror_rate }}%</td>
+            </tr>
+            <tr>
+                <td>Comp (6 heroes)</td>
+                <td>{{ team_analytics.mirror_rates.comp.samples }}</td>
+                <td>{{ team_analytics.mirror_rates.comp.mirror_count }}</td>
+                <td>{{ team_analytics.mirror_rates.comp.mirror_rate }}%</td>
+            </tr>
+        {% endcall %}
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Comp Difference</div>
+        <h3>Comp Type Breakdown</h3>
+        <p class="panel-intro">How often each comp profile appears and performs — opponent on the left, your team on the right.</p>
+        {% call stats_table(['Comp Type', 'Opp Maps', 'Opp Rate', 'Our Maps', 'Our Rate', 'Our Win Rate'], extra_wrap_class='top-gap') %}
+            <tr>
+                <td>Triple Support</td>
+                <td>{{ team_analytics.comp_difference.enemy_triple_support_count }}</td>
+                <td>{{ team_analytics.comp_difference.enemy_triple_support_rate }}%</td>
+                <td>{{ team_analytics.comp_difference.triple_support_count }}</td>
+                <td>{{ team_analytics.comp_difference.triple_support_rate }}%</td>
+                <td>{% if team_analytics.comp_difference.triple_support_count %}{{ team_analytics.comp_difference.triple_support_win_rate }}%{% else %}--{% endif %}</td>
+            </tr>
+            <tr>
+                <td>Triple Tank</td>
+                <td>{{ team_analytics.comp_difference.enemy_triple_tank_count }}</td>
+                <td>{{ team_analytics.comp_difference.enemy_triple_tank_rate }}%</td>
+                <td>{{ team_analytics.comp_difference.triple_tank_count }}</td>
+                <td>{{ team_analytics.comp_difference.triple_tank_rate }}%</td>
+                <td>{% if team_analytics.comp_difference.triple_tank_count %}{{ team_analytics.comp_difference.triple_tank_win_rate }}%{% else %}--{% endif %}</td>
+            </tr>
+            <tr>
+                <td>2-2-2</td>
+                <td>--</td>
+                <td>--</td>
+                <td>{{ team_analytics.comp_difference.two_two_two_count }}</td>
+                <td>{{ team_analytics.comp_difference.two_two_two_rate }}%</td>
+                <td>{% if team_analytics.comp_difference.two_two_two_count %}{{ team_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
+            </tr>
+        {% endcall %}
+    </section>
+
+    <section class="panel top-gap">
         <div class="section-kicker">Matchup Summary</div>
         <h3>Comp Matchups</h3>
         <p class="panel-intro">All map-level matchup results with our lineup and enemy lineup sorted by Tanks, DPS, then Supports.</p>
@@ -1514,7 +1566,7 @@
         </div>
 
         {% if matchup_rows %}
-            {% call stats_table(['Date', 'Scrim', 'Map', 'Result', 'Our Heroes', 'Enemy Heroes'], extra_wrap_class='top-gap') %}
+            {% call stats_table(['Date', 'vs. Team', 'Map', 'Result', 'Our Heroes', 'Enemy Heroes'], extra_wrap_class='top-gap') %}
                 {% for row in matchup_rows %}
                     <tr>
                         <td>{{ row.scrim_date or '--' }}</td>
@@ -1558,63 +1610,6 @@
             <p class="empty-text top-gap">No matchup map results available yet.</p>
         {% endif %}
     </section>
-
-    <details class="dense-collapsible top-gap">
-        <summary>Additional Comp Benchmarks</summary>
-        <div class="dense-collapsible-body">
-            <section class="panel top-gap">
-                <div class="section-kicker">Mirror Rates</div>
-                <h3>Mirror Drafts and Comps</h3>
-                <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
-                {% call stats_table(['Type', 'Samples', 'Mirror Count', 'Mirror Rate'], extra_wrap_class='top-gap') %}
-                    <tr>
-                        <td>Draft (6 picks)</td>
-                        <td>{{ team_analytics.mirror_rates.draft.samples }}</td>
-                        <td>{{ team_analytics.mirror_rates.draft.mirror_count }}</td>
-                        <td>{{ team_analytics.mirror_rates.draft.mirror_rate }}%</td>
-                    </tr>
-                    <tr>
-                        <td>Comp (6 heroes)</td>
-                        <td>{{ team_analytics.mirror_rates.comp.samples }}</td>
-                        <td>{{ team_analytics.mirror_rates.comp.mirror_count }}</td>
-                        <td>{{ team_analytics.mirror_rates.comp.mirror_rate }}%</td>
-                    </tr>
-                {% endcall %}
-            </section>
-
-            <section class="panel">
-                <div class="section-kicker">Comp Difference</div>
-                <h3>Comp Type Breakdown</h3>
-                <p class="panel-intro">How often each comp profile appears and performs — opponent on the left, your team on the right.</p>
-                {% call stats_table(['Comp Type', 'Opp Maps', 'Opp Rate', 'Our Maps', 'Our Rate', 'Our Win Rate'], extra_wrap_class='top-gap') %}
-                    <tr>
-                        <td>Triple Support</td>
-                        <td>{{ team_analytics.comp_difference.enemy_triple_support_count }}</td>
-                        <td>{{ team_analytics.comp_difference.enemy_triple_support_rate }}%</td>
-                        <td>{{ team_analytics.comp_difference.triple_support_count }}</td>
-                        <td>{{ team_analytics.comp_difference.triple_support_rate }}%</td>
-                        <td>{% if team_analytics.comp_difference.triple_support_count %}{{ team_analytics.comp_difference.triple_support_win_rate }}%{% else %}--{% endif %}</td>
-                    </tr>
-                    <tr>
-                        <td>Triple Tank</td>
-                        <td>{{ team_analytics.comp_difference.enemy_triple_tank_count }}</td>
-                        <td>{{ team_analytics.comp_difference.enemy_triple_tank_rate }}%</td>
-                        <td>{{ team_analytics.comp_difference.triple_tank_count }}</td>
-                        <td>{{ team_analytics.comp_difference.triple_tank_rate }}%</td>
-                        <td>{% if team_analytics.comp_difference.triple_tank_count %}{{ team_analytics.comp_difference.triple_tank_win_rate }}%{% else %}--{% endif %}</td>
-                    </tr>
-                    <tr>
-                        <td>2-2-2</td>
-                        <td>--</td>
-                        <td>--</td>
-                        <td>{{ team_analytics.comp_difference.two_two_two_count }}</td>
-                        <td>{{ team_analytics.comp_difference.two_two_two_rate }}%</td>
-                        <td>{% if team_analytics.comp_difference.two_two_two_count %}{{ team_analytics.comp_difference.two_two_two_win_rate }}%{% else %}--{% endif %}</td>
-                    </tr>
-                {% endcall %}
-            </section>
-        </div>
-    </details>
 
 </div>
 
