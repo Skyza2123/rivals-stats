@@ -4183,6 +4183,35 @@ th {
     padding: 2px 3px;
 }
 
+.hero-pool-icon-overlay {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+    border-radius: 50%;
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.8));
+}
+
+.hero-pool-icon-overlay.pool-icon-tankpool {
+    background: rgba(59, 130, 246, 0.85);
+    padding: 1px;
+    box-sizing: border-box;
+}
+
+.hero-pool-icon-overlay.pool-icon-dpspool {
+    background: rgba(239, 68, 68, 0.85);
+    padding: 1px;
+    box-sizing: border-box;
+}
+
+.hero-pool-icon-overlay.pool-icon-supportpool {
+    background: rgba(34, 197, 94, 0.85);
+    padding: 1px;
+    box-sizing: border-box;
+}
+
 .hero-inline-link {
     color: var(--text);
     text-decoration: none;
@@ -6651,4 +6680,356 @@ th {
     .pool-player-info {
         width: 120px;
     }
+}
+
+/* -- Scrims log tab -- */
+.scrim-log-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.scrim-log-count {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-left: 4px;
+}
+
+.scrim-log-table td {
+    vertical-align: middle;
+}
+
+.scrim-log-table td.nowrap {
+    white-space: nowrap;
+}
+
+.scrim-log-table .matchup-hero-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+
+
+.scrim-log-table .hero-inline-thumb {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+}
+
+/* Scrim map row expand */
+.scrim-map-row[data-has-sections="1"] {
+    cursor: pointer;
+}
+
+.scrim-map-row[data-has-sections="1"]:hover .scrim-map-row-toggle {
+    color: var(--accent-color, #7b9ee8);
+}
+
+.scrim-map-row[data-has-sections="1"]:hover {
+    background: rgba(255,255,255,0.025);
+}
+
+.scrim-map-row-open {
+    background: rgba(255,255,255,0.03) !important;
+}
+
+.scrim-row-expand-icon {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.12s ease;
+    margin-right: 6px;
+    opacity: 0.35;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
+
+.scrim-map-row-open .scrim-row-expand-icon {
+    transform: rotate(45deg);
+    opacity: 0.6;
+}
+
+/* Sections dropdown row */
+.scrim-sections-row > td {
+    padding: 0;
+}
+
+.scrim-sections-cell {
+    background: rgba(0,0,0,0.10);
+    padding: 0;
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.scrim-sections-panel {
+    padding: 12px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.scrim-sections-header-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    padding: 0 4px 4px;
+    margin-bottom: 2px;
+}
+
+.scrim-sections-team-label {
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.35;
+}
+
+.scrim-sections-team-label-right {
+    text-align: right;
+}
+
+.scrim-sections-team-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.scrim-sections-team-header-right {
+    align-items: flex-end;
+}
+
+.scrim-sections-header-comp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    opacity: 1;
+}
+
+.scrim-sections-team-header-right .scrim-sections-header-comp {
+    justify-content: flex-end;
+}
+
+.scrim-section-entry {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 6px;
+    align-items: center;
+    padding: 5px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.scrim-section-entry:last-child {
+    border-bottom: none;
+}
+
+.scrim-section-entry.sec-win {
+    background: rgba(34, 197, 94, 0.04);
+}
+
+.scrim-section-entry.sec-loss {
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.scrim-section-entry:not(.sec-win):not(.sec-loss) {
+    background: transparent;
+}
+
+.scrim-section-comp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.scrim-section-comp-enemy {
+    justify-content: flex-end;
+}
+
+.scrim-section-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.scrim-section-player {
+    font-size: 0.65em;
+    opacity: 0.6;
+    max-width: 36px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.scrim-section-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    min-width: 72px;
+    padding: 0 6px;
+}
+
+.scrim-section-label {
+    font-size: 0.75em;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0.75;
+}
+
+.scrim-section-score {
+    font-size: 0.82em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
+}
+
+.scrim-section-side {
+    font-size: 0.65em;
+    opacity: 0.4;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+
+.scrim-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+}
+
+.scrim-accordion-item {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s ease;
+}
+
+.scrim-accordion-item[open] {
+    border-color: rgba(255,255,255,0.14);
+}
+
+.scrim-accordion-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    background: rgba(255,255,255,0.03);
+    flex-wrap: wrap;
+    transition: background 0.12s ease;
+}
+
+.scrim-accordion-summary::-webkit-details-marker { display: none; }
+
+.scrim-accordion-item:hover > .scrim-accordion-summary {
+    background: rgba(255,255,255,0.06);
+}
+
+.scrim-accordion-item[open] > .scrim-accordion-summary {
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.scrim-acc-toggle-icon {
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+    opacity: 0.4;
+    margin-right: 2px;
+}
+
+.scrim-accordion-item[open] > .scrim-accordion-summary .scrim-acc-toggle-icon {
+    transform: rotate(45deg);
+}
+
+.scrim-acc-date {
+    font-size: 0.82em;
+    opacity: 0.45;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.scrim-acc-opp {
+    font-weight: 600;
+    font-size: 0.95em;
+    flex: 1;
+    min-width: 100px;
+}
+
+.scrim-acc-record {
+    display: flex;
+    gap: 4px;
+    font-size: 0.85em;
+}
+
+.scrim-acc-maps {
+    font-size: 0.78em;
+    opacity: 0.4;
+    white-space: nowrap;
+}
+
+.scrim-acc-season {
+    font-size: 0.72em;
+    opacity: 0.35;
+    white-space: nowrap;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.scrim-accordion-item .table-wrap {
+    border-top: none;
+}
+
+
+.pool-hero-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 1px;
+}
+
+.pool-role-badge {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    order: -1;
+}
+
+.subtle-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed #475569;
+}
+
+.subtle-link:hover {
+    color: #93c5fd;
+    border-bottom-color: #93c5fd;
+}
+
+.dimmed-text {
+    color: #475569;
+}
+
+.hero-name-inline {
+    font-size: 0.72rem;
+    color: #cbd5e1;
+    white-space: nowrap;
 }

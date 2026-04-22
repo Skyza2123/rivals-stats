@@ -1319,7 +1319,22 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
             if not isinstance(original_map, dict):
                 continue
             map_entry = copy.deepcopy(original_map)
-            map_team_slot = _resolve_slot_for_record(original_map, team_slot)
+            # When the viewing team is the one that entered this scrim
+            # (scrim.team_id matches), trust the stored our_team_slot on
+            # the map — it was set at entry time and is authoritative for
+            # which slot each team's comp lives in.  Falling back to
+            # _resolve_slot_for_record can give the wrong answer when
+            # team1_id is set to the entering team even though their heroes
+            # were actually recorded in the team2 comp slot.
+            stored_map_slot = (original_map.get("our_team_slot") or "").strip()
+            if (
+                team_id is not None
+                and original_scrim.get("team_id") == team_id
+                and stored_map_slot in TEAM_SLOTS
+            ):
+                map_team_slot = stored_map_slot
+            else:
+                map_team_slot = _resolve_slot_for_record(original_map, team_slot)
             map_entry["our_team_slot"] = map_team_slot
             map_entry["result"] = get_result_for_slot(original_map, map_team_slot)
             inferred_result = infer_result_from_score_text(map_entry.get("score", ""), slot=map_team_slot)
@@ -7604,6 +7619,185 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
     }
 
 
+def build_scrim_log_rows(team_scrims: list) -> dict:
+    """Build flat per-map rows for the Scrims tab quick-scan view."""
+    _role_order = {"Vanguard": 0, "Duelist": 1, "Strategist": 2}
+
+    def _sort_heroes(raw_heroes: list[str]) -> list[str]:
+        unique_by_key: dict[str, str] = {}
+        for raw_hero in raw_heroes:
+            canonical = _canonical_draft_hero(raw_hero)
+            key = _hero_match_key(canonical)
+            if not key:
+                continue
+            unique_by_key[key] = canonical
+        return sorted(
+            unique_by_key.values(),
+            key=lambda h: (_role_order.get(_hero_role(h), 99), h.lower()),
+        )
+
+    rows: list[dict] = []
+    opponents: set[str] = set()
+    all_maps: set[str] = set()
+    all_bans: set[str] = set()
+    all_duelists: set[str] = set()
+    all_seasons: set[str] = set()
+
+    for scrim in team_scrims:
+        scrim_id = scrim.get("id")
+        scrim_date = (scrim.get("scrim_date", "") or "").strip()
+        opponent_name = (
+            (scrim.get("enemy_team", "") or "").strip()
+            or (scrim.get("opponent", "") or "").strip()
+            or "Opponent"
+        )
+        season = (scrim.get("season", "") or "").strip()
+        opponents.add(opponent_name)
+        if season:
+            all_seasons.add(season)
+
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            enemy_team_slot = opposite_team_slot(our_team_slot)
+
+            map_name = (map_entry.get("map_name", "") or "").strip() or "Unknown Map"
+            map_type = (map_entry.get("map_type", "Standard") or "Standard").strip()
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+            score = (map_entry.get("score", "") or "").strip()
+
+            draft = map_entry.get("draft", {})
+            our_draft = draft.get(our_team_slot, {}) if isinstance(draft, dict) else {}
+            enemy_draft = draft.get(enemy_team_slot, {}) if isinstance(draft, dict) else {}
+
+            our_bans = [
+                h for h in [
+                    (our_draft.get("ban1", "") or "").strip(),
+                    (our_draft.get("ban2", "") or "").strip(),
+                    (our_draft.get("ban3", "") or "").strip(),
+                    (our_draft.get("ban4", "") or "").strip(),
+                ] if h
+            ]
+            enemy_bans = [
+                h for h in [
+                    (enemy_draft.get("ban1", "") or "").strip(),
+                    (enemy_draft.get("ban2", "") or "").strip(),
+                    (enemy_draft.get("ban3", "") or "").strip(),
+                    (enemy_draft.get("ban4", "") or "").strip(),
+                ] if h
+            ]
+            our_protects = [
+                h for h in [
+                    (our_draft.get("protect1", "") or "").strip(),
+                    (our_draft.get("protect2", "") or "").strip(),
+                ] if h
+            ]
+            enemy_protects = [
+                h for h in [
+                    (enemy_draft.get("protect1", "") or "").strip(),
+                    (enemy_draft.get("protect2", "") or "").strip(),
+                ] if h
+            ]
+            all_bans.update(our_bans)
+            all_bans.update(enemy_bans)
+
+            our_raw: list[str] = []
+            enemy_raw: list[str] = []
+            for section in map_entry.get("comp", []):
+                our_raw.extend(
+                    (slot.get("hero", "") or "").strip()
+                    for slot in section.get(our_team_slot, [])
+                    if (slot.get("hero", "") or "").strip()
+                )
+                enemy_raw.extend(
+                    (slot.get("hero", "") or "").strip()
+                    for slot in section.get(enemy_team_slot, [])
+                    if (slot.get("hero", "") or "").strip()
+                )
+
+            our_heroes = _sort_heroes(our_raw)
+            enemy_heroes = _sort_heroes(enemy_raw)
+            our_duelists = [h for h in our_heroes if _hero_role(h) == "Duelist"]
+            all_duelists.update(our_duelists)
+            all_maps.add(map_name)
+
+            # Build per-section (round) breakdown
+            sections_data = []
+            for sec_idx, section in enumerate(map_entry.get("comp", []), start=1):
+                sec_label = (section.get("submap", "") or "").strip() or f"Round {sec_idx}"
+                sec_score = (section.get("score", "") or "").strip()
+                sec_result_raw = (section.get("result", "") or "").strip()
+                sec_side = (section.get("side", "") or "").strip()
+                # Derive result from score first (most reliable), otherwise
+                # flip the stored result when our team is team2 (stored as team1-perspective).
+                sec_result = infer_result_from_score_text(sec_score, slot=our_team_slot)
+                if not sec_result and sec_result_raw in ("Win", "Loss"):
+                    if our_team_slot == "team2":
+                        sec_result = "Loss" if sec_result_raw == "Win" else "Win"
+                    else:
+                        sec_result = sec_result_raw
+                elif not sec_result:
+                    sec_result = sec_result_raw
+                our_slots = [
+                    {"hero": (s.get("hero", "") or "").strip(), "player": (s.get("player", "") or "").strip()}
+                    for s in section.get(our_team_slot, [])
+                ]
+                enemy_slots = [
+                    {"hero": (s.get("hero", "") or "").strip(), "player": (s.get("player", "") or "").strip()}
+                    for s in section.get(enemy_team_slot, [])
+                ]
+                # Flip score to always show us-first when we are team2
+                display_score = sec_score
+                if our_team_slot == "team2" and sec_score:
+                    left, right = split_score_pair(sec_score)
+                    if left and right:
+                        display_score = f"{right}-{left}"
+                sections_data.append({
+                    "label": sec_label,
+                    "score": display_score,
+                    "result": sec_result,
+                    "side": sec_side,
+                    "our_slots": our_slots,
+                    "enemy_slots": enemy_slots,
+                })
+
+            rows.append({
+                "scrim_id": scrim_id,
+                "scrim_date": scrim_date,
+                "opponent_name": opponent_name,
+                "season": season,
+                "map_name": map_name,
+                "map_type": map_type,
+                "result": result,
+                "score": score,
+                "our_bans": our_bans,
+                "our_protects": our_protects,
+                "enemy_bans": enemy_bans,
+                "enemy_protects": enemy_protects,
+                "our_heroes": our_heroes,
+                "enemy_heroes": enemy_heroes,
+                "our_duelists": our_duelists,
+                "sections": sections_data,
+            })
+
+    rows.sort(
+        key=lambda r: (r.get("scrim_date", ""), r.get("opponent_name", "").lower()),
+        reverse=True,
+    )
+
+    return {
+        "rows": rows,
+        "filter_options": {
+            "opponents": sorted(opponents),
+            "maps": sorted(all_maps),
+            "bans": sorted(all_bans),
+            "duelists": sorted(all_duelists),
+            "seasons": sorted(all_seasons),
+        },
+    }
+
+
 @app.route("/teams/<int:team_id>")
 def team_detail(team_id: int):
     db = get_db()
@@ -7827,6 +8021,7 @@ def team_detail(team_id: int):
 
     atk_def_wr = build_atk_def_wr(team_scrims)
     pivot_wr = build_pivot_wr(team_scrims)
+    scrim_log = build_scrim_log_rows(team_scrims)
     # Enrich team_map_cards with per-map attack/defense averages
     _atk_def_by_map = {row["map_name"]: row for row in atk_def_wr["per_map"]}
     for _card in team_map_cards:
@@ -8099,6 +8294,7 @@ def team_detail(team_id: int):
         team_ban_impact=team_ban_impact,
         atk_def_wr=atk_def_wr,
         pivot_wr=pivot_wr,
+        scrim_log=scrim_log,
         **prep_context,
     )
 
@@ -9542,6 +9738,13 @@ def _resolve_hero_transform_key(hero_name: str) -> str | None:
     return None
 
 
+_POOL_HERO_ROLE_ICONS: dict[str, str] = {
+    "Tankpool": "/static/role-icons/Vanguard.webp",
+    "DpsPool": "/static/role-icons/Duelist.webp",
+    "SupportPool": "/static/role-icons/Strategist.webp",
+}
+
+
 def _hero_image_url(hero_name: str) -> str:
     safe_name = (hero_name or "Hero").strip() or "Hero"
     return f"/hero-image/{quote(safe_name[:80], safe='')}"
@@ -9618,18 +9821,20 @@ def hero_image_proxy(hero_name: str):
 
 
 def _hero_pool_label(hero_name: str) -> str:
-    # Pool identity is shown via image badges; suppress subtitle labels.
+    canonical = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
+    if canonical == "Tankpool":
+        return "tank"
+    if canonical == "DpsPool":
+        return "dps"
+    if canonical == "SupportPool":
+        return "supp"
     return ""
 
 
 def _hero_display_name(hero_name: str) -> str:
     canonical = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
-    if canonical == "Tankpool":
-        return "Tankpool"
-    if canonical == "DpsPool":
-        return "Dpspool"
-    if canonical == "SupportPool":
-        return "Supportpool"
+    if canonical in ("Tankpool", "DpsPool", "SupportPool"):
+        return "Deadpool"
     return canonical or (hero_name or "")
 
 
@@ -9653,6 +9858,7 @@ def inject_template_helpers():
         "hero_pool_label": _hero_pool_label,
         "hero_display_name": _hero_display_name,
         "sample_warn": _sample_warn,
+        "pool_role_icons": _POOL_HERO_ROLE_ICONS,
     }
 
 

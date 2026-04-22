@@ -224,7 +224,7 @@
                 {% set wr = row.win_rate %}
                 {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
                 <div class="player-hero-card">
-                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                     <div class="player-hero-card-meta">
                         <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
                         <span class="player-hero-card-wr {{ wr_class }}">{{ row.maps }} maps &bull; {{ wr }}%</span>
@@ -244,7 +244,7 @@
                 {% set wr = row.win_rate %}
                 {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
                 <div class="player-hero-card">
-                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                     <div class="player-hero-card-meta">
                         <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
                         <span class="player-hero-card-wr {{ wr_class }}">{{ row.maps }} maps &bull; {{ wr }}%</span>
@@ -284,7 +284,7 @@
                     <tr>
                         <td>
                             <div class="player-inline-hero">
-                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                                 <span>{{ hero_display_name(row.hero) }}</span>
                             </div>
                         </td>
@@ -350,7 +350,7 @@
     <div class="player-hero-grid">
         {% for row in shared_heroes %}
             <div class="player-hero-card">
-                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                 <div class="player-hero-card-meta">
                     <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
                     <span class="player-hero-card-wr wr-ok">A: {{ row.player_a_maps }} &bull; B: {{ row.player_b_maps }}</span>
@@ -377,7 +377,7 @@
                         <tr>
                             <td>
                                 <div class="player-inline-hero">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </div>
                             </td>
@@ -405,7 +405,7 @@
                         <tr>
                             <td>
                                 <div class="player-inline-hero">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </div>
                             </td>

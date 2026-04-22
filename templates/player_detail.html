@@ -99,7 +99,7 @@
                 {% set wr = row.win_rate %}
                 {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
                 <div class="player-hero-card">
-                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                     <div class="player-hero-card-meta">
                         <span class="player-hero-card-name">{{ hero_display_name(row.hero) }}</span>
                         <span class="player-hero-card-wr {{ wr_class }}">{{ row.maps }} maps &bull; {{ wr }}%</span>
@@ -179,7 +179,7 @@
                 {% for row in banned_rows %}
                     <div class="player-ban-card">
                         <div class="player-ban-card-hero">
-                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                             <div>
                                 <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
                                 <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
@@ -218,7 +218,7 @@
                                 <div class="player-ban-pivot-chips">
                                     {% for pvt in row.all_pivots[:3] %}
                                         <div class="player-ban-pivot-chip">
-                                            <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" onerror="this.style.display='none'">
+                                            <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" data-hero="{{ pvt.hero }}" onerror="this.style.display='none'">
                                             <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
                                             <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
                                         </div>
@@ -261,7 +261,7 @@
                         <tr>
                             <td>
                                 <div class="player-inline-hero">
-                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" onerror="this.style.display='none'">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" onerror="this.style.display='none'">
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </div>
                             </td>

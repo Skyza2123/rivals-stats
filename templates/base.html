@@ -177,32 +177,38 @@
 })();
 </script>
 <script>
-/* Global: inject pool-role badge on every hero image for Deadpool variants */
+/* Global: inject pool-role icon overlay on every hero image for Deadpool variants */
 document.addEventListener('DOMContentLoaded', function () {
-    var POOL_MAP = {
-        'Tankpool':    { text: 't', cls: 'hero-pool-badge-tank' },
-        'DpsPool':     { text: 'd', cls: 'hero-pool-badge-dps'  },
-        'SupportPool': { text: 's', cls: 'hero-pool-badge-supp' },
+    var POOL_ICONS = {
+        'Tankpool':    '/static/role-icons/Vanguard.webp',
+        'DpsPool':     '/static/role-icons/Duelist.webp',
+        'SupportPool': '/static/role-icons/Strategist.webp',
     };
-    function addBadge(img, info) {
+    var POOL_ROLE_CLASS = {
+        'Tankpool':    'pool-icon-tankpool',
+        'DpsPool':     'pool-icon-dpspool',
+        'SupportPool': 'pool-icon-supportpool',
+    };
+    function addOverlay(img, iconSrc, roleClass) {
         var vbar = img.closest('.vbar-hero-image');
         if (vbar) {
-            if (!vbar.querySelector('.hero-pool-badge')) {
-                var b = document.createElement('span');
-                b.className = 'hero-pool-badge ' + info.cls;
-                b.textContent = info.text;
-                vbar.appendChild(b);
+            if (!vbar.querySelector('.hero-pool-icon-overlay')) {
+                var icon = document.createElement('img');
+                icon.className = 'hero-pool-icon-overlay' + (roleClass ? ' ' + roleClass : '');
+                icon.src = iconSrc;
+                icon.alt = '';
+                vbar.appendChild(icon);
             }
             return;
         }
         var heroImgWrap = img.closest('.hero-img-wrap');
         if (heroImgWrap) {
-            if (!heroImgWrap.querySelector('.pool-tag')) {
-                var tagCls = info.cls === 'hero-pool-badge-tank' ? 'tag-tank' : info.cls === 'hero-pool-badge-dps' ? 'tag-dps' : 'tag-sup';
-                var b2 = document.createElement('span');
-                b2.className = 'pool-tag ' + tagCls;
-                b2.textContent = info.text;
-                heroImgWrap.appendChild(b2);
+            if (!heroImgWrap.querySelector('.hero-pool-icon-overlay')) {
+                var icon2 = document.createElement('img');
+                icon2.className = 'hero-pool-icon-overlay' + (roleClass ? ' ' + roleClass : '');
+                icon2.src = iconSrc;
+                icon2.alt = '';
+                heroImgWrap.appendChild(icon2);
             }
             return;
         }
@@ -211,14 +217,16 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.className = 'hero-thumb-wrap';
         img.parentNode.insertBefore(wrap, img);
         wrap.appendChild(img);
-        var badge = document.createElement('span');
-        badge.className = 'hero-pool-badge ' + info.cls;
-        badge.textContent = info.text;
-        wrap.appendChild(badge);
+        var icon3 = document.createElement('img');
+        icon3.className = 'hero-pool-icon-overlay' + (roleClass ? ' ' + roleClass : '');
+        icon3.src = iconSrc;
+        icon3.alt = '';
+        wrap.appendChild(icon3);
     }
-    document.querySelectorAll('img.hero-inline-thumb, .vbar-hero-image img, .hero-img-wrap img').forEach(function (img) {
-        var info = POOL_MAP[img.alt];
-        if (info) addBadge(img, info);
+    document.querySelectorAll('img[alt="Tankpool"], img[alt="DpsPool"], img[alt="SupportPool"], img[data-hero]').forEach(function (img) {
+        var heroKey = img.dataset.hero || img.alt;
+        var iconSrc = POOL_ICONS[heroKey];
+        if (iconSrc) addOverlay(img, iconSrc, POOL_ROLE_CLASS[heroKey] || '');
     });
 });
 </script>
