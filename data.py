@@ -1,6 +1,7 @@
 HEROES = sorted([
     "Adam Warlock",
     "Angela",
+    "Black Cat",
     "Black Panther",
     "Black Widow",
     "Blade",

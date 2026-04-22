@@ -69,7 +69,7 @@
                 <a class="dash-team-card{% if team.is_personal %} dash-team-card-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
                     <div class="dash-team-logo-wrap">
                         {% if team.logo_path %}
-                            <img src="{{ url_for('static', filename=team.logo_path) }}" alt="{{ team.name }}" class="dash-team-logo">
+                            <img src="{{ team_logo_url(team.logo_path) }}" alt="{{ team.name }}" class="dash-team-logo">
                         {% else %}
                             <div class="dash-team-logo-fallback">{{ team.name[0] if team.name else '?' }}</div>
                         {% endif %}

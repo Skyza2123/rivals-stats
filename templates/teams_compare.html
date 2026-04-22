@@ -52,7 +52,7 @@
 <section class="panel top-gap tc-vs-panel">
     <div class="tc-vs-side">
         <img class="tc-team-logo"
-             src="{{ url_for('static', filename=team_a.team.logo_path) if team_a.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_a.team.name | urlencode) ~ '.png?size=120' }}"
+             src="{{ team_logo_url(team_a.team.logo_path) if team_a.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_a.team.name | urlencode) ~ '.png?size=120' }}"
              alt="{{ team_a.team.name }}"
              onerror="this.src='https://avatar.vercel.sh/{{ team_a.team.name | urlencode }}.png?size=120'">
         <div class="tc-team-name">{{ team_a.team.name }}</div>
@@ -61,7 +61,7 @@
     <div class="tc-vs-badge">VS</div>
     <div class="tc-vs-side tc-vs-side-b">
         <img class="tc-team-logo"
-             src="{{ url_for('static', filename=team_b.team.logo_path) if team_b.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_b.team.name | urlencode) ~ '.png?size=120' }}"
+             src="{{ team_logo_url(team_b.team.logo_path) if team_b.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_b.team.name | urlencode) ~ '.png?size=120' }}"
              alt="{{ team_b.team.name }}"
              onerror="this.src='https://avatar.vercel.sh/{{ team_b.team.name | urlencode }}.png?size=120'">
         <div class="tc-team-name">{{ team_b.team.name }}</div>

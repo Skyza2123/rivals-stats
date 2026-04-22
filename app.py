@@ -57,7 +57,34 @@ def _default_database_path() -> Path:
 
 
 DB_PATH = _default_database_path()
-TEAM_LOGO_DIR = Path(app.static_folder) / "uploads" / "team_logos"
+
+
+def _default_logo_dir() -> Path:
+    """Return the directory where team logo files should be stored.
+
+    On Render (or any environment where the DB lives on a persistent disk)
+    we co-locate logos with the database so they survive redeploys.  In
+    every other environment logos go into the conventional static folder.
+    """
+    configured = (os.environ.get("LOGO_DIR") or "").strip()
+    if configured:
+        return Path(configured)
+
+    render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
+    if render_mount:
+        return Path(render_mount) / "team_logos"
+
+    if (os.environ.get("RENDER") or "").strip().lower() == "true":
+        render_default_mount = Path("/var/data")
+        if render_default_mount.exists() and os.access(render_default_mount, os.W_OK):
+            return render_default_mount / "team_logos"
+
+    return Path(app.static_folder) / "uploads" / "team_logos"
+
+
+TEAM_LOGO_DIR = _default_logo_dir()
+# True when logos live outside the static folder (persistent disk on Render).
+_LOGOS_ON_DISK = TEAM_LOGO_DIR != Path(app.static_folder) / "uploads" / "team_logos"
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
 TEAM_QUALITY_TAG_OPTIONS = ("Preferred", "Semi Preferred", "Good", "Avoid")
@@ -3538,9 +3565,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         sec.setdefault("submap", "")
         sec.setdefault("score", "")
         side_value = (sec.get("side", "") or "").strip()
-        if not use_section_sides:
-            side_value = ""
-        elif side_value not in SIDES:
+        if side_value not in SIDES:
             side_value = ""
         sec["side"] = side_value
 
@@ -3906,19 +3931,45 @@ def save_team_logo(file: FileStorage | None, team_name: str) -> str:
     TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
     destination = TEAM_LOGO_DIR / filename
     file.save(destination)
+    # When logos live on a persistent disk outside static/, store the bare
+    # filename so the /team-logo/<filename> route can serve it.
+    if _LOGOS_ON_DISK:
+        return f"__disk__/{filename}"
     return f"uploads/team_logos/{filename}"
+
+
+def _resolve_logo_file_path(relative_path: str) -> Path | None:
+    """Return the absolute Path for a stored logo_path value, or None."""
+    if not relative_path:
+        return None
+    if relative_path.startswith("__disk__/"):
+        filename = relative_path[len("__disk__/"):]
+        return TEAM_LOGO_DIR / filename
+    return Path(app.static_folder) / relative_path
 
 
 def delete_team_logo_file(relative_path: str) -> None:
     if not relative_path:
         return
-    logo_path = Path(app.static_folder) / relative_path
+    logo_path = _resolve_logo_file_path(relative_path)
+    if logo_path is None:
+        return
     try:
         if logo_path.exists() and logo_path.is_file():
             logo_path.unlink()
     except OSError:
         # Failing to remove an old logo file should not block team updates.
         pass
+
+
+@app.route("/team-logo/<path:filename>")
+def serve_team_logo(filename: str):
+    """Serve team logo files stored on the persistent disk (outside static/)."""
+    from flask import send_from_directory
+    safe = secure_filename(filename)
+    if not safe:
+        abort(404)
+    return send_from_directory(str(TEAM_LOGO_DIR), safe)
 
 
 def build_default_comp_sections(map_name: str, first_submap: str = "") -> list[dict]:
@@ -9853,12 +9904,24 @@ def inject_template_helpers():
             )
         return Markup(str(count))
 
+    def _team_logo_url(logo_path: str) -> str:
+        """Return the URL to display for a team logo_path value."""
+        if not logo_path:
+            return ""
+        if logo_path.startswith("__disk__/"):
+            filename = logo_path[len("__disk__/"):]
+            from flask import url_for as _url_for
+            return _url_for("serve_team_logo", filename=filename)
+        from flask import url_for as _url_for
+        return _url_for("static", filename=logo_path)
+
     return {
         "hero_image_url": _hero_image_url,
         "hero_pool_label": _hero_pool_label,
         "hero_display_name": _hero_display_name,
         "sample_warn": _sample_warn,
         "pool_role_icons": _POOL_HERO_ROLE_ICONS,
+        "team_logo_url": _team_logo_url,
     }
 
 
@@ -11884,6 +11947,10 @@ def update_tournament_match_comp_section(tournament_id: int, match_id: int, map_
         section["score"] = f"{score_team1}-{score_team2}".strip("-")
     else:
         section["score"] = ""
+    side_value = request.form.get("side", section.get("side", "")).strip()
+    if side_value not in SIDES:
+        side_value = ""
+    section["side"] = side_value
     
     # Store submap result if this section has a submap
     section_result = request.form.get("section_result", "").strip()
@@ -12401,11 +12468,10 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
     if section_index < 0 or section_index >= len(sections):
         abort(404)
 
-    use_section_sides = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])) or map_entry.get("map_name") in ATTACK_DEFENSE_MAPS
     section = sections[section_index]
 
     section["submap"] = request.form.get("submap", section.get("submap", "")).strip()
-    side_value = request.form.get("side", section.get("side", "")).strip() if use_section_sides else ""
+    side_value = request.form.get("side", section.get("side", "")).strip()
     if side_value not in SIDES:
         side_value = ""
     section["side"] = side_value
@@ -12459,10 +12525,9 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
     if section_index < 0 or section_index >= len(sections):
         abort(404)
 
-    use_section_sides = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])) or map_entry.get("map_name") in ATTACK_DEFENSE_MAPS
     section = sections[section_index]
     section["submap"] = request.form.get("submap", section.get("submap", "")).strip()
-    side_value = request.form.get("side", section.get("side", "")).strip() if use_section_sides else ""
+    side_value = request.form.get("side", section.get("side", "")).strip()
     if side_value not in SIDES:
         side_value = ""
     section["side"] = side_value
@@ -12505,6 +12570,58 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
 
     map_entry["comp"][section_index] = section
     save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+
+
+@app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/add-comp-section", methods=["POST"])
+def add_comp_section(scrim_id: int, map_id: int):
+    scrim = get_scrim_or_404(scrim_id)
+    map_entry = get_map_or_404(scrim, map_id)
+    sections = map_entry.setdefault("comp", [])
+    if len(sections) < 4:
+        sections.append({
+            "submap": "",
+            "side": "",
+            "score": "",
+            "team1": [{"hero": "", "player": ""} for _ in range(6)],
+            "team2": [{"hero": "", "player": ""} for _ in range(6)],
+        })
+        save_app_state()
+    return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/add-comp-section", methods=["POST"])
+def add_tournament_match_comp_section(tournament_id: int, match_id: int, map_id: int):
+    tournament_record = get_tournament_or_404(tournament_id)
+    tournament_match = get_tournament_match_or_404(tournament_record, match_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    sections = map_entry.setdefault("comp", [])
+    if len(sections) < 4:
+        sections.append({
+            "submap": "",
+            "side": "",
+            "score": "",
+            "team1": [{"hero": "", "player": ""} for _ in range(6)],
+            "team2": [{"hero": "", "player": ""} for _ in range(6)],
+        })
+        save_app_state()
+    return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/add-comp-section", methods=["POST"])
+def add_tournament_comp_section(tournament_id: int, map_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    sections = map_entry.setdefault("comp", [])
+    if len(sections) < 4:
+        sections.append({
+            "submap": "",
+            "side": "",
+            "score": "",
+            "team1": [{"hero": "", "player": ""} for _ in range(6)],
+            "team2": [{"hero": "", "player": ""} for _ in range(6)],
+        })
+        save_app_state()
     return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
 

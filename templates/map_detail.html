@@ -111,13 +111,18 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Team Comp</h3>
+        {% if session.get('access_level') == 'edit' and map_entry.comp|length < 4 and not map_submaps.get(map_entry.map_name) %}
+        <form method="post" action="{{ url_for(add_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" style="display:inline;">
+            <button type="submit" class="button-small">+ Add Round</button>
+        </form>
+        {% endif %}
     </div>
     {% for sec in map_entry.comp %}
     {% set s = loop.index0 %}
     {% set sec_score_parts = split_score_pair(sec.score or '') %}
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
-            <span class="comp-submap-name">{{ sec.submap or ('Round ' ~ (s + 1)) }}</span>
+            <span class="comp-submap-name">{{ sec.submap or ('Round ' ~ (s + 1)) }}{% if sec.side %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
             {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ sec.submap or ('Round ' ~ (s + 1)) }}</button>{% endif %}
         </div>
         <div class="comp-grid">
@@ -217,6 +222,17 @@
 <div class="tab-content tab-hidden" id="tab-notes">
 <section class="panel">
     <div class="panel-header-row">
+        <h3>Replay Code</h3>
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editNotesModal')">Edit</button>{% endif %}
+    </div>
+    {% if map_entry.get('replay_code') %}
+        <div class="summary-box" style="font-family: monospace; letter-spacing: 0.05em;">{{ map_entry.get('replay_code') }}</div>
+    {% else %}
+        <p class="empty-text">No replay code saved yet.</p>
+    {% endif %}
+</section>
+<section class="panel">
+    <div class="panel-header-row">
         <h3>Map Notes</h3>
         {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editNotesModal')">Edit Notes</button>{% endif %}
     </div>
@@ -314,6 +330,17 @@
                     <label>{{ team2_label }} Score</label>
                     <input type="text" name="score_team2" value="{{ sec_score_parts[1] }}" placeholder="e.g. 1">
                 </div>
+                {% if not sec.submap %}
+                <div class="field">
+                    <label>Round Side</label>
+                    <select name="side">
+                        <option value="">Not Set</option>
+                        {% for side in sides %}
+                        <option value="{{ side }}" {% if sec.side == side %}selected{% endif %}>{{ side }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 {% if sec.submap %}
                 <div class="field">
                     <label>Submap Result</label>
@@ -570,6 +597,11 @@
         </div>
         <form action="{{ url_for(update_notes_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="field">
+                <label for="modal_replay_code">Replay Code</label>
+                <input type="text" id="modal_replay_code" name="replay_code" value="{{ map_entry.get('replay_code', '') }}" placeholder="e.g. ABC123">
+            </div>
+            <div class="field top-gap">
+                <label for="modal_map_notes">Notes</label>
                 <textarea id="modal_map_notes" name="notes" rows="8" placeholder="Game strategy, what went wrong, what to improve...">{{ map_entry.notes }}</textarea>
             </div>
             <div class="button-row">

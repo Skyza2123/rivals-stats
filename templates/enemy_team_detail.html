@@ -6,7 +6,7 @@
 {% block content %}
 <div class="team-hero gap-lg">
     <div class="team-hero-left">
-        <img class="team-avatar" src="{{ url_for('static', filename=enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ enemy_team.name }}">
+        <img class="team-avatar" src="{{ team_logo_url(enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ enemy_team.name }}">
         <div>
             <h2>{{ enemy_team.name }}</h2>
             <div class="team-kpi-chips gap-md">
@@ -1339,7 +1339,7 @@
                     <img
                         id="enemyTeamLogoPreview"
                         class="team-logo-thumb team-logo-thumb-lg"
-                        src="{{ url_for('static', filename=enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}"
+                        src="{{ team_logo_url(enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}"
                         alt="Current enemy team logo"
                         data-fallback="https://avatar.vercel.sh/{{ enemy_team.name | urlencode }}.png?size=140"
                     >

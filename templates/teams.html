@@ -85,7 +85,7 @@
                         <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
                             <img
                                 class="team-dash-logo"
-                                src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                                src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
                                 alt="{{ team.name }} logo"
                             >
                             <div class="team-dash-title">{{ team.name }}</div>
@@ -131,7 +131,7 @@
                         <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
                             <img
                                 class="team-dash-logo"
-                                src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                                src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
                                 alt="{{ team.name }} logo"
                             >
                             <div class="team-dash-title">{{ team.name }}</div>

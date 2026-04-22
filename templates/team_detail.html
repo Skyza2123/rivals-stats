@@ -7,7 +7,7 @@
 
 <div class="team-hero gap-lg">
     <div class="team-hero-left">
-        <img class="team-avatar" src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
+        <img class="team-avatar" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
         <div>
             <h2>{{ team.name }}</h2>
             <div class="team-kpi-chips gap-md">
@@ -2338,7 +2338,7 @@
                     <img
                         id="teamLogoPreview"
                         class="team-logo-thumb team-logo-thumb-lg"
-                        src="{{ url_for('static', filename=team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                        src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
                         alt="Current team logo"
                         data-fallback="https://avatar.vercel.sh/{{ team.name | urlencode }}.png?size=140"
                     >
