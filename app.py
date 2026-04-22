@@ -11499,6 +11499,7 @@ def map_detail(scrim_id: int, map_id: int):
         update_map_info_endpoint="update_map_info",
         update_comp_endpoint="update_comp",
         update_comp_section_endpoint="update_comp_section",
+        add_comp_section_endpoint="add_comp_section",
         delete_event_endpoint="delete_event",
         add_event_endpoint="add_event_to_map",
         detail_parent_id=scrim_id,
