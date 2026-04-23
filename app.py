@@ -1322,6 +1322,41 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
 
     team_name_lower = (team_name or "").strip().lower()
 
+    def _normalize_player_keys(raw_names: list[str]) -> set[str]:
+        keys: set[str] = set()
+        for raw_name in raw_names or []:
+            player_name = normalize_player_name(raw_name)
+            key = _compact_text(player_name)
+            if key:
+                keys.add(key)
+        return keys
+
+    selected_team_player_keys: set[str] = set()
+    if team_id is not None or team_name_lower:
+        roster_db = get_db() if has_request_context() else _connect_db()
+        try:
+            resolved_team_id = team_id
+            if resolved_team_id is None and team_name_lower:
+                team_row = roster_db.execute(
+                    "SELECT id FROM teams WHERE lower(name) = lower(?)",
+                    (team_name,),
+                ).fetchone()
+                if team_row is not None:
+                    resolved_team_id = int(team_row["id"])
+            if resolved_team_id is not None:
+                selected_team_player_keys = _normalize_player_keys(
+                    [
+                        row["name"]
+                        for row in roster_db.execute(
+                            "SELECT name FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0",
+                            (resolved_team_id,),
+                        ).fetchall()
+                    ]
+                )
+        finally:
+            if not has_request_context():
+                roster_db.close()
+
     def _resolve_slot_for_record(record: dict, fallback_slot: str | None = None) -> str:
         if team_id is not None:
             if record.get("team1_id") == team_id:
@@ -1337,6 +1372,50 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
 
         return normalize_match_team_slot(fallback_slot or record.get("team_slot", "team1"))
 
+    def _map_side_player_keys(map_record: dict, side: str) -> set[str]:
+        keys: set[str] = set()
+        for section in map_record.get("comp", []):
+            if not isinstance(section, dict):
+                continue
+            for slot in section.get(side, []):
+                if not isinstance(slot, dict):
+                    continue
+                player_name = normalize_player_name(slot.get("player", ""))
+                key = _compact_text(player_name)
+                if key:
+                    keys.add(key)
+        return keys
+
+    def _resolve_map_team_slot(scrim_record: dict, map_record: dict, scrim_slot: str) -> str:
+        stored_map_slot = (map_record.get("our_team_slot") or "").strip()
+        if (
+            team_id is not None
+            and scrim_record.get("team_id") == team_id
+            and stored_map_slot in TEAM_SLOTS
+        ):
+            map_team_slot = stored_map_slot
+        else:
+            map_team_slot = _resolve_slot_for_record(map_record, scrim_slot)
+
+        roster_candidates: list[set[str]] = []
+        scrim_side_player_keys = _normalize_player_keys(scrim_record.get(f"{scrim_slot}_players", []))
+        if scrim_side_player_keys:
+            roster_candidates.append(scrim_side_player_keys)
+        if selected_team_player_keys:
+            roster_candidates.append(selected_team_player_keys)
+        if not roster_candidates:
+            return map_team_slot
+
+        current_side_keys = _map_side_player_keys(map_record, map_team_slot)
+        other_team_slot = opposite_team_slot(map_team_slot)
+        other_side_keys = _map_side_player_keys(map_record, other_team_slot)
+        if not current_side_keys and not other_side_keys:
+            return map_team_slot
+
+        current_score = max(len(current_side_keys & roster_keys) for roster_keys in roster_candidates)
+        other_score = max(len(other_side_keys & roster_keys) for roster_keys in roster_candidates)
+        return other_team_slot if other_score > current_score else map_team_slot
+
     for original_scrim in relevant_scrims:
         scrim = copy.deepcopy(original_scrim)
         team_slot = _resolve_slot_for_record(scrim)
@@ -1346,22 +1425,7 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
             if not isinstance(original_map, dict):
                 continue
             map_entry = copy.deepcopy(original_map)
-            # When the viewing team is the one that entered this scrim
-            # (scrim.team_id matches), trust the stored our_team_slot on
-            # the map — it was set at entry time and is authoritative for
-            # which slot each team's comp lives in.  Falling back to
-            # _resolve_slot_for_record can give the wrong answer when
-            # team1_id is set to the entering team even though their heroes
-            # were actually recorded in the team2 comp slot.
-            stored_map_slot = (original_map.get("our_team_slot") or "").strip()
-            if (
-                team_id is not None
-                and original_scrim.get("team_id") == team_id
-                and stored_map_slot in TEAM_SLOTS
-            ):
-                map_team_slot = stored_map_slot
-            else:
-                map_team_slot = _resolve_slot_for_record(original_map, team_slot)
+            map_team_slot = _resolve_map_team_slot(original_scrim, original_map, team_slot)
             map_entry["our_team_slot"] = map_team_slot
             map_entry["result"] = get_result_for_slot(original_map, map_team_slot)
             inferred_result = infer_result_from_score_text(map_entry.get("score", ""), slot=map_team_slot)
