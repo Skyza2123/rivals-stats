@@ -7502,7 +7502,7 @@ def toggle_team_quick_access(team_id: int):
 
 
 def build_pivot_wr(team_scrims: list[dict]) -> dict:
-    """Track hero-switch (pivot) win rates on attack rounds for Escort/Hybrid maps.
+    """Track hero-switch (pivot) win rates on winning attack rounds for Escort/Hybrid maps.
 
     A pivot is detected when a player:
       1. Played hero X on attack and the attack was LOST.
@@ -7531,7 +7531,7 @@ def build_pivot_wr(team_scrims: list[dict]) -> dict:
             except (ValueError, TypeError):
                 continue
 
-            atk_won = our_atk >= 3
+            atk_won = our_atk > enemy_atk
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in ("team1", "team2"):
                 our_team_slot = "team1"
@@ -7608,15 +7608,14 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
     rounds = 0
     total_atk_score = 0
     total_def_conceded = 0
-    atk_wins = 0
-    atk_losses = 0
-    atk_draws = 0
+    atk_successes = 0
+    def_successes = 0
     full_clears = 0
     full_holds = 0
 
     per_map: dict[str, dict] = defaultdict(lambda: {
         "rounds": 0, "total_atk": 0, "total_def": 0,
-        "wins": 0, "losses": 0, "draws": 0, "full_clears": 0, "full_holds": 0,
+        "atk_successes": 0, "def_successes": 0, "full_clears": 0, "full_holds": 0,
     })
     per_hero: dict[str, dict] = defaultdict(lambda: {
         "atk_apps": 0, "atk_wins": 0, "def_apps": 0, "def_wins": 0,
@@ -7646,15 +7645,16 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
             pm["total_atk"] += our_atk
             pm["total_def"] += enemy_atk
 
-            if our_atk > enemy_atk:
-                atk_wins += 1
-                pm["wins"] += 1
-            elif our_atk < enemy_atk:
-                atk_losses += 1
-                pm["losses"] += 1
-            else:
-                atk_draws += 1
-                pm["draws"] += 1
+            round_atk_won = our_atk > enemy_atk
+            round_def_won = enemy_atk < our_atk
+
+            if round_atk_won:
+                atk_successes += 1
+                pm["atk_successes"] += 1
+
+            if round_def_won:
+                def_successes += 1
+                pm["def_successes"] += 1
 
             if our_atk >= 3:
                 full_clears += 1
@@ -7663,10 +7663,9 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
                 full_holds += 1
                 pm["full_holds"] += 1
 
-            # On non-control maps, an attack succeeds when it reaches all 3 checkpoints.
-            # A defense succeeds when it prevents the enemy attack from reaching 3.
-            round_atk_won = our_atk >= 3
-            round_def_won = enemy_atk < 3
+            # On Escort/Hybrid maps, an attack wins when it pushes farther than the
+            # opposing attack round, even if neither team reaches 3 checkpoints.
+            # Defense wins when it holds the enemy below our own attack score.
 
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in ("team1", "team2"):
@@ -7692,16 +7691,13 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
     per_map_rows = []
     for map_name, stats in per_map.items():
         r = stats["rounds"]
-        decided = stats["wins"] + stats["losses"]
         per_map_rows.append({
             "map_name": map_name,
             "rounds": r,
             "atk_avg": round(stats["total_atk"] / r, 2) if r else 0,
             "def_avg": round(stats["total_def"] / r, 2) if r else 0,
-            "wins": stats["wins"],
-            "losses": stats["losses"],
-            "draws": stats["draws"],
-            "win_rate": round(stats["wins"] / decided * 100, 1) if decided else 0,
+            "atk_success_rate": round(stats["atk_successes"] / r * 100, 1) if r else 0,
+            "def_success_rate": round(stats["def_successes"] / r * 100, 1) if r else 0,
             "full_clear_rate": round(stats["full_clears"] / r * 100, 1) if r else 0,
             "full_hold_rate": round(stats["full_holds"] / r * 100, 1) if r else 0,
         })
@@ -7721,15 +7717,12 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
         })
     per_hero_rows.sort(key=lambda x: -(x["atk_apps"] + x["def_apps"]))
 
-    decided = atk_wins + atk_losses
     return {
         "rounds": rounds,
         "atk_avg": round(total_atk_score / rounds, 2) if rounds else 0,
         "def_avg": round(total_def_conceded / rounds, 2) if rounds else 0,
-        "wins": atk_wins,
-        "losses": atk_losses,
-        "draws": atk_draws,
-        "win_rate": round(atk_wins / decided * 100, 1) if decided else 0,
+        "atk_success_rate": round(atk_successes / rounds * 100, 1) if rounds else 0,
+        "def_success_rate": round(def_successes / rounds * 100, 1) if rounds else 0,
         "full_clear_rate": round(full_clears / rounds * 100, 1) if rounds else 0,
         "full_hold_rate": round(full_holds / rounds * 100, 1) if rounds else 0,
         "per_map": per_map_rows,
