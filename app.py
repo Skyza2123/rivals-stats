@@ -7531,7 +7531,7 @@ def build_pivot_wr(team_scrims: list[dict]) -> dict:
             except (ValueError, TypeError):
                 continue
 
-            atk_won = our_atk > enemy_atk
+            atk_won = our_atk >= 3
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in ("team1", "team2"):
                 our_team_slot = "team1"
@@ -7663,8 +7663,10 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
                 full_holds += 1
                 pm["full_holds"] += 1
 
-            round_atk_won = our_atk > enemy_atk
-            round_def_won = enemy_atk < our_atk  # same comparison, reported separately per section
+            # On non-control maps, an attack succeeds when it reaches all 3 checkpoints.
+            # A defense succeeds when it prevents the enemy attack from reaching 3.
+            round_atk_won = our_atk >= 3
+            round_def_won = enemy_atk < 3
 
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in ("team1", "team2"):
@@ -12774,11 +12776,12 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
     if side_value not in SIDES:
         side_value = ""
     section["side"] = side_value
-    section["score"] = build_score_text(
-        request.form.get("score_team1", "").strip(),
-        request.form.get("score_team2", "").strip(),
-        request.form.get("score", section.get("score", "")).strip(),
-    )
+    if "score_team1" in request.form or "score_team2" in request.form or "score" in request.form:
+        section["score"] = build_score_text(
+            request.form.get("score_team1", "").strip(),
+            request.form.get("score_team2", "").strip(),
+            request.form.get("score", section.get("score", "")).strip(),
+        )
     
     # Store submap result if this section has a submap
     section_result = request.form.get("section_result", "").strip()
@@ -12830,11 +12833,12 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
     if side_value not in SIDES:
         side_value = ""
     section["side"] = side_value
-    section["score"] = build_score_text(
-        request.form.get("score_team1", "").strip(),
-        request.form.get("score_team2", "").strip(),
-        request.form.get("score", section.get("score", "")).strip(),
-    )
+    if "score_team1" in request.form or "score_team2" in request.form or "score" in request.form:
+        section["score"] = build_score_text(
+            request.form.get("score_team1", "").strip(),
+            request.form.get("score_team2", "").strip(),
+            request.form.get("score", section.get("score", "")).strip(),
+        )
     
     # Store submap result if this section has a submap
     section_result = request.form.get("section_result", "").strip()

@@ -241,17 +241,20 @@
                     <input type="text" id="em_score" name="score" placeholder="e.g. 3-2">
                 </div>
                 <div id="em_atk_def_section" style="display:none; grid-column: 1 / -1;">
-                    <p style="margin:0 0 8px; font-size:0.82rem; color:var(--muted);">
-                        Enter how many checkpoints each team scored on their attack round.
+                    <p id="em_atk_def_intro" style="margin:0 0 8px; font-size:0.82rem; color:var(--muted);">
+                        For non-control maps, the left side always defends first in Round 1 and the right side always attacks first.
+                        Enter each team's attack checkpoints only.
                         The result will be auto-calculated if left blank.
                     </p>
                     <div class="form-grid" style="margin:0;">
                         <div class="field">
-                            <label for="em_our_attack_score" id="em_our_atk_label">{{ participant_one_label }} Attack Score</label>
+                            <label for="em_our_attack_score" id="em_our_atk_label">{{ participant_one_label }} Attack Checkpoints</label>
+                            <small id="em_our_atk_hint" style="display:block; margin-top:6px; color:var(--muted);">Side assignment updates when you change Side 1.</small>
                             <input type="number" id="em_our_attack_score" name="our_attack_score" min="0" placeholder="e.g. 3">
                         </div>
                         <div class="field">
-                            <label for="em_enemy_attack_score" id="em_enemy_atk_label">{{ participant_two_label }} Attack Score</label>
+                            <label for="em_enemy_attack_score" id="em_enemy_atk_label">{{ participant_two_label }} Attack Checkpoints</label>
+                            <small id="em_enemy_atk_hint" style="display:block; margin-top:6px; color:var(--muted);">Side assignment updates when you change Side 1.</small>
                             <input type="number" id="em_enemy_attack_score" name="enemy_attack_score" min="0" placeholder="e.g. 3">
                         </div>
                     </div>
@@ -415,7 +418,7 @@
                         <option value="{{ participant_one_id }}">{{ participant_one_label }}</option>
                         <option value="{{ participant_two_id }}">{{ participant_two_label }}</option>
                     </select>
-                    <small style="display:block; margin-top:6px; color:var(--muted);">Side 2 is automatically the other team.</small>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Side 2 is automatically the other team. On non-control maps, Side 1 is the left side and defends first in Round 1.</small>
                 </div>
 
                 {% elif not show_team_selector %}
@@ -427,6 +430,7 @@
                             <option value="{{ team.id }}">{{ team.name }}</option>
                         {% endfor %}
                     </select>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Map Team 1 is the left side. On non-control maps, that side defends first in Round 1.</small>
                 </div>
                 {% endif %}
 
@@ -476,13 +480,37 @@ function syncEditMapSideTeams() {
     var side1ScrimSelect = document.getElementById("em_map_team1_team_id");
     var side1TournamentSelect = document.getElementById("em_map_team1_tournament_team_id");
     var resultSide = document.getElementById("em_our_team_slot");
+    var ourAtkLabel = document.getElementById("em_our_atk_label");
+    var enemyAtkLabel = document.getElementById("em_enemy_atk_label");
+    var ourAtkHint = document.getElementById("em_our_atk_hint");
+    var enemyAtkHint = document.getElementById("em_enemy_atk_hint");
+    var atkIntro = document.getElementById("em_atk_def_intro");
     if (!resultSide || resultSide.options.length < 2) return;
+
+    function updateAttackScoreCopy(participantOneOnSide1, side1Text, side2Text) {
+        if (ourAtkLabel) ourAtkLabel.textContent = "{{ participant_one_label }} Attack Checkpoints";
+        if (enemyAtkLabel) enemyAtkLabel.textContent = "{{ participant_two_label }} Attack Checkpoints";
+        if (ourAtkHint) {
+            ourAtkHint.textContent = participantOneOnSide1
+                ? "Left side • defends first in Round 1"
+                : "Right side • attacks first in Round 1";
+        }
+        if (enemyAtkHint) {
+            enemyAtkHint.textContent = participantOneOnSide1
+                ? "Right side • attacks first in Round 1"
+                : "Left side • defends first in Round 1";
+        }
+        if (atkIntro) {
+            atkIntro.textContent = "For non-control maps, " + side1Text + " is on the left and defends first in Round 1, while " + side2Text + " is on the right and attacks first. Enter each team's attack checkpoints only. The result will be auto-calculated if left blank.";
+        }
+    }
 
     if (side1ScrimSelect) {
         var side1Text = side1ScrimSelect.options[side1ScrimSelect.selectedIndex] ? side1ScrimSelect.options[side1ScrimSelect.selectedIndex].text : "Team 1";
         var side2Text = side1ScrimSelect.value === "{{ participant_one_id }}" ? "{{ participant_two_label }}" : "{{ participant_one_label }}";
         resultSide.options[0].text = side1Text;
         resultSide.options[1].text = side2Text;
+        updateAttackScoreCopy(side1ScrimSelect.value === "{{ participant_one_id }}", side1Text, side2Text);
         return;
     }
 
@@ -492,6 +520,7 @@ function syncEditMapSideTeams() {
         var side2TournamentText = side1TournamentSelect.value === team1Id ? "{{ scrim.team2_name }}" : "{{ scrim.team1_name }}";
         resultSide.options[0].text = tournamentSide1Text;
         resultSide.options[1].text = side2TournamentText;
+        updateAttackScoreCopy(side1TournamentSelect.value === team1Id, tournamentSide1Text, side2TournamentText);
     }
 }
 

@@ -1841,22 +1841,22 @@
         {% endif %}
     </section>
 
-    {% if atk_def_wr.per_hero %}
     <section class="panel top-gap">
         <div class="section-kicker">Attack & Defense</div>
-        <h3>Hero Win Rate by Round Side</h3>
+        <h3>Hero Success Rate by Round Side</h3>
         <p class="panel-intro">
-            Win rate for each hero when played on their <strong>Attack</strong> or <strong>Defense</strong> round, on Escort and Hybrid maps where round scores were recorded.
+            Success rate for each hero when played on their <strong>Attack</strong> or <strong>Defense</strong> round, on Escort and Hybrid maps where round scores were recorded. An attack succeeds at <strong>3+ checkpoints</strong>; a defense succeeds by holding the enemy below <strong>3</strong>.
         </p>
+        {% if atk_def_wr.per_hero %}
         <div class="table-wrap top-gap">
             <table class="stats-table">
                 <thead>
                     <tr>
                         <th>Hero</th>
                         <th>Atk Apps</th>
-                        <th>Atk Win Rate</th>
+                        <th>Atk Success Rate</th>
                         <th>Def Apps</th>
-                        <th>Def Win Rate</th>
+                        <th>Def Success Rate</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1889,19 +1889,21 @@
                 </tbody>
             </table>
         </div>
+        {% else %}
+            <p class="empty-text top-gap">No Escort or Hybrid attack/defense round data recorded yet for the current filters.</p>
+        {% endif %}
     </section>
-    {% endif %}
 
-    {% if pivot_wr.per_player %}
     <section class="panel top-gap">
         <div class="section-kicker">Attack & Defense</div>
-        <h3>Attack Pivot Win Rate</h3>
+        <h3>Attack Pivot Success Rate</h3>
         <p class="panel-intro">
-            Tracks when a player <strong>switches hero</strong> after losing an attack round and whether the switch resulted in a win.
+            Tracks when a player <strong>switches hero</strong> after a failed attack round and whether the next attack succeeded. For these maps, an attack succeeds when it reaches <strong>3+ checkpoints</strong>.
             Overall: <strong>{{ pivot_wr.total_wins }}/{{ pivot_wr.total_attempts }}</strong> pivots won
             {% if pivot_wr.total_attempts %}<span class="{% if pivot_wr.overall_wr >= 60 %}wr-good{% elif pivot_wr.overall_wr >= 40 %}wr-ok{% else %}wr-bad{% endif %}">({{ pivot_wr.overall_wr }}%)</span>{% endif %}.
         </p>
 
+        {% if pivot_wr.per_player %}
         <div class="table-wrap top-gap">
             <table class="stats-table">
                 <thead>
@@ -1909,7 +1911,7 @@
                         <th>Player</th>
                         <th title="Times they switched hero after losing an attack round">Pivot Attempts</th>
                         <th>Pivot Wins</th>
-                        <th>Pivot Win Rate</th>
+                        <th>Pivot Success Rate</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1927,7 +1929,9 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
+        {% else %}
+            <p class="empty-text top-gap">No failed-attack hero pivot data recorded yet for the current filters.</p>
+        {% endif %}
 
         {% if pivot_wr.per_pair %}
         <details class="dense-collapsible top-gap">
@@ -1942,7 +1946,7 @@
                                 <th>→ To Hero</th>
                                 <th>Attempts</th>
                                 <th>Wins</th>
-                                <th>Win Rate</th>
+                                <th>Success Rate</th>
                                 <th>Players</th>
                             </tr>
                         </thead>
@@ -1978,7 +1982,6 @@
         </details>
         {% endif %}
     </section>
-    {% endif %}
 
         </div>
     </details>
@@ -1997,17 +2000,17 @@
     </section>
     {% endif %}
 
-    {% if atk_def_wr.rounds %}
     <section class="panel top-gap">
         <div class="section-kicker">Attack & Defense</div>
         <h3>Escort & Hybrid Round Performance</h3>
         <p class="panel-intro">
             Stats from matches where both attack scores were recorded. <strong>Attack Avg</strong> = average checkpoints pushed per map.
-            <strong>Defense Avg</strong> = average checkpoints conceded. <strong>Full Clear</strong> = scored 3+ on attack. <strong>Full Hold</strong> = held enemy to 0.
+            <strong>Defense Avg</strong> = average checkpoints conceded. An <strong>attack win</strong> means reaching 3+ checkpoints. A <strong>defense win</strong> means holding the enemy below 3. <strong>Full Hold</strong> = held enemy to 0.
         </p>
+        {% if atk_def_wr.rounds %}
         <div class="summary-grid top-gap">
             <section class="stat-card"><strong>Maps Tracked</strong><span>{{ atk_def_wr.rounds }}</span></section>
-            <section class="stat-card"><strong>Map Win Rate</strong><span>{{ atk_def_wr.win_rate }}%</span></section>
+            <section class="stat-card"><strong>Round Success Rate</strong><span>{{ atk_def_wr.win_rate }}%</span></section>
             <section class="stat-card"><strong>Attack Avg</strong><span>{{ atk_def_wr.atk_avg }}</span></section>
             <section class="stat-card"><strong>Defense Avg Conceded</strong><span>{{ atk_def_wr.def_avg }}</span></section>
             <section class="stat-card"><strong>Full Clear Rate</strong><span>{{ atk_def_wr.full_clear_rate }}%</span></section>
@@ -2022,7 +2025,7 @@
                         <th>Map</th>
                         <th>Maps</th>
                         <th>W–L</th>
-                        <th>Win Rate</th>
+                        <th>Success Rate</th>
                         <th>Atk Avg</th>
                         <th>Def Avg</th>
                         <th>Full Clear %</th>
@@ -2050,8 +2053,10 @@
             </table>
         </div>
         {% endif %}
+        {% else %}
+            <p class="empty-text top-gap">No Escort or Hybrid round scores recorded yet for the current filters.</p>
+        {% endif %}
     </section>
-    {% endif %}
 
     <details class="dense-collapsible top-gap">
         <summary>Advanced Map Correlations</summary>

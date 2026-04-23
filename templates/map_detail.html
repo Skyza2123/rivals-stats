@@ -259,6 +259,13 @@
         </div>
         <form action="{{ url_for(update_map_info_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
             <div class="form-grid">
+                {% if map_mode in ['Escort', 'Hybrid'] %}
+                <div class="field" style="grid-column: 1 / -1;">
+                    <p class="panel-intro" style="margin:0;">
+                        For Escort and Hybrid maps, the score is stored as <strong>left side then right side</strong>. The left side defends first in Round 1 and the right side attacks first. Example: <strong>3-2</strong> means the right side failed its opening attack at 2, then the left side won its attack by reaching 3.
+                    </p>
+                </div>
+                {% endif %}
                 <div class="field">
                     <label for="edit_score_team1">{{ team1_label }} Score</label>
                     <input type="text" id="edit_score_team1" name="score_team1" value="{{ split_score_pair(map_entry.get('score', ''))[0] }}" placeholder="e.g. 3">
@@ -313,6 +320,7 @@
 {% for sec in map_entry.comp %}
 {% set s = loop.index0 %}
 {% set sec_score_parts = split_score_pair(sec.score or '') %}
+{% set uses_map_level_round_score = map_mode in ['Escort', 'Hybrid'] and not sec.submap %}
 <div class="modal-backdrop" id="editCompSectionModal{{ s }}">
     <div class="modal modal-wide">
         <div class="modal-header">
@@ -322,6 +330,13 @@
         <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, section_index=s) }}" method="post">
             <input type="hidden" name="submap" value="{{ sec.submap }}">
             <div class="form-grid">
+                {% if uses_map_level_round_score %}
+                <div class="field" style="grid-column: 1 / -1;">
+                    <p class="panel-intro" style="margin:0;">
+                        Round score is handled in <strong>Edit Map Info</strong> for Escort and Hybrid maps. Use this section to edit the comps played on this round only.
+                    </p>
+                </div>
+                {% else %}
                 <div class="field">
                     <label>{{ team1_label }} Score</label>
                     <input type="text" name="score_team1" value="{{ sec_score_parts[0] }}" placeholder="e.g. 2">
@@ -330,6 +345,7 @@
                     <label>{{ team2_label }} Score</label>
                     <input type="text" name="score_team2" value="{{ sec_score_parts[1] }}" placeholder="e.g. 1">
                 </div>
+                {% endif %}
                 {% if not sec.submap %}
                 <div class="field">
                     <label>Round Side</label>
