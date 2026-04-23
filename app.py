@@ -7882,10 +7882,12 @@ def build_scrim_log_rows(team_scrims: list) -> dict:
                 "scrim_date": scrim_date,
                 "opponent_name": opponent_name,
                 "season": season,
+                "patch": season,
                 "map_name": map_name,
                 "map_type": map_type,
                 "result": result,
                 "score": score,
+                "our_team_slot": our_team_slot,
                 "our_bans": our_bans,
                 "our_protects": our_protects,
                 "enemy_bans": enemy_bans,
@@ -7944,11 +7946,25 @@ def filter_scrim_log_rows(
 def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
     buffer = io.StringIO(newline="")
     writer = csv.writer(buffer)
+    exact_order_headers = [
+        "Order 1",
+        "Order 2",
+        "Order 3",
+        "Order 4",
+        "Order 5",
+        "Order 6",
+        "Order 7",
+        "Order 8",
+        "Order 9",
+        "Order 10",
+        "Order 11",
+        "Order 12",
+    ]
     header = [
         "Date",
         "Our Team",
         "Their Team",
-        "Season",
+        "Patch",
         "Map",
         "Map Type",
         "Map Winner",
@@ -7966,14 +7982,19 @@ def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
         "Our Protect 2",
         "Their Protect 1",
         "Their Protect 2",
+    ]
+    header.extend(exact_order_headers)
+    header.extend([
         "Round",
         "Round Winner",
         "Round Result",
         "Round Score",
         "Round Side",
-    ]
-    header.extend([f"Our Hero {index}" for index in range(1, 7)])
-    header.extend([f"Their Hero {index}" for index in range(1, 7)])
+    ])
+    for index in range(1, 7):
+        header.extend([f"Our Player {index}", f"Our Hero {index}"])
+    for index in range(1, 7):
+        header.extend([f"Their Player {index}", f"Their Hero {index}"])
     writer.writerow(header)
 
     def _winner_label(result: str, our_label: str, their_label: str) -> str:
@@ -7987,6 +8008,48 @@ def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
         cleaned = [(value or "").strip() for value in values if (value or "").strip()]
         return cleaned[:target_size] + [""] * max(0, target_size - len(cleaned))
 
+    def _draft_order_values(row: dict) -> list[str]:
+        our_team_slot = normalize_match_team_slot(row.get("our_team_slot", "team1"))
+        team_labels = {
+            our_team_slot: "Our",
+            opposite_team_slot(our_team_slot): "Their",
+        }
+        slot_sources = {
+            f"{our_team_slot}_ban1": _padded_values(row.get("our_bans", []), 4)[0],
+            f"{our_team_slot}_ban2": _padded_values(row.get("our_bans", []), 4)[1],
+            f"{our_team_slot}_ban3": _padded_values(row.get("our_bans", []), 4)[2],
+            f"{our_team_slot}_ban4": _padded_values(row.get("our_bans", []), 4)[3],
+            f"{our_team_slot}_protect1": _padded_values(row.get("our_protects", []), 2)[0],
+            f"{our_team_slot}_protect2": _padded_values(row.get("our_protects", []), 2)[1],
+            f"{opposite_team_slot(our_team_slot)}_ban1": _padded_values(row.get("enemy_bans", []), 4)[0],
+            f"{opposite_team_slot(our_team_slot)}_ban2": _padded_values(row.get("enemy_bans", []), 4)[1],
+            f"{opposite_team_slot(our_team_slot)}_ban3": _padded_values(row.get("enemy_bans", []), 4)[2],
+            f"{opposite_team_slot(our_team_slot)}_ban4": _padded_values(row.get("enemy_bans", []), 4)[3],
+            f"{opposite_team_slot(our_team_slot)}_protect1": _padded_values(row.get("enemy_protects", []), 2)[0],
+            f"{opposite_team_slot(our_team_slot)}_protect2": _padded_values(row.get("enemy_protects", []), 2)[1],
+        }
+        ordered_values: list[str] = []
+        for slot_name in SIMULATOR_SLOT_ORDER:
+            side_name, action_name = slot_name.split("_", 1)
+            hero_name = slot_sources.get(slot_name, "")
+            side_label = team_labels.get(side_name, side_name.title())
+            action_label = action_name.replace("protect", "Protect ").replace("ban", "Ban ")
+            action_label = re.sub(r"\s+", " ", action_label).strip().title()
+            ordered_values.append(f"{side_label} {action_label}: {hero_name}" if hero_name else "")
+        return ordered_values
+
+    def _assignment_values(slots: list[dict], target_size: int = 6) -> list[str]:
+        values: list[str] = []
+        cleaned_slots = [slot for slot in slots if isinstance(slot, dict)]
+        for slot in cleaned_slots[:target_size]:
+            values.extend([
+                (slot.get("player", "") or "").strip(),
+                (slot.get("hero", "") or "").strip(),
+            ])
+        while len(values) < target_size * 2:
+            values.extend(["", ""])
+        return values
+
     for row in rows:
         our_team_name = (team_name or "").strip() or "Our Team"
         their_team_name = (row.get("opponent_name", "") or "").strip() or "Their Team"
@@ -7996,7 +8059,7 @@ def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
             (row.get("scrim_date", "") or "").strip(),
             our_team_name,
             their_team_name,
-            (row.get("season", "") or "").strip(),
+            (row.get("patch", row.get("season", "")) or "").strip(),
             (row.get("map_name", "") or "").strip(),
             (row.get("map_type", "") or "").strip(),
             _winner_label(map_result, our_team_name, their_team_name),
@@ -8009,22 +8072,18 @@ def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
             + _padded_values(row.get("our_protects", []), 2)
             + _padded_values(row.get("enemy_protects", []), 2)
         )
+        exact_order_columns = _draft_order_values(row)
 
         sections = row.get("sections", [])
         if sections:
             for section in sections:
                 round_result = (section.get("result", "") or "").strip()
-                our_round_heroes = _padded_values(
-                    [(slot.get("hero", "") or "").strip() for slot in section.get("our_slots", [])],
-                    6,
-                )
-                their_round_heroes = _padded_values(
-                    [(slot.get("hero", "") or "").strip() for slot in section.get("enemy_slots", [])],
-                    6,
-                )
+                our_round_assignments = _assignment_values(section.get("our_slots", []))
+                their_round_assignments = _assignment_values(section.get("enemy_slots", []))
                 writer.writerow(
                     map_prefix
                     + draft_columns
+                    + exact_order_columns
                     + [
                         (section.get("label", "") or "").strip(),
                         _winner_label(round_result, our_team_name, their_team_name),
@@ -8032,17 +8091,24 @@ def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
                         (section.get("score", "") or "").strip(),
                         (section.get("side", "") or "").strip(),
                     ]
-                    + our_round_heroes
-                    + their_round_heroes
+                    + our_round_assignments
+                    + their_round_assignments
                 )
             continue
 
+        fallback_our_assignments = _assignment_values(
+            [{"player": "", "hero": hero_name} for hero_name in row.get("our_heroes", [])]
+        )
+        fallback_their_assignments = _assignment_values(
+            [{"player": "", "hero": hero_name} for hero_name in row.get("enemy_heroes", [])]
+        )
         writer.writerow(
             map_prefix
             + draft_columns
+            + exact_order_columns
             + ["", "", "", "", ""]
-            + _padded_values(row.get("our_heroes", []), 6)
-            + _padded_values(row.get("enemy_heroes", []), 6)
+            + fallback_our_assignments
+            + fallback_their_assignments
         )
 
     return buffer.getvalue()
