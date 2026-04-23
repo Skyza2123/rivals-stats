@@ -6,6 +6,7 @@ import json
 import math
 import re
 import time
+import zipfile
 import hashlib
 import sqlite3
 import importlib
@@ -7943,60 +7944,7 @@ def filter_scrim_log_rows(
     return filtered_rows
 
 
-def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
-    buffer = io.StringIO(newline="")
-    writer = csv.writer(buffer)
-    exact_order_headers = [
-        "Order 1",
-        "Order 2",
-        "Order 3",
-        "Order 4",
-        "Order 5",
-        "Order 6",
-        "Order 7",
-        "Order 8",
-        "Order 9",
-        "Order 10",
-        "Order 11",
-        "Order 12",
-    ]
-    header = [
-        "Date",
-        "Our Team",
-        "Their Team",
-        "Patch",
-        "Map",
-        "Map Type",
-        "Map Winner",
-        "Map Result",
-        "Map Score",
-        "Our Ban 1",
-        "Our Ban 2",
-        "Our Ban 3",
-        "Our Ban 4",
-        "Their Ban 1",
-        "Their Ban 2",
-        "Their Ban 3",
-        "Their Ban 4",
-        "Our Protect 1",
-        "Our Protect 2",
-        "Their Protect 1",
-        "Their Protect 2",
-    ]
-    header.extend(exact_order_headers)
-    header.extend([
-        "Round",
-        "Round Winner",
-        "Round Result",
-        "Round Score",
-        "Round Side",
-    ])
-    for index in range(1, 7):
-        header.extend([f"Our Player {index}", f"Our Hero {index}"])
-    for index in range(1, 7):
-        header.extend([f"Their Player {index}", f"Their Hero {index}"])
-    writer.writerow(header)
-
+def build_scrim_log_export_archive(team_name: str, rows: list[dict]) -> bytes:
     def _winner_label(result: str, our_label: str, their_label: str) -> str:
         if result == "Win":
             return our_label
@@ -8008,110 +7956,150 @@ def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
         cleaned = [(value or "").strip() for value in values if (value or "").strip()]
         return cleaned[:target_size] + [""] * max(0, target_size - len(cleaned))
 
-    def _draft_order_values(row: dict) -> list[str]:
+    def _draft_action_rows(match_id: str, row: dict) -> list[list[str]]:
         our_team_slot = normalize_match_team_slot(row.get("our_team_slot", "team1"))
-        team_labels = {
-            our_team_slot: "Our",
-            opposite_team_slot(our_team_slot): "Their",
-        }
+        their_team_slot = opposite_team_slot(our_team_slot)
+        our_bans = _padded_values(row.get("our_bans", []), 4)
+        their_bans = _padded_values(row.get("enemy_bans", []), 4)
+        our_protects = _padded_values(row.get("our_protects", []), 2)
+        their_protects = _padded_values(row.get("enemy_protects", []), 2)
         slot_sources = {
-            f"{our_team_slot}_ban1": _padded_values(row.get("our_bans", []), 4)[0],
-            f"{our_team_slot}_ban2": _padded_values(row.get("our_bans", []), 4)[1],
-            f"{our_team_slot}_ban3": _padded_values(row.get("our_bans", []), 4)[2],
-            f"{our_team_slot}_ban4": _padded_values(row.get("our_bans", []), 4)[3],
-            f"{our_team_slot}_protect1": _padded_values(row.get("our_protects", []), 2)[0],
-            f"{our_team_slot}_protect2": _padded_values(row.get("our_protects", []), 2)[1],
-            f"{opposite_team_slot(our_team_slot)}_ban1": _padded_values(row.get("enemy_bans", []), 4)[0],
-            f"{opposite_team_slot(our_team_slot)}_ban2": _padded_values(row.get("enemy_bans", []), 4)[1],
-            f"{opposite_team_slot(our_team_slot)}_ban3": _padded_values(row.get("enemy_bans", []), 4)[2],
-            f"{opposite_team_slot(our_team_slot)}_ban4": _padded_values(row.get("enemy_bans", []), 4)[3],
-            f"{opposite_team_slot(our_team_slot)}_protect1": _padded_values(row.get("enemy_protects", []), 2)[0],
-            f"{opposite_team_slot(our_team_slot)}_protect2": _padded_values(row.get("enemy_protects", []), 2)[1],
+            f"{our_team_slot}_ban1": our_bans[0],
+            f"{our_team_slot}_ban2": our_bans[1],
+            f"{our_team_slot}_ban3": our_bans[2],
+            f"{our_team_slot}_ban4": our_bans[3],
+            f"{our_team_slot}_protect1": our_protects[0],
+            f"{our_team_slot}_protect2": our_protects[1],
+            f"{their_team_slot}_ban1": their_bans[0],
+            f"{their_team_slot}_ban2": their_bans[1],
+            f"{their_team_slot}_ban3": their_bans[2],
+            f"{their_team_slot}_ban4": their_bans[3],
+            f"{their_team_slot}_protect1": their_protects[0],
+            f"{their_team_slot}_protect2": their_protects[1],
         }
-        ordered_values: list[str] = []
-        for slot_name in SIMULATOR_SLOT_ORDER:
+        team_labels = {our_team_slot: "Our", their_team_slot: "Their"}
+        rows_out: list[list[str]] = []
+        for order_index, slot_name in enumerate(SIMULATOR_SLOT_ORDER, start=1):
             side_name, action_name = slot_name.split("_", 1)
-            hero_name = slot_sources.get(slot_name, "")
-            side_label = team_labels.get(side_name, side_name.title())
-            action_label = action_name.replace("protect", "Protect ").replace("ban", "Ban ")
-            action_label = re.sub(r"\s+", " ", action_label).strip().title()
-            ordered_values.append(f"{side_label} {action_label}: {hero_name}" if hero_name else "")
-        return ordered_values
-
-    def _assignment_values(slots: list[dict], target_size: int = 6) -> list[str]:
-        values: list[str] = []
-        cleaned_slots = [slot for slot in slots if isinstance(slot, dict)]
-        for slot in cleaned_slots[:target_size]:
-            values.extend([
-                (slot.get("player", "") or "").strip(),
-                (slot.get("hero", "") or "").strip(),
+            hero_name = (slot_sources.get(slot_name, "") or "").strip()
+            if not hero_name:
+                continue
+            action_type = "Protect" if action_name.startswith("protect") else "Ban"
+            rows_out.append([
+                match_id,
+                str(order_index),
+                team_labels.get(side_name, side_name.title()),
+                action_type,
+                hero_name,
             ])
-        while len(values) < target_size * 2:
-            values.extend(["", ""])
-        return values
+        return rows_out
 
-    for row in rows:
+    def _player_hero_rows(match_id: str, team_side: str, slots: list[dict]) -> list[list[str]]:
+        rows_out: list[list[str]] = []
+        for slot in slots:
+            if not isinstance(slot, dict):
+                continue
+            player_name = (slot.get("player", "") or "").strip()
+            hero_name = (slot.get("hero", "") or "").strip()
+            if not player_name and not hero_name:
+                continue
+            rows_out.append([match_id, team_side, player_name, hero_name])
+        return rows_out
+
+    maps_buffer = io.StringIO(newline="")
+    maps_writer = csv.writer(maps_buffer)
+    maps_writer.writerow([
+        "match_id",
+        "date",
+        "our_team",
+        "their_team",
+        "patch",
+        "map",
+        "map_type",
+        "round",
+        "map_winner",
+        "map_result",
+        "map_score",
+        "round_winner",
+        "round_result",
+        "round_score",
+        "round_side",
+    ])
+
+    draft_buffer = io.StringIO(newline="")
+    draft_writer = csv.writer(draft_buffer)
+    draft_writer.writerow(["match_id", "action_order", "acting_team", "action_type", "hero"])
+
+    player_buffer = io.StringIO(newline="")
+    player_writer = csv.writer(player_buffer)
+    player_writer.writerow(["match_id", "team_side", "player", "hero"])
+
+    for row_index, row in enumerate(rows, start=1):
         our_team_name = (team_name or "").strip() or "Our Team"
         their_team_name = (row.get("opponent_name", "") or "").strip() or "Their Team"
         map_result = (row.get("result", "") or "").strip()
         map_score = (row.get("score", "") or "").strip()
-        map_prefix = [
-            (row.get("scrim_date", "") or "").strip(),
-            our_team_name,
-            their_team_name,
-            (row.get("patch", row.get("season", "")) or "").strip(),
-            (row.get("map_name", "") or "").strip(),
-            (row.get("map_type", "") or "").strip(),
-            _winner_label(map_result, our_team_name, their_team_name),
-            map_result,
-            map_score,
-        ]
-        draft_columns = (
-            _padded_values(row.get("our_bans", []), 4)
-            + _padded_values(row.get("enemy_bans", []), 4)
-            + _padded_values(row.get("our_protects", []), 2)
-            + _padded_values(row.get("enemy_protects", []), 2)
-        )
-        exact_order_columns = _draft_order_values(row)
-
         sections = row.get("sections", [])
         if sections:
-            for section in sections:
+            for section_index, section in enumerate(sections, start=1):
+                match_id = f"S{row.get('scrim_id') or 'x'}-M{row_index}-R{section_index}"
                 round_result = (section.get("result", "") or "").strip()
-                our_round_assignments = _assignment_values(section.get("our_slots", []))
-                their_round_assignments = _assignment_values(section.get("enemy_slots", []))
-                writer.writerow(
-                    map_prefix
-                    + draft_columns
-                    + exact_order_columns
-                    + [
-                        (section.get("label", "") or "").strip(),
-                        _winner_label(round_result, our_team_name, their_team_name),
-                        round_result,
-                        (section.get("score", "") or "").strip(),
-                        (section.get("side", "") or "").strip(),
-                    ]
-                    + our_round_assignments
-                    + their_round_assignments
-                )
-            continue
+                maps_writer.writerow([
+                    match_id,
+                    (row.get("scrim_date", "") or "").strip(),
+                    our_team_name,
+                    their_team_name,
+                    (row.get("patch", row.get("season", "")) or "").strip(),
+                    (row.get("map_name", "") or "").strip(),
+                    (row.get("map_type", "") or "").strip(),
+                    (section.get("label", "") or "").strip(),
+                    _winner_label(map_result, our_team_name, their_team_name),
+                    map_result,
+                    map_score,
+                    _winner_label(round_result, our_team_name, their_team_name),
+                    round_result,
+                    (section.get("score", "") or "").strip(),
+                    (section.get("side", "") or "").strip(),
+                ])
+                for draft_row in _draft_action_rows(match_id, row):
+                    draft_writer.writerow(draft_row)
+                for assignment_row in _player_hero_rows(match_id, "Our", section.get("our_slots", [])):
+                    player_writer.writerow(assignment_row)
+                for assignment_row in _player_hero_rows(match_id, "Their", section.get("enemy_slots", [])):
+                    player_writer.writerow(assignment_row)
+        else:
+            match_id = f"S{row.get('scrim_id') or 'x'}-M{row_index}-R0"
+            maps_writer.writerow([
+                match_id,
+                (row.get("scrim_date", "") or "").strip(),
+                our_team_name,
+                their_team_name,
+                (row.get("patch", row.get("season", "")) or "").strip(),
+                (row.get("map_name", "") or "").strip(),
+                (row.get("map_type", "") or "").strip(),
+                "",
+                _winner_label(map_result, our_team_name, their_team_name),
+                map_result,
+                map_score,
+                "",
+                "",
+                "",
+                "",
+            ])
+            for draft_row in _draft_action_rows(match_id, row):
+                draft_writer.writerow(draft_row)
+            for hero_name in row.get("our_heroes", []):
+                player_writer.writerow([match_id, "Our", "", (hero_name or "").strip()])
+            for hero_name in row.get("enemy_heroes", []):
+                player_writer.writerow([match_id, "Their", "", (hero_name or "").strip()])
 
-        fallback_our_assignments = _assignment_values(
-            [{"player": "", "hero": hero_name} for hero_name in row.get("our_heroes", [])]
-        )
-        fallback_their_assignments = _assignment_values(
-            [{"player": "", "hero": hero_name} for hero_name in row.get("enemy_heroes", [])]
-        )
-        writer.writerow(
-            map_prefix
-            + draft_columns
-            + exact_order_columns
-            + ["", "", "", "", ""]
-            + fallback_our_assignments
-            + fallback_their_assignments
-        )
+    archive_buffer = io.BytesIO()
+    with zipfile.ZipFile(archive_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("maps.csv", "\ufeff" + maps_buffer.getvalue())
+        archive.writestr("draft_actions.csv", "\ufeff" + draft_buffer.getvalue())
+        archive.writestr("player_heroes.csv", "\ufeff" + player_buffer.getvalue())
 
-    return buffer.getvalue()
+    return archive_buffer.getvalue()
 
 
 @app.route("/teams/<int:team_id>/scrims.csv")
@@ -8149,12 +8137,12 @@ def team_scrims_csv(team_id: int):
         filename_parts.append(f"season-{selected_season}")
     if selected_map_type and selected_map_type != "all":
         filename_parts.append(secure_filename(selected_map_type.lower()))
-    csv_text = "\ufeff" + build_scrim_log_csv(team["name"], filtered_rows)
-    filename = "-".join(filename_parts) + ".csv"
+    archive_bytes = build_scrim_log_export_archive(team["name"], filtered_rows)
+    filename = "-".join(filename_parts) + ".zip"
 
     return Response(
-        csv_text,
-        mimetype="text/csv; charset=utf-8",
+        archive_bytes,
+        mimetype="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
