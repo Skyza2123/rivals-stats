@@ -2510,6 +2510,11 @@
         <button type="button" class="btn-secondary" id="slClearFilters">Clear ×</button>
         <button type="button" class="btn-secondary" id="slOpenAll">Open All</button>
         <button type="button" class="btn-secondary" id="slCloseAll">Close All</button>
+        <a
+            id="slExportCsv"
+            class="btn-secondary"
+            href="{{ url_for('team_scrims_csv', team_id=team.id, season=selected_season, map_type=selected_map_type) }}"
+        >Dump CSV</a>
         <span class="scrim-log-count" id="slRowCount">{{ scrim_log.rows|length }} maps</span>
     </div>
 
@@ -2710,12 +2715,33 @@
     var clearBtn = document.getElementById('slClearFilters');
     var openAllBtn = document.getElementById('slOpenAll');
     var closeAllBtn = document.getElementById('slCloseAll');
+    var exportCsvBtn = document.getElementById('slExportCsv');
     var countEl = document.getElementById('slRowCount');
     var noResults = document.getElementById('slNoResults');
     var accordion = document.getElementById('scrimAccordion');
     if (!accordion) return;
     var rows = Array.from(accordion.querySelectorAll('tbody tr.scrim-map-row'));
     var items = Array.from(accordion.querySelectorAll('.scrim-accordion-item'));
+
+    function updateCsvHref() {
+        if (!exportCsvBtn) return;
+        var url = new URL(exportCsvBtn.href, window.location.origin);
+        var values = {
+            opponent: filterOpponent ? filterOpponent.value : '',
+            map: filterMap ? filterMap.value : '',
+            ban: filterBan ? filterBan.value : '',
+            duelist: filterDuelist ? filterDuelist.value : '',
+            season: filterSeason ? filterSeason.value : '',
+        };
+        Object.keys(values).forEach(function (key) {
+            if (values[key]) {
+                url.searchParams.set(key, values[key]);
+            } else {
+                url.searchParams.delete(key);
+            }
+        });
+        exportCsvBtn.href = url.toString();
+    }
 
     // Toggle section rows on map row click
     accordion.addEventListener('click', function (e) {
@@ -2762,6 +2788,7 @@
             var map = filterMap ? filterMap.value : '';
             var ban = filterBan ? filterBan.value : '';
             var duelist = filterDuelist ? filterDuelist.value : '';
+            updateCsvHref();
             var visible = 0;
             rows.forEach(function (tr) {
                 var show = true;
@@ -2804,10 +2831,12 @@
             [filterOpponent, filterMap, filterBan, filterDuelist].forEach(function (el) {
                 if (el) el.value = '';
             });
+            updateCsvHref();
             applyFilters();
         });
     }
 
+    updateCsvHref();
     applyFilters();
 })();
 </script>

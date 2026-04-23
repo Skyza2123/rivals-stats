@@ -7913,6 +7913,149 @@ def build_scrim_log_rows(team_scrims: list) -> dict:
     }
 
 
+def filter_scrim_log_rows(
+    rows: list[dict],
+    *,
+    opponent: str = "",
+    map_name: str = "",
+    ban: str = "",
+    duelist: str = "",
+) -> list[dict]:
+    selected_opponent = (opponent or "").strip()
+    selected_map = (map_name or "").strip()
+    selected_ban = (ban or "").strip()
+    selected_duelist = (duelist or "").strip()
+
+    filtered_rows: list[dict] = []
+    for row in rows:
+        if selected_opponent and row.get("opponent_name", "") != selected_opponent:
+            continue
+        if selected_map and row.get("map_name", "") != selected_map:
+            continue
+        if selected_ban and selected_ban not in row.get("our_bans", []) + row.get("enemy_bans", []):
+            continue
+        if selected_duelist and selected_duelist not in row.get("our_duelists", []):
+            continue
+        filtered_rows.append(row)
+
+    return filtered_rows
+
+
+def build_scrim_log_csv(rows: list[dict]) -> str:
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "Date",
+        "Opponent",
+        "Season",
+        "Map",
+        "Map Type",
+        "Result",
+        "Score",
+        "Our Bans",
+        "Our Protects",
+        "Enemy Bans",
+        "Enemy Protects",
+        "Our Heroes",
+        "Enemy Heroes",
+        "Our Duelists",
+        "Section Summary",
+        "Our Section Players",
+        "Enemy Section Players",
+    ])
+
+    for row in rows:
+        section_summary = " | ".join(
+            " ".join(
+                part
+                for part in [
+                    (section.get("label", "") or "").strip(),
+                    f"score {section.get('score', '').strip()}" if (section.get("score", "") or "").strip() else "",
+                    f"result {section.get('result', '').strip()}" if (section.get("result", "") or "").strip() else "",
+                    f"side {section.get('side', '').strip()}" if (section.get("side", "") or "").strip() else "",
+                ]
+                if part
+            )
+            for section in row.get("sections", [])
+        )
+        our_section_players = " | ".join(
+            f"{(section.get('label', '') or '').strip()}: "
+            f"{', '.join((slot.get('player', '') or '').strip() for slot in section.get('our_slots', []) if (slot.get('player', '') or '').strip()) or '-'}"
+            for section in row.get("sections", [])
+        )
+        enemy_section_players = " | ".join(
+            f"{(section.get('label', '') or '').strip()}: "
+            f"{', '.join((slot.get('player', '') or '').strip() for slot in section.get('enemy_slots', []) if (slot.get('player', '') or '').strip()) or '-'}"
+            for section in row.get("sections", [])
+        )
+        writer.writerow([
+            (row.get("scrim_date", "") or "").strip(),
+            (row.get("opponent_name", "") or "").strip(),
+            (row.get("season", "") or "").strip(),
+            (row.get("map_name", "") or "").strip(),
+            (row.get("map_type", "") or "").strip(),
+            (row.get("result", "") or "").strip(),
+            (row.get("score", "") or "").strip(),
+            ", ".join(row.get("our_bans", [])),
+            ", ".join(row.get("our_protects", [])),
+            ", ".join(row.get("enemy_bans", [])),
+            ", ".join(row.get("enemy_protects", [])),
+            ", ".join(row.get("our_heroes", [])),
+            ", ".join(row.get("enemy_heroes", [])),
+            ", ".join(row.get("our_duelists", [])),
+            section_summary,
+            our_section_players,
+            enemy_section_players,
+        ])
+
+    return buffer.getvalue()
+
+
+@app.route("/teams/<int:team_id>/scrims.csv")
+def team_scrims_csv(team_id: int):
+    db = get_db()
+    team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    all_team_scrims = get_scrims_for_team(team["id"], team["name"])
+    season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
+
+    scrim_log = build_scrim_log_rows(team_scrims)
+    filtered_rows = filter_scrim_log_rows(
+        scrim_log["rows"],
+        opponent=request.args.get("opponent", ""),
+        map_name=request.args.get("map", ""),
+        ban=request.args.get("ban", ""),
+        duelist=request.args.get("duelist", ""),
+    )
+
+    filename_parts = [secure_filename((team["name"] or "team").strip()) or f"team-{team_id}", "scrims"]
+    if selected_season and selected_season != "all":
+        filename_parts.append(f"season-{selected_season}")
+    if selected_map_type and selected_map_type != "all":
+        filename_parts.append(secure_filename(selected_map_type.lower()))
+    csv_text = "\ufeff" + build_scrim_log_csv(filtered_rows)
+    filename = "-".join(filename_parts) + ".csv"
+
+    return Response(
+        csv_text,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.route("/teams/<int:team_id>")
 def team_detail(team_id: int):
     db = get_db()
