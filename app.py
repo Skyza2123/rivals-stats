@@ -7941,72 +7941,109 @@ def filter_scrim_log_rows(
     return filtered_rows
 
 
-def build_scrim_log_csv(rows: list[dict]) -> str:
+def build_scrim_log_csv(team_name: str, rows: list[dict]) -> str:
     buffer = io.StringIO(newline="")
     writer = csv.writer(buffer)
-    writer.writerow([
+    header = [
         "Date",
-        "Opponent",
+        "Our Team",
+        "Their Team",
         "Season",
         "Map",
         "Map Type",
-        "Result",
-        "Score",
-        "Our Bans",
-        "Our Protects",
-        "Enemy Bans",
-        "Enemy Protects",
-        "Our Heroes",
-        "Enemy Heroes",
-        "Our Duelists",
-        "Section Summary",
-        "Our Section Players",
-        "Enemy Section Players",
-    ])
+        "Map Winner",
+        "Map Result",
+        "Map Score",
+        "Our Ban 1",
+        "Our Ban 2",
+        "Our Ban 3",
+        "Our Ban 4",
+        "Their Ban 1",
+        "Their Ban 2",
+        "Their Ban 3",
+        "Their Ban 4",
+        "Our Protect 1",
+        "Our Protect 2",
+        "Their Protect 1",
+        "Their Protect 2",
+        "Round",
+        "Round Winner",
+        "Round Result",
+        "Round Score",
+        "Round Side",
+    ]
+    header.extend([f"Our Hero {index}" for index in range(1, 7)])
+    header.extend([f"Their Hero {index}" for index in range(1, 7)])
+    writer.writerow(header)
+
+    def _winner_label(result: str, our_label: str, their_label: str) -> str:
+        if result == "Win":
+            return our_label
+        if result == "Loss":
+            return their_label
+        return ""
+
+    def _padded_values(values: list[str], target_size: int) -> list[str]:
+        cleaned = [(value or "").strip() for value in values if (value or "").strip()]
+        return cleaned[:target_size] + [""] * max(0, target_size - len(cleaned))
 
     for row in rows:
-        section_summary = " | ".join(
-            " ".join(
-                part
-                for part in [
-                    (section.get("label", "") or "").strip(),
-                    f"score {section.get('score', '').strip()}" if (section.get("score", "") or "").strip() else "",
-                    f"result {section.get('result', '').strip()}" if (section.get("result", "") or "").strip() else "",
-                    f"side {section.get('side', '').strip()}" if (section.get("side", "") or "").strip() else "",
-                ]
-                if part
-            )
-            for section in row.get("sections", [])
-        )
-        our_section_players = " | ".join(
-            f"{(section.get('label', '') or '').strip()}: "
-            f"{', '.join((slot.get('player', '') or '').strip() for slot in section.get('our_slots', []) if (slot.get('player', '') or '').strip()) or '-'}"
-            for section in row.get("sections", [])
-        )
-        enemy_section_players = " | ".join(
-            f"{(section.get('label', '') or '').strip()}: "
-            f"{', '.join((slot.get('player', '') or '').strip() for slot in section.get('enemy_slots', []) if (slot.get('player', '') or '').strip()) or '-'}"
-            for section in row.get("sections", [])
-        )
-        writer.writerow([
+        our_team_name = (team_name or "").strip() or "Our Team"
+        their_team_name = (row.get("opponent_name", "") or "").strip() or "Their Team"
+        map_result = (row.get("result", "") or "").strip()
+        map_score = (row.get("score", "") or "").strip()
+        map_prefix = [
             (row.get("scrim_date", "") or "").strip(),
-            (row.get("opponent_name", "") or "").strip(),
+            our_team_name,
+            their_team_name,
             (row.get("season", "") or "").strip(),
             (row.get("map_name", "") or "").strip(),
             (row.get("map_type", "") or "").strip(),
-            (row.get("result", "") or "").strip(),
-            (row.get("score", "") or "").strip(),
-            ", ".join(row.get("our_bans", [])),
-            ", ".join(row.get("our_protects", [])),
-            ", ".join(row.get("enemy_bans", [])),
-            ", ".join(row.get("enemy_protects", [])),
-            ", ".join(row.get("our_heroes", [])),
-            ", ".join(row.get("enemy_heroes", [])),
-            ", ".join(row.get("our_duelists", [])),
-            section_summary,
-            our_section_players,
-            enemy_section_players,
-        ])
+            _winner_label(map_result, our_team_name, their_team_name),
+            map_result,
+            map_score,
+        ]
+        draft_columns = (
+            _padded_values(row.get("our_bans", []), 4)
+            + _padded_values(row.get("enemy_bans", []), 4)
+            + _padded_values(row.get("our_protects", []), 2)
+            + _padded_values(row.get("enemy_protects", []), 2)
+        )
+
+        sections = row.get("sections", [])
+        if sections:
+            for section in sections:
+                round_result = (section.get("result", "") or "").strip()
+                our_round_heroes = _padded_values(
+                    [(slot.get("hero", "") or "").strip() for slot in section.get("our_slots", [])],
+                    6,
+                )
+                their_round_heroes = _padded_values(
+                    [(slot.get("hero", "") or "").strip() for slot in section.get("enemy_slots", [])],
+                    6,
+                )
+                writer.writerow(
+                    map_prefix
+                    + draft_columns
+                    + [
+                        (section.get("label", "") or "").strip(),
+                        _winner_label(round_result, our_team_name, their_team_name),
+                        round_result,
+                        (section.get("score", "") or "").strip(),
+                        (section.get("side", "") or "").strip(),
+                    ]
+                    + our_round_heroes
+                    + their_round_heroes
+                )
+            continue
+
+        writer.writerow(
+            map_prefix
+            + draft_columns
+            + ["", "", "", "", ""]
+            + _padded_values(row.get("our_heroes", []), 6)
+            + _padded_values(row.get("enemy_heroes", []), 6)
+        )
 
     return buffer.getvalue()
 
@@ -8046,7 +8083,7 @@ def team_scrims_csv(team_id: int):
         filename_parts.append(f"season-{selected_season}")
     if selected_map_type and selected_map_type != "all":
         filename_parts.append(secure_filename(selected_map_type.lower()))
-    csv_text = "\ufeff" + build_scrim_log_csv(filtered_rows)
+    csv_text = "\ufeff" + build_scrim_log_csv(team["name"], filtered_rows)
     filename = "-".join(filename_parts) + ".csv"
 
     return Response(
