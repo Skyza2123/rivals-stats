@@ -2059,7 +2059,11 @@
         </div>
         {% endif %}
         {% else %}
-            <p class="empty-text top-gap">No Escort or Hybrid round scores recorded yet for the current filters.</p>
+            {% if atk_def_wr.eligible_maps %}
+            <p class="empty-text top-gap">Escort and Hybrid maps exist for the current filters, but none of them have both attack scores recorded yet.</p>
+            {% else %}
+            <p class="empty-text top-gap">No Escort or Hybrid maps found for the current filters.</p>
+            {% endif %}
         {% endif %}
     </section>
 

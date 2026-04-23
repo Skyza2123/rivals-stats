@@ -7606,6 +7606,8 @@ def build_pivot_wr(team_scrims: list[dict]) -> dict:
 def build_atk_def_wr(team_scrims: list[dict]) -> dict:
     """Compute attack/defense round win-rate stats for Escort and Hybrid maps."""
     rounds = 0
+    eligible_maps = 0
+    scored_maps = 0
     total_atk_score = 0
     total_def_conceded = 0
     atk_successes = 0
@@ -7626,6 +7628,7 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
             map_name = (map_entry.get("map_name") or "").strip()
             if map_name not in ATTACK_DEFENSE_MAPS:
                 continue
+            eligible_maps += 1
 
             our_atk_raw = map_entry.get("our_attack_score", "")
             enemy_atk_raw = map_entry.get("enemy_attack_score", "")
@@ -7637,6 +7640,7 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
             except (ValueError, TypeError):
                 continue
 
+            scored_maps += 1
             rounds += 1
             total_atk_score += our_atk
             total_def_conceded += enemy_atk
@@ -7719,6 +7723,9 @@ def build_atk_def_wr(team_scrims: list[dict]) -> dict:
 
     return {
         "rounds": rounds,
+        "eligible_maps": eligible_maps,
+        "scored_maps": scored_maps,
+        "missing_score_maps": max(eligible_maps - scored_maps, 0),
         "atk_avg": round(total_atk_score / rounds, 2) if rounds else 0,
         "def_avg": round(total_def_conceded / rounds, 2) if rounds else 0,
         "atk_success_rate": round(atk_successes / rounds * 100, 1) if rounds else 0,
