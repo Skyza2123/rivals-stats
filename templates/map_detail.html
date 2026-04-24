@@ -262,16 +262,22 @@
                 {% if map_mode in ['Escort', 'Hybrid'] %}
                 <div class="field" style="grid-column: 1 / -1;">
                     <p class="panel-intro" style="margin:0;">
-                        For Escort and Hybrid maps, the score is stored as <strong>left side then right side</strong>. The left side defends first in Round 1 and the right side attacks first. Example: <strong>3-2</strong> means the right side failed its opening attack at 2, then the left side won its attack by reaching 3.
+                        For Escort and Hybrid maps, the score fields below are stored by <strong>side</strong>, not by scrim team order: <strong>Side 1 / left side first</strong>, then <strong>Side 2 / right side second</strong>. Side 1 starts on defense in Round 1 and Side 2 starts on attack. Example: <strong>3-2</strong> means Side 2 opened on attack and reached 2, then Side 1 answered with 3.
                     </p>
                 </div>
                 {% endif %}
                 <div class="field">
-                    <label for="edit_score_team1">{{ team1_label }} Score</label>
+                    <label for="edit_score_team1" id="edit_score_team1_label">{{ team1_label }} Score</label>
+                    {% if map_mode in ['Escort', 'Hybrid'] %}
+                    <small id="edit_score_team1_hint" style="display:block; margin-top:6px; color:var(--muted);">Stored as Side 1 / left side.</small>
+                    {% endif %}
                     <input type="text" id="edit_score_team1" name="score_team1" value="{{ split_score_pair(map_entry.get('score', ''))[0] }}" placeholder="e.g. 3">
                 </div>
                 <div class="field">
-                    <label for="edit_score_team2">{{ team2_label }} Score</label>
+                    <label for="edit_score_team2" id="edit_score_team2_label">{{ team2_label }} Score</label>
+                    {% if map_mode in ['Escort', 'Hybrid'] %}
+                    <small id="edit_score_team2_hint" style="display:block; margin-top:6px; color:var(--muted);">Stored as Side 2 / right side.</small>
+                    {% endif %}
                     <input type="text" id="edit_score_team2" name="score_team2" value="{{ split_score_pair(map_entry.get('score', ''))[1] }}" placeholder="e.g. 2">
                 </div>
                 <div class="field">
@@ -669,7 +675,11 @@ function syncTournamentEditMapTeams() {
     const side1Select = document.getElementById('edit_map_team1_tournament_team_id');
     const resultSideSelect = document.getElementById('edit_our_team_slot');
     const pickedBySelect = document.getElementById('edit_picked_by_tournament_team_id');
-    if (!side1Select || !resultSideSelect || !pickedBySelect) return;
+    const scoreTeam1Label = document.getElementById('edit_score_team1_label');
+    const scoreTeam2Label = document.getElementById('edit_score_team2_label');
+    const scoreTeam1Hint = document.getElementById('edit_score_team1_hint');
+    const scoreTeam2Hint = document.getElementById('edit_score_team2_hint');
+    if (!side1Select) return;
 
     const firstTeamId = '{{ scrim.team1_tournament_team_id if is_tournament else "" }}';
     const secondTeamId = '{{ scrim.team2_tournament_team_id if is_tournament else "" }}';
@@ -680,12 +690,21 @@ function syncTournamentEditMapTeams() {
     const side2Name = side1IsFirst ? secondTeamName : firstTeamName;
     const side2Id = side1IsFirst ? secondTeamId : firstTeamId;
 
-    resultSideSelect.options[0].text = side1Name;
-    resultSideSelect.options[1].text = side2Name;
-    pickedBySelect.options[1].value = side1Select.value;
-    pickedBySelect.options[1].text = side1Name;
-    pickedBySelect.options[2].value = side2Id;
-    pickedBySelect.options[2].text = side2Name;
+    if (scoreTeam1Label) scoreTeam1Label.textContent = `${side1Name} Score`;
+    if (scoreTeam2Label) scoreTeam2Label.textContent = `${side2Name} Score`;
+    if (scoreTeam1Hint) scoreTeam1Hint.textContent = `${side1Name} is on Side 1 / left side and defends first.`;
+    if (scoreTeam2Hint) scoreTeam2Hint.textContent = `${side2Name} is on Side 2 / right side and attacks first.`;
+
+    if (resultSideSelect) {
+        resultSideSelect.options[0].text = side1Name;
+        resultSideSelect.options[1].text = side2Name;
+    }
+    if (pickedBySelect) {
+        pickedBySelect.options[1].value = side1Select.value;
+        pickedBySelect.options[1].text = side1Name;
+        pickedBySelect.options[2].value = side2Id;
+        pickedBySelect.options[2].text = side2Name;
+    }
 }
 
 function syncScrimEditMapTeams() {
@@ -696,6 +715,17 @@ function syncScrimEditMapTeams() {
     const participantOneName = '{{ map_entry.team1_name or team1_label }}';
     const participantTwoName = '{{ map_entry.team2_name or team2_label }}';
     const side1IsParticipantOne = side1Select.value === participantOneId;
+    const side1Name = side1IsParticipantOne ? participantOneName : participantTwoName;
+    const side2Name = side1IsParticipantOne ? participantTwoName : participantOneName;
+    const scoreTeam1Label = document.getElementById('edit_score_team1_label');
+    const scoreTeam2Label = document.getElementById('edit_score_team2_label');
+    const scoreTeam1Hint = document.getElementById('edit_score_team1_hint');
+    const scoreTeam2Hint = document.getElementById('edit_score_team2_hint');
+
+    if (scoreTeam1Label) scoreTeam1Label.textContent = `${side1Name} Score`;
+    if (scoreTeam2Label) scoreTeam2Label.textContent = `${side2Name} Score`;
+    if (scoreTeam1Hint) scoreTeam1Hint.textContent = `${side1Name} is on Side 1 / left side and defends first.`;
+    if (scoreTeam2Hint) scoreTeam2Hint.textContent = `${side2Name} is on Side 2 / right side and attacks first.`;
 }
 
 function applyMapMetricHighlights() {
