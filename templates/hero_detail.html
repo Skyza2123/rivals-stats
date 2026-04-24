@@ -224,6 +224,44 @@
         {% else %}
             <p class="empty-text">No map performance data yet.</p>
         {% endif %}
+
+        <div class="table-wrap top-gap">
+            <h4>All Maps Where {{ hero_insights.hero }} Was Played</h4>
+            {% if hero_insights.map_log_rows %}
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Opponent</th>
+                            <th>Map</th>
+                            <th>Result</th>
+                            <th>Instances</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in hero_insights.map_log_rows %}
+                        <tr>
+                            <td>{{ row.scrim_date or '—' }}</td>
+                            <td>{{ row.opponent_name }}</td>
+                            <td>{{ row.map_name }}</td>
+                            <td>{{ row.result }}</td>
+                            <td>{{ row.instances }}</td>
+                            <td>
+                                {% if row.scrim_id and row.map_id %}
+                                <a href="{{ url_for('map_detail', scrim_id=row.scrim_id, map_id=row.map_id) }}" class="button-secondary button-small">Open</a>
+                                {% else %}
+                                <span class="muted-label">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-text">No recorded maps yet for this hero.</p>
+            {% endif %}
+        </div>
     </section>
 </div>
 

@@ -1,0 +1,1540 @@
+{% extends "base.html" %}
+
+{% block title %}Machine{% endblock %}
+
+{% block content %}
+<style>
+/* ── Machine page shared ─────────────────────────────────────── */
+.dashboard-layout { max-width:min(1880px, 98vw); }
+.main-content { padding-left:clamp(12px, 2vw, 28px); padding-right:clamp(12px, 2vw, 28px); }
+.machine-tab-bar { display:flex; gap:0; border-bottom:2px solid rgba(148,163,184,0.12); margin-bottom:1.5rem; }
+.machine-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:0.6rem 1.4rem; font-size:0.95rem; font-weight:600; color:#94a3b8; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+.machine-tab.active { color:#e2e8f0; border-bottom-color:#60a5fa; }
+.machine-tab-panel { display:none; }
+.machine-tab-panel.active { display:block; }
+
+/* ── Matchup panel (reused from dashboard) ────────────────────── */
+.matchup-shell { }
+.matchup-form-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1rem; }
+@media (max-width:900px) { .matchup-form-grid { grid-template-columns:1fr 1fr; } }
+.matchup-toolbar { display:flex; gap:0.75rem; flex-wrap:wrap; }
+.matchup-results-flow { display:flex; flex-direction:column; gap:1.5rem; margin-top:1rem; }
+.matchup-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+.matchup-team-card { background:rgba(15,23,42,0.45); border:1px solid rgba(148,163,184,0.1); border-radius:0.65rem; padding:1rem 1.25rem; }
+.matchup-stat { display:flex; justify-content:space-between; padding:0.3rem 0; border-bottom:1px solid rgba(148,163,184,0.07); font-size:0.88rem; }
+.matchup-stat:last-of-type { border-bottom:none; }
+.matchup-stat span { color:#94a3b8; }
+.matchup-surface { background:rgba(15,23,42,0.35); border:1px solid rgba(148,163,184,0.1); border-radius:0.6rem; padding:1rem 1.25rem; }
+.matchup-surface-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media (max-width:900px) { .matchup-surface-grid { grid-template-columns:1fr; } .matchup-grid { grid-template-columns:1fr; } }
+.matchup-surface h4 { margin:0 0 0.5rem; font-size:0.95rem; color:#e2e8f0; }
+.matchup-surface h4+p { margin-top:0; }
+.matchup-chip-grid { display:flex; flex-wrap:wrap; gap:0.5rem; }
+.matchup-chip { background:rgba(30,41,59,0.6); border:1px solid rgba(148,163,184,0.12); border-radius:0.45rem; padding:0.4rem 0.65rem; font-size:0.82rem; }
+.matchup-line-stack { display:flex; flex-direction:column; gap:0.5rem; }
+.matchup-line-card { background:rgba(30,41,59,0.5); border:1px solid rgba(148,163,184,0.1); border-radius:0.5rem; padding:0.65rem 0.85rem; font-size:0.85rem; }
+.matchup-card-title { font-weight:600; color:#e2e8f0; font-size:0.88rem; margin-bottom:0.35rem; }
+.matchup-card-copy { color:#94a3b8; font-size:0.82rem; margin-top:0.25rem; }
+.matchup-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
+.matchup-line-meta { display:flex; flex-wrap:wrap; gap:0.35rem; margin:0.2rem 0; }
+.matchup-badge { display:inline-block; font-size:0.76rem; padding:0.15rem 0.5rem; border-radius:999px; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); color:#bfdbfe; }
+.matchup-badge-warn { background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.25); color:#fef08a; }
+.matchup-badge-muted { background:rgba(100,116,139,0.15); border-color:rgba(100,116,139,0.25); color:#94a3b8; }
+.matchup-vs { font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; color:rgba(191,219,254,0.72); margin:0.4rem 0; }
+.matchup-section-head { display:flex; justify-content:space-between; gap:1rem; }
+.matchup-empty { color:#94a3b8; font-style:italic; font-size:0.85rem; }
+.matchup-map-list { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.35rem; }
+.matchup-map-chip { background:rgba(30,41,59,0.6); border:1px solid rgba(148,163,184,0.12); border-radius:0.4rem; padding:0.3rem 0.55rem; font-size:0.8rem; }
+.hero-inline-cell { display:inline-flex; align-items:center; gap:0.3rem; }
+.hero-inline-thumb { width:26px; height:26px; border-radius:50%; object-fit:cover; vertical-align:middle; }
+.matchup-slot-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.2rem; }
+.matchup-slot-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#f87171; min-width:3.5rem; flex-shrink:0; }
+.matchup-slot-label.protect-label { color:#4ade80; }
+.equiv-path-route { background:rgba(15,23,42,0.4); border:1px solid rgba(148,163,184,0.1); border-radius:0.4rem; padding:0.45rem 0.6rem; margin:0.3rem 0; display:flex; flex-direction:column; gap:0.15rem; }
+.equiv-path-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; margin-bottom:0.1rem; }
+.equiv-path-rate { margin-top:0.2rem; align-self:flex-start; }
+.equiv-path-targeted { outline:2px solid rgba(251,191,36,0.7); outline-offset:2px; border-radius:9999px; }
+
+/* ── Draft Reasoner tab ───────────────────────────────────────── */
+.dr-setup-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; align-items:end; }
+@media (max-width:900px) { .dr-setup-grid { grid-template-columns:1fr 1fr; } }
+.dr-full-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+@media (max-width:900px) { .dr-full-grid { grid-template-columns:1fr; } }
+.dr-suggest-banner { background:rgba(30,41,59,0.55); border:1px solid rgba(96,165,250,0.2); border-radius:0.6rem; padding:1rem 1.25rem; margin-bottom:1rem; }
+.dr-suggest-title { font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#94a3b8; margin-bottom:0.45rem; }
+.dr-suggest-comp { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.5rem; }
+.dr-suggest-section { margin-top:0.5rem; }
+.dr-suggest-section-label { font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:0.25rem; }
+.draft-column h4 .dr-team-label { cursor:default; }
+
+/* slot suggestion highlight */
+.draft-slot.suggested .slot-hero { color:#60a5fa; }
+.draft-slot.suggested-protect .slot-hero { color:#4ade80; }
+.draft-slot.turn-locked { opacity:0.58; cursor:not-allowed; }
+
+.dr-reason-stream { display:flex; flex-direction:column; gap:0.6rem; }
+.dr-reason-card { background:rgba(15,23,42,0.5); border-left:3px solid #60a5fa; border-radius:0 0.45rem 0.45rem 0; padding:0.65rem 1rem; font-size:0.85rem; line-height:1.55; color:#94a3b8; }
+.dr-reason-card.warn { border-left-color:#fbbf24; }
+.dr-reason-card.good { border-left-color:#4ade80; }
+.dr-reason-card.bad  { border-left-color:#f87171; }
+.dr-reason-card strong { color:#e2e8f0; }
+.dr-reason-title { font-weight:700; color:#e2e8f0; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:0.2rem; }
+.dr-hero-chip { display:inline-flex; align-items:center; gap:0.3rem; padding:0.18rem 0.5rem; border-radius:999px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.2); font-size:0.78rem; color:#dbeafe; }
+.dr-hero-chip img { width:18px; height:18px; border-radius:50%; object-fit:cover; }
+.dr-hero-chip.ban-chip { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.2); color:#fecaca; }
+.dr-hero-chip.protect-chip { background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.2); color:#bbf7d0; }
+.dr-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
+.dr-model-status { font-size:0.82rem; color:#94a3b8; margin-top:0.5rem; }
+.dr-workspace { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,0.85fr); gap:1rem; align-items:start; margin-bottom:1rem; }
+.dr-overview-strip { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.75rem; }
+.dr-overview-card { background:rgba(15,23,42,0.42); border:1px solid rgba(148,163,184,0.12); border-radius:0.55rem; padding:0.7rem 0.8rem; min-height:94px; }
+.dr-overview-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; margin-bottom:0.35rem; font-weight:700; }
+.dr-overview-value { font-size:0.86rem; color:#e2e8f0; }
+.dr-overview-chips { display:flex; flex-wrap:wrap; gap:0.3rem; }
+.dr-overview-empty { color:#94a3b8; font-size:0.82rem; font-style:italic; }
+.dr-main-column,
+.dr-side-column { display:flex; flex-direction:column; gap:1rem; min-width:0; }
+.dr-side-panel { position:sticky; top:0.9rem; max-height:78vh; overflow:auto; }
+.dr-picker-header { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap; }
+.dr-picker-hint { font-size:0.82rem; color:#94a3b8; }
+@media (max-width:1300px) { .dr-overview-strip { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:1100px) {
+    .dr-workspace { grid-template-columns:1fr; }
+    .dr-side-panel { position:static; max-height:none; }
+}
+@media (max-width:700px) { .dr-overview-strip { grid-template-columns:1fr; } }
+</style>
+
+<div class="main-header">
+    <div>
+        <h2>Machine</h2>
+        <p>Draft analysis tools powered by team history.</p>
+    </div>
+</div>
+
+<div class="machine-tab-bar">
+    <button class="machine-tab active" type="button" id="mtab-matchup">Draft Matchup</button>
+    <button class="machine-tab" type="button" id="mtab-reasoner">Draft Reasoner</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  TAB 1 · DRAFT MATCHUP                                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="machine-tab-panel active" id="mpanel-matchup">
+<section class="panel matchup-shell">
+    <div class="section-kicker">Draft Matchup</div>
+    <h3>Two-Team Draft Outlook</h3>
+    <p class="panel-intro">Compare two teams' likely draft priorities, contested heroes, end-state comps, and map preferences from recorded scrim data.</p>
+    {% if teams %}
+    <div class="matchup-form-grid">
+        <div class="field">
+            <label for="m-tree-team-a">Team A</label>
+            <select id="m-tree-team-a">
+                {% for team in teams %}<option value="{{ team.id }}">{{ team.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="m-tree-team-b">Team B</label>
+            <select id="m-tree-team-b">
+                {% for team in teams %}<option value="{{ team.id }}">{{ team.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="m-tree-season">Season</label>
+            <select id="m-tree-season">
+                <option value="all">All Seasons</option>
+                {% if has_unseasoned %}<option value="{{ unspecified_season_token }}">Unspecified</option>{% endif %}
+                {% for s in season_options %}<option value="{{ s }}" {% if s == default_season %}selected{% endif %}>Season {{ s }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="m-tree-map">Map</label>
+            <select id="m-tree-map">
+                <option value="all">All Maps</option>
+                {% for map_name in maps %}<option value="{{ map_name }}">{{ map_name }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="matchup-toolbar top-gap">
+        <button type="button" id="m-load-tree">Build Matchup</button>
+        <button type="button" class="button-secondary" id="m-swap-tree">Swap Teams</button>
+    </div>
+    <div id="m-tree-results" class="top-gap"></div>
+    {% else %}
+    <p class="empty-text">No teams yet.</p>
+    {% endif %}
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  TAB 2 · DRAFT REASONER                                        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="machine-tab-panel" id="mpanel-reasoner">
+
+<section class="panel">
+    <div class="section-kicker">Draft Reasoner</div>
+    <h3>Auto-Draft Analysis</h3>
+    <p class="panel-intro">Select a team, enemy, map, and side. The computer will identify the best comp to target on that map and suggest the bans and protects needed to reach it.</p>
+    <div class="dr-setup-grid">
+        <div class="field">
+            <label for="dr-team-a">Our Team</label>
+            <select id="dr-team-a">
+                <option value="">Select…</option>
+                {% for team in teams %}<option value="{{ team.id }}">{{ team.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="dr-team-b">Enemy Team</label>
+            <select id="dr-team-b">
+                <option value="">Select…</option>
+                {% for team in teams %}<option value="{{ team.id }}">{{ team.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="dr-season">Season</label>
+            <select id="dr-season">
+                <option value="all">All Seasons</option>
+                {% if has_unseasoned %}<option value="{{ unspecified_season_token }}">Unspecified</option>{% endif %}
+                {% for s in season_options %}<option value="{{ s }}" {% if s == default_season %}selected{% endif %}>Season {{ s }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="dr-map">Map</label>
+            <select id="dr-map">
+                <option value="">All Maps</option>
+                {% for map_name in maps %}<option value="{{ map_name }}">{{ map_name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="dr-side">Side</label>
+            <select id="dr-side">
+                <option value="">Both</option>
+                <option value="attack">Attack</option>
+                <option value="defense">Defense</option>
+            </select>
+        </div>
+    </div>
+    <div class="button-row top-gap">
+        <button type="button" id="dr-analyze-btn">Analyze &amp; Suggest Draft</button>
+        <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
+        <button type="button" class="button-secondary" id="dr-apply-suggest-btn" style="display:none">Apply Suggestions</button>
+    </div>
+    <p class="dr-model-status" id="dr-status">No model loaded yet.</p>
+</section>
+
+<div class="dr-workspace" id="dr-workspace" style="display:none">
+    <section class="dr-overview-strip" id="dr-overview-strip">
+        <div class="dr-overview-card">
+            <div class="dr-overview-label">Current Setup</div>
+            <div class="dr-overview-value" id="dr-overview-setup">No model loaded.</div>
+        </div>
+        <div class="dr-overview-card">
+            <div class="dr-overview-label">Target Comp</div>
+            <div class="dr-overview-chips" id="dr-overview-target"><span class="dr-overview-empty">Analyze to populate.</span></div>
+        </div>
+        <div class="dr-overview-card">
+            <div class="dr-overview-label">Open Comfort Core</div>
+            <div class="dr-overview-chips" id="dr-overview-open-core"><span class="dr-overview-empty">Analyze to populate.</span></div>
+        </div>
+        <div class="dr-overview-card">
+            <div class="dr-overview-label">Contested Still Open</div>
+            <div class="dr-overview-chips" id="dr-overview-contested"><span class="dr-overview-empty">Analyze to populate.</span></div>
+        </div>
+    </section>
+
+    <div class="dr-main-column">
+        <!-- Draft board -->
+        <section class="panel" id="dr-board-section">
+            <div class="draft-grid">
+                <div class="draft-column">
+                    <h4 id="dr-col-a-label">Our Team</h4>
+                    <div class="draft-slots" id="dr-slots-a">
+                        <div class="draft-slot" data-team="a" data-slot="ban1" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 1</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="a" data-slot="ban2" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 2</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="a" data-slot="protect1" data-type="protect" onclick="drActivateSlot(this)">
+                            <span class="slot-label protect-label">Protect 1</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="a" data-slot="ban3" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 3</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="a" data-slot="protect2" data-type="protect" onclick="drActivateSlot(this)">
+                            <span class="slot-label protect-label">Protect 2</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="a" data-slot="ban4" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 4</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                    </div>
+                </div>
+                <div class="draft-column">
+                    <h4 id="dr-col-b-label">Enemy Team</h4>
+                    <div class="draft-slots" id="dr-slots-b">
+                        <div class="draft-slot" data-team="b" data-slot="ban1" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 1</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="b" data-slot="protect1" data-type="protect" onclick="drActivateSlot(this)">
+                            <span class="slot-label protect-label">Protect 1</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="b" data-slot="ban2" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 2</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="b" data-slot="ban3" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 3</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="b" data-slot="ban4" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 4</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                        <div class="draft-slot" data-team="b" data-slot="protect2" data-type="protect" onclick="drActivateSlot(this)">
+                            <span class="slot-label protect-label">Protect 2</span>
+                            <span class="slot-hero"></span>
+                            <span class="slot-hero-sub"></span>
+                            <input type="hidden" value="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="draft-hint">Click a slot, then click a hero portrait below. Right-click a slot to clear it.</p>
+        </section>
+
+        <!-- Hero picker -->
+        <section class="panel" id="dr-picker-section" style="display:none">
+            <div class="dr-picker-header">
+                <span style="font-size:0.85rem;color:#94a3b8">Assigning: <strong id="dr-picker-label">—</strong></span>
+                <span class="dr-picker-hint">All hero portraits are shown below.</span>
+            </div>
+            <div class="hero-picker" id="dr-hero-picker-grid">
+                {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+                <div class="hero-role-section" data-role="{{ role|lower }}">
+                    <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+                    <div class="hero-icon-grid">
+                        {% for hero in hero_roles[role] %}
+                        <button type="button" class="hero-pick-btn" data-hero="{{ hero }}"
+                                onclick="drPickHero(this)"
+                                title="{{ hero }}">
+                            <div class="hero-img-wrap">
+                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy">
+                            </div>
+                            <span class="hero-pick-name">{{ hero }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <aside class="dr-side-column">
+        <!-- Auto-suggest banner -->
+        <div id="dr-suggest-block" style="display:none" class="dr-suggest-banner">
+            <div class="dr-suggest-title">&#11088; Best-fit comp for <span id="dr-suggest-for">Our Team</span> <span id="dr-suggest-map-label"></span></div>
+            <div class="dr-suggest-comp" id="dr-suggest-comp-heroes"></div>
+            <div class="dr-suggest-section">
+                <div class="dr-suggest-section-label">Suggested draft path (primary route to reach this comp):</div>
+                <div class="matchup-slot-row" id="dr-suggest-bans-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-bans"></div></div>
+                <div class="matchup-slot-row" id="dr-suggest-protects-row" style="display:none"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row" id="dr-suggest-protects"></div></div>
+            </div>
+            <div class="dr-suggest-section" id="dr-suggest-enemy-section" style="display:none">
+                <div class="dr-suggest-section-label">Enemy (<span id="dr-suggest-enemy-name">Enemy</span>) likely response:</div>
+                <div class="matchup-hero-row" id="dr-suggest-enemy-comp"></div>
+                <div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-enemy-bans"></div></div>
+            </div>
+        </div>
+
+        <!-- Reasoning panel -->
+        <section class="panel dr-side-panel" id="dr-reasoning-section">
+            <h3>Live Reasoning</h3>
+            <div class="dr-reason-stream" id="dr-reason-stream">
+                <p class="matchup-empty">Load a model and fill draft slots to see reasoning here.</p>
+            </div>
+        </section>
+    </aside>
+</div>
+
+</div><!-- end reasoner tab panel -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════
+function setMachineTab(tabName) {
+    document.querySelectorAll('.machine-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.machine-tab-panel').forEach(p => p.classList.remove('active'));
+    if (tabName === 'reasoner') {
+        document.getElementById('mtab-reasoner').classList.add('active');
+        document.getElementById('mpanel-reasoner').classList.add('active');
+    } else {
+        document.getElementById('mtab-matchup').classList.add('active');
+        document.getElementById('mpanel-matchup').classList.add('active');
+    }
+}
+
+document.getElementById('mtab-matchup').addEventListener('click', function() {
+    setMachineTab('matchup');
+});
+document.getElementById('mtab-reasoner').addEventListener('click', function() {
+    setMachineTab('reasoner');
+});
+
+const initialMachineTab = new URLSearchParams(window.location.search).get('tab');
+if (initialMachineTab === 'reasoner') {
+    setMachineTab('reasoner');
+} else {
+    setMachineTab('matchup');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SHARED HELPERS
+// ═══════════════════════════════════════════════════════════════
+function escapeHtml(v) {
+    return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function heroThumbUrl(hero) {
+    return '{{ hero_image_url("__HERO__") }}'.replace('__HERO__', encodeURIComponent(hero));
+}
+function heroCell(hero) {
+    const img = heroThumbUrl(hero);
+    const fallback = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero);
+    return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + escapeHtml(hero) + '" class="hero-inline-thumb" onerror="this.src=\'' + fallback + '\'"><span>' + escapeHtml(hero) + '</span></span>';
+}
+function heroChipHtml(hero, type) {
+    const cls = type === 'ban' ? 'ban-chip' : type === 'protect' ? 'protect-chip' : '';
+    return '<span class="dr-hero-chip ' + cls + '"><img src="' + heroThumbUrl(hero) + '" alt="" onerror="this.style.display=\'none\'">' + escapeHtml(hero) + '</span>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TAB 1 · MATCHUP TREE JS
+// ═══════════════════════════════════════════════════════════════
+(function() {
+    const teamSelA = document.getElementById('m-tree-team-a');
+    const teamSelB = document.getElementById('m-tree-team-b');
+    const seasonSel = document.getElementById('m-tree-season');
+    const mapSel = document.getElementById('m-tree-map');
+    const loadBtn = document.getElementById('m-load-tree');
+    const swapBtn = document.getElementById('m-swap-tree');
+    const results = document.getElementById('m-tree-results');
+    if (!teamSelA) return;
+
+    function renderHeroChips(rows, fmt) {
+        if (!rows || !rows.length) return '<p class="matchup-empty">Not enough data yet.</p>';
+        return '<div class="matchup-chip-grid">' + rows.map(r => '<div class="matchup-chip"><strong>' + heroCell(r.hero) + '</strong>' + fmt(r) + '</div>').join('') + '</div>';
+    }
+
+    function renderLineCards(rows, teamLabel, typeLabel) {
+        if (!rows || !rows.length) return '<p class="matchup-empty">No ' + escapeHtml(typeLabel) + ' history yet.</p>';
+        return '<div class="matchup-line-stack">' + rows.slice(0,4).map(row => {
+            const isBan = typeLabel === 'ban lines';
+            let heroSection;
+            if (isBan && Array.isArray(row.slots) && row.slots.length) {
+                const bans = row.slots.filter(s => s.type === 'ban' && s.hero);
+                const protects = row.slots.filter(s => s.type === 'protect' && s.hero);
+                heroSection = '';
+                if (bans.length) heroSection += '<div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row">' + bans.map(s => heroCell(s.hero)).join('') + '</div></div>';
+                if (protects.length) heroSection += '<div class="matchup-slot-row"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row">' + protects.map(s => heroCell(s.hero)).join('') + '</div></div>';
+            } else {
+                heroSection = '<div class="matchup-hero-row">' + (row.heroes||[]).map(heroCell).join('') + '</div>';
+            }
+            return '<div class="matchup-line-card"><strong>' + escapeHtml(teamLabel) + ' ' + escapeHtml(typeLabel) + '</strong>' + heroSection
+                + '<div class="matchup-line-meta"><span class="matchup-badge">Rate ' + escapeHtml(isBan?row.rate:row.rate) + '%</span>'
+                + '<span class="matchup-badge">WR ' + escapeHtml(isBan?row.line_win_rate:row.comp_win_rate) + '%</span></div></div>';
+        }).join('') + '</div>';
+    }
+
+    function renderIntentRows(rows, builder, empty) {
+        if (!rows || !rows.length) return '<p class="matchup-empty">' + escapeHtml(empty) + '</p>';
+        return '<div class="matchup-line-stack">' + rows.map(builder).join('') + '</div>';
+    }
+
+    function renderForceRows(rows, a, b) {
+        return renderIntentRows(rows, row => '<div class="matchup-line-card">'
+            + '<div class="matchup-card-title">Force path for ' + escapeHtml(a) + '</div>'
+            + '<div class="matchup-hero-row">' + (row.our_comp||[]).map(heroCell).join('') + '</div>'
+            + '<div class="matchup-line-meta"><span class="matchup-badge">Bans: ' + (row.our_bans||[]).map(escapeHtml).join(', ') + '</span>'
+            + '<span class="matchup-badge">Protects: ' + (row.our_protects||[]).map(escapeHtml).join(', ') + '</span>'
+            + '<span class="matchup-badge">Path Share ' + escapeHtml(row.our_path_share) + '%</span></div>'
+            + '<div class="matchup-vs">into</div>'
+            + '<div class="matchup-card-title">' + escapeHtml(b) + ' response</div>'
+            + '<div class="matchup-hero-row">' + (row.enemy_comp||[]).map(heroCell).join('') + '</div>'
+            + '<div class="matchup-line-meta"><span class="matchup-badge">Conditioned Rate ' + escapeHtml(row.enemy_conditioned_rate) + '%</span>'
+            + '<span class="matchup-badge">Blocked ' + ((row.enemy_blocked_heroes||[]).map(escapeHtml).join(', ')||'None') + '</span></div>'
+            + '</div>', 'No force-path signal yet.');
+    }
+
+    function renderVolatileRows(rows, a, b) {
+        return renderIntentRows(rows, row => {
+            const dA = row.team_a_delta >= 0 ? '+' : '';
+            const dB = row.team_b_delta >= 0 ? '+' : '';
+            return '<div class="matchup-line-card">'
+                + '<div class="matchup-card-title">' + heroCell(row.hero) + '<span class="matchup-badge" style="margin-left:6px">Favors ' + escapeHtml(row.favored_side) + '</span></div>'
+                + (row.team_a_with_maps > 0 ? '<div class="matchup-line-meta"><span class="matchup-badge">' + escapeHtml(a) + ': ' + escapeHtml(row.team_a_with_wr) + '% with / ' + escapeHtml(row.team_a_without_wr) + '% without (' + dA + escapeHtml(row.team_a_delta) + '%)</span></div>' : '')
+                + (row.team_b_with_maps > 0 ? '<div class="matchup-line-meta"><span class="matchup-badge">' + escapeHtml(b) + ': ' + escapeHtml(row.team_b_with_wr) + '% with / ' + escapeHtml(row.team_b_without_wr) + '% without (' + dB + escapeHtml(row.team_b_delta) + '%)</span></div>' : '')
+                + '</div>';
+        }, 'No volatile hero swings yet.');
+    }
+
+    function renderEquivalentPathRows(rows, a, b) {
+        return renderIntentRows(rows, row => {
+            const enemy = row.team === a ? b : a;
+            const ps = new Set(row.enemy_ban_pressure || []);
+            function pathRow(bans, protects, label, rate) {
+                const banCells = (bans||[]).map(h => ps.has(h) ? '<span class="equiv-path-targeted">' + heroCell(h) + '</span>' : heroCell(h)).join('');
+                let html = '<div class="equiv-path-route"><span class="equiv-path-label">' + escapeHtml(label) + '</span>';
+                html += '<div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row">' + banCells + '</div></div>';
+                if ((protects||[]).length) html += '<div class="matchup-slot-row"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row">' + (protects||[]).map(heroCell).join('') + '</div></div>';
+                html += '<span class="matchup-badge equiv-path-rate">' + escapeHtml(rate) + '% of drafts</span></div>';
+                return html;
+            }
+            const note = ps.size ? '<div class="matchup-line-meta"><span class="matchup-badge matchup-badge-warn">&#9651; ' + escapeHtml(enemy) + ' targets ' + [...ps].map(escapeHtml).join(', ') + ' — forces alt route</span></div>' : '';
+            return '<div class="matchup-line-card">'
+                + '<div class="matchup-card-title">' + escapeHtml(row.team) + ' equivalent routes</div>'
+                + '<div class="matchup-hero-row">' + (row.heroes||[]).map(heroCell).join('') + '</div>'
+                + pathRow(row.primary_bans, row.primary_protects, 'Primary', row.primary_rate)
+                + pathRow(row.alt_bans, row.alt_protects, 'Alt', row.alt_rate)
+                + note
+                + '<div class="matchup-line-meta"><span class="matchup-badge matchup-badge-muted">Path diff ' + escapeHtml(row.path_distance) + ' slot(s)</span></div>'
+                + '</div>';
+        }, 'No equivalent-path signal yet.');
+    }
+
+    function renderVsCards(rows, a, b, empty) {
+        if (!rows || !rows.length) return '<p class="matchup-empty">' + escapeHtml(empty) + '</p>';
+        return '<div class="matchup-line-stack">' + rows.map(row =>
+            '<div class="matchup-line-card"><strong>' + escapeHtml(a) + '</strong>'
+            + '<div class="matchup-hero-row">' + (row.team_a_heroes||[]).map(heroCell).join('') + '</div>'
+            + '<div class="matchup-vs">vs</div><strong>' + escapeHtml(b) + '</strong>'
+            + '<div class="matchup-hero-row">' + (row.team_b_heroes||[]).map(heroCell).join('') + '</div>'
+            + '<div class="matchup-line-meta"><span class="matchup-badge">Combined Rate ' + escapeHtml(row.combined_rate) + '%</span></div>'
+            + '</div>').join('') + '</div>';
+    }
+
+    function renderMapConsensus(rows, a, b) {
+        if (!rows || !rows.length) return '<p class="matchup-empty">No mutual map preference yet.</p>';
+        return rows.map(row => {
+            const opts = (row.options||[]).map(o => '<div class="matchup-map-chip"><strong>' + escapeHtml(o.map_name) + '</strong> ' + escapeHtml(o.mode) + ' – ' + escapeHtml(a) + ' ' + escapeHtml(o.team_a_rate) + '% / ' + escapeHtml(b) + ' ' + escapeHtml(o.team_b_rate) + '%</div>').join('');
+            return '<div class="matchup-surface top-gap"><h4>' + escapeHtml(row.label) + '</h4><div class="matchup-map-list">' + opts + '</div></div>';
+        }).join('');
+    }
+
+    function renderTeamModel(team) {
+        const m = team.model || {};
+        if (!m.training_maps) return '<div class="matchup-team-card"><h4>' + escapeHtml(team.name) + '</h4><p class="matchup-empty">No recorded data.</p></div>';
+        let h = '<div class="matchup-team-card"><h4>' + escapeHtml(team.name) + '</h4>';
+        h += '<div class="matchup-stat"><span>Maps</span><strong>' + escapeHtml(m.training_maps) + '</strong></div>';
+        h += '<div class="matchup-stat"><span>WR</span><strong>' + escapeHtml(m.overall_win_rate) + '%</strong></div>';
+        h += '</div>';
+        h += '<div class="matchup-surface top-gap"><h4>Comfort Core</h4>'
+            + renderHeroChips((m.comfort_core_rows||[]).slice(0,6), r => ' – ' + escapeHtml(r.comfort_rate) + '% comfort, ' + escapeHtml(r.adjusted_win_rate) + '% WR')
+            + '</div>';
+        h += '<div class="matchup-surface top-gap"><h4>Ban Lines</h4>' + renderLineCards(m.ban_line_rows||[], team.name, 'ban lines') + '</div>';
+        h += '<div class="matchup-surface top-gap"><h4>Comps</h4>' + renderLineCards(m.comp_rows||[], team.name, 'comps') + '</div>';
+        return h;
+    }
+
+    function renderTree(data) {
+        if (!data || data.status === 'empty') {
+            results.innerHTML = '<p class="empty-text">Not enough data for this matchup.</p>';
+            return;
+        }
+        const teams = data.teams || [];
+        const tA = teams[0] || {name:'Team A', model:{}};
+        const tB = teams[1] || {name:'Team B', model:{}};
+        let h = '<div class="matchup-results-flow">';
+        h += '<div class="matchup-grid"><div>' + renderTeamModel(tA) + '</div><div>' + renderTeamModel(tB) + '</div></div>';
+
+        h += '<h4>Contested Heroes</h4><div class="matchup-surface">'
+            + (()=>{const r=data.contested_heroes||[];if(!r.length)return '<p class="matchup-empty">None yet.</p>';return '<div class="matchup-chip-grid">'+r.map(row=>'<div class="matchup-chip"><strong>'+heroCell(row.hero)+'</strong>'+escapeHtml(tA.name)+' '+escapeHtml(row.team_a_score)+' / '+escapeHtml(tB.name)+' '+escapeHtml(row.team_b_score)+'</div>').join('')+'</div>';})()
+            + '</div>';
+
+        h += '<h4 class="top-gap">Force Path</h4><div class="matchup-surface">' + renderForceRows(data.force_matchup_rows||[], tA.name, tB.name) + '</div>';
+
+        h += '<div class="matchup-surface-grid top-gap">';
+        h += '<div class="matchup-surface"><h4>Ban Collisions</h4>' + renderVsCards(data.ban_clash_rows||[], tA.name, tB.name, 'No overlap yet.') + '</div>';
+        h += '<div class="matchup-surface"><h4>Comp Collisions</h4>' + renderVsCards(data.comp_clash_rows||[], tA.name, tB.name, 'No overlap yet.') + '</div>';
+        h += '<div class="matchup-surface"><h4>Volatile Heroes</h4>' + renderVolatileRows(data.volatile_matchup_rows||[], tA.name, tB.name) + '</div>';
+        h += '<div class="matchup-surface"><h4>Equivalent Draft Paths</h4>' + renderEquivalentPathRows(data.equivalent_path_rows||[], tA.name, tB.name) + '</div>';
+        h += '</div>';
+
+        h += '<h4 class="top-gap">Map Consensus</h4>' + renderMapConsensus(data.map_consensus_rows||[], tA.name, tB.name);
+        h += '</div>';
+        results.innerHTML = h;
+    }
+
+    async function loadTree() {
+        const a = teamSelA.value, b = teamSelB.value;
+        if (!a || !b || a === b) { results.innerHTML = '<p class="empty-text">Select two different teams.</p>'; return; }
+        results.innerHTML = '<p class="panel-intro">Building matchup model…</p>';
+        const p = new URLSearchParams({team_a: a, team_b: b});
+        if (seasonSel.value) p.set('season', seasonSel.value);
+        if (mapSel.value && mapSel.value !== 'all') p.set('map', mapSel.value);
+        const resp = await fetch('/teams/matchup-tree?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+        renderTree(await resp.json());
+    }
+
+    loadBtn.addEventListener('click', () => loadTree().catch(e => { results.innerHTML = '<p class="empty-text">Failed to load.</p>'; console.error(e); }));
+    swapBtn.addEventListener('click', () => { const v = teamSelA.value; teamSelA.value = teamSelB.value; teamSelB.value = v; results.innerHTML = ''; });
+    [teamSelA, teamSelB, seasonSel, mapSel].forEach(el => el.addEventListener('change', () => results.innerHTML = ''));
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  TAB 2 · DRAFT REASONER JS
+// ═══════════════════════════════════════════════════════════════
+(function() {
+    // --- state ---
+    let drModel = null;
+    let drContext = null;
+    let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
+    const drDraft = {a:{}, b:{}};
+    let drSuggest = {a:{bans:[],protects:[]}, b:{bans:[],protects:[]}};
+
+    const analyzeBtn  = document.getElementById('dr-analyze-btn');
+    const resetBtn    = document.getElementById('dr-reset-btn');
+    const applyBtn    = document.getElementById('dr-apply-suggest-btn');
+    const statusEl    = document.getElementById('dr-status');
+    const workspaceSec= document.getElementById('dr-workspace');
+    const pickerSec   = document.getElementById('dr-picker-section');
+    const suggestBlock= document.getElementById('dr-suggest-block');
+    const DR_TURN_PHASES = [
+        [
+            {team: 'a', slot: 'ban1', type: 'ban'},
+            {team: 'b', slot: 'ban1', type: 'ban'},
+        ],
+        [
+            {team: 'b', slot: 'protect1', type: 'protect'},
+        ],
+        [
+            {team: 'a', slot: 'ban2', type: 'ban'},
+        ],
+        [
+            {team: 'a', slot: 'protect1', type: 'protect'},
+        ],
+        [
+            {team: 'a', slot: 'ban3', type: 'ban'},
+            {team: 'b', slot: 'ban3', type: 'ban'},
+        ],
+        [
+            {team: 'a', slot: 'protect2', type: 'protect'},
+        ],
+        [
+            {team: 'b', slot: 'ban4', type: 'ban'},
+        ],
+        [
+            {team: 'b', slot: 'protect2', type: 'protect'},
+        ],
+        [
+            {team: 'a', slot: 'ban4', type: 'ban'},
+        ],
+    ];
+
+    function drGetSlotElement(team, slot) {
+        return document.querySelector('[data-team="' + team + '"][data-slot="' + slot + '"]');
+    }
+
+    function drGetActiveTurnPhase() {
+        for (let i = 0; i < DR_TURN_PHASES.length; i += 1) {
+            const phase = DR_TURN_PHASES[i];
+            const hasOpenStep = phase.some(function(step) {
+                return !((drDraft[step.team] || {})[step.slot]);
+            });
+            if (hasOpenStep) {
+                return phase;
+            }
+        }
+        return [];
+    }
+
+    function drCanActivateSlot(team, slot) {
+        if ((drDraft[team] || {})[slot]) {
+            return true;
+        }
+        const activePhase = drGetActiveTurnPhase();
+        if (!activePhase.length) {
+            return true;
+        }
+        return activePhase.some(function(step) {
+            return step.team === team && step.slot === slot;
+        });
+    }
+
+    function drDescribeStep(step) {
+        const slotEl = drGetSlotElement(step.team, step.slot);
+        const slotLabel = slotEl ? (slotEl.querySelector('.slot-label') || {}).textContent || step.slot : step.slot;
+        const teamLabel = step.team === 'a'
+            ? document.getElementById('dr-col-a-label').textContent
+            : document.getElementById('dr-col-b-label').textContent;
+        return teamLabel + ' ' + slotLabel;
+    }
+
+    function drDescribePhase(phase) {
+        if (!phase || !phase.length) return 'Draft complete';
+        const openSteps = phase.filter(function(step) {
+            return !((drDraft[step.team] || {})[step.slot]);
+        });
+        const stepsToDescribe = openSteps.length ? openSteps : phase;
+        return stepsToDescribe.map(drDescribeStep).join(' and ');
+    }
+
+    function drUpdateTurnLocking() {
+        const activePhase = drGetActiveTurnPhase();
+        document.querySelectorAll('.draft-slot[data-team]').forEach(function(slotEl) {
+            const team = slotEl.dataset.team;
+            const slot = slotEl.dataset.slot;
+            const filled = Boolean((drDraft[team] || {})[slot]);
+            const allowed = !activePhase.length || filled || activePhase.some(function(step) {
+                return step.team === team && step.slot === slot;
+            });
+            slotEl.classList.toggle('turn-locked', !allowed);
+            if (!allowed) {
+                slotEl.title = 'Next required: ' + drDescribePhase(activePhase);
+            } else {
+                slotEl.removeAttribute('title');
+            }
+        });
+    }
+
+    function drAutoFocusNextStep() {
+        const activePhase = drGetActiveTurnPhase();
+        if (!activePhase.length) {
+            document.getElementById('dr-picker-label').textContent = 'Draft complete';
+            drActiveSlot = null;
+            drUpdateHeroAvailability();
+            return;
+        }
+        const nextStep = activePhase.find(function(step) {
+            return !((drDraft[step.team] || {})[step.slot]);
+        }) || activePhase[0];
+        const nextEl = drGetSlotElement(nextStep.team, nextStep.slot);
+        if (nextEl) {
+            drActivateSlot(nextEl);
+        }
+    }
+
+    // --- analyze / load model ---
+    analyzeBtn.addEventListener('click', async function() {
+        const teamA = document.getElementById('dr-team-a').value;
+        const teamB = document.getElementById('dr-team-b').value;
+        const season = document.getElementById('dr-season').value;
+        const map    = document.getElementById('dr-map').value;
+        if (!teamA || !teamB) { statusEl.textContent = 'Select both teams first.'; return; }
+        statusEl.textContent = 'Loading model…';
+        const p = new URLSearchParams({team_a: teamA, team_b: teamB});
+        if (season) p.set('season', season);
+        if (map) p.set('map', map);
+        try {
+            const resp = await fetch('/api/draft-reasoner/model?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            drModel = await resp.json();
+
+            const teams = drModel.teams || [];
+            const nameA = (teams[0]||{}).name || 'Our Team';
+            const nameB = (teams[1]||{}).name || 'Enemy Team';
+            document.getElementById('dr-col-a-label').textContent = nameA;
+            document.getElementById('dr-col-b-label').textContent = nameB;
+
+            const mA = (teams[0]||{}).model || {};
+            const mB = (teams[1]||{}).model || {};
+            const mapsA = mA.training_maps || 0;
+            statusEl.textContent = 'Model loaded: ' + nameA + ' (' + mapsA + ' maps) vs ' + nameB + ' (' + (mB.training_maps||0) + ' maps)';
+
+            // Seed context and compute first recommendation.
+            drContext = {mA, mB, nameA, nameB, mapFilter: map};
+            drComputeSuggestions(mA, mB, nameA, nameB, map);
+
+            workspaceSec.style.display = '';
+            pickerSec.style.display = '';
+            applyBtn.style.display = '';
+            drRender();
+            drAutoFocusNextStep();
+        } catch(e) {
+            statusEl.textContent = 'Failed to load model.';
+            console.error(e);
+        }
+    });
+
+    function drComputeSuggestions(mA, mB, nameA, nameB, mapFilter) {
+        function pairKey(a, b) {
+            return a < b ? (a + '||' + b) : (b + '||' + a);
+        }
+
+        function buildPairRelationshipLookup(compRows) {
+            const lookup = new Map();
+            (compRows || []).forEach(function(row) {
+                const heroes = (row.heroes || []).filter(Boolean);
+                if (heroes.length < 2) return;
+                const pairWeight = (Number(row.rate || 0) * 0.65) + (Number(row.comp_win_rate || 0) * 0.35);
+                for (let i = 0; i < heroes.length; i += 1) {
+                    for (let j = i + 1; j < heroes.length; j += 1) {
+                        const key = pairKey(heroes[i], heroes[j]);
+                        lookup.set(key, (lookup.get(key) || 0) + pairWeight);
+                    }
+                }
+            });
+            return lookup;
+        }
+
+        function compRelationshipScore(compHeroes, pairLookup) {
+            const heroes = (compHeroes || []).filter(Boolean);
+            if (heroes.length < 2) return 0;
+            let total = 0;
+            let pairCount = 0;
+            for (let i = 0; i < heroes.length; i += 1) {
+                for (let j = i + 1; j < heroes.length; j += 1) {
+                    total += Number(pairLookup.get(pairKey(heroes[i], heroes[j])) || 0);
+                    pairCount += 1;
+                }
+            }
+            if (!pairCount) return 0;
+            return total / pairCount;
+        }
+
+        function heroesKey(heroes) {
+            return (heroes || []).filter(Boolean).slice().sort().join('||');
+        }
+
+        function overlapCount(left, right) {
+            const rightSet = new Set((right || []).filter(Boolean));
+            return (left || []).filter(function(item) { return rightSet.has(item); }).length;
+        }
+
+        function mergeSlotLocks(slotKeys, lockedDraftSide, suggestedHeroes) {
+            const lockedValues = slotKeys.map(function(slotKey) {
+                return (lockedDraftSide && lockedDraftSide[slotKey]) ? lockedDraftSide[slotKey] : '';
+            });
+            const used = new Set(lockedValues.filter(Boolean));
+            const queue = (suggestedHeroes || []).filter(function(hero) {
+                return hero && !used.has(hero);
+            });
+            return slotKeys.map(function(slotKey, idx) {
+                if (lockedValues[idx]) return lockedValues[idx];
+                return queue.shift() || '';
+            }).filter(Boolean);
+        }
+
+        function lineCompatibilityScore(pathRow, lockedBans, lockedProtects) {
+            if (!pathRow) return -999;
+            const pathBans = new Set(pathRow.bans || []);
+            const pathProtects = new Set(pathRow.protects || []);
+            let score = 0;
+            lockedBans.forEach(function(hero) { score += pathBans.has(hero) ? 18 : -55; });
+            lockedProtects.forEach(function(hero) { score += pathProtects.has(hero) ? 18 : -55; });
+            return score;
+        }
+
+        function uniqueHeroes(list) {
+            const seen = new Set();
+            return (list || []).filter(function(hero) {
+                if (!hero || seen.has(hero)) return false;
+                seen.add(hero);
+                return true;
+            });
+        }
+
+        // Higher score means we are forcing the enemy into a less favorable response.
+        function forceEnemyPressureScore(compHeroes, path) {
+            const forceRows = (drModel && drModel.force_matchup_rows) ? drModel.force_matchup_rows : [];
+            if (!forceRows.length) return {score: 0, row: null};
+
+            const compKey = heroesKey(compHeroes);
+            const compRows = forceRows.filter(function(row) {
+                return heroesKey(row.our_comp || []) === compKey;
+            });
+            if (!compRows.length) return {score: 0, row: null};
+
+            const enemyCompStrengthLookup = new Map((mB.comp_rows || []).map(function(row) {
+                return [heroesKey(row.heroes || []), Number(row.comp_strength || 0)];
+            }));
+
+            let best = null;
+            compRows.forEach(function(row) {
+                const enemyCompKey = heroesKey(row.enemy_comp || []);
+                const enemyCompStrength = enemyCompStrengthLookup.get(enemyCompKey) || 0;
+                const banOverlap = overlapCount(path && path.bans, row.our_bans || []);
+                const protectOverlap = overlapCount(path && path.protects, row.our_protects || []);
+                const routeOverlap = banOverlap + (protectOverlap * 0.75);
+
+                const enemyPreserved = Number(row.enemy_preserved_ratio || 0); // lower is better for us
+                const enemyConditionedRate = Number(row.enemy_conditioned_rate || 0); // lower is better for us
+                const enemyBlockedCount = Number(row.enemy_blocked_count || 0); // higher is better for us
+                const enemyChoiceGap = Number(row.enemy_choice_gap || 0); // larger usually means more forced/predictable
+
+                const pressureScore =
+                    ((100 - enemyPreserved) * 0.50)
+                    + ((100 - enemyConditionedRate) * 0.22)
+                    + (enemyBlockedCount * 10)
+                    + (routeOverlap * 7)
+                    + (enemyChoiceGap * 0.8)
+                    - (enemyCompStrength * 0.35);
+
+                if (!best || pressureScore > best.score) {
+                    best = {score: pressureScore, row: row};
+                }
+            });
+
+            return best || {score: 0, row: null};
+        }
+
+        // Pick a "best-fit" comp: comfort + adjusted performance + consistency.
+        const ourPairLookup = buildPairRelationshipLookup(mA.comp_rows || []);
+        const rankedCompRows = (mA.comp_rows || []).map(function(row) {
+            const comfort = Number(row.avg_comfort || 0);
+            const adjusted = Number(row.avg_adjusted_win_rate || 0);
+            const compWr = Number(row.comp_win_rate || 0);
+            const usage = Number(row.rate || 0);
+            const strength = Number(row.comp_strength || 0);
+            const relationship = compRelationshipScore(row.heroes || [], ourPairLookup);
+            const fitScore = (strength * 0.45) + (compWr * 0.20) + (usage * 0.15) + (comfort * 0.10) + (adjusted * 0.05) + (relationship * 0.30);
+            return {
+                row: row,
+                fit_score: fitScore,
+                relationship_score: relationship,
+            };
+        }).sort(function(a, b) {
+            return (b.fit_score - a.fit_score)
+                || (Number(b.row.count || 0) - Number(a.row.count || 0))
+                || (Number(b.row.comp_strength || 0) - Number(a.row.comp_strength || 0));
+        });
+
+        const ourLockedBans = ['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.a[k] || ''; }).filter(Boolean);
+        const ourLockedProtects = ['protect1','protect2'].map(function(k) { return drDraft.a[k] || ''; }).filter(Boolean);
+        const enemyLockedBans = ['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean);
+        const enemyLockedProtects = ['protect1','protect2'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean);
+
+        // Adaptive simulator: evaluate each candidate comp against current locks/bans.
+        let bestCandidate = null;
+        rankedCompRows.forEach(function(candidate) {
+            const compRow = candidate.row;
+            const compHeroes = (compRow.heroes || []).filter(Boolean);
+            if (!compHeroes.length) return;
+
+            const targetCompKey = heroesKey(compHeroes);
+            const matchingPathRow = (mA.comp_path_rows || []).find(function(pathRow) {
+                return heroesKey(pathRow.heroes) === targetCompKey;
+            });
+            const topPaths = ((matchingPathRow || {}).top_draft_paths || []);
+            const pathCandidates = topPaths.length ? topPaths : [{bans:[], protects:[]}];
+
+            pathCandidates.forEach(function(path) {
+                let score = Number(candidate.fit_score || 0);
+                const blockedCount = compHeroes.filter(function(hero) { return enemyLockedBans.includes(hero) || ourLockedBans.includes(hero); }).length;
+                const protectedCount = compHeroes.filter(function(hero) { return ourLockedProtects.includes(hero); }).length;
+                score -= blockedCount * 90;
+                score += protectedCount * 14;
+                score += lineCompatibilityScore(path, ourLockedBans, ourLockedProtects);
+
+                // Dual objective: best for us + push enemy toward worse/less favorable response.
+                const pressure = forceEnemyPressureScore(compHeroes, path);
+                score += pressure.score * 0.40;
+
+                if (!bestCandidate || score > bestCandidate.score) {
+                    bestCandidate = {
+                        score: score,
+                        comp: compHeroes,
+                        path: path,
+                        forceRow: pressure.row,
+                    };
+                }
+            });
+        });
+
+        drSuggest.a = {bans: [], protects: [], comp: []};
+        drSuggest.b = {bans: [], protects: [], comp: []};
+
+        if (bestCandidate) {
+            drSuggest.a.comp = bestCandidate.comp || [];
+
+            const ourCompSet = new Set(drSuggest.a.comp || []);
+            const ourLockedBanSet = new Set(ourLockedBans);
+            const ourLockedProtectSet = new Set(ourLockedProtects);
+            const enemyLockedProtectSet = new Set(enemyLockedProtects);
+            const enemyLockedBanSet = new Set(enemyLockedBans);
+
+            function validOurBan(hero) {
+                return hero
+                    && !ourCompSet.has(hero)
+                    && !ourLockedProtectSet.has(hero)
+                    && !enemyLockedProtectSet.has(hero);
+            }
+
+            function validOurProtect(hero) {
+                return hero
+                    && !ourLockedBanSet.has(hero)
+                    && !enemyLockedBanSet.has(hero);
+            }
+
+            const ourBanFallbackPool = uniqueHeroes(
+                (mB.comfort_core_rows || []).map(function(r) { return r.hero; })
+                    .concat((mB.hero_pool_rows || []).map(function(r) { return r.hero; }))
+                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
+            );
+
+            const ourProtectFallbackPool = uniqueHeroes(
+                (drSuggest.a.comp || []).concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
+            );
+
+            const rawOurBans = uniqueHeroes((bestCandidate.path.bans || []).concat(ourBanFallbackPool));
+            const rawOurProtects = uniqueHeroes((bestCandidate.path.protects || []).concat(ourProtectFallbackPool));
+
+            const cleanOurBans = rawOurBans.filter(validOurBan);
+            const cleanOurProtects = rawOurProtects.filter(function(hero) {
+                return validOurProtect(hero) && !cleanOurBans.includes(hero);
+            });
+
+            drSuggest.a.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.a, cleanOurBans);
+            drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, cleanOurProtects);
+        }
+
+        // Enemy response simulator: favor lines that attack our selected comp and respect enemy locks.
+        const enemyLines = (mB.ban_line_rows || []);
+        let bestEnemyLine = null;
+        enemyLines.forEach(function(line) {
+            const lineBans = (line.bans || (line.heroes || [])).filter(Boolean);
+            const lineProtects = (line.protects || []).filter(Boolean);
+            let score = Number(line.rate || 0) + Number(line.line_strength || 0) * 0.4;
+            if (drSuggest.a.comp && drSuggest.a.comp.length) {
+                const overlap = lineBans.filter(function(hero) { return drSuggest.a.comp.includes(hero); }).length;
+                score += overlap * 28;
+            }
+            score += lineCompatibilityScore({bans: lineBans, protects: lineProtects}, enemyLockedBans, enemyLockedProtects);
+
+            if (!bestEnemyLine || score > bestEnemyLine.score) {
+                bestEnemyLine = {score: score, bans: lineBans, protects: lineProtects};
+            }
+        });
+
+        const enemyCompRows = (mB.comp_rows || []);
+        if (bestCandidate && bestCandidate.forceRow && (bestCandidate.forceRow.enemy_comp || []).length) {
+            drSuggest.b.comp = bestCandidate.forceRow.enemy_comp || [];
+        } else if (enemyCompRows.length) {
+            const topEnemyComp = enemyCompRows.slice().sort(function(a, b) {
+                const aScore = Number(a.comp_strength || 0) * 0.7 + Number(a.comp_win_rate || 0) * 0.2 + Number(a.rate || 0) * 0.1;
+                const bScore = Number(b.comp_strength || 0) * 0.7 + Number(b.comp_win_rate || 0) * 0.2 + Number(b.rate || 0) * 0.1;
+                return bScore - aScore;
+            })[0];
+            drSuggest.b.comp = (topEnemyComp && topEnemyComp.heroes) ? topEnemyComp.heroes : [];
+        }
+        if (bestEnemyLine) {
+            const enemyCompSet = new Set(drSuggest.b.comp || []);
+            const ourProtectSet = new Set(drSuggest.a.protects || []);
+            const enemyLockedProtectSet = new Set(enemyLockedProtects);
+            const enemyLockedBanSet = new Set(enemyLockedBans);
+            const ourLockedBanSet = new Set(ourLockedBans);
+
+            function validEnemyBan(hero) {
+                return hero
+                    && !enemyCompSet.has(hero)
+                    && !enemyLockedProtectSet.has(hero)
+                    && !ourProtectSet.has(hero);
+            }
+
+            function validEnemyProtect(hero) {
+                return hero
+                    && !enemyLockedBanSet.has(hero)
+                    && !ourLockedBanSet.has(hero);
+            }
+
+            const enemyBanFallbackPool = uniqueHeroes(
+                (drSuggest.a.comp || [])
+                    .concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
+                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
+            );
+
+            const enemyProtectFallbackPool = uniqueHeroes(
+                (drSuggest.b.comp || []).concat((mB.comfort_core_rows || []).map(function(r) { return r.hero; }))
+            );
+
+            const rawEnemyBans = uniqueHeroes((bestEnemyLine.bans || []).concat(enemyBanFallbackPool));
+            const rawEnemyProtects = uniqueHeroes((bestEnemyLine.protects || []).concat(enemyProtectFallbackPool));
+
+            const cleanEnemyBans = rawEnemyBans.filter(validEnemyBan);
+            const cleanEnemyProtects = rawEnemyProtects.filter(function(hero) {
+                return validEnemyProtect(hero) && !cleanEnemyBans.includes(hero);
+            });
+
+            drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, cleanEnemyBans);
+            drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, cleanEnemyProtects);
+        }
+
+        // Render suggestion banner
+        const mapLabel = mapFilter ? 'on ' + mapFilter : '';
+        document.getElementById('dr-suggest-for').textContent = nameA;
+        document.getElementById('dr-suggest-map-label').textContent = mapLabel;
+
+        const compHeroesEl = document.getElementById('dr-suggest-comp-heroes');
+        if (drSuggest.a.comp.length) {
+            compHeroesEl.innerHTML = drSuggest.a.comp.map(h => heroChipHtml(h,'')).join('');
+        } else {
+            compHeroesEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic">No comp data recorded yet.</span>';
+        }
+
+        const bansEl = document.getElementById('dr-suggest-bans');
+        bansEl.innerHTML = drSuggest.a.bans.map(h => heroChipHtml(h,'ban')).join('') || '<span style="color:#94a3b8;font-size:0.82rem">None</span>';
+
+        const protsEl = document.getElementById('dr-suggest-protects');
+        if (drSuggest.a.protects.length) {
+            document.getElementById('dr-suggest-protects-row').style.display = '';
+            protsEl.innerHTML = drSuggest.a.protects.map(h => heroChipHtml(h,'protect')).join('');
+        } else {
+            document.getElementById('dr-suggest-protects-row').style.display = 'none';
+        }
+
+        const enemySec = document.getElementById('dr-suggest-enemy-section');
+        if (drSuggest.b.comp.length || drSuggest.b.bans.length) {
+            enemySec.style.display = '';
+            document.getElementById('dr-suggest-enemy-name').textContent = nameB;
+            document.getElementById('dr-suggest-enemy-comp').innerHTML = drSuggest.b.comp.map(h => heroChipHtml(h,'')).join('');
+            document.getElementById('dr-suggest-enemy-bans').innerHTML = drSuggest.b.bans.map(h => heroChipHtml(h,'ban')).join('');
+        } else {
+            enemySec.style.display = 'none';
+        }
+
+        suggestBlock.style.display = '';
+    }
+
+    // apply suggestions to board
+    applyBtn.addEventListener('click', function() {
+        // Fill team A's slots
+        const aSlotMap = {ban1:0, ban2:1, ban3:2, ban4:3};
+        const aBans = drSuggest.a.bans;
+        const aProtects = drSuggest.a.protects;
+        aBans.forEach((hero, i) => {
+            const key = ['ban1','ban2','ban3','ban4'][i];
+            if (key && hero) drSetSlot('a', key, hero);
+        });
+        aProtects.forEach((hero, i) => {
+            const key = ['protect1','protect2'][i];
+            if (key && hero) drSetSlot('a', key, hero);
+        });
+        // Fill team B's top ban line
+        const bBans = drSuggest.b.bans;
+        const bProtects = drSuggest.b.protects;
+        bBans.forEach((hero, i) => {
+            const key = ['ban1','ban2','ban3','ban4'][i];
+            if (key && hero) drSetSlot('b', key, hero);
+        });
+        bProtects.forEach((hero, i) => {
+            const key = ['protect1','protect2'][i];
+            if (key && hero) drSetSlot('b', key, hero);
+        });
+        drRender();
+    });
+
+    function drSetSlot(team, slot, hero) {
+        drDraft[team][slot] = hero;
+        const el = document.querySelector('[data-team="' + team + '"][data-slot="' + slot + '"]');
+        if (!el) return;
+
+        const heroLabel = el.querySelector('.slot-hero');
+        const heroSub = el.querySelector('.slot-hero-sub');
+        let slotWrap = el.querySelector('.slot-img-wrap');
+        const hidden = el.querySelector('input[type="hidden"]');
+        if (hidden) hidden.value = hero || '';
+
+        heroLabel.textContent = hero || '';
+        if (heroSub) heroSub.textContent = '';
+
+        if (!hero) {
+            if (slotWrap) slotWrap.remove();
+            el.classList.remove('slot-filled');
+            return;
+        }
+
+        if (!slotWrap) {
+            slotWrap = document.createElement('span');
+            slotWrap.className = 'slot-img-wrap';
+            const slotImg = document.createElement('img');
+            slotImg.className = 'slot-img';
+            slotImg.alt = hero;
+            slotImg.onerror = function() { this.style.display = 'none'; };
+            slotWrap.appendChild(slotImg);
+            el.insertBefore(slotWrap, heroLabel);
+        }
+
+        const slotImg = slotWrap.querySelector('.slot-img');
+        slotImg.src = heroThumbUrl(hero);
+        slotImg.alt = hero;
+        slotImg.style.display = '';
+
+        el.classList.add('slot-filled');
+    }
+
+    function drClearSlot(sl) {
+        const team = sl.dataset.team;
+        const slot = sl.dataset.slot;
+        delete drDraft[team][slot];
+        const heroLabel = sl.querySelector('.slot-hero');
+        if (heroLabel) heroLabel.textContent = '';
+        const heroSub = sl.querySelector('.slot-hero-sub');
+        if (heroSub) heroSub.textContent = '';
+        const hidden = sl.querySelector('input[type="hidden"]');
+        if (hidden) hidden.value = '';
+        const slotWrap = sl.querySelector('.slot-img-wrap');
+        if (slotWrap) slotWrap.remove();
+        sl.classList.remove('slot-filled');
+        sl.classList.remove('slot-active');
+        if (drActiveSlot && drActiveSlot.el === sl) drActiveSlot = null;
+    }
+
+    // --- slot click ---
+    function drActivateSlot(el) {
+        if (!drCanActivateSlot(el.dataset.team, el.dataset.slot)) {
+            statusEl.textContent = 'Follow draft order: ' + drDescribePhase(drGetActiveTurnPhase()) + ' is next.';
+            drUpdateTurnLocking();
+            return;
+        }
+        document.querySelectorAll('.draft-slot[data-team]').forEach(s => s.classList.remove('slot-active'));
+        el.classList.add('slot-active');
+        drActiveSlot = {team: el.dataset.team, slot: el.dataset.slot, type: el.dataset.type, el: el};
+        const teamLabel = el.dataset.team === 'a'
+            ? document.getElementById('dr-col-a-label').textContent
+            : document.getElementById('dr-col-b-label').textContent;
+        document.getElementById('dr-picker-label').textContent = teamLabel + ' — ' + el.querySelector('.slot-label').textContent;
+        drFilterHeroes('');
+        drUpdateHeroAvailability();
+        drUpdateTurnLocking();
+    }
+    window.drActivateSlot = drActivateSlot;
+
+    // right-click to clear
+    document.querySelectorAll('.draft-slot[data-team]').forEach(function(sl) {
+        sl.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            drClearSlot(sl);
+            drRenderUsed();
+            drRender();
+        });
+    });
+
+    // --- hero pick ---
+    function drPickHero(btn) {
+        if (!drActiveSlot) return;
+        if (btn.disabled) return;
+        const hero = btn.dataset.hero;
+        drSetSlot(drActiveSlot.team, drActiveSlot.slot, hero);
+        drActiveSlot.el.classList.remove('slot-active');
+        drActiveSlot = null;
+        drRenderUsed();
+        drRender();
+        drAutoFocusNextStep();
+    }
+    window.drPickHero = drPickHero;
+
+    // hero search filter
+    const drSearchInput = document.getElementById('dr-hero-search');
+    if (drSearchInput) {
+        drSearchInput.addEventListener('input', function() { drFilterHeroes(this.value); });
+    }
+    function drFilterHeroes(q) {
+        const lq = q.toLowerCase().trim();
+        document.querySelectorAll('#dr-hero-picker-grid .hero-pick-btn').forEach(function(btn) {
+            btn.style.display = (!lq || btn.dataset.hero.toLowerCase().includes(lq)) ? '' : 'none';
+        });
+    }
+
+    function drGetTeamHeroes(team, type) {
+        const slots = type === 'ban' ? ['ban1', 'ban2', 'ban3', 'ban4'] : ['protect1', 'protect2'];
+        return slots
+            .map(function(slotKey) { return (drDraft[team] || {})[slotKey] || ''; })
+            .filter(Boolean);
+    }
+
+    function drUpdateHeroAvailability() {
+        const buttons = document.querySelectorAll('#dr-hero-picker-grid .hero-pick-btn');
+        if (!drActiveSlot) {
+            buttons.forEach(function(button) {
+                button.disabled = false;
+                button.classList.remove('hero-disabled');
+            });
+            return;
+        }
+
+        const slotTeam = drActiveSlot.team;
+        const slotType = drActiveSlot.type;
+        const otherTeam = slotTeam === 'a' ? 'b' : 'a';
+        const otherProtects = drGetTeamHeroes(otherTeam, 'protect');
+        const teamBans = drGetTeamHeroes(slotTeam, 'ban');
+        const otherBans = drGetTeamHeroes(otherTeam, 'ban');
+
+        buttons.forEach(function(button) {
+            const hero = button.dataset.hero;
+            let blocked = false;
+            if (slotType === 'ban') {
+                if (otherProtects.includes(hero)) blocked = true;
+                if (teamBans.includes(hero)) blocked = true;
+            } else if (slotType === 'protect') {
+                if (otherBans.includes(hero)) blocked = true;
+            }
+            button.disabled = blocked;
+            button.classList.toggle('hero-disabled', blocked);
+        });
+        drUpdateTurnLocking();
+    }
+
+    function drRenderUsed() {
+        const used = new Set(Object.values(drDraft.a).concat(Object.values(drDraft.b)).filter(Boolean));
+        document.querySelectorAll('#dr-hero-picker-grid .hero-pick-btn').forEach(function(btn) {
+            btn.classList.toggle('hero-pick-btn--used', used.has(btn.dataset.hero));
+            btn.style.opacity = used.has(btn.dataset.hero) ? '0.55' : '';
+            if (!btn.disabled) {
+                btn.style.pointerEvents = '';
+            }
+        });
+        drUpdateHeroAvailability();
+        drUpdateTurnLocking();
+    }
+
+    // --- reset ---
+    resetBtn.addEventListener('click', function() {
+        Object.keys(drDraft.a).forEach(k => delete drDraft.a[k]);
+        Object.keys(drDraft.b).forEach(k => delete drDraft.b[k]);
+        drActiveSlot = null;
+        document.querySelectorAll('.draft-slot[data-team]').forEach(sl => {
+            const heroLabel = sl.querySelector('.slot-hero');
+            if (heroLabel) heroLabel.textContent = '';
+            const heroSub = sl.querySelector('.slot-hero-sub');
+            if (heroSub) heroSub.textContent = '';
+            const hidden = sl.querySelector('input[type="hidden"]');
+            if (hidden) hidden.value = '';
+            const slotWrap = sl.querySelector('.slot-img-wrap');
+            if (slotWrap) slotWrap.remove();
+            sl.classList.remove('slot-active');
+            sl.classList.remove('slot-filled');
+        });
+        drRenderUsed();
+        drRender();
+        drAutoFocusNextStep();
+    });
+
+    // --- reasoning engine ---
+    function drRender() {
+        const stream = document.getElementById('dr-reason-stream');
+        if (!drModel) {
+            document.getElementById('dr-overview-setup').textContent = 'No model loaded.';
+            document.getElementById('dr-overview-target').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
+            document.getElementById('dr-overview-open-core').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
+            document.getElementById('dr-overview-contested').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
+            stream.innerHTML = '<p class="matchup-empty">Load a model first.</p>';
+            return;
+        }
+        const teams = drModel.teams || [];
+        const nameA = (teams[0]||{}).name || 'Our Team';
+        const nameB = (teams[1]||{}).name || 'Enemy Team';
+        const mA = (teams[0]||{}).model || {};
+        const mB = (teams[1]||{}).model || {};
+
+        // Re-run simulator recommendations whenever draft inputs change.
+        if (drContext) {
+            drComputeSuggestions(mA, mB, nameA, nameB, drContext.mapFilter || '');
+        }
+        drUpdateTurnLocking();
+
+        const bansA     = ['ban1','ban2','ban3','ban4'].map(k => drDraft.a[k]).filter(Boolean);
+        const protectsA = ['protect1','protect2'].map(k => drDraft.a[k]).filter(Boolean);
+        const bansB     = ['ban1','ban2','ban3','ban4'].map(k => drDraft.b[k]).filter(Boolean);
+        const protectsB = ['protect1','protect2'].map(k => drDraft.b[k]).filter(Boolean);
+        const allSet    = new Set([...bansA,...protectsA,...bansB,...protectsB]);
+
+        // Keep the top overview strip in sync with draft state.
+        const setupLine = nameA + ' vs ' + nameB + ' | ' + bansA.length + '/4 bans and ' + protectsA.length + '/2 protects locked';
+        document.getElementById('dr-overview-setup').textContent = setupLine;
+
+        const targetEl = document.getElementById('dr-overview-target');
+        if (drSuggest.a.comp && drSuggest.a.comp.length) {
+            targetEl.innerHTML = drSuggest.a.comp.map(h => heroChipHtml(h, '')).join('');
+        } else {
+            targetEl.innerHTML = '<span class="dr-overview-empty">No target comp identified yet.</span>';
+        }
+
+        const openCore = (mA.comfort_core_rows || [])
+            .map(r => r.hero)
+            .filter(Boolean)
+            .filter(h => !allSet.has(h))
+            .slice(0, 6);
+        const openCoreEl = document.getElementById('dr-overview-open-core');
+        openCoreEl.innerHTML = openCore.length
+            ? openCore.map(h => heroChipHtml(h, '')).join('')
+            : '<span class="dr-overview-empty">All top comfort picks are already affected.</span>';
+
+        const contestedOpen = (drModel.contested_heroes || [])
+            .map(r => r.hero)
+            .filter(Boolean)
+            .filter(h => !allSet.has(h))
+            .slice(0, 6);
+        const contestedEl = document.getElementById('dr-overview-contested');
+        contestedEl.innerHTML = contestedOpen.length
+            ? contestedOpen.map(h => heroChipHtml(h, 'ban')).join('')
+            : '<span class="dr-overview-empty">No high-conflict heroes left open.</span>';
+
+        const cards = [];
+
+        function coreRow(team, name, modelData, hero, slotType) {
+            const inCore  = (modelData.comfort_core_rows||[]).find(r => r.hero === hero);
+            const inPool  = (modelData.hero_pool_rows||[]).find(r => r.hero === hero);
+            const vol     = (modelData.volatile_hero_rows||[]).find(r => r.hero === hero);
+            let body = '';
+            if (slotType === 'ban') {
+                if (inCore) {
+                    body = '<strong>' + escapeHtml(hero) + '</strong> is a comfort core hero for <strong>' + escapeHtml(name) + '</strong> (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%). Directly targets their identity.';
+                } else if (inPool) {
+                    body = '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(name) + '\'s pool but not core (adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%).';
+                } else {
+                    body = '<strong>' + escapeHtml(hero) + '</strong> has little recorded history for ' + escapeHtml(name) + '. Speculative or meta ban.';
+                }
+            } else {
+                // protect
+                if (inCore) {
+                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong> — a comfort core pick (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%).';
+                } else {
+                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong> — not in recorded comfort core. Pocket pick or signal block.';
+                }
+            }
+            if (vol) {
+                const sign = vol.delta >= 0 ? '+' : '';
+                body += ' WR swings ' + sign + escapeHtml(vol.delta) + '% when active — ' + (Math.abs(vol.delta) > 5 ? '<strong>volatile pick.</strong>' : 'minor swing.');
+            }
+            return body;
+        }
+
+        // Our bans
+        bansA.forEach(hero => {
+            const inBCore = (mB.comfort_core_rows||[]).find(r => r.hero === hero);
+            let body = coreRow('b', nameB, mB, hero, 'ban');
+            // Disrupts enemy comp paths.
+            (mB.comp_path_rows||[]).slice(0,5).forEach((comp,i) => {
+                if ((comp.heroes||[]).includes(hero)) {
+                    body += '<br>Disrupts <strong>' + escapeHtml(nameB) + '</strong> comp path #' + (i+1) + ' (' + escapeHtml(comp.top_path_share) + '% dominant):'
+                        + '<div class="dr-hero-row">' + (comp.heroes||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>';
+                }
+            });
+            // In contested?
+            const cont = (drModel.contested_heroes||[]).find(r => r.hero === hero);
+            if (cont) body += ' <span class="matchup-badge matchup-badge-warn">Contested hero</span>';
+            cards.push({cls: inBCore ? 'good' : '', title: nameA + ' bans ' + hero, body});
+        });
+
+        // Our protects
+        protectsA.forEach(hero => {
+            let body = coreRow('a', nameA, mA, hero, 'protect');
+            const inBBans = (mB.ban_line_rows||[]).filter(l => (l.bans||[]).includes(hero));
+            if (inBBans.length) body += ' <strong>' + escapeHtml(nameB) + '</strong> targets this hero in ' + inBBans.length + ' of their top ban line(s) — protect disrupts those lines.';
+            cards.push({cls:'good', title: nameA + ' protects ' + hero, body});
+        });
+
+        // Enemy bans
+        bansB.forEach(hero => {
+            const inACore = (mA.comfort_core_rows||[]).find(r => r.hero === hero);
+            let body = coreRow('a', nameA, mA, hero, 'ban');
+            // Disrupts our comp paths?
+            (mA.comp_path_rows||[]).slice(0,4).forEach((comp,i) => {
+                if ((comp.heroes||[]).includes(hero)) {
+                    body += '<br>Disrupts <strong>' + escapeHtml(nameA) + '</strong> comp path #' + (i+1) + ' (' + escapeHtml(comp.top_path_share) + '% dominant):'
+                        + '<div class="dr-hero-row">' + (comp.heroes||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>';
+                    // Alt route?
+                    const altPath = (comp.top_draft_paths||[])[1];
+                    if (altPath) body += 'Alt route available: <div class="dr-hero-row">' + (altPath.bans||[]).map(h=>heroChipHtml(h,'ban')).join('') + (altPath.protects||[]).map(h=>heroChipHtml(h,'protect')).join('') + '</div>';
+                }
+            });
+            cards.push({cls: inACore ? 'bad' : '', title: nameB + ' bans ' + hero, body});
+        });
+
+        // Enemy protects
+        protectsB.forEach(hero => {
+            let body = 'Enemy protects <strong>' + escapeHtml(hero) + '</strong>. ';
+            const inBCore = (mB.comfort_core_rows||[]).find(r => r.hero === hero);
+            if (inBCore) body += 'Core pick for them (' + escapeHtml(inBCore.comfort_rate) + '% usage).';
+            const inABans = (mA.ban_line_rows||[]).filter(l => (l.bans||[]).includes(hero));
+            if (inABans.length) body += ' We target this in ' + inABans.length + ' ban line(s) — their protect counters our tendency.';
+            cards.push({cls:'warn', title: nameB + ' protects ' + hero, body});
+        });
+
+        // Comp path disruption summary (our bans vs their paths)
+        if (bansA.length > 0) {
+            const bSetA = new Set(bansA);
+            (mB.comp_path_rows||[]).slice(0,4).forEach((line,i) => {
+                const blocked = (line.heroes||[]).filter(h => bSetA.has(h));
+                const intact  = (line.heroes||[]).filter(h => !bSetA.has(h));
+                if (blocked.length) {
+                    cards.push({
+                        cls: intact.length === 0 ? 'good' : '',
+                        title: nameB + ' comp path #' + (i+1) + ' (' + escapeHtml(line.top_path_share || 0) + '%) — ' + (intact.length ? 'partial' : 'fully') + ' disrupted',
+                        body: 'Blocked: <div class="dr-hero-row">' + blocked.map(h=>heroChipHtml(h,'ban')).join('') + '</div>'
+                            + (intact.length ? 'Still intact: <div class="dr-hero-row">' + intact.map(h=>heroChipHtml(h,'')).join('') + '</div>' : '<strong>Fully disrupted.</strong>')
+                    });
+                }
+            });
+        }
+
+        // Force path alignment
+        const force = (drModel.force_matchup_rows||[])[0];
+        if (force && bansA.length > 0) {
+            const bSetA = new Set(bansA);
+            const overlap = (force.our_bans||[]).filter(h => bSetA.has(h));
+            const onTrack = overlap.length >= 2;
+            cards.push({
+                cls: onTrack ? 'good' : '',
+                title: (onTrack ? '✓ On track for ' : 'Suggested force path — ') + nameA,
+                body: 'Target comp: <div class="dr-hero-row">' + (force.our_comp||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>'
+                    + 'Bans needed: <div class="dr-hero-row">' + (force.our_bans||[]).map(h=>heroChipHtml(h,'ban')).join('') + '</div>'
+                    + 'Expected enemy: <div class="dr-hero-row">' + (force.enemy_comp||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>'
+            });
+        }
+
+        // Volatile still free
+        (drModel.volatile_matchup_rows||[]).slice(0,3).forEach(vr => {
+            if (!allSet.has(vr.hero)) {
+                cards.push({
+                    cls: 'warn',
+                    title: 'Volatile hero still available: ' + vr.hero,
+                    body: heroChipHtml(vr.hero,'') + ' — '
+                        + escapeHtml(nameA) + ': ' + escapeHtml(vr.team_a_with_wr) + '% with / ' + escapeHtml(vr.team_a_without_wr) + '% without. '
+                        + (vr.team_b_with_maps>0 ? escapeHtml(nameB)+': '+escapeHtml(vr.team_b_with_wr)+'% with / '+escapeHtml(vr.team_b_without_wr)+'% without. ' : '')
+                        + 'Favors <strong>' + escapeHtml(vr.favored_side) + '</strong>.'
+                });
+            }
+        });
+
+        if (!cards.length) {
+            stream.innerHTML = '<p class="matchup-empty">Start filling draft slots to see reasoning.</p>';
+            return;
+        }
+        stream.innerHTML = cards.map(c =>
+            '<div class="dr-reason-card ' + escapeHtml(c.cls) + '"><div class="dr-reason-title">' + escapeHtml(c.title) + '</div>' + c.body + '</div>'
+        ).join('');
+    }
+})();
+</script>
+{% endblock %}

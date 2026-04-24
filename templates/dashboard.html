@@ -35,6 +35,272 @@
 </section>
 {%- endmacro %}
 
+<style>
+.matchup-shell {
+    background:
+        radial-gradient(circle at top right, rgba(97, 115, 255, 0.18), transparent 28rem),
+        linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(9, 14, 28, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.matchup-form-grid,
+.matchup-grid,
+.matchup-mini-grid,
+.matchup-line-stack {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+
+.matchup-form-grid,
+.matchup-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.matchup-mini-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.matchup-line-stack {
+    grid-template-columns: 1fr;
+}
+
+.matchup-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.matchup-results-flow {
+    display: grid;
+    gap: 1rem;
+}
+
+.matchup-surface-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.matchup-grid > div {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+    min-width: 0;
+}
+
+.matchup-team-card,
+.matchup-surface,
+.matchup-line-card {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.72);
+    padding: 1rem 1.1rem;
+    box-shadow: 0 18px 48px rgba(2, 6, 23, 0.24);
+    box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.matchup-team-card h4,
+.matchup-surface h4 {
+    margin-bottom: 0.35rem;
+}
+
+.matchup-stat {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.95rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.matchup-stat:last-child {
+    border-bottom: 0;
+}
+
+.matchup-chip-grid,
+.matchup-map-list,
+.matchup-hero-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.matchup-chip,
+.matchup-map-chip {
+    border-radius: 999px;
+    padding: 0.55rem 0.8rem;
+    background: rgba(30, 41, 59, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    font-size: 0.92rem;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.matchup-chip strong,
+.matchup-map-chip strong {
+    display: block;
+    color: #f8fafc;
+}
+
+.matchup-line-card {
+    padding: 0.95rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.matchup-card-title {
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.matchup-card-copy {
+    color: rgba(226, 232, 240, 0.8);
+    line-height: 1.45;
+}
+
+.matchup-chip .hero-inline-cell,
+.matchup-map-chip .hero-inline-cell,
+.matchup-line-card .hero-inline-cell {
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.matchup-chip .hero-inline-thumb,
+.matchup-map-chip .hero-inline-thumb,
+.matchup-line-card .hero-inline-thumb {
+    flex-shrink: 0;
+}
+
+.matchup-line-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+}
+
+.matchup-badge {
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(96, 165, 250, 0.18);
+    color: #dbeafe;
+    font-size: 0.82rem;
+}
+
+.matchup-badge-warn {
+    background: rgba(234, 179, 8, 0.15);
+    border-color: rgba(234, 179, 8, 0.3);
+    color: #fef08a;
+}
+
+.matchup-badge-muted {
+    background: rgba(100, 116, 139, 0.15);
+    border-color: rgba(100, 116, 139, 0.25);
+    color: #94a3b8;
+}
+
+.matchup-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.matchup-slot-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #f87171;
+    min-width: 3.5rem;
+    flex-shrink: 0;
+}
+
+.matchup-slot-label.protect-label {
+    color: #4ade80;
+}
+
+.equiv-path-route {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 0.4rem;
+    padding: 0.45rem 0.6rem;
+    margin: 0.3rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.equiv-path-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 0.1rem;
+}
+
+.equiv-path-rate {
+    margin-top: 0.2rem;
+    align-self: flex-start;
+}
+
+.equiv-path-targeted {
+    outline: 2px solid rgba(251, 191, 36, 0.7);
+    outline-offset: 2px;
+    border-radius: 9999px;
+}
+
+.matchup-vs {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(191, 219, 254, 0.72);
+    margin: 0.55rem 0;
+}
+
+.matchup-section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    margin-top: 1.35rem;
+}
+
+.matchup-section-head p {
+    margin: 0;
+}
+
+.matchup-empty {
+    color: rgba(226, 232, 240, 0.72);
+}
+
+.matchup-grid .top-gap,
+.matchup-mini-grid .top-gap {
+    margin-top: 0;
+}
+
+.matchup-line-stack .top-gap {
+    margin-top: 0;
+}
+
+@media (max-width: 720px) {
+    .matchup-section-head {
+        display: block;
+    }
+
+    .matchup-surface-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
 <div class="main-header">
     <div>
         <h2>Dashboard</h2>
@@ -42,179 +308,148 @@
     </div>
 </div>
 
-<section class="panel panel-toolbar">
-    <div class="page-toolbar">
-        <div class="page-toolbar-group">
-            <span class="muted-label">Quick actions</span>
-            {% if session.get('access_level') == 'edit' %}
-            <a class="button-link" href="{{ url_for('scrims') }}#create-scrim">+ New Scrim</a>
-            <a class="button-secondary" href="{{ url_for('tournaments') }}#create-tournament">+ New Tournament</a>
-            {% endif %}
-        </div>
-        <div class="page-toolbar-group">
-            <a class="button-secondary" href="{{ url_for('teams') }}">Teams</a>
-            <a class="button-secondary" href="{{ url_for('scrims') }}">All Scrims</a>
-        </div>
-    </div>
-</section>
-
-<section class="panel">
-    <div class="panel-header-row">
-        <h3>Teams</h3>
-        <a href="{{ url_for('teams') }}">Manage teams</a>
-    </div>
-    {% if all_teams_for_quick_access %}
-        <div class="dash-teams-grid">
-            {% for team in all_teams_for_quick_access %}
-                <a class="dash-team-card{% if team.is_personal %} dash-team-card-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
-                    <div class="dash-team-logo-wrap">
-                        {% if team.logo_path %}
-                            <img src="{{ team_logo_url(team.logo_path) }}" alt="{{ team.name }}" class="dash-team-logo">
-                        {% else %}
-                            <div class="dash-team-logo-fallback">{{ team.name[0] if team.name else '?' }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="dash-team-info">
-                        <span class="dash-team-name">{{ team.name }}</span>
-                        {% if team.is_personal %}
-                            <span class="dash-team-badge">★ Personal</span>
-                        {% endif %}
-                    </div>
-                </a>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="empty-text">No teams yet.</p>
-    {% endif %}
-</section>
-
-<div class="summary-grid">
-    {% for label, value, helper in metric_cards %}
-    <section class="stat-card">
-        <strong>{{ label }}</strong>
-        <span>{{ value }}</span>
-        <small class="stat-footnote">{{ helper }}</small>
-    </section>
-    {% endfor %}
-</div>
-
-<section class="panel">
-    <div class="panel-header-row">
-        <h3>Most Played Opponents</h3>
-        <span class="muted-label">Quick links</span>
-    </div>
-    {% if quick_opponents %}
-        <div class="dashboard-quick-links">
-            {% for row in quick_opponents %}
-                {% if row.team_id %}
-                    <a class="quick-link-chip" href="{{ url_for('team_detail', team_id=row.team_id) }}">
-                        <span class="quick-link-name">{{ row.name }}</span>
-                        <span class="quick-link-meta">{{ row.maps }} maps</span>
-                    </a>
-                {% else %}
-                    <span class="quick-link-chip quick-link-chip-muted" title="No team profile linked yet">
-                        <span class="quick-link-name">{{ row.name }}</span>
-                        <span class="quick-link-meta">{{ row.maps }} maps</span>
-                    </span>
+<div>
+    <section class="panel panel-toolbar">
+        <div class="page-toolbar">
+            <div class="page-toolbar-group">
+                <span class="muted-label">Quick actions</span>
+                {% if session.get('access_level') == 'edit' %}
+                <a class="button-link" href="{{ url_for('scrims') }}#create-scrim">+ New Scrim</a>
+                <a class="button-secondary" href="{{ url_for('tournaments') }}#create-tournament">+ New Tournament</a>
                 {% endif %}
-            {% endfor %}
+            </div>
+            <div class="page-toolbar-group">
+                <a class="button-secondary" href="{{ url_for('teams') }}">Teams</a>
+                <a class="button-secondary" href="{{ url_for('scrims') }}">All Scrims</a>
+            </div>
         </div>
-    {% else %}
-        <p class="empty-text">No opponent history yet.</p>
-    {% endif %}
-</section>
+    </section>
 
-<div class="dashboard-duo-grid">
-    {{ hero_rank_panel('Top Picks', top_picks) }}
-    {{ hero_rank_panel('Top Bans', top_bans) }}
-</div>
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Teams</h3>
+            <a href="{{ url_for('teams') }}">Manage teams</a>
+        </div>
+        {% if all_teams_for_quick_access %}
+            <div class="dash-teams-grid">
+                {% for team in all_teams_for_quick_access %}
+                    <a class="dash-team-card{% if team.is_personal %} dash-team-card-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
+                        <div class="dash-team-logo-wrap">
+                            {% if team.logo_path %}
+                                <img src="{{ team_logo_url(team.logo_path) }}" alt="{{ team.name }}" class="dash-team-logo">
+                            {% else %}
+                                <div class="dash-team-logo-fallback">{{ team.name[0] if team.name else '?' }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="dash-team-info">
+                            <span class="dash-team-name">{{ team.name }}</span>
+                            {% if team.is_personal %}
+                                <span class="dash-team-badge">Personal</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No teams yet.</p>
+        {% endif %}
+    </section>
 
-<div class="dashboard-duo-grid">
-<section class="panel">
-    <div class="panel-header-row">
-        <h3>Recent Scrims</h3>
-        <a href="{{ url_for('scrims') }}">View all</a>
+    <div class="summary-grid">
+        {% for label, value, helper in metric_cards %}
+        <section class="stat-card">
+            <strong>{{ label }}</strong>
+            <span>{{ value }}</span>
+            <small class="stat-footnote">{{ helper }}</small>
+        </section>
+        {% endfor %}
     </div>
 
-    {% if recent_scrims %}
-        <div class="list-stack">
-            {% for scrim in recent_scrims %}
-                <a class="list-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
-                    <div>
-                        <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
-                        <div class="list-subtitle">
-                            {{ scrim.scrim_date }}{% if scrim.season %} • Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} • {{ scrim.team_name }}{% endif %}
-                        </div>
-                    </div>
-                    <div class="list-meta">
-                        <span class="pill pill-neutral">{{ scrim.maps|length }} maps</span>
-                    </div>
-                </a>
-            {% endfor %}
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Most Played Opponents</h3>
+            <span class="muted-label">Quick links</span>
         </div>
-    {% else %}
-        <p class="empty-text">No scrims yet. Create your first scrim.</p>
-    {% endif %}
-</section>
+        {% if quick_opponents %}
+            <div class="dashboard-quick-links">
+                {% for row in quick_opponents %}
+                    {% if row.team_id %}
+                        <a class="quick-link-chip" href="{{ url_for('team_detail', team_id=row.team_id) }}">
+                            <span class="quick-link-name">{{ row.name }}</span>
+                            <span class="quick-link-meta">{{ row.maps }} maps</span>
+                        </a>
+                    {% else %}
+                        <span class="quick-link-chip quick-link-chip-muted" title="No team profile linked yet">
+                            <span class="quick-link-name">{{ row.name }}</span>
+                            <span class="quick-link-meta">{{ row.maps }} maps</span>
+                        </span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No opponent history yet.</p>
+        {% endif %}
+    </section>
 
-<section class="panel">
-    <div class="panel-header-row">
-        <h3>Recent Tournaments</h3>
-        <a href="{{ url_for('tournaments') }}">View all</a>
+    <div class="dashboard-duo-grid">
+        {{ hero_rank_panel('Top Picks', top_picks) }}
+        {{ hero_rank_panel('Top Bans', top_bans) }}
     </div>
 
-    {% if recent_tournaments %}
-        <div class="list-stack">
-            {% for match in recent_tournaments %}
-                <a class="list-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
-                    <div>
-                        <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
-                        <div class="list-subtitle">
-                            {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • {{ match.team_name }} scouting{% endif %}
-                        </div>
-                    </div>
-                    <div class="list-meta">
-                        <span class="pill pill-neutral">{{ match.maps|length }} maps</span>
-                    </div>
-                </a>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="empty-text">No tournaments yet.</p>
-    {% endif %}
-</section>
-</div>
+    <div class="dashboard-duo-grid">
+        <section class="panel">
+            <div class="panel-header-row">
+                <h3>Recent Scrims</h3>
+                <a href="{{ url_for('scrims') }}">View all</a>
+            </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const setPersonalButtons = document.querySelectorAll('.set-personal-btn');
-    
-    setPersonalButtons.forEach(button => {
-        button.addEventListener('click', async function(e) {
-            e.preventDefault();
-            const teamId = this.dataset.teamId;
-            
-            try {
-                const response = await fetch(`/api/teams/${teamId}/set-personal`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                if (response.ok) {
-                    // Reload the page to reflect the changes
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    alert('Error: ' + (error.error || 'Failed to set personal team'));
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error: ' + error.message);
-            }
-        });
-    });
-});
-</script>
+            {% if recent_scrims %}
+                <div class="list-stack">
+                    {% for scrim in recent_scrims %}
+                        <a class="list-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
+                            <div>
+                                <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
+                                <div class="list-subtitle">
+                                    {{ scrim.scrim_date }}{% if scrim.season %} - Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} - {{ scrim.team_name }}{% endif %}
+                                </div>
+                            </div>
+                            <div class="list-meta">
+                                <span class="pill pill-neutral">{{ scrim.maps|length }} maps</span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No scrims yet. Create your first scrim.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel">
+            <div class="panel-header-row">
+                <h3>Recent Tournaments</h3>
+                <a href="{{ url_for('tournaments') }}">View all</a>
+            </div>
+
+            {% if recent_tournaments %}
+                <div class="list-stack">
+                    {% for match in recent_tournaments %}
+                        <a class="list-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
+                            <div>
+                                <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
+                                <div class="list-subtitle">
+                                    {{ match.scrim_date }}{% if match.season %} - Season {{ match.season }}{% endif %}{% if match.team_name %} - {{ match.team_name }} scouting{% endif %}
+                                </div>
+                            </div>
+                            <div class="list-meta">
+                                <span class="pill pill-neutral">{{ match.maps|length }} maps</span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No tournaments yet.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
 {% endblock %}

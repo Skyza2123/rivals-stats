@@ -1216,7 +1216,9 @@
                 const rows = target.options.map(option => {
                     return '<tr>'
                         + '<td><span class="hero-inline-cell"><img src="' + (heroImageMap[option.hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(option.hero))) + '" alt="' + option.hero + '" class="hero-inline-thumb"><span>' + option.hero + '</span></span></td>'
-                        + '<td>' + option.rate + '% (' + option.count + '/' + matchingMaps + ')</td>'
+                        + '<td>' + option.rate + '%'
+                        + (option.count ? ' (' + option.count + ' supporting maps)' : '')
+                        + '</td>'
                         + '</tr>';
                 }).join('');
                 return '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Likely Next Hero</th><th>Likelihood</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
@@ -1236,7 +1238,9 @@
                     return '<tr>'
                         + '<td>' + mapTeamLabel(comp.team_label) + '</td>'
                         + '<td>' + (heroLine || '--') + '</td>'
-                        + '<td>' + comp.rate + '% (' + comp.count + '/' + data.matching_maps + ')</td>'
+                        + '<td>' + comp.rate + '%'
+                        + (comp.count ? ' (' + comp.count + ' supporting maps)' : '')
+                        + '</td>'
                         + '</tr>';
                 }).join('');
 
@@ -1252,12 +1256,18 @@
                     resultsContainer.innerHTML = '<p class="empty-text">All draft slots are filled. Clear one slot to continue simulation.</p>';
                     return;
                 }
-                if (!data.matching_maps) {
+                if (data.status === 'empty' || !data.training_maps) {
                     resultsContainer.innerHTML = '<p class="empty-text">No matching drafts for this simulation state yet.</p>';
                     return;
                 }
 
-                let html = '<p class="panel-intro">Matched maps: <strong>' + data.matching_maps + '</strong>.</p><h4 class="top-gap">Upcoming Picks</h4>';
+                let html = '';
+                if (data.exact_matching_maps) {
+                    html += '<p class="panel-intro">Exact draft matches: <strong>' + data.exact_matching_maps + '</strong>.</p>';
+                } else {
+                    html += '<p class="panel-intro">Exact draft matches: <strong>0</strong>. Using learned fallback from <strong>' + data.training_maps + '</strong> historical draft maps.</p>';
+                }
+                html += '<h4 class="top-gap">Upcoming Picks</h4>';
                 if (Array.isArray(data.targets) && data.targets.length) {
                     data.targets.forEach(target => {
                         html += '<p class="panel-intro top-gap"><strong>' + mapTeamLabel(target.team_label) + ' ' + target.slot_label + '</strong></p>';

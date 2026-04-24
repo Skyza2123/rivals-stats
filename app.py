@@ -218,6 +218,7 @@ PREDICTOR_GROUPS = (
 )
 UNSPECIFIED_SEASON_TOKEN = "__unspecified__"
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+COMFORT_CORE_MIN_RATE = 40.0
 
 SCRIMS = []
 TOURNAMENT_MATCHES = []
@@ -6231,6 +6232,48 @@ def _sanitize_one_sided_concept_slots(raw_slots: dict | None) -> dict[str, str]:
     return cleaned
 
 
+def _predictor_map_values(map_entry: dict) -> dict[str, str]:
+    map_values: dict[str, str] = {}
+    draft = map_entry.get("draft", {})
+    if not isinstance(draft, dict):
+        return {field_key: "" for field_key in PREDICTOR_INPUT_ORDER}
+
+    for group in PREDICTOR_GROUPS:
+        for team_slot, slot_key, field_key in group:
+            team_draft = draft.get(team_slot, {})
+            if not isinstance(team_draft, dict):
+                team_draft = {}
+            map_values[field_key] = _canonical_draft_hero(team_draft.get(slot_key, ""))
+    return map_values
+
+
+def _predictor_richest_comp(map_entry: dict, team_slot: str) -> tuple[str, ...]:
+    comp_sections = map_entry.get("comp", [])
+    if not isinstance(comp_sections, list):
+        return ()
+
+    richest_comp: list[str] = []
+    for section in comp_sections:
+        if not isinstance(section, dict):
+            continue
+        lineup = section.get(team_slot, [])
+        if not isinstance(lineup, list):
+            continue
+
+        heroes = []
+        for slot in lineup:
+            if not isinstance(slot, dict):
+                continue
+            hero_name = _canonical_draft_hero(slot.get("hero", ""))
+            if hero_name:
+                heroes.append(hero_name)
+
+        if len(heroes) > len(richest_comp):
+            richest_comp = heroes
+
+    return tuple(richest_comp)
+
+
 def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dict:
     cleaned_inputs = {
         field_key: (raw_inputs.get(field_key, "") or "").strip()
@@ -6252,33 +6295,73 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
         return {
             "inputs": cleaned_inputs,
             "matching_maps": 0,
+            "exact_matching_maps": 0,
+            "training_maps": 0,
             "targets": [],
             "status": "complete",
         }
 
-    matching_maps = 0
-    target_counts = {
+    exact_matching_maps = 0
+    training_maps = 0
+    exact_target_counts = {
         field_key: defaultdict(int)
         for _, _, field_key in next_targets
     }
-    comp_counts = {
+    slot_prior_counts = {
+        field_key: defaultdict(int)
+        for _, _, field_key in next_targets
+    }
+    source_target_counts = {
+        field_key: {
+            source_field: defaultdict(lambda: defaultdict(int))
+            for source_field in PREDICTOR_INPUT_ORDER
+        }
+        for _, _, field_key in next_targets
+    }
+    source_value_vocab = {
+        field_key: {
+            source_field: set()
+            for source_field in PREDICTOR_INPUT_ORDER
+        }
+        for _, _, field_key in next_targets
+    }
+    exact_comp_counts = {
         "team1": defaultdict(int),
         "team2": defaultdict(int),
     }
+    comp_prior_counts = {
+        "team1": defaultdict(int),
+        "team2": defaultdict(int),
+    }
+    filled_inputs = {
+        field_key: hero_name
+        for field_key, hero_name in normalized_inputs.items()
+        if hero_name
+    }
+    used_heroes = {hero_name for hero_name in normalized_inputs.values() if hero_name}
 
     for scrim in scrims:
         for map_entry in scrim.get("maps", []):
-            draft = map_entry.get("draft", {})
-            if not isinstance(draft, dict):
+            map_values = _predictor_map_values(map_entry)
+            if not any(map_values.values()):
                 continue
+            training_maps += 1
 
-            map_values = {}
-            for group in PREDICTOR_GROUPS:
-                for team_slot, slot_key, field_key in group:
-                    team_draft = draft.get(team_slot, {})
-                    if not isinstance(team_draft, dict):
-                        team_draft = {}
-                    map_values[field_key] = _canonical_draft_hero(team_draft.get(slot_key, ""))
+            for _, _, field_key in next_targets:
+                hero = map_values.get(field_key, "")
+                if hero:
+                    slot_prior_counts[field_key][hero] += 1
+                    for source_field, source_hero in filled_inputs.items():
+                        if map_values.get(source_field, "") == source_hero:
+                            source_target_counts[field_key][source_field][source_hero][hero] += 1
+                        observed_source_hero = map_values.get(source_field, "")
+                        if observed_source_hero:
+                            source_value_vocab[field_key][source_field].add(observed_source_hero)
+
+            for team_slot in TEAM_SLOTS:
+                richest_comp = _predictor_richest_comp(map_entry, team_slot)
+                if richest_comp:
+                    comp_prior_counts[team_slot][richest_comp] += 1
 
             if any(
                 normalized_inputs[field_key] and map_values.get(field_key, "") != normalized_inputs[field_key]
@@ -6286,59 +6369,88 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
             ):
                 continue
 
-            matching_maps += 1
+            exact_matching_maps += 1
             for _, _, field_key in next_targets:
                 hero = map_values.get(field_key, "")
                 if hero:
-                    target_counts[field_key][hero] += 1
+                    exact_target_counts[field_key][hero] += 1
 
-            comp_sections = map_entry.get("comp", [])
-            if isinstance(comp_sections, list):
-                for team_slot in TEAM_SLOTS:
-                    richest_comp: list[str] = []
-                    for section in comp_sections:
-                        if not isinstance(section, dict):
-                            continue
-                        lineup = section.get(team_slot, [])
-                        if not isinstance(lineup, list):
-                            continue
-
-                        heroes = []
-                        for slot in lineup:
-                            if not isinstance(slot, dict):
-                                continue
-                            hero_name = _canonical_draft_hero(slot.get("hero", ""))
-                            if hero_name:
-                                heroes.append(hero_name)
-
-                        if len(heroes) > len(richest_comp):
-                            richest_comp = heroes
-
-                    if richest_comp:
-                        comp_counts[team_slot][tuple(richest_comp)] += 1
+            for team_slot in TEAM_SLOTS:
+                richest_comp = _predictor_richest_comp(map_entry, team_slot)
+                if richest_comp:
+                    exact_comp_counts[team_slot][richest_comp] += 1
 
     target_rows = []
     for team_slot, slot_key, field_key in next_targets:
-        options = sorted(target_counts[field_key].items(), key=lambda item: item[1], reverse=True)
+        exact_total = sum(exact_target_counts[field_key].values())
+        support_by_hero: dict[str, int] = defaultdict(int)
+        option_rows: list[dict] = []
+
+        if exact_total:
+            options = sorted(exact_target_counts[field_key].items(), key=lambda item: item[1], reverse=True)
+            option_rows = [
+                {
+                    "hero": hero,
+                    "count": count,
+                    "rate": round((count / exact_total) * 100, 1) if exact_total else 0,
+                }
+                for hero, count in options
+                if hero not in used_heroes
+            ]
+        else:
+            slot_counts = slot_prior_counts[field_key]
+            candidate_heroes = [hero for hero in slot_counts.keys() if hero not in used_heroes]
+            slot_total = sum(slot_counts.values())
+            alpha = 1.0
+            scored_candidates: list[tuple[str, float]] = []
+
+            if candidate_heroes and slot_total:
+                vocab_size = max(len(candidate_heroes), 1)
+                for hero in candidate_heroes:
+                    hero_count = slot_counts.get(hero, 0)
+                    support_by_hero[hero] = hero_count
+                    # Empirical prior for this slot.
+                    log_score = math.log((hero_count + alpha) / (slot_total + alpha * vocab_size))
+
+                    # Naive Bayes context likelihood from observed draft history only.
+                    for source_field, source_hero in filled_inputs.items():
+                        source_counts_for_value = source_target_counts[field_key][source_field].get(source_hero, {})
+                        joint_count = source_counts_for_value.get(hero, 0)
+                        source_vocab_size = max(len(source_value_vocab[field_key][source_field]), 1)
+                        log_score += math.log((joint_count + alpha) / (hero_count + alpha * (source_vocab_size + 1)))
+
+                    scored_candidates.append((hero, log_score))
+
+                if scored_candidates:
+                    max_log_score = max(score for _, score in scored_candidates)
+                    normalized = [
+                        (hero, math.exp(score - max_log_score))
+                        for hero, score in scored_candidates
+                    ]
+                    total_weight = sum(weight for _, weight in normalized)
+                    option_rows = [
+                        {
+                            "hero": hero,
+                            "count": support_by_hero.get(hero, 0),
+                            "rate": round((weight / total_weight) * 100, 1) if total_weight else 0,
+                        }
+                        for hero, weight in sorted(normalized, key=lambda item: item[1], reverse=True)
+                    ]
+
         target_rows.append(
             {
                 "field_key": field_key,
                 "team_label": "Team 1" if team_slot == "team1" else "Team 2",
                 "slot_label": _draft_slot_label(slot_key),
-                "options": [
-                    {
-                        "hero": hero,
-                        "count": count,
-                        "rate": round((count / matching_maps) * 100, 1) if matching_maps else 0,
-                    }
-                    for hero, count in options[:8]
-                ],
+                "options": option_rows[:8],
             }
         )
 
     likely_comps = []
     for team_slot in TEAM_SLOTS:
-        comp_options = sorted(comp_counts[team_slot].items(), key=lambda item: item[1], reverse=True)
+        comp_source = exact_comp_counts[team_slot] if exact_comp_counts[team_slot] else comp_prior_counts[team_slot]
+        comp_total = sum(comp_source.values())
+        comp_options = sorted(comp_source.items(), key=lambda item: item[1], reverse=True)
         if not comp_options:
             continue
 
@@ -6349,16 +6461,1006 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
                 "team_label": "Team 1" if team_slot == "team1" else "Team 2",
                 "heroes": list(top_comp),
                 "count": top_count,
-                "rate": round((top_count / matching_maps) * 100, 1) if matching_maps else 0,
+                "rate": round((top_count / comp_total) * 100, 1) if comp_total else 0,
             }
         )
 
     return {
         "inputs": cleaned_inputs,
-        "matching_maps": matching_maps,
+        "matching_maps": exact_matching_maps,
+        "exact_matching_maps": exact_matching_maps,
+        "training_maps": training_maps,
         "targets": target_rows,
         "likely_comps": likely_comps,
+        "status": "ready" if training_maps else "empty",
+    }
+
+
+def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
+    if not team_scrims:
+        return {
+            "status": "empty",
+            "training_maps": 0,
+            "comfort_core_rows": [],
+            "hero_pool_rows": [],
+            "ban_line_rows": [],
+            "comp_rows": [],
+            "comp_path_rows": [],
+            "volatile_hero_rows": [],
+            "pivot_rows": [],
+            "mode_hero_rows": [],
+            "mode_comp_rows": [],
+            "equivalent_path_rows": [],
+            "map_state_rows": [],
+        }
+
+    def map_type_weight(raw_map_type: str) -> float:
+        normalized = normalize_map_type_value(raw_map_type)
+        if normalized == "PTW":
+            return 1.75
+        if normalized == "Test":
+            return 0.55
+        return 1.0
+
+    def state_label(required_modes: set[str], *, is_first_map: bool) -> str:
+        if is_first_map:
+            return "Opening Control"
+        if not required_modes:
+            return "Cycle Reset"
+        ordered = [mode for mode in ("Control", "Escort", "Hybrid") if mode in required_modes]
+        if len(ordered) == 1:
+            return f"Need {ordered[0]}"
+        if len(ordered) == 2:
+            return f"Need {' or '.join(ordered)}"
+        return "Open Cycle"
+
+    def legal_modes_for_next_map(index: int, cycle_modes_played: set[str]) -> set[str]:
+        if index == 0:
+            return {"Control"}
+        if len(cycle_modes_played) == 3:
+            cycle_modes_played = set()
+        return {"Control", "Escort", "Hybrid"} - cycle_modes_played
+
+    def split_line(line_values: tuple[str, ...] | list[str]) -> dict[str, list[str]]:
+        values = list(line_values)
+        return {
+            "bans": [values[i] for i in (0, 2, 3, 5) if i < len(values) and values[i]],
+            "protects": [values[i] for i in (1, 4) if i < len(values) and values[i]],
+        }
+
+    def line_distance(a: tuple[str, ...] | list[str], b: tuple[str, ...] | list[str]) -> int:
+        a_values = list(a)
+        b_values = list(b)
+        return sum(1 for idx in range(min(len(a_values), len(b_values))) if a_values[idx] != b_values[idx])
+
+    analytics = build_scrim_analytics(team_scrims)
+    total_maps = analytics.get("summary", {}).get("total_maps", 0)
+    weighted_total_maps = 0.0
+    weighted_total_wins = 0.0
+
+    hero_weighted_apps = defaultdict(float)
+    hero_weighted_wins = defaultdict(float)
+    hero_weighted_players = defaultdict(set)
+    hero_player_weighted_apps: dict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
+    hero_player_weighted_wins: dict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
+    line_counts: defaultdict[tuple[str, ...], float] = defaultdict(float)
+    line_wins: defaultdict[tuple[str, ...], float] = defaultdict(float)
+    comp_counts: defaultdict[tuple[str, ...], float] = defaultdict(float)
+    comp_wins: defaultdict[tuple[str, ...], float] = defaultdict(float)
+    line_to_comp_counts: dict[tuple[str, ...], defaultdict[tuple[str, ...], float]] = defaultdict(lambda: defaultdict(float))
+    comp_to_line_counts: dict[tuple[str, ...], defaultdict[tuple[str, ...], float]] = defaultdict(lambda: defaultdict(float))
+    hero_presence_maps: defaultdict[str, float] = defaultdict(float)
+    hero_presence_wins: defaultdict[str, float] = defaultdict(float)
+    mode_hero_counts: dict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
+    mode_comp_counts: dict[str, defaultdict[tuple[str, ...], float]] = defaultdict(lambda: defaultdict(float))
+    mode_totals: defaultdict[str, float] = defaultdict(float)
+    mode_comp_totals: defaultdict[str, float] = defaultdict(float)
+    map_state_counts: dict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
+    map_state_totals: defaultdict[str, float] = defaultdict(float)
+
+    for scrim in team_scrims:
+        used_maps_in_series: set[str] = set()
+        cycle_modes_played: set[str] = set()
+        ordered_maps = [map_entry for map_entry in scrim.get("maps", []) if isinstance(map_entry, dict)]
+
+        for index, map_entry in enumerate(ordered_maps):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
+            map_weight = map_type_weight(map_entry.get("map_type", ""))
+            weighted_total_maps += map_weight
+            if outcome == "Win":
+                weighted_total_wins += map_weight
+
+            map_seen_heroes: set[str] = set()
+            map_seen_hero_players: set[tuple[str, str]] = set()
+            draft = map_entry.get("draft", {})
+            our_draft = draft.get(our_team_slot, {}) if isinstance(draft, dict) else {}
+            if not isinstance(our_draft, dict):
+                our_draft = {}
+
+            line_values: list[str] = []
+            line_is_complete = True
+            for slot_key in DRAFT_SLOT_ORDER:
+                hero_name = _canonical_draft_hero(our_draft.get(slot_key, ""))
+                if hero_name:
+                    line_values.append(hero_name)
+                else:
+                    line_values.append("")
+                    line_is_complete = False
+
+            if line_is_complete:
+                line_key = tuple(line_values)
+                line_counts[line_key] += map_weight
+                if outcome == "Win":
+                    line_wins[line_key] += map_weight
+
+            richest_comp = _predictor_richest_comp(map_entry, our_team_slot)
+            if richest_comp:
+                comp_counts[richest_comp] += map_weight
+                if outcome == "Win":
+                    comp_wins[richest_comp] += map_weight
+                if line_is_complete:
+                    line_key = tuple(line_values)
+                    line_to_comp_counts[line_key][richest_comp] += map_weight
+                    comp_to_line_counts[richest_comp][line_key] += map_weight
+                for hero_name in set(richest_comp):
+                    hero_presence_maps[hero_name] += map_weight
+                    if outcome == "Win":
+                        hero_presence_wins[hero_name] += map_weight
+
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                lineup = section.get(our_team_slot, [])
+                if not isinstance(lineup, list):
+                    continue
+                for slot in lineup:
+                    if not isinstance(slot, dict):
+                        continue
+                    hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                    player_name = (slot.get("player", "") or "").strip()
+                    if not hero_name:
+                        continue
+                    if hero_name not in map_seen_heroes:
+                        hero_weighted_apps[hero_name] += map_weight
+                        if outcome == "Win":
+                            hero_weighted_wins[hero_name] += map_weight
+                        map_seen_heroes.add(hero_name)
+                    if player_name:
+                        hero_weighted_players[hero_name].add(player_name)
+                        hero_player_key = (hero_name, player_name)
+                        if hero_player_key not in map_seen_hero_players:
+                            hero_player_weighted_apps[hero_name][player_name] += map_weight
+                            if outcome == "Win":
+                                hero_player_weighted_wins[hero_name][player_name] += map_weight
+                            map_seen_hero_players.add(hero_player_key)
+
+            map_name = (map_entry.get("map_name", "") or "").strip()
+            mode_name = MAP_MODES.get(map_name, "Other")
+            if mode_name in {"Control", "Escort", "Hybrid"}:
+                mode_totals[mode_name] += map_weight
+                if richest_comp:
+                    mode_comp_counts[mode_name][richest_comp] += map_weight
+                    mode_comp_totals[mode_name] += map_weight
+                    for hero_name in set(richest_comp):
+                        mode_hero_counts[mode_name][hero_name] += map_weight
+            legal_modes = legal_modes_for_next_map(index, cycle_modes_played)
+            legal_maps = [
+                candidate
+                for candidate, candidate_mode in MAP_MODES.items()
+                if candidate_mode in legal_modes and candidate not in used_maps_in_series
+            ]
+            label = state_label(legal_modes, is_first_map=(index == 0))
+            if map_name and map_name in legal_maps:
+                map_state_counts[label][map_name] += map_weight
+                map_state_totals[label] += map_weight
+
+            used_maps_in_series.add(map_name)
+            if mode_name in {"Control", "Escort", "Hybrid"}:
+                if len(cycle_modes_played) == 3:
+                    cycle_modes_played = set()
+                cycle_modes_played.add(mode_name)
+
+    overall_wr = (weighted_total_wins / weighted_total_maps) if weighted_total_maps else 0.0
+    total_hero_weight = sum(hero_weighted_apps.values())
+    hero_lookup: dict[str, dict] = {}
+    for hero_name, appearances in hero_weighted_apps.items():
+        comfort = (appearances / total_hero_weight) if total_hero_weight else 0.0
+        raw_wr = (hero_weighted_wins[hero_name] / appearances) if appearances else 0.0
+        confidence = min(1.0, appearances / 20.0) if appearances else 0.0
+        adjusted_wr = (confidence * raw_wr) + ((1.0 - confidence) * overall_wr)
+        profile_score = round(((comfort * 0.6) + (adjusted_wr * 0.4)) * 100, 1)
+        player_rows = []
+        for player_name, player_apps in sorted(
+            hero_player_weighted_apps.get(hero_name, {}).items(),
+            key=lambda item: (item[1], item[0].lower()),
+            reverse=True,
+        ):
+            player_wr = (
+                hero_player_weighted_wins[hero_name][player_name] / player_apps
+                if player_apps else 0.0
+            )
+            player_rows.append(
+                {
+                    "player": player_name,
+                    "appearances": round(player_apps, 2),
+                    "win_rate": round(player_wr * 100, 1),
+                }
+            )
+        hero_lookup[hero_name] = {
+            "hero": hero_name,
+            "appearances": round(appearances, 2),
+            "comfort_rate": round(comfort * 100, 1),
+            "raw_win_rate": round(raw_wr * 100, 1),
+            "adjusted_win_rate": round(adjusted_wr * 100, 1),
+            "confidence": round(confidence * 100, 1),
+            "player_count": len(hero_weighted_players.get(hero_name, set())),
+            "primary_player": player_rows[0]["player"] if player_rows else "",
+            "top_players": player_rows[:3],
+            "profile_score": profile_score,
+        }
+
+    comfort_core_rows = sorted(
+        [
+            row
+            for row in hero_lookup.values()
+            if float(row.get("comfort_rate", 0) or 0) >= COMFORT_CORE_MIN_RATE
+        ],
+        key=lambda row: (row["comfort_rate"], row["appearances"], row["hero"].lower()),
+        reverse=True,
+    )[:12]
+
+    hero_pool_rows = sorted(
+        hero_lookup.values(),
+        key=lambda row: (row["profile_score"], row["appearances"], row["hero"].lower()),
+        reverse=True,
+    )[:12]
+
+    total_complete_lines = sum(line_counts.values())
+    ban_line_rows = []
+    for line_key, count in sorted(line_counts.items(), key=lambda item: item[1], reverse=True)[:16]:
+        heroes = list(line_key)
+        hero_profiles = [hero_lookup.get(hero, {}) for hero in heroes if hero]
+        avg_comfort = round(
+            sum(float(profile.get("comfort_rate", 0) or 0) for profile in hero_profiles) / len(hero_profiles),
+            1,
+        ) if hero_profiles else 0.0
+        avg_adjusted_wr = round(
+            sum(float(profile.get("adjusted_win_rate", 0) or 0) for profile in hero_profiles) / len(hero_profiles),
+            1,
+        ) if hero_profiles else 0.0
+        line_wr = round((line_wins[line_key] / count) * 100, 1) if count else 0.0
+        line_strength = round((avg_comfort * 0.55) + (avg_adjusted_wr * 0.45), 1)
+        # DRAFT_SLOT_ORDER = (ban1, protect1, ban2, ban3, protect2, ban4)
+        # Indices 0,2,3,5 = bans;  indices 1,4 = protects
+        slot_labels = list(DRAFT_SLOT_ORDER)
+        bans = [heroes[i] for i in (0, 2, 3, 5) if i < len(heroes) and heroes[i]]
+        protects = [heroes[i] for i in (1, 4) if i < len(heroes) and heroes[i]]
+        slots = [
+            {"label": slot_labels[i], "hero": heroes[i], "type": "protect" if slot_labels[i].startswith("protect") else "ban"}
+            for i in range(len(heroes)) if i < len(slot_labels)
+        ]
+        ban_line_rows.append(
+            {
+                "heroes": heroes,
+                "bans": bans,
+                "protects": protects,
+                "slots": slots,
+                "count": count,
+                "rate": round((count / total_complete_lines) * 100, 1) if total_complete_lines else 0.0,
+                "avg_comfort": avg_comfort,
+                "avg_adjusted_win_rate": avg_adjusted_wr,
+                "line_win_rate": line_wr,
+                "line_strength": line_strength,
+            }
+        )
+
+    total_comps = sum(comp_counts.values())
+    comp_rows = []
+    for comp_key, count in sorted(comp_counts.items(), key=lambda item: item[1], reverse=True)[:16]:
+        heroes = list(comp_key)
+        hero_profiles = [hero_lookup.get(hero, {}) for hero in heroes if hero]
+        avg_comfort = round(
+            sum(float(profile.get("comfort_rate", 0) or 0) for profile in hero_profiles) / len(hero_profiles),
+            1,
+        ) if hero_profiles else 0.0
+        avg_adjusted_wr = round(
+            sum(float(profile.get("adjusted_win_rate", 0) or 0) for profile in hero_profiles) / len(hero_profiles),
+            1,
+        ) if hero_profiles else 0.0
+        comp_wr = round((comp_wins[comp_key] / count) * 100, 1) if count else 0.0
+        comp_strength = round((avg_comfort * 0.5) + (avg_adjusted_wr * 0.5), 1)
+        comp_rows.append(
+            {
+                "heroes": heroes,
+                "count": count,
+                "rate": round((count / total_comps) * 100, 1) if total_comps else 0.0,
+                "avg_comfort": avg_comfort,
+                "avg_adjusted_win_rate": avg_adjusted_wr,
+                "comp_win_rate": comp_wr,
+                "comp_strength": comp_strength,
+            }
+        )
+
+    comp_path_rows = []
+    equivalent_path_rows = []
+    top_comp_keys = [tuple(row["heroes"]) for row in comp_rows[:10] if row.get("heroes")]
+    for comp_key in top_comp_keys:
+        path_counts = comp_to_line_counts.get(comp_key, {})
+        path_total = sum(path_counts.values())
+        if not path_total:
+            continue
+        ordered_paths = sorted(path_counts.items(), key=lambda item: item[1], reverse=True)
+        primary_line_key = ordered_paths[0][0]
+        top_paths = []
+        for line_key, count in ordered_paths[:4]:
+            line_parts = split_line(line_key)
+            top_paths.append(
+                {
+                    "heroes": list(line_key),
+                    "bans": line_parts["bans"],
+                    "protects": line_parts["protects"],
+                    "count": round(count, 2),
+                    "rate": round((count / path_total) * 100, 1) if path_total else 0.0,
+                    "distance_from_primary": line_distance(line_key, primary_line_key),
+                }
+            )
+
+        stable_slots = 0
+        for slot_idx in range(len(primary_line_key)):
+            slot_values = {path_key[slot_idx] for path_key, _ in ordered_paths[:3] if len(path_key) > slot_idx}
+            if len(slot_values) == 1:
+                stable_slots += 1
+
+        path_distances = [
+            line_distance(primary_line_key, path_key)
+            for path_key, _ in ordered_paths[1:4]
+        ]
+        comp_path_rows.append(
+            {
+                "heroes": list(comp_key),
+                "path_count": len(ordered_paths),
+                "top_path_share": round((ordered_paths[0][1] / path_total) * 100, 1) if path_total else 0.0,
+                "stable_slots": stable_slots,
+                "deviation_budget": max(path_distances) if path_distances else 0,
+                "avg_deviation": round(sum(path_distances) / len(path_distances), 1) if path_distances else 0.0,
+                "top_draft_paths": top_paths,
+            }
+        )
+
+        if len(ordered_paths) > 1:
+            alt_line_key, alt_count = ordered_paths[1]
+            primary_parts = split_line(primary_line_key)
+            alt_parts = split_line(alt_line_key)
+            equivalent_path_rows.append(
+                {
+                    "heroes": list(comp_key),
+                    "primary_bans": primary_parts["bans"],
+                    "primary_protects": primary_parts["protects"],
+                    "alt_bans": alt_parts["bans"],
+                    "alt_protects": alt_parts["protects"],
+                    "primary_rate": round((ordered_paths[0][1] / path_total) * 100, 1) if path_total else 0.0,
+                    "alt_rate": round((alt_count / path_total) * 100, 1) if path_total else 0.0,
+                    "path_distance": line_distance(primary_line_key, alt_line_key),
+                }
+            )
+
+    volatile_hero_rows = []
+    for hero_name, appearances in hero_lookup.items():
+        with_maps = hero_presence_maps.get(hero_name, 0.0)
+        if not with_maps or weighted_total_maps <= with_maps:
+            continue
+        with_wr = (hero_presence_wins.get(hero_name, 0.0) / with_maps) if with_maps else 0.0
+        without_maps = weighted_total_maps - with_maps
+        without_wins = weighted_total_wins - hero_presence_wins.get(hero_name, 0.0)
+        without_wr = (without_wins / without_maps) if without_maps else overall_wr
+        delta = round((with_wr - without_wr) * 100, 1)
+        volatile_hero_rows.append(
+            {
+                "hero": hero_name,
+                "with_maps": round(with_maps, 2),
+                "with_wr": round(with_wr * 100, 1),
+                "without_wr": round(without_wr * 100, 1),
+                "delta": delta,
+                "volatility": abs(delta),
+                "favored_side": "Team" if delta > 0 else "Enemy" if delta < 0 else "Neutral",
+            }
+        )
+    volatile_hero_rows.sort(
+        key=lambda row: (row["volatility"], row["with_maps"], row["hero"].lower()),
+        reverse=True,
+    )
+
+    pivot_rows = []
+    for comp_key in top_comp_keys[:6]:
+        comp_set = set(comp_key)
+        pivot_options = []
+        for other_key, other_count in comp_counts.items():
+            if other_key == comp_key:
+                continue
+            shared_count = len(comp_set & set(other_key))
+            if shared_count < 3:
+                continue
+            diff_count = len(set(comp_key) ^ set(other_key))
+            pivot_options.append(
+                {
+                    "heroes": list(other_key),
+                    "shared_count": shared_count,
+                    "diff_count": diff_count,
+                    "rate": round((other_count / total_comps) * 100, 1) if total_comps else 0.0,
+                }
+            )
+        pivot_options.sort(
+            key=lambda row: (row["shared_count"], -row["diff_count"], row["rate"]),
+            reverse=True,
+        )
+        if pivot_options:
+            pivot_rows.append(
+                {
+                    "base_heroes": list(comp_key),
+                    "pivots": pivot_options[:3],
+                }
+            )
+
+    mode_hero_rows = []
+    for mode_name, counts in mode_hero_counts.items():
+        mode_total = mode_totals.get(mode_name, 0.0)
+        if not mode_total:
+            continue
+        for hero_name, count in counts.items():
+            overall_share = float(hero_lookup.get(hero_name, {}).get("comfort_rate", 0) or 0)
+            mode_share = (count / mode_total) * 100 if mode_total else 0.0
+            delta = round(mode_share - overall_share, 1)
+            mode_hero_rows.append(
+                {
+                    "mode": mode_name,
+                    "hero": hero_name,
+                    "mode_rate": round(mode_share, 1),
+                    "overall_rate": round(overall_share, 1),
+                    "delta": delta,
+                }
+            )
+    mode_hero_rows.sort(
+        key=lambda row: (abs(row["delta"]), row["mode_rate"], row["hero"].lower()),
+        reverse=True,
+    )
+
+    mode_comp_rows = []
+    overall_comp_rate_lookup = {
+        tuple(row["heroes"]): float(row.get("rate", 0) or 0)
+        for row in comp_rows
+    }
+    for mode_name, counts in mode_comp_counts.items():
+        mode_total = mode_comp_totals.get(mode_name, 0.0)
+        if not mode_total:
+            continue
+        for comp_key, count in counts.items():
+            mode_rate = (count / mode_total) * 100 if mode_total else 0.0
+            overall_rate = overall_comp_rate_lookup.get(comp_key, 0.0)
+            delta = round(mode_rate - overall_rate, 1)
+            mode_comp_rows.append(
+                {
+                    "mode": mode_name,
+                    "heroes": list(comp_key),
+                    "mode_rate": round(mode_rate, 1),
+                    "overall_rate": round(overall_rate, 1),
+                    "delta": delta,
+                }
+            )
+    mode_comp_rows.sort(
+        key=lambda row: (abs(row["delta"]), row["mode_rate"]),
+        reverse=True,
+    )
+
+    map_state_rows = []
+    for label, counts in sorted(map_state_counts.items(), key=lambda item: map_state_totals.get(item[0], 0), reverse=True):
+        total = map_state_totals.get(label, 0.0)
+        options = [
+            {
+                "map_name": map_name,
+                "mode": MAP_MODES.get(map_name, "Other"),
+                "count": round(count, 2),
+                "rate": round((count / total) * 100, 1) if total else 0.0,
+            }
+            for map_name, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)[:8]
+        ]
+        map_state_rows.append(
+            {
+                "label": label,
+                "sample_weight": round(total, 2),
+                "options": options,
+            }
+        )
+
+    return {
+        "status": "ready" if total_maps else "empty",
+        "training_maps": total_maps,
+        "weighted_maps": round(weighted_total_maps, 2),
+        "overall_win_rate": round(overall_wr * 100, 1),
+        "comfort_core_rows": comfort_core_rows,
+        "hero_pool_rows": hero_pool_rows,
+        "ban_line_rows": ban_line_rows,
+        "comp_rows": comp_rows,
+        "comp_path_rows": comp_path_rows[:8],
+        "volatile_hero_rows": volatile_hero_rows[:12],
+        "pivot_rows": pivot_rows[:6],
+        "mode_hero_rows": mode_hero_rows[:10],
+        "mode_comp_rows": mode_comp_rows[:8],
+        "equivalent_path_rows": equivalent_path_rows[:8],
+        "map_state_rows": map_state_rows,
+        "map_type_weights": {"Standard": 1.0, "PTW": 1.75, "Test": 0.55},
+    }
+
+
+def build_matchup_tree_model(
+    team_a_name: str,
+    team_a_scrims: list[dict],
+    team_b_name: str,
+    team_b_scrims: list[dict],
+) -> dict:
+    team_a_model = build_opponent_tree_model(team_a_scrims)
+    team_b_model = build_opponent_tree_model(team_b_scrims)
+
+    if (
+        team_a_model.get("status") == "empty"
+        and team_b_model.get("status") == "empty"
+    ):
+        return {
+            "status": "empty",
+            "teams": [
+                {"name": team_a_name, "model": team_a_model},
+                {"name": team_b_name, "model": team_b_model},
+            ],
+            "contested_heroes": [],
+            "force_matchup_rows": [],
+            "deviation_rows": [],
+            "volatile_matchup_rows": [],
+            "pivot_pressure_rows": [],
+            "map_effect_rows": [],
+            "equivalent_path_rows": [],
+            "ban_clash_rows": [],
+            "comp_clash_rows": [],
+            "map_consensus_rows": [],
+        }
+
+    def hero_index(rows: list[dict]) -> dict[str, dict]:
+        indexed: dict[str, dict] = {}
+        for row in rows:
+            hero_name = (row.get("hero", "") or "").strip()
+            if hero_name:
+                indexed[hero_name] = row
+        return indexed
+
+    def line_pair_score(line_a: dict, line_b: dict, overlap_count: int) -> tuple:
+        return (
+            overlap_count,
+            round((float(line_a.get("rate", 0) or 0) + float(line_b.get("rate", 0) or 0)) / 2.0, 2),
+            round((float(line_a.get("line_strength", 0) or 0) + float(line_b.get("line_strength", 0) or 0)) / 2.0, 2),
+        )
+
+    def comp_pair_score(comp_a: dict, comp_b: dict, overlap_count: int) -> tuple:
+        return (
+            overlap_count,
+            round((float(comp_a.get("rate", 0) or 0) + float(comp_b.get("rate", 0) or 0)) / 2.0, 2),
+            round((float(comp_a.get("comp_strength", 0) or 0) + float(comp_b.get("comp_strength", 0) or 0)) / 2.0, 2),
+        )
+
+    def conditioned_enemy_comp_rows(enemy_comp_paths: list[dict], our_path: dict) -> list[dict]:
+        our_bans = set(our_path.get("bans", []))
+        scored_rows = []
+        for comp_row in enemy_comp_paths:
+            heroes = [hero for hero in comp_row.get("heroes", []) if hero]
+            blocked = len(our_bans & set(heroes))
+            hero_count = len(heroes) or 1
+            preserved_ratio = max(0.0, (hero_count - blocked) / hero_count)
+            conditioned_rate = round(float(comp_row.get("top_path_share", 0) or 0) * preserved_ratio, 1)
+            scored_rows.append(
+                {
+                    "heroes": heroes,
+                    "blocked_heroes": sorted(our_bans & set(heroes)),
+                    "blocked_count": blocked,
+                    "preserved_ratio": round(preserved_ratio * 100, 1),
+                    "conditioned_rate": conditioned_rate,
+                    "top_path_share": float(comp_row.get("top_path_share", 0) or 0),
+                    "path_count": int(comp_row.get("path_count", 0) or 0),
+                }
+            )
+        scored_rows.sort(
+            key=lambda row: (row["conditioned_rate"], -row["blocked_count"], row["top_path_share"]),
+            reverse=True,
+        )
+        return scored_rows
+
+    team_a_heroes = hero_index(team_a_model.get("comfort_core_rows", []))
+    team_b_heroes = hero_index(team_b_model.get("comfort_core_rows", []))
+
+    contested_heroes = []
+    for hero_name in sorted(set(team_a_heroes) & set(team_b_heroes)):
+        hero_a = team_a_heroes[hero_name]
+        hero_b = team_b_heroes[hero_name]
+        contested_heroes.append(
+            {
+                "hero": hero_name,
+                "team_a_score": float(hero_a.get("profile_score", 0) or 0),
+                "team_b_score": float(hero_b.get("profile_score", 0) or 0),
+                "team_a_comfort": float(hero_a.get("comfort_rate", 0) or 0),
+                "team_b_comfort": float(hero_b.get("comfort_rate", 0) or 0),
+                "team_a_adj_wr": float(hero_a.get("adjusted_win_rate", 0) or 0),
+                "team_b_adj_wr": float(hero_b.get("adjusted_win_rate", 0) or 0),
+                "contested_score": round(
+                    (
+                        float(hero_a.get("profile_score", 0) or 0)
+                        + float(hero_b.get("profile_score", 0) or 0)
+                    ) / 2.0,
+                    1,
+                ),
+            }
+        )
+    contested_heroes.sort(
+        key=lambda row: (
+            row["contested_score"],
+            row["team_a_comfort"] + row["team_b_comfort"],
+            row["hero"].lower(),
+        ),
+        reverse=True,
+    )
+
+    ban_clash_rows = []
+    team_a_lines = team_a_model.get("ban_line_rows", [])[:6]
+    team_b_lines = team_b_model.get("ban_line_rows", [])[:6]
+    for line_a in team_a_lines:
+        heroes_a = [hero for hero in line_a.get("heroes", []) if hero]
+        hero_set_a = set(heroes_a)
+        for line_b in team_b_lines:
+            heroes_b = [hero for hero in line_b.get("heroes", []) if hero]
+            overlap = sorted(hero_set_a & set(heroes_b))
+            score_tuple = line_pair_score(line_a, line_b, len(overlap))
+            ban_clash_rows.append(
+                {
+                    "team_a_heroes": heroes_a,
+                    "team_b_heroes": heroes_b,
+                    "shared_heroes": overlap,
+                    "shared_count": len(overlap),
+                    "combined_rate": score_tuple[1],
+                    "combined_strength": score_tuple[2],
+                }
+            )
+    ban_clash_rows.sort(
+        key=lambda row: (
+            row["shared_count"],
+            row["combined_rate"],
+            row["combined_strength"],
+        ),
+        reverse=True,
+    )
+
+    comp_clash_rows = []
+    team_a_comps = team_a_model.get("comp_rows", [])[:6]
+    team_b_comps = team_b_model.get("comp_rows", [])[:6]
+    for comp_a in team_a_comps:
+        heroes_a = [hero for hero in comp_a.get("heroes", []) if hero]
+        hero_set_a = set(heroes_a)
+        for comp_b in team_b_comps:
+            heroes_b = [hero for hero in comp_b.get("heroes", []) if hero]
+            overlap = sorted(hero_set_a & set(heroes_b))
+            score_tuple = comp_pair_score(comp_a, comp_b, len(overlap))
+            comp_clash_rows.append(
+                {
+                    "team_a_heroes": heroes_a,
+                    "team_b_heroes": heroes_b,
+                    "shared_heroes": overlap,
+                    "shared_count": len(overlap),
+                    "combined_rate": score_tuple[1],
+                    "combined_strength": score_tuple[2],
+                }
+            )
+    comp_clash_rows.sort(
+        key=lambda row: (
+            row["shared_count"],
+            row["combined_rate"],
+            row["combined_strength"],
+        ),
+        reverse=True,
+    )
+
+    state_lookup_a = {
+        row.get("label", ""): row
+        for row in team_a_model.get("map_state_rows", [])
+        if row.get("label")
+    }
+    state_lookup_b = {
+        row.get("label", ""): row
+        for row in team_b_model.get("map_state_rows", [])
+        if row.get("label")
+    }
+    map_consensus_rows = []
+    for state_label in sorted(set(state_lookup_a) & set(state_lookup_b)):
+        options_a = {
+            option.get("map_name", ""): option
+            for option in state_lookup_a[state_label].get("options", [])
+            if option.get("map_name")
+        }
+        options_b = {
+            option.get("map_name", ""): option
+            for option in state_lookup_b[state_label].get("options", [])
+            if option.get("map_name")
+        }
+        shared_maps = []
+        for map_name in sorted(set(options_a) & set(options_b)):
+            map_a = options_a[map_name]
+            map_b = options_b[map_name]
+            shared_maps.append(
+                {
+                    "map_name": map_name,
+                    "mode": map_a.get("mode", "Other"),
+                    "team_a_rate": float(map_a.get("rate", 0) or 0),
+                    "team_b_rate": float(map_b.get("rate", 0) or 0),
+                    "combined_rate": round(
+                        (
+                            float(map_a.get("rate", 0) or 0)
+                            + float(map_b.get("rate", 0) or 0)
+                        ) / 2.0,
+                        1,
+                    ),
+                }
+            )
+        shared_maps.sort(
+            key=lambda row: (row["combined_rate"], row["map_name"].lower()),
+            reverse=True,
+        )
+        if shared_maps:
+            map_consensus_rows.append(
+                {
+                    "label": state_label,
+                    "options": shared_maps[:6],
+                }
+            )
+
+    force_matchup_rows = []
+    team_a_comp_paths = team_a_model.get("comp_path_rows", [])[:6]
+    team_b_comp_paths = team_b_model.get("comp_path_rows", [])[:6]
+    for our_comp in team_a_comp_paths:
+        our_paths = our_comp.get("top_draft_paths", [])
+        if not our_paths:
+            continue
+        primary_path = our_paths[0]
+        enemy_options = conditioned_enemy_comp_rows(team_b_comp_paths, primary_path)
+        if not enemy_options:
+            continue
+        top_enemy = enemy_options[0]
+        second_enemy = enemy_options[1] if len(enemy_options) > 1 else None
+        force_matchup_rows.append(
+            {
+                "our_comp": our_comp.get("heroes", []),
+                "enemy_comp": top_enemy["heroes"],
+                "our_bans": primary_path.get("bans", []),
+                "our_protects": primary_path.get("protects", []),
+                "our_path_share": float(primary_path.get("rate", 0) or 0),
+                "our_deviation_budget": our_comp.get("deviation_budget", 0),
+                "enemy_blocked_count": top_enemy["blocked_count"],
+                "enemy_blocked_heroes": top_enemy["blocked_heroes"],
+                "enemy_choice_gap": round(
+                    top_enemy["conditioned_rate"] - float(second_enemy["conditioned_rate"]) if second_enemy else top_enemy["conditioned_rate"],
+                    1,
+                ),
+                "enemy_alt_comp": second_enemy["heroes"] if second_enemy else [],
+                "enemy_conditioned_rate": top_enemy["conditioned_rate"],
+                "enemy_preserved_ratio": top_enemy["preserved_ratio"],
+                "micro_path_count": int(our_comp.get("path_count", 0) or 0),
+            }
+        )
+    force_matchup_rows.sort(
+        key=lambda row: (row["our_path_share"], row["enemy_choice_gap"], -row["enemy_blocked_count"]),
+        reverse=True,
+    )
+
+    deviation_rows = []
+    for our_comp in team_a_comp_paths[:6]:
+        draft_paths = our_comp.get("top_draft_paths", [])
+        if len(draft_paths) < 2:
+            continue
+        primary_path = draft_paths[0]
+        alt_path = draft_paths[1]
+        primary_enemy = conditioned_enemy_comp_rows(team_b_comp_paths, primary_path)
+        alt_enemy = conditioned_enemy_comp_rows(team_b_comp_paths, alt_path)
+        primary_enemy_comp = primary_enemy[0]["heroes"] if primary_enemy else []
+        alt_enemy_comp = alt_enemy[0]["heroes"] if alt_enemy else []
+        deviation_rows.append(
+            {
+                "our_comp": our_comp.get("heroes", []),
+                "primary_bans": primary_path.get("bans", []),
+                "alt_bans": alt_path.get("bans", []),
+                "path_distance": alt_path.get("distance_from_primary", 0),
+                "stable_slots": our_comp.get("stable_slots", 0),
+                "deviation_budget": our_comp.get("deviation_budget", 0),
+                "enemy_primary_comp": primary_enemy_comp,
+                "enemy_alt_comp": alt_enemy_comp,
+                "enemy_response_changed": primary_enemy_comp != alt_enemy_comp,
+                "enemy_response_shift": round(
+                    (float(primary_enemy[0]["conditioned_rate"]) - float(alt_enemy[0]["conditioned_rate"]))
+                    if primary_enemy and alt_enemy
+                    else 0.0,
+                    1,
+                ),
+            }
+        )
+    deviation_rows.sort(
+        key=lambda row: (row["deviation_budget"], row["path_distance"], row["enemy_response_changed"]),
+        reverse=True,
+    )
+
+    volatile_matchup_rows = []
+    volatile_lookup_a = {row["hero"]: row for row in team_a_model.get("volatile_hero_rows", [])}
+    volatile_lookup_b = {row["hero"]: row for row in team_b_model.get("volatile_hero_rows", [])}
+    # Only consider heroes with meaningful appearances in at least one team.
+    hero_pool_a = {row["hero"] for row in team_a_model.get("hero_pool_rows", [])}
+    hero_pool_b = {row["hero"] for row in team_b_model.get("hero_pool_rows", [])}
+    relevant_volatile_heroes = (set(volatile_lookup_a) | set(volatile_lookup_b)) & (hero_pool_a | hero_pool_b)
+    for hero_name in sorted(relevant_volatile_heroes):
+        row_a = volatile_lookup_a.get(hero_name, {})
+        row_b = volatile_lookup_b.get(hero_name, {})
+        delta_a = float(row_a.get("delta", 0) or 0)
+        delta_b = float(row_b.get("delta", 0) or 0)
+        combined = round(abs(delta_a) + abs(delta_b), 1)
+        volatile_matchup_rows.append(
+            {
+                "hero": hero_name,
+                "team_a_delta": delta_a,
+                "team_a_with_wr": float(row_a.get("with_wr", 0) or 0),
+                "team_a_without_wr": float(row_a.get("without_wr", 0) or 0),
+                "team_a_with_maps": float(row_a.get("with_maps", 0) or 0),
+                "team_b_delta": delta_b,
+                "team_b_with_wr": float(row_b.get("with_wr", 0) or 0),
+                "team_b_without_wr": float(row_b.get("without_wr", 0) or 0),
+                "team_b_with_maps": float(row_b.get("with_maps", 0) or 0),
+                "combined_volatility": combined,
+                "favored_side": team_a_name if delta_a > delta_b else team_b_name if delta_b > delta_a else "Even",
+            }
+        )
+    volatile_matchup_rows.sort(
+        key=lambda row: (row["combined_volatility"], row["hero"].lower()),
+        reverse=True,
+    )
+
+    pivot_pressure_rows = []
+    pivot_rows_a = team_a_model.get("pivot_rows", [])[:4]
+    pivot_rows_b = team_b_model.get("pivot_rows", [])[:4]
+    for enemy_pivot in pivot_rows_b:
+        enemy_base = enemy_pivot.get("base_heroes", [])
+        top_enemy_pivot = (enemy_pivot.get("pivots") or [None])[0]
+        if not top_enemy_pivot:
+            continue
+        best_counter = None
+        best_counter_score = None
+        for our_pivot in pivot_rows_a:
+            for option in our_pivot.get("pivots", []):
+                shared = len(set(option.get("heroes", [])) & set(top_enemy_pivot.get("heroes", [])))
+                counter_score = (shared * -1, option.get("diff_count", 0), option.get("rate", 0))
+                if best_counter_score is None or counter_score < best_counter_score:
+                    best_counter_score = counter_score
+                    best_counter = {
+                        "base_heroes": our_pivot.get("base_heroes", []),
+                        "heroes": option.get("heroes", []),
+                        "shared": shared,
+                        "diff_count": option.get("diff_count", 0),
+                    }
+        pivot_pressure_rows.append(
+            {
+                "enemy_base": enemy_base,
+                "enemy_pivot": top_enemy_pivot.get("heroes", []),
+                "enemy_diff_count": top_enemy_pivot.get("diff_count", 0),
+                "our_counter_base": best_counter.get("base_heroes", []) if best_counter else [],
+                "our_counter_pivot": best_counter.get("heroes", []) if best_counter else [],
+                "our_counter_diff_count": best_counter.get("diff_count", 0) if best_counter else 0,
+                "shared_after_pivot": best_counter.get("shared", 0) if best_counter else 0,
+            }
+        )
+
+    map_effect_rows = []
+    for row in team_a_model.get("mode_hero_rows", [])[:5]:
+        map_effect_rows.append(
+            {
+                "scope": "Hero",
+                "team": team_a_name,
+                "mode": row.get("mode", ""),
+                "label": row.get("hero", ""),
+                "delta": row.get("delta", 0),
+            }
+        )
+    for row in team_b_model.get("mode_hero_rows", [])[:5]:
+        map_effect_rows.append(
+            {
+                "scope": "Hero",
+                "team": team_b_name,
+                "mode": row.get("mode", ""),
+                "label": row.get("hero", ""),
+                "delta": row.get("delta", 0),
+            }
+        )
+    for row in team_a_model.get("mode_comp_rows", [])[:3]:
+        map_effect_rows.append(
+            {
+                "scope": "Comp",
+                "team": team_a_name,
+                "mode": row.get("mode", ""),
+                "label": ", ".join(row.get("heroes", [])[:3]),
+                "delta": row.get("delta", 0),
+            }
+        )
+    for row in team_b_model.get("mode_comp_rows", [])[:3]:
+        map_effect_rows.append(
+            {
+                "scope": "Comp",
+                "team": team_b_name,
+                "mode": row.get("mode", ""),
+                "label": ", ".join(row.get("heroes", [])[:3]),
+                "delta": row.get("delta", 0),
+            }
+        )
+    map_effect_rows.sort(
+        key=lambda row: (abs(float(row.get("delta", 0) or 0)), row.get("mode", "")),
+        reverse=True,
+    )
+
+    equivalent_path_rows = []
+    # Build a fast lookup: for each ban-line hero list, what heroes are in each team's ban lines.
+    team_b_ban_hero_sets = [
+        set(hero for hero in ban_line.get("heroes", []) if hero)
+        for ban_line in team_b_model.get("ban_line_rows", [])[:8]
+    ]
+    team_a_ban_hero_sets = [
+        set(hero for hero in ban_line.get("heroes", []) if hero)
+        for ban_line in team_a_model.get("ban_line_rows", [])[:8]
+    ]
+    for row in team_a_model.get("equivalent_path_rows", [])[:4]:
+        primary_ban_heroes = set(row.get("primary_bans", []))
+        # Primary ban heroes that Team B commonly bans — these are the ones that would force Team A onto the alt path.
+        enemy_pressure = []
+        for ban_set in team_b_ban_hero_sets:
+            for hero in ban_set & primary_ban_heroes:
+                if hero not in enemy_pressure:
+                    enemy_pressure.append(hero)
+        equivalent_path_rows.append(
+            {
+                "team": team_a_name,
+                "enemy_ban_pressure": enemy_pressure[:4],
+                **row,
+            }
+        )
+    for row in team_b_model.get("equivalent_path_rows", [])[:4]:
+        primary_ban_heroes = set(row.get("primary_bans", []))
+        # Primary ban heroes that Team A commonly bans — these are the ones that would force Team B onto the alt path.
+        enemy_pressure = []
+        for ban_set in team_a_ban_hero_sets:
+            for hero in ban_set & primary_ban_heroes:
+                if hero not in enemy_pressure:
+                    enemy_pressure.append(hero)
+        equivalent_path_rows.append(
+            {
+                "team": team_b_name,
+                "enemy_ban_pressure": enemy_pressure[:4],
+                **row,
+            }
+        )
+
+    return {
         "status": "ready",
+        "teams": [
+            {"name": team_a_name, "model": team_a_model},
+            {"name": team_b_name, "model": team_b_model},
+        ],
+        "contested_heroes": contested_heroes[:10],
+        "force_matchup_rows": force_matchup_rows[:6],
+        "deviation_rows": deviation_rows[:6],
+        "volatile_matchup_rows": volatile_matchup_rows[:8],
+        "pivot_pressure_rows": pivot_pressure_rows[:6],
+        "map_effect_rows": map_effect_rows[:10],
+        "equivalent_path_rows": equivalent_path_rows[:8],
+        "ban_clash_rows": ban_clash_rows[:8],
+        "comp_clash_rows": comp_clash_rows[:8],
+        "map_consensus_rows": map_consensus_rows[:4],
     }
 
 
@@ -6559,6 +7661,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
     total_losses = 0
     total_instances = 0
     timeline_points = []
+    map_log_rows = []
 
     ban_tracked_maps = 0
     banned_maps = 0
@@ -6666,6 +7769,18 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             if map_name:
                 map_stats[map_name]["maps"] += 1
 
+            map_log_rows.append(
+                {
+                    "scrim_id": scrim.get("id"),
+                    "map_id": map_entry.get("id"),
+                    "scrim_date": (scrim.get("scrim_date") or "").strip(),
+                    "opponent_name": (scrim.get("enemy_team") or scrim.get("opponent") or "Unknown").strip() or "Unknown",
+                    "map_name": map_name or "Unknown Map",
+                    "result": result or "Not Set",
+                    "instances": map_instances,
+                }
+            )
+
             total_maps += 1
             total_instances += map_instances
             scrim_maps += 1
@@ -6744,6 +7859,14 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             }
         )
     map_rows.sort(key=lambda r: (r["maps"], r["win_rate"]), reverse=True)
+    map_log_rows.sort(
+        key=lambda row: (
+            row.get("scrim_date", ""),
+            int(row.get("scrim_id") or 0),
+            int(row.get("map_id") or 0),
+        ),
+        reverse=True,
+    )
 
     open_decisions = open_wins + open_losses
     banned_decisions = banned_wins + banned_losses
@@ -6782,6 +7905,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         "duo_rows": duo_rows,
         "comp_rows": comp_rows,
         "map_rows": map_rows,
+        "map_log_rows": map_log_rows,
         "timeline_points": timeline_points,
         "ban_impact": {
             "tracked_maps": ban_tracked_maps,
@@ -7145,6 +8269,35 @@ def dashboard():
         }
         for row in all_team_rows
     ]
+    dashboard_sim_teams = [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "is_personal": bool(row["is_personal"]),
+        }
+        for row in all_team_rows
+    ]
+    dashboard_default_team_id = None
+    for row in dashboard_sim_teams:
+        if row["is_personal"]:
+            dashboard_default_team_id = row["id"]
+            break
+    if dashboard_default_team_id is None and dashboard_sim_teams:
+        dashboard_default_team_id = dashboard_sim_teams[0]["id"]
+    dashboard_compare_team_id = None
+    for row in dashboard_sim_teams:
+        if row["id"] != dashboard_default_team_id:
+            dashboard_compare_team_id = row["id"]
+            break
+    if dashboard_compare_team_id is None:
+        dashboard_compare_team_id = dashboard_default_team_id
+
+    dashboard_season_options = get_scrim_season_options(SCRIMS)
+    dashboard_has_unseasoned_scrims = any(
+        not normalize_season_value(scrim.get("season", ""))
+        for scrim in SCRIMS
+    )
+    dashboard_default_season = get_current_season_from_recent_scrim(SCRIMS)
 
     return render_template(
         "dashboard.html",
@@ -7161,6 +8314,15 @@ def dashboard():
         personal_quick_teams=personal_quick_teams,
         quick_opponents=quick_opponents,
         all_teams_for_quick_access=all_teams_for_quick_access,
+        dashboard_sim_teams=dashboard_sim_teams,
+        dashboard_default_team_id=dashboard_default_team_id,
+        dashboard_compare_team_id=dashboard_compare_team_id,
+        dashboard_season_options=dashboard_season_options,
+        dashboard_default_season=dashboard_default_season,
+        dashboard_has_unseasoned_scrims=dashboard_has_unseasoned_scrims,
+        map_type_options=MAP_TYPES,
+        maps=MAPS,
+        hero_roles=HERO_ROLES,
     )
 
 
@@ -8869,6 +10031,96 @@ def team_draft_predict(team_id: int):
         for field_key in PREDICTOR_INPUT_ORDER
     }
     return jsonify(build_draft_predictor(team_scrims, predictor_inputs))
+
+
+@app.route("/teams/<int:team_id>/opponent-tree")
+def team_opponent_tree(team_id: int):
+    db = get_db()
+    team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team is None:
+        abort(404)
+
+    all_team_scrims = get_scrims_for_team(team["id"], team["name"])
+    season_options = get_scrim_season_options(all_team_scrims)
+    default_season = get_current_season_from_recent_scrim(all_team_scrims)
+    has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
+    return jsonify(build_opponent_tree_model(team_scrims))
+
+
+@app.route("/teams/matchup-tree")
+def team_matchup_tree():
+    db = get_db()
+    team_a_id = request.args.get("team_a", type=int)
+    team_b_id = request.args.get("team_b", type=int)
+    if not team_a_id or not team_b_id:
+        return jsonify({"error": "Both team_a and team_b are required."}), 400
+
+    team_rows = db.execute(
+        "SELECT * FROM teams WHERE id IN (?, ?)",
+        (team_a_id, team_b_id),
+    ).fetchall()
+    team_lookup = {row["id"]: row for row in team_rows}
+    team_a = team_lookup.get(team_a_id)
+    team_b = team_lookup.get(team_b_id)
+    if team_a is None or team_b is None:
+        abort(404)
+
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    season_value = request.args.get("season", "")
+    selected_map_name = (request.args.get("map", "") or "").strip()
+
+    def filtered_scrims_for(team_row) -> list[dict]:
+        all_team_scrims = get_scrims_for_team(team_row["id"], team_row["name"])
+        season_options = get_scrim_season_options(all_team_scrims)
+        default_season = get_current_season_from_recent_scrim(all_team_scrims)
+        has_unseasoned_scrims = any(
+            not normalize_season_value(scrim.get("season", ""))
+            for scrim in all_team_scrims
+        )
+        # For the matchup model, default to "all" so the user's explicit
+        # "All Seasons" selection is always respected.  Specific season
+        # selections are still honoured normally.
+        effective_default = "all" if not season_value or season_value.lower() == "all" else default_season
+        selected_season = get_selected_season(
+            season_value,
+            season_options,
+            allow_unspecified=has_unseasoned_scrims,
+            default_season=effective_default,
+        )
+        team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+        team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
+        if selected_map_name and selected_map_name.lower() != "all":
+            filtered = []
+            for scrim in team_scrims:
+                scrim_copy = dict(scrim)
+                scrim_copy["maps"] = [
+                    m for m in scrim.get("maps", [])
+                    if (m.get("map") or "").strip().lower() == selected_map_name.lower()
+                ]
+                if scrim_copy["maps"]:
+                    filtered.append(scrim_copy)
+            return filtered
+        return team_scrims
+
+    team_a_scrims = filtered_scrims_for(team_a)
+    team_b_scrims = filtered_scrims_for(team_b)
+    return jsonify(
+        build_matchup_tree_model(
+            team_a["name"],
+            team_a_scrims,
+            team_b["name"],
+            team_b_scrims,
+        )
+    )
 
 
 @app.route("/teams/<int:team_id>/heroes/<path:hero_name>")
@@ -12533,6 +13785,17 @@ def update_tournament_vod(tournament_id: int, map_id: int):
 def update_map_info(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
+    participant_one, participant_two = get_scrim_participants(scrim)
+    valid_team_ids = {
+        participant_one.get("id"),
+        participant_two.get("id"),
+    }
+
+    side1_team_id = parse_team_id(request.form.get("map_team1_team_id", ""))
+    updated_our_team_slot = map_entry.get("our_team_slot", "team1")
+    if side1_team_id in valid_team_ids and participant_one.get("id") and participant_two.get("id"):
+        updated_our_team_slot = "team1" if side1_team_id == participant_one.get("id") else "team2"
+        map_entry["our_team_slot"] = updated_our_team_slot
     
     # Get team-specific scores and build combined score
     score_team1 = request.form.get("score_team1", "").strip()
@@ -12540,16 +13803,24 @@ def update_map_info(scrim_id: int, map_id: int):
     score = request.form.get("score", "").strip()
     our_atk = request.form.get("our_attack_score", "").strip()
     enemy_atk = request.form.get("enemy_attack_score", "").strip()
+    is_attack_defense_map = map_entry.get("map_name") in ATTACK_DEFENSE_MAPS
 
     # Attack/defense score input takes priority for non-control maps
     if our_atk or enemy_atk:
         map_entry["our_attack_score"] = our_atk
         map_entry["enemy_attack_score"] = enemy_atk
-        our_team_slot = map_entry.get("our_team_slot", "team1")
-        if our_team_slot == "team1":
+        if updated_our_team_slot == "team1":
             map_entry["score"] = f"{our_atk}-{enemy_atk}"
         else:
             map_entry["score"] = f"{enemy_atk}-{our_atk}"
+    elif is_attack_defense_map:
+        if updated_our_team_slot == "team1":
+            map_entry["our_attack_score"] = score_team1
+            map_entry["enemy_attack_score"] = score_team2
+        else:
+            map_entry["our_attack_score"] = score_team2
+            map_entry["enemy_attack_score"] = score_team1
+        map_entry["score"] = build_score_text(score_team1, score_team2, score)
     # Prefer team-specific scores if provided
     elif score_team1 or score_team2:
         map_entry["score"] = f"{score_team1}-{score_team2}".strip("-")
@@ -12583,12 +13854,6 @@ def update_map_info(scrim_id: int, map_id: int):
         if inferred in RESULTS:
             map_entry["result"] = inferred
     
-    participant_one, participant_two = get_scrim_participants(scrim)
-    valid_team_ids = {
-        participant_one.get("id"),
-        participant_two.get("id"),
-    }
-    side1_team_id = parse_team_id(request.form.get("map_team1_team_id", ""))
     if side1_team_id in valid_team_ids and participant_one.get("id") and participant_two.get("id"):
         if side1_team_id == participant_one.get("id"):
             side1_team = participant_one
@@ -13000,6 +14265,83 @@ def draft_simulator():
         hero_transformations=HERO_TRANSFORMATIONS,
         teams=teams,
     )
+
+
+@app.route("/draft-reasoner")
+def draft_reasoner():
+    # Keep legacy URL working, but route everyone into the unified Machine UI.
+    return redirect(url_for("machine", tab="reasoner"))
+
+
+@app.route("/machine")
+def machine():
+    teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    season_options = get_scrim_season_options(SCRIMS)
+    default_season = get_current_season_from_recent_scrim(SCRIMS)
+    has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in SCRIMS)
+    return render_template(
+        "machine.html",
+        hero_roles=HERO_ROLES,
+        hero_transformations=HERO_TRANSFORMATIONS,
+        teams=teams,
+        maps=MAPS,
+        season_options=season_options,
+        default_season=default_season,
+        has_unseasoned=has_unseasoned,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+    )
+
+
+@app.route("/api/draft-reasoner/model")
+def api_draft_reasoner_model():
+    """Return the full matchup model plus per-team comfort/ban/comp data for the reasoner."""
+    db = get_db()
+    team_a_id = request.args.get("team_a", type=int)
+    team_b_id = request.args.get("team_b", type=int)
+    if not team_a_id or not team_b_id:
+        return jsonify({"error": "Both team_a and team_b are required."}), 400
+
+    team_rows = db.execute(
+        "SELECT * FROM teams WHERE id IN (?, ?)", (team_a_id, team_b_id)
+    ).fetchall()
+    team_lookup = {row["id"]: row for row in team_rows}
+    team_a = team_lookup.get(team_a_id)
+    team_b = team_lookup.get(team_b_id)
+    if team_a is None or team_b is None:
+        abort(404)
+
+    season_value = request.args.get("season", "")
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    selected_map_name = (request.args.get("map", "") or "").strip()
+
+    def _get_filtered_scrims(team_row) -> list[dict]:
+        all_scrims = get_scrims_for_team(team_row["id"], team_row["name"])
+        season_options = get_scrim_season_options(all_scrims)
+        default_season = get_current_season_from_recent_scrim(all_scrims)
+        has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in all_scrims)
+        effective_default = "all" if not season_value or season_value.lower() == "all" else default_season
+        selected_season = get_selected_season(
+            season_value, season_options, allow_unspecified=has_unseasoned, default_season=effective_default
+        )
+        scrims = filter_scrims_by_season(all_scrims, selected_season)
+        scrims = filter_scrims_by_map_type(scrims, selected_map_type)
+        if selected_map_name and selected_map_name.lower() != "all":
+            filtered = []
+            for scrim in scrims:
+                scrim_copy = dict(scrim)
+                scrim_copy["maps"] = [
+                    m for m in scrim.get("maps", [])
+                    if ((m.get("map") or m.get("map_name") or "").strip().lower() == selected_map_name.lower())
+                ]
+                if scrim_copy["maps"]:
+                    filtered.append(scrim_copy)
+            return filtered
+        return scrims
+
+    a_scrims = _get_filtered_scrims(team_a)
+    b_scrims = _get_filtered_scrims(team_b)
+    matchup = build_matchup_tree_model(team_a["name"], a_scrims, team_b["name"], b_scrims)
+    return jsonify(matchup)
 
 
 try:

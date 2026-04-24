@@ -1,0 +1,764 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Reasoner{% endblock %}
+
+{% block content %}
+<style>
+.reasoner-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+.reasoner-full {
+    grid-column: 1 / -1;
+}
+.dr-panel {
+    background: var(--panel-bg, rgba(30,41,59,0.85));
+    border: 1px solid var(--panel-border, rgba(148,163,184,0.12));
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+}
+.dr-team-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.dr-team-header {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary, #e2e8f0);
+}
+.dr-team-header.team-a { color: #60a5fa; }
+.dr-team-header.team-b { color: #f87171; }
+.dr-slot-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.dr-slot {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(148,163,184,0.1);
+    border-radius: 0.45rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    min-height: 2.6rem;
+}
+.dr-slot:hover { border-color: rgba(148,163,184,0.3); }
+.dr-slot.active {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96,165,250,0.25);
+}
+.dr-slot.active.team-b {
+    border-color: #f87171;
+    box-shadow: 0 0 0 2px rgba(248,113,113,0.25);
+}
+.dr-slot-type {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    min-width: 3.2rem;
+    flex-shrink: 0;
+}
+.dr-slot-type.ban { color: #f87171; }
+.dr-slot-type.protect { color: #4ade80; }
+.dr-slot-hero {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary, #e2e8f0);
+}
+.dr-slot-hero img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(30,41,59,0.8);
+}
+.dr-slot-hero .empty-label {
+    color: rgba(148,163,184,0.5);
+    font-style: italic;
+    font-size: 0.82rem;
+}
+.dr-slot-clear {
+    background: none;
+    border: none;
+    color: rgba(148,163,184,0.45);
+    cursor: pointer;
+    padding: 0 0.2rem;
+    font-size: 1rem;
+    line-height: 1;
+}
+.dr-slot-clear:hover { color: #f87171; }
+.dr-hero-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.dr-hero-search {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.4rem;
+    border: 1px solid rgba(148,163,184,0.18);
+    background: rgba(15,23,42,0.7);
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.9rem;
+}
+.dr-hero-search:focus { outline: none; border-color: #60a5fa; }
+.dr-hero-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    max-height: 22rem;
+    overflow-y: auto;
+}
+.dr-hero-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.18);
+    background: rgba(30,41,59,0.7);
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+}
+.dr-hero-btn:hover { border-color: #60a5fa; background: rgba(96,165,250,0.12); }
+.dr-hero-btn.used { opacity: 0.35; pointer-events: none; }
+.dr-hero-btn img {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.dr-reasoning-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.dr-reason-card {
+    background: rgba(15,23,42,0.5);
+    border-left: 3px solid #60a5fa;
+    border-radius: 0 0.45rem 0.45rem 0;
+    padding: 0.7rem 1rem;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--text-secondary, #94a3b8);
+}
+.dr-reason-card.warn { border-left-color: #fbbf24; }
+.dr-reason-card.good { border-left-color: #4ade80; }
+.dr-reason-card.bad { border-left-color: #f87171; }
+.dr-reason-card strong { color: var(--text-primary, #e2e8f0); }
+.dr-reason-title {
+    font-weight: 700;
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.25rem;
+}
+.dr-hero-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.3rem 0;
+}
+.dr-hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(96,165,250,0.12);
+    border: 1px solid rgba(96,165,250,0.2);
+    font-size: 0.78rem;
+    color: #dbeafe;
+}
+.dr-hero-chip img {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.dr-hero-chip.ban-chip {
+    background: rgba(248,113,113,0.1);
+    border-color: rgba(248,113,113,0.2);
+    color: #fecaca;
+}
+.dr-hero-chip.protect-chip {
+    background: rgba(74,222,128,0.1);
+    border-color: rgba(74,222,128,0.2);
+    color: #bbf7d0;
+}
+.dr-setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    align-items: end;
+}
+.dr-model-status {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+}
+.dr-empty {
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.88rem;
+    padding: 0.5rem 0;
+}
+@media (max-width: 900px) {
+    .reasoner-layout { grid-template-columns: 1fr; }
+    .reasoner-full { grid-column: 1; }
+    .dr-setup-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+
+<div class="main-header">
+    <div>
+        <h2>Draft Reasoner</h2>
+        <p>Fill in a draft and see live reasoning from team history at every step.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('draft_simulator') }}" class="button-secondary">Draft Simulator</a>
+        <a href="{{ url_for('dashboard') }}" class="button-secondary">Dashboard</a>
+    </div>
+</div>
+
+<section class="panel">
+    <h3>Setup</h3>
+    <div class="dr-setup-grid">
+        <div class="field">
+            <label for="dr-team-a">Our Team</label>
+            <select id="dr-team-a">
+                <option value="">Select team…</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="dr-team-b">Enemy Team</label>
+            <select id="dr-team-b">
+                <option value="">Select team…</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="dr-season">Season</label>
+            <select id="dr-season">
+                <option value="all">All Seasons</option>
+                {% if has_unseasoned %}
+                <option value="{{ unspecified_season_token }}">Unspecified</option>
+                {% endif %}
+                {% for s in season_options %}
+                <option value="{{ s }}" {% if s == default_season %}selected{% endif %}>Season {{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="button-row top-gap">
+        <button type="button" id="dr-load-btn">Load Model</button>
+        <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
+    </div>
+    <p class="dr-model-status" id="dr-model-status">No model loaded yet.</p>
+</section>
+
+<div class="reasoner-layout" id="dr-main" style="display:none">
+
+    <!-- Team A draft column -->
+    <div class="dr-panel dr-team-col">
+        <h4 class="dr-team-header team-a" id="dr-label-a">Our Team</h4>
+        <div class="dr-slot-grid" id="dr-slots-a">
+            <div class="dr-slot" data-team="a" data-slot="ban1" data-type="ban">
+                <span class="dr-slot-type ban">Ban 1</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot" data-team="a" data-slot="protect1" data-type="protect">
+                <span class="dr-slot-type protect">Protect 1</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot" data-team="a" data-slot="ban2" data-type="ban">
+                <span class="dr-slot-type ban">Ban 2</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot" data-team="a" data-slot="ban3" data-type="ban">
+                <span class="dr-slot-type ban">Ban 3</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot" data-team="a" data-slot="protect2" data-type="protect">
+                <span class="dr-slot-type protect">Protect 2</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot" data-team="a" data-slot="ban4" data-type="ban">
+                <span class="dr-slot-type ban">Ban 4</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team B draft column -->
+    <div class="dr-panel dr-team-col">
+        <h4 class="dr-team-header team-b" id="dr-label-b">Enemy Team</h4>
+        <div class="dr-slot-grid" id="dr-slots-b">
+            <div class="dr-slot team-b" data-team="b" data-slot="ban1" data-type="ban">
+                <span class="dr-slot-type ban">Ban 1</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot team-b" data-team="b" data-slot="protect1" data-type="protect">
+                <span class="dr-slot-type protect">Protect 1</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot team-b" data-team="b" data-slot="ban2" data-type="ban">
+                <span class="dr-slot-type ban">Ban 2</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot team-b" data-team="b" data-slot="ban3" data-type="ban">
+                <span class="dr-slot-type ban">Ban 3</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot team-b" data-team="b" data-slot="protect2" data-type="protect">
+                <span class="dr-slot-type protect">Protect 2</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+            <div class="dr-slot team-b" data-team="b" data-slot="ban4" data-type="ban">
+                <span class="dr-slot-type ban">Ban 4</span>
+                <span class="dr-slot-hero"><span class="empty-label">Click to set</span></span>
+                <button class="dr-slot-clear" title="Clear">×</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero picker -->
+    <div class="dr-panel reasoner-full" id="dr-picker-panel" style="display:none">
+        <p style="font-size:0.85rem;color:#94a3b8;margin:0 0 0.5rem">Assigning: <strong id="dr-picker-label">-</strong></p>
+        <div class="dr-hero-picker">
+            <input type="text" class="dr-hero-search" id="dr-hero-search" placeholder="Search hero…" autocomplete="off">
+            <div class="dr-hero-grid" id="dr-hero-grid"></div>
+        </div>
+    </div>
+
+    <!-- Live reasoning -->
+    <div class="dr-panel reasoner-full">
+        <h3 style="margin:0 0 1rem">Live Reasoning</h3>
+        <div class="dr-reasoning-panel" id="dr-reasoning">
+            <p class="dr-empty">Load a model and start filling draft slots to see reasoning here.</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function() {
+    const HEROES = {{ hero_roles | tojson }};
+    const HERO_IMAGE_BASE = '{{ url_for("static", filename="heroes/") }}';
+
+    function heroImageUrl(hero) {
+        const slug = hero.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        return HERO_IMAGE_BASE + slug + '.png';
+    }
+
+    function heroChipHtml(hero, type) {
+        const cls = type === 'ban' ? 'ban-chip' : type === 'protect' ? 'protect-chip' : '';
+        const img = '<img src="' + heroImageUrl(hero) + '" alt="" onerror="this.style.display=\'none\'">';
+        return '<span class="dr-hero-chip ' + cls + '">' + img + escapeHtml(hero) + '</span>';
+    }
+
+    function escapeHtml(v) {
+        return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    let model = null;
+    let activeSlot = null;
+    const draft = { a: {}, b: {} };
+
+    // --- Load model ---
+    document.getElementById('dr-load-btn').addEventListener('click', async function() {
+        const teamA = document.getElementById('dr-team-a').value;
+        const teamB = document.getElementById('dr-team-b').value;
+        const season = document.getElementById('dr-season').value;
+        if (!teamA || !teamB) {
+            document.getElementById('dr-model-status').textContent = 'Select both teams first.';
+            return;
+        }
+        document.getElementById('dr-model-status').textContent = 'Loading model…';
+        const params = new URLSearchParams({ team_a: teamA, team_b: teamB });
+        if (season) params.set('season', season);
+        try {
+            const resp = await fetch('/api/draft-reasoner/model?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            model = await resp.json();
+            const teams = model.teams || [];
+            const nameA = (teams[0] || {}).name || 'Team A';
+            const nameB = (teams[1] || {}).name || 'Team B';
+            document.getElementById('dr-label-a').textContent = nameA;
+            document.getElementById('dr-label-b').textContent = nameB;
+            document.getElementById('dr-model-status').textContent =
+                'Model loaded: ' + nameA + ' (' + ((teams[0]||{}).model||{}).training_maps + ' maps) vs '
+                + nameB + ' (' + ((teams[1]||{}).model||{}).training_maps + ' maps)';
+            document.getElementById('dr-main').style.display = '';
+            buildHeroGrid();
+            renderReasoning();
+        } catch(e) {
+            document.getElementById('dr-model-status').textContent = 'Failed to load model.';
+            console.error(e);
+        }
+    });
+
+    // --- Reset ---
+    document.getElementById('dr-reset-btn').addEventListener('click', function() {
+        draft.a = {};
+        draft.b = {};
+        activeSlot = null;
+        document.querySelectorAll('.dr-slot').forEach(function(sl) {
+            sl.classList.remove('active');
+            const heroEl = sl.querySelector('.dr-slot-hero');
+            heroEl.innerHTML = '<span class="empty-label">Click to set</span>';
+        });
+        document.getElementById('dr-picker-panel').style.display = 'none';
+        renderReasoning();
+    });
+
+    // --- Slot click ---
+    document.querySelectorAll('.dr-slot').forEach(function(sl) {
+        sl.addEventListener('click', function(e) {
+            if (e.target.classList.contains('dr-slot-clear')) return;
+            document.querySelectorAll('.dr-slot').forEach(s => s.classList.remove('active'));
+            sl.classList.add('active');
+            activeSlot = { team: sl.dataset.team, slot: sl.dataset.slot, type: sl.dataset.type, el: sl };
+            const label = (sl.dataset.team === 'a' ? document.getElementById('dr-label-a') : document.getElementById('dr-label-b')).textContent
+                + ' — ' + sl.querySelector('.dr-slot-type').textContent;
+            document.getElementById('dr-picker-label').textContent = label;
+            document.getElementById('dr-picker-panel').style.display = '';
+            document.getElementById('dr-hero-search').value = '';
+            filterHeroGrid('');
+            document.getElementById('dr-hero-search').focus();
+        });
+
+        sl.querySelector('.dr-slot-clear').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const team = sl.dataset.team;
+            const slot = sl.dataset.slot;
+            delete draft[team][slot];
+            sl.querySelector('.dr-slot-hero').innerHTML = '<span class="empty-label">Click to set</span>';
+            refreshUsedHeroes();
+            renderReasoning();
+        });
+    });
+
+    // --- Hero search ---
+    document.getElementById('dr-hero-search').addEventListener('input', function() {
+        filterHeroGrid(this.value);
+    });
+
+    function buildHeroGrid() {
+        const grid = document.getElementById('dr-hero-grid');
+        grid.innerHTML = '';
+        const allHeroes = Object.keys(HEROES).sort();
+        allHeroes.forEach(function(hero) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dr-hero-btn';
+            btn.dataset.hero = hero;
+            const img = document.createElement('img');
+            img.src = heroImageUrl(hero);
+            img.alt = '';
+            img.onerror = function() { this.style.display = 'none'; };
+            btn.appendChild(img);
+            btn.appendChild(document.createTextNode(hero));
+            btn.addEventListener('click', function() {
+                if (!activeSlot) return;
+                const hero = btn.dataset.hero;
+                draft[activeSlot.team][activeSlot.slot] = hero;
+                const heroEl = activeSlot.el.querySelector('.dr-slot-hero');
+                heroEl.innerHTML = '';
+                const img2 = document.createElement('img');
+                img2.src = heroImageUrl(hero);
+                img2.alt = '';
+                img2.onerror = function() { this.style.display = 'none'; };
+                heroEl.appendChild(img2);
+                heroEl.appendChild(document.createTextNode(hero));
+                activeSlot.el.classList.remove('active');
+                activeSlot = null;
+                document.getElementById('dr-picker-panel').style.display = 'none';
+                refreshUsedHeroes();
+                renderReasoning();
+            });
+            grid.appendChild(btn);
+        });
+    }
+
+    function filterHeroGrid(query) {
+        const q = query.toLowerCase().trim();
+        document.querySelectorAll('.dr-hero-btn').forEach(function(btn) {
+            const name = (btn.dataset.hero || '').toLowerCase();
+            btn.style.display = (!q || name.includes(q)) ? '' : 'none';
+        });
+    }
+
+    function refreshUsedHeroes() {
+        const used = new Set(Object.values(draft.a).concat(Object.values(draft.b)).filter(Boolean));
+        document.querySelectorAll('.dr-hero-btn').forEach(function(btn) {
+            btn.classList.toggle('used', used.has(btn.dataset.hero));
+        });
+    }
+
+    // --- Core reasoning engine ---
+    function renderReasoning() {
+        const container = document.getElementById('dr-reasoning');
+        if (!model) {
+            container.innerHTML = '<p class="dr-empty">Load a model first.</p>';
+            return;
+        }
+
+        const teams = model.teams || [];
+        const teamA = teams[0] || {};
+        const teamB = teams[1] || {};
+        const nameA = teamA.name || 'Our Team';
+        const nameB = teamB.name || 'Enemy Team';
+        const modelA = teamA.model || {};
+        const modelB = teamB.model || {};
+
+        const bansA = ['ban1','ban2','ban3','ban4'].map(k => draft.a[k]).filter(Boolean);
+        const protectsA = ['protect1','protect2'].map(k => draft.a[k]).filter(Boolean);
+        const bansB = ['ban1','ban2','ban3','ban4'].map(k => draft.b[k]).filter(Boolean);
+        const protectsB = ['protect1','protect2'].map(k => draft.b[k]).filter(Boolean);
+        const allSet = new Set([...bansA, ...protectsA, ...bansB, ...protectsB]);
+
+        const reasons = [];
+
+        // --- 1. Summary of what has been set so far ---
+        if (allSet.size === 0) {
+            reasons.push({ cls: '', title: 'Draft is empty', body: 'Start filling in ban and protect slots to see reasoning.' });
+        }
+
+        // --- 2. Analyse each ban Team A has placed ---
+        bansA.forEach(function(hero) {
+            const heroDataB = (modelB.comfort_core_rows || []).find(r => r.hero === hero);
+            const volatileB = (modelB.volatile_hero_rows || []).find(r => r.hero === hero);
+            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
+            let body = '';
+            if (heroDataB) {
+                body += '<strong>' + escapeHtml(hero) + '</strong> appears in ' + escapeHtml(nameB) + '\'s comfort core at '
+                    + escapeHtml(heroDataB.comfort_rate) + '% usage (' + escapeHtml(heroDataB.appearances) + ' maps), adj WR '
+                    + escapeHtml(heroDataB.adjusted_win_rate) + '%. This ban directly targets a hero they rely on.';
+            } else {
+                const inPool = (modelB.hero_pool_rows || []).find(r => r.hero === hero);
+                if (inPool) {
+                    body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(nameB) + '\'s general pool (not a comfort core hero). '
+                        + 'Usage ' + escapeHtml(inPool.appearances) + ' maps, adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%.';
+                } else {
+                    body += '<strong>' + escapeHtml(hero) + '</strong> has little or no recorded history for ' + escapeHtml(nameB) + '. This ban may be speculative or aimed at preventing a pocket pick.';
+                }
+            }
+            if (volatileB) {
+                const sign = volatileB.delta >= 0 ? '+' : '';
+                body += ' When ' + escapeHtml(nameB) + ' plays this hero their WR shifts '
+                    + sign + escapeHtml(volatileB.delta) + '% vs without (volatile hero).';
+            }
+            if (inContested) {
+                body += ' This is also a <strong>contested hero</strong> — both teams have history with it (scores: '
+                    + escapeHtml(nameA) + ' ' + escapeHtml(inContested.team_a_score) + ' / '
+                    + escapeHtml(nameB) + ' ' + escapeHtml(inContested.team_b_score) + ').';
+            }
+            // Check if this breaks ban lines for Team B
+            (modelB.ban_line_rows || []).slice(0, 6).forEach(function(line) {
+                if ((line.bans || []).includes(hero) || (line.heroes || []).includes(hero)) {
+                    const bansHtml = (line.bans || []).map(h => heroChipHtml(h, 'ban')).join('');
+                    const protsHtml = (line.protects || []).map(h => heroChipHtml(h, 'protect')).join('');
+                    body += '<br>Disrupts ' + escapeHtml(nameB) + ' ban line (' + escapeHtml(line.rate) + '% of drafts):'
+                        + '<div class="dr-hero-row">' + bansHtml + protsHtml + '</div>';
+                }
+            });
+            reasons.push({ cls: heroDataB ? 'good' : '', title: nameA + ' bans ' + hero, body: body });
+        });
+
+        // --- 3. Analyse Team A protects ---
+        protectsA.forEach(function(hero) {
+            const heroDataA = (modelA.comfort_core_rows || []).find(r => r.hero === hero);
+            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
+            let body = '';
+            if (heroDataA) {
+                body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(nameA) + '\'s comfort core at '
+                    + escapeHtml(heroDataA.comfort_rate) + '% usage, adj WR ' + escapeHtml(heroDataA.adjusted_win_rate) + '%.';
+            } else {
+                body += '<strong>' + escapeHtml(hero) + '</strong> is not in ' + escapeHtml(nameA) + '\'s recorded comfort core — this protect may be a pocket pick or pre-emptive block.';
+            }
+            // Is Team B likely to ban it?
+            const inBBans = (modelB.ban_line_rows || []).slice(0, 5).filter(function(line) {
+                return (line.bans || []).includes(hero);
+            });
+            if (inBBans.length) {
+                body += ' <strong>' + escapeHtml(nameB) + '</strong> has this hero in their ban lines '
+                    + inBBans.length + ' time(s) across top recorded drafts — this protect looks well-timed.';
+            }
+            if (inContested) {
+                body += ' Contested hero (both teams have history with it).';
+            }
+            reasons.push({ cls: 'good', title: nameA + ' protects ' + hero, body: body });
+        });
+
+        // --- 4. Analyse Team B bans ---
+        bansB.forEach(function(hero) {
+            const heroDataA = (modelA.comfort_core_rows || []).find(r => r.hero === hero);
+            const volatileA = (modelA.volatile_hero_rows || []).find(r => r.hero === hero);
+            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
+            let body = '';
+            if (heroDataA) {
+                body += '<strong>' + escapeHtml(nameB) + '</strong> bans <strong>' + escapeHtml(hero) + '</strong>, which is in '
+                    + escapeHtml(nameA) + '\'s comfort core (' + escapeHtml(heroDataA.comfort_rate) + '% usage, adj WR '
+                    + escapeHtml(heroDataA.adjusted_win_rate) + '%).';
+            } else {
+                const inPool = (modelA.hero_pool_rows || []).find(r => r.hero === hero);
+                if (inPool) {
+                    body += escapeHtml(nameB) + ' bans <strong>' + escapeHtml(hero) + '</strong> — '
+                        + ' in ' + escapeHtml(nameA) + '\'s pool but not comfort core.';
+                } else {
+                    body += escapeHtml(nameB) + ' bans <strong>' + escapeHtml(hero) + '</strong> — not in ' + escapeHtml(nameA) + '\'s recorded comfort core. Possibly draft-denial or meta pressure.';
+                }
+            }
+            if (volatileA) {
+                const sign = volatileA.delta >= 0 ? '+' : '';
+                body += ' ' + escapeHtml(nameA) + ' WR swings ' + sign + escapeHtml(volatileA.delta) + '% when this hero appears — '
+                    + (volatileA.delta > 0 ? 'this is a meaningful ban.' : 'this hero hurts their WR anyway.');
+            }
+            if (inContested) {
+                body += ' This is a contested hero — both teams have significant history with it.';
+            }
+            // Does this break a comp or ban line for Team A?
+            (modelA.comp_path_rows || []).slice(0, 5).forEach(function(comp) {
+                if ((comp.heroes || []).includes(hero)) {
+                    const compsHtml = (comp.heroes || []).map(h => heroChipHtml(h, '')).join('');
+                    body += '<br>Disrupts ' + escapeHtml(nameA) + ' comp (' + escapeHtml(comp.top_path_share) + '% dominant path):'
+                        + '<div class="dr-hero-row">' + compsHtml + '</div>'
+                        + (comp.deviation_budget > 0 ? ' Deviation budget is ' + escapeHtml(comp.deviation_budget) + ' — they may pivot.' : '');
+                }
+            });
+            const cls = heroDataA ? 'bad' : '';
+            reasons.push({ cls: cls, title: nameB + ' bans ' + hero, body: body });
+        });
+
+        // --- 5. Analyse Team B protects ---
+        protectsB.forEach(function(hero) {
+            const heroDataB = (modelB.comfort_core_rows || []).find(r => r.hero === hero);
+            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
+            const inABans = (modelA.ban_line_rows || []).slice(0, 5).filter(function(line) {
+                return (line.bans || []).includes(hero);
+            });
+            let body = '';
+            if (heroDataB) {
+                body += escapeHtml(nameB) + ' protects <strong>' + escapeHtml(hero) + '</strong> from their comfort core ('
+                    + escapeHtml(heroDataB.comfort_rate) + '% usage, adj WR ' + escapeHtml(heroDataB.adjusted_win_rate) + '%).';
+            } else {
+                body += escapeHtml(nameB) + ' protects <strong>' + escapeHtml(hero) + '</strong> — not in their comfort core. Pocket pick or draft signal-block.';
+            }
+            if (inABans.length) {
+                body += ' Our models show we ban this hero in ' + inABans.length + ' of our top ban lines — this protect counters our likely draft tendency.';
+            }
+            if (inContested) {
+                body += ' Contested hero between both teams.';
+            }
+            reasons.push({ cls: 'warn', title: nameB + ' protects ' + hero, body: body });
+        });
+
+        // --- 6. Overall state assessment ---
+        if (allSet.size > 0) {
+            // Match current bans against Team B's recorded ban lines
+            const bSetA = new Set(bansA);
+            (modelB.ban_line_rows || []).slice(0, 4).forEach(function(line, idx) {
+                const lineHeroesBans = line.bans || [];
+                const lineHeroesAll = line.heroes || [];
+                const blocked = lineHeroesBans.filter(h => bSetA.has(h));
+                const intact = lineHeroesBans.filter(h => !bSetA.has(h));
+                if (blocked.length > 0) {
+                    const bansHtml = lineHeroesBans.map(h => heroChipHtml(h, 'ban')).join('');
+                    const protsHtml = (line.protects || []).map(h => heroChipHtml(h, 'protect')).join('');
+                    const intactHtml = intact.map(h => heroChipHtml(h, '')).join('');
+                    reasons.push({
+                        cls: 'good',
+                        title: 'Ban line disruption — ' + nameB + ' draft line #' + (idx+1) + ' (' + escapeHtml(line.rate) + '%)',
+                        body: 'Line: <div class="dr-hero-row">' + bansHtml + protsHtml + '</div>'
+                            + (blocked.length ? 'Blocked by our bans: <div class="dr-hero-row">' + blocked.map(h => heroChipHtml(h,'ban')).join('') + '</div>' : '')
+                            + (intact.length ? 'Still available: <div class="dr-hero-row">' + intactHtml + '</div>' : '<strong>Fully blocked.</strong>')
+                    });
+                }
+            });
+
+            // Force matchup hint
+            const force = (model.force_matchup_rows || [])[0];
+            if (force) {
+                const ourComp = (force.our_comp || []).map(h => heroChipHtml(h,'')).join('');
+                const enemyComp = (force.enemy_comp || []).map(h => heroChipHtml(h,'')).join('');
+                const ourBans = (force.our_bans || []).map(h => heroChipHtml(h,'ban')).join('');
+                // Check if our current bans already overlap
+                const banOverlap = (force.our_bans || []).filter(h => bSetA.has(h));
+                const onTrack = banOverlap.length >= 2;
+                reasons.push({
+                    cls: onTrack ? 'good' : '',
+                    title: (onTrack ? '✓ On track: ' : '') + 'Suggested force path — draft toward ' + nameA + ' comp',
+                    body: 'Target comp: <div class="dr-hero-row">' + ourComp + '</div>'
+                        + 'Bans to reach it: <div class="dr-hero-row">' + ourBans + '</div>'
+                        + 'Expected enemy response: <div class="dr-hero-row">' + enemyComp + '</div>'
+                        + '<span style="color:#94a3b8;font-size:0.82rem">Path share: ' + escapeHtml(force.our_path_share) + '% — enemy blocked: '
+                        + escapeHtml(force.enemy_blocked_count) + ' heroes</span>'
+                });
+            }
+
+            // Volatile: warn if a volatile hero is still available
+            (model.volatile_matchup_rows || []).slice(0, 3).forEach(function(vr) {
+                if (!allSet.has(vr.hero)) {
+                    reasons.push({
+                        cls: 'warn',
+                        title: 'Volatile hero still available: ' + vr.hero,
+                        body: heroChipHtml(vr.hero, '') + ' is still unpicked/unbanned. '
+                            + escapeHtml(nameA) + ': ' + escapeHtml(vr.team_a_with_wr) + '% with / '
+                            + escapeHtml(vr.team_a_without_wr) + '% without.'
+                            + (vr.team_b_with_maps > 0 ? ' ' + escapeHtml(nameB) + ': '
+                                + escapeHtml(vr.team_b_with_wr) + '% with / '
+                                + escapeHtml(vr.team_b_without_wr) + '% without.' : '')
+                            + ' Favors: <strong>' + escapeHtml(vr.favored_side) + '</strong>.'
+                    });
+                }
+            });
+        }
+
+        if (reasons.length === 0) {
+            container.innerHTML = '<p class="dr-empty">No reasoning to surface yet for the current draft state.</p>';
+            return;
+        }
+        container.innerHTML = reasons.map(function(r) {
+            return '<div class="dr-reason-card ' + escapeHtml(r.cls) + '">'
+                + '<div class="dr-reason-title">' + escapeHtml(r.title) + '</div>'
+                + r.body
+                + '</div>';
+        }).join('');
+    }
+
+})();
+</script>
+{% endblock %}
