@@ -228,12 +228,12 @@ PREDICTOR_GROUPS = (
 UNSPECIFIED_SEASON_TOKEN = "__unspecified__"
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 COMFORT_CORE_MIN_RATE = 40.0
-RECENCY_HALFLIFE_DAYS = max(1.0, float(os.environ.get("MACHINE_RECENCY_HALFLIFE_DAYS", "45")))
+RECENCY_HALFLIFE_DAYS = max(1.0, float(os.environ.get("MACHINE_RECENCY_HALFLIFE_DAYS", "14")))
 MACHINE_TREND_MIN_POINTS = max(3, int(os.environ.get("MACHINE_TREND_MIN_POINTS", "3")))
-MACHINE_HERO_TREND_BLEND = min(1.0, max(0.0, float(os.environ.get("MACHINE_HERO_TREND_BLEND", "0.60"))))
-MACHINE_COMP_TREND_BLEND = min(1.0, max(0.0, float(os.environ.get("MACHINE_COMP_TREND_BLEND", "0.55"))))
-MACHINE_HERO_TREND_CAP = max(0.0, float(os.environ.get("MACHINE_HERO_TREND_CAP", "12.0")))
-MACHINE_COMP_TREND_CAP = max(0.0, float(os.environ.get("MACHINE_COMP_TREND_CAP", "11.0")))
+MACHINE_HERO_TREND_BLEND = min(1.0, max(0.0, float(os.environ.get("MACHINE_HERO_TREND_BLEND", "0.80"))))
+MACHINE_COMP_TREND_BLEND = min(1.0, max(0.0, float(os.environ.get("MACHINE_COMP_TREND_BLEND", "0.75"))))
+MACHINE_HERO_TREND_CAP = max(0.0, float(os.environ.get("MACHINE_HERO_TREND_CAP", "16.0")))
+MACHINE_COMP_TREND_CAP = max(0.0, float(os.environ.get("MACHINE_COMP_TREND_CAP", "14.0")))
 
 SCRIMS = []
 TOURNAMENT_MATCHES = []
@@ -962,12 +962,27 @@ def _parse_scrim_date(raw_value: str) -> date | None:
     except ValueError:
         pass
 
-    for fmt in ("%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d"):
+    for fmt in ("%m/%d/%Y", "%m/%d/%y", "%m-%d-%Y", "%m-%d-%y", "%Y/%m/%d"):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:
             continue
     return None
+
+
+# Season midpoint dates used to infer recency for scrims that lack an explicit date.
+# Keys are normalized season strings; dates are midpoints of the known season window.
+_SEASON_MIDPOINT_DATES: dict[str, date] = {
+    "6": date(2026, 1, 29),    # Season 6: Jan 16 – Feb 12
+    "6.5": date(2026, 3, 1),   # Season 6.5: Feb 13 – Mar 19
+    "7": date(2026, 4, 7),     # Season 7: Mar 20 – present (~Apr 24)
+}
+
+
+def _infer_date_from_season(season_raw: str) -> date | None:
+    """Return the midpoint date for a known season string, or None if unrecognised."""
+    key = normalize_season_value(season_raw).strip()
+    return _SEASON_MIDPOINT_DATES.get(key)
 
 
 def _get_season_from_date(scrim_date_str: str) -> str:
@@ -6639,10 +6654,15 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
     recency_decay_lambda = math.log(2.0) / RECENCY_HALFLIFE_DAYS
     dated_scrim_dates = [
         parsed
-        for parsed in (_parse_scrim_date(scrim.get("scrim_date", "")) for scrim in team_scrims)
+        for parsed in (
+            _parse_scrim_date(scrim.get("scrim_date", ""))
+            or _infer_date_from_season(scrim.get("season", ""))
+            for scrim in team_scrims
+        )
         if parsed is not None
     ]
     newest_scrim_date = max(dated_scrim_dates) if dated_scrim_dates else None
+    earliest_scrim_date = min(dated_scrim_dates) if dated_scrim_dates else None
 
     hero_weighted_apps = defaultdict(float)
     hero_weighted_wins = defaultdict(float)
@@ -6666,14 +6686,21 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
     hero_trend_points: dict[str, list[tuple[float, float, float]]] = defaultdict(list)
     comp_trend_points: dict[tuple[str, ...], list[tuple[float, float, float]]] = defaultdict(list)
     map_time_index = 0
+    undated_offset = (newest_scrim_date - earliest_scrim_date).days + 1 if newest_scrim_date and earliest_scrim_date else 0
 
     def scrim_sort_key(item: tuple[int, dict]) -> tuple[bool, date, int]:
         idx, scrim = item
-        scrim_date = _parse_scrim_date(scrim.get("scrim_date", ""))
+        scrim_date = (
+            _parse_scrim_date(scrim.get("scrim_date", ""))
+            or _infer_date_from_season(scrim.get("season", ""))
+        )
         return (scrim_date is None, scrim_date or date.min, idx)
 
     for _scrim_idx, scrim in sorted(enumerate(team_scrims), key=scrim_sort_key):
-        scrim_date = _parse_scrim_date(scrim.get("scrim_date", ""))
+        scrim_date = (
+            _parse_scrim_date(scrim.get("scrim_date", ""))
+            or _infer_date_from_season(scrim.get("season", ""))
+        )
         recency_weight = 1.0
         if newest_scrim_date is not None and scrim_date is not None:
             age_days = max(0, (newest_scrim_date - scrim_date).days)
@@ -6685,7 +6712,10 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
 
         for index, map_entry in enumerate(ordered_maps):
             map_time_index += 1
-            time_x = float(map_time_index)
+            if scrim_date is not None and earliest_scrim_date is not None:
+                time_x = float((scrim_date - earliest_scrim_date).days)
+            else:
+                time_x = float(undated_offset + map_time_index)
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
@@ -6811,7 +6841,7 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         adjusted_wr = (confidence * raw_wr) + ((1.0 - confidence) * overall_wr)
         base_profile_score = ((comfort * 0.6) + (adjusted_wr * 0.4)) * 100
         trend_delta = hero_trend_deltas.get(hero_name, 0.0)
-        trend_confidence = min(1.0, appearances / 14.0) if appearances else 0.0
+        trend_confidence = min(1.0, appearances / 10.0) if appearances else 0.0
         trend_bonus = max(
             -MACHINE_HERO_TREND_CAP,
             min(MACHINE_HERO_TREND_CAP, trend_delta * MACHINE_HERO_TREND_BLEND * trend_confidence),
@@ -6865,6 +6895,46 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         key=lambda row: (row["profile_score"], row["appearances"], row["hero"].lower()),
         reverse=True,
     )[:12]
+
+    player_hero_apps: dict[str, float] = defaultdict(float)
+    player_hero_wins: dict[str, float] = defaultdict(float)
+    player_hero_breakdown: dict[str, list[dict]] = {}
+    for hero_name, player_apps_map in hero_player_weighted_apps.items():
+        for player_name, player_apps in player_apps_map.items():
+            player_hero_apps[player_name] += float(player_apps or 0.0)
+            player_hero_wins[player_name] += float(hero_player_weighted_wins.get(hero_name, {}).get(player_name, 0.0) or 0.0)
+
+    for player_name, total_apps in player_hero_apps.items():
+        hero_rows = []
+        for hero_name, player_apps in hero_player_weighted_apps.items():
+            apps = float(player_apps.get(player_name, 0.0) or 0.0)
+            if apps <= 0:
+                continue
+            wins = float(hero_player_weighted_wins.get(hero_name, {}).get(player_name, 0.0) or 0.0)
+            hero_rows.append(
+                {
+                    "hero": hero_name,
+                    "appearances": round(apps, 2),
+                    "usage_rate": round((apps / total_apps) * 100, 1) if total_apps else 0.0,
+                    "win_rate": round((wins / apps) * 100, 1) if apps else 0.0,
+                }
+            )
+        hero_rows.sort(key=lambda row: (row["appearances"], row["usage_rate"], row["hero"].lower()), reverse=True)
+        player_hero_breakdown[player_name] = hero_rows
+
+    player_hero_rows = [
+        {
+            "player": player_name,
+            "appearances": round(total_apps, 2),
+            "overall_win_rate": round((player_hero_wins.get(player_name, 0.0) / total_apps) * 100, 1) if total_apps else 0.0,
+            "top_heroes": player_hero_breakdown.get(player_name, [])[:8],
+        }
+        for player_name, total_apps in sorted(
+            player_hero_apps.items(),
+            key=lambda item: (item[1], item[0].lower()),
+            reverse=True,
+        )
+    ]
 
     total_complete_lines = sum(line_counts.values())
     ban_line_rows = []
@@ -6928,7 +6998,7 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         else:
             # Exact 6-hero comps can be sparse; fall back to member-hero trend signal.
             comp_trend_delta = hero_avg_trend_delta
-        comp_trend_confidence = min(1.0, count / 10.0) if count else 0.0
+        comp_trend_confidence = min(1.0, count / 8.0) if count else 0.0
         comp_trend_bonus = max(
             -MACHINE_COMP_TREND_CAP,
             min(MACHINE_COMP_TREND_CAP, comp_trend_delta * MACHINE_COMP_TREND_BLEND * comp_trend_confidence),
@@ -7154,9 +7224,16 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         "status": "ready" if total_maps else "empty",
         "training_maps": total_maps,
         "weighted_maps": round(weighted_total_maps, 2),
+        "uses_exponential_recency": True,
+        "uses_weighted_linear_trend": True,
+        "model_methods": {
+            "recency_weighting": "exponential_decay",
+            "trend_estimator": "weighted_linear_regression",
+        },
         "overall_win_rate": round(overall_wr * 100, 1),
         "comfort_core_rows": comfort_core_rows,
         "hero_pool_rows": hero_pool_rows,
+        "player_hero_rows": player_hero_rows,
         "ban_line_rows": ban_line_rows,
         "comp_rows": comp_rows,
         "comp_path_rows": comp_path_rows[:8],
@@ -13289,13 +13366,216 @@ def tournament_match_timelines(tournament_id: int, match_id: int):
     return redirect(url_for("tournament_match_detail", tournament_id=tournament_id, match_id=match_id))
 
 
+def _collect_map_draft_intel(source_scrims: list[dict], map_name: str) -> dict:
+    ban_slots = ("ban1", "ban2", "ban3", "ban4")
+    protect_slots = ("protect1", "protect2")
+
+    our_comp_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    enemy_comp_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+
+    our_ban_counts = defaultdict(int)
+    enemy_ban_counts = defaultdict(int)
+    our_protect_counts = defaultdict(int)
+    enemy_protect_counts = defaultdict(int)
+
+    our_ban_slot_counts = defaultdict(lambda: defaultdict(int))
+    enemy_ban_slot_counts = defaultdict(lambda: defaultdict(int))
+    our_protect_slot_counts = defaultdict(lambda: defaultdict(int))
+    enemy_protect_slot_counts = defaultdict(lambda: defaultdict(int))
+
+    map_samples = 0
+    our_total_bans = 0
+    enemy_total_bans = 0
+    our_total_protects = 0
+    enemy_total_protects = 0
+
+    def _largest_lineup_from_map(map_entry: dict, team_slot: str) -> list[str]:
+        largest_lineup: list[str] = []
+        for section in map_entry.get("comp", []):
+            if not isinstance(section, dict):
+                continue
+            lineup = section.get(team_slot, [])
+            if not isinstance(lineup, list):
+                continue
+            hero_rows: list[str] = []
+            for slot in lineup:
+                if not isinstance(slot, dict):
+                    continue
+                hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                if hero_name:
+                    hero_rows.append(hero_name)
+            if len(hero_rows) > len(largest_lineup):
+                largest_lineup = hero_rows
+        return largest_lineup
+
+    for source_scrim in source_scrims:
+        for map_entry in source_scrim.get("maps", []):
+            if (map_entry.get("map_name") or "").strip() != map_name:
+                continue
+
+            map_samples += 1
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            enemy_team_slot = opposite_team_slot(our_team_slot)
+
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+
+            our_lineup = _largest_lineup_from_map(map_entry, our_team_slot)
+            enemy_lineup = _largest_lineup_from_map(map_entry, enemy_team_slot)
+            if our_lineup:
+                comp_key = tuple(sorted(our_lineup))
+                our_comp_counts[comp_key]["count"] += 1
+                if result == "Win":
+                    our_comp_counts[comp_key]["wins"] += 1
+                elif result == "Loss":
+                    our_comp_counts[comp_key]["losses"] += 1
+            if enemy_lineup:
+                enemy_comp_key = tuple(sorted(enemy_lineup))
+                enemy_comp_counts[enemy_comp_key]["count"] += 1
+                if result == "Loss":
+                    enemy_comp_counts[enemy_comp_key]["wins"] += 1
+                elif result == "Win":
+                    enemy_comp_counts[enemy_comp_key]["losses"] += 1
+
+            draft = map_entry.get("draft", {})
+            our_draft = draft.get(our_team_slot, {}) if isinstance(draft, dict) else {}
+            enemy_draft = draft.get(enemy_team_slot, {}) if isinstance(draft, dict) else {}
+            if not isinstance(our_draft, dict):
+                our_draft = {}
+            if not isinstance(enemy_draft, dict):
+                enemy_draft = {}
+
+            for slot_key in ban_slots:
+                hero_name = _canonical_draft_hero(our_draft.get(slot_key, ""))
+                if hero_name:
+                    our_ban_counts[hero_name] += 1
+                    our_ban_slot_counts[hero_name][slot_key] += 1
+                    our_total_bans += 1
+                enemy_hero_name = _canonical_draft_hero(enemy_draft.get(slot_key, ""))
+                if enemy_hero_name:
+                    enemy_ban_counts[enemy_hero_name] += 1
+                    enemy_ban_slot_counts[enemy_hero_name][slot_key] += 1
+                    enemy_total_bans += 1
+
+            for slot_key in protect_slots:
+                hero_name = _canonical_draft_hero(our_draft.get(slot_key, ""))
+                if hero_name:
+                    our_protect_counts[hero_name] += 1
+                    our_protect_slot_counts[hero_name][slot_key] += 1
+                    our_total_protects += 1
+                enemy_hero_name = _canonical_draft_hero(enemy_draft.get(slot_key, ""))
+                if enemy_hero_name:
+                    enemy_protect_counts[enemy_hero_name] += 1
+                    enemy_protect_slot_counts[enemy_hero_name][slot_key] += 1
+                    enemy_total_protects += 1
+
+    def _top_slot(slot_counts: dict[str, int]) -> tuple[str, int]:
+        if not slot_counts:
+            return "", 0
+        slot_key, slot_count = max(slot_counts.items(), key=lambda item: (item[1], item[0]))
+        return _draft_slot_label(slot_key), slot_count
+
+    our_comp_rows = [
+        {
+            "heroes": list(comp_key),
+            "count": stats["count"],
+            "play_rate": round((stats["count"] / map_samples) * 100, 1) if map_samples else 0,
+            "win_rate": round((stats["wins"] / stats["count"]) * 100, 1) if stats["count"] else 0,
+        }
+        for comp_key, stats in sorted(
+            our_comp_counts.items(),
+            key=lambda item: (item[1]["count"], item[1]["wins"], item[0]),
+            reverse=True,
+        )[:10]
+    ]
+    enemy_comp_rows = [
+        {
+            "heroes": list(comp_key),
+            "count": stats["count"],
+            "play_rate": round((stats["count"] / map_samples) * 100, 1) if map_samples else 0,
+            "win_rate": round((stats["wins"] / stats["count"]) * 100, 1) if stats["count"] else 0,
+        }
+        for comp_key, stats in sorted(
+            enemy_comp_counts.items(),
+            key=lambda item: (item[1]["count"], item[1]["wins"], item[0]),
+            reverse=True,
+        )[:10]
+    ]
+
+    our_ban_rows = []
+    for hero_name, count in sorted(our_ban_counts.items(), key=lambda item: (item[1], item[0]), reverse=True)[:12]:
+        slot_label, slot_count = _top_slot(our_ban_slot_counts[hero_name])
+        our_ban_rows.append(
+            {
+                "hero": hero_name,
+                "count": count,
+                "share": round((count / our_total_bans) * 100, 1) if our_total_bans else 0,
+                "top_slot": slot_label,
+                "top_slot_rate": round((slot_count / count) * 100, 1) if count else 0,
+            }
+        )
+
+    enemy_ban_rows = []
+    for hero_name, count in sorted(enemy_ban_counts.items(), key=lambda item: (item[1], item[0]), reverse=True)[:12]:
+        slot_label, slot_count = _top_slot(enemy_ban_slot_counts[hero_name])
+        enemy_ban_rows.append(
+            {
+                "hero": hero_name,
+                "count": count,
+                "share": round((count / enemy_total_bans) * 100, 1) if enemy_total_bans else 0,
+                "top_slot": slot_label,
+                "top_slot_rate": round((slot_count / count) * 100, 1) if count else 0,
+            }
+        )
+
+    our_protect_rows = []
+    for hero_name, count in sorted(our_protect_counts.items(), key=lambda item: (item[1], item[0]), reverse=True)[:10]:
+        slot_label, slot_count = _top_slot(our_protect_slot_counts[hero_name])
+        our_protect_rows.append(
+            {
+                "hero": hero_name,
+                "count": count,
+                "share": round((count / our_total_protects) * 100, 1) if our_total_protects else 0,
+                "top_slot": slot_label,
+                "top_slot_rate": round((slot_count / count) * 100, 1) if count else 0,
+            }
+        )
+
+    enemy_protect_rows = []
+    for hero_name, count in sorted(enemy_protect_counts.items(), key=lambda item: (item[1], item[0]), reverse=True)[:10]:
+        slot_label, slot_count = _top_slot(enemy_protect_slot_counts[hero_name])
+        enemy_protect_rows.append(
+            {
+                "hero": hero_name,
+                "count": count,
+                "share": round((count / enemy_total_protects) * 100, 1) if enemy_total_protects else 0,
+                "top_slot": slot_label,
+                "top_slot_rate": round((slot_count / count) * 100, 1) if count else 0,
+            }
+        )
+
+    return {
+        "our_comp_rows": our_comp_rows,
+        "enemy_comp_rows": enemy_comp_rows,
+        "our_ban_rows": our_ban_rows,
+        "enemy_ban_rows": enemy_ban_rows,
+        "our_protect_rows": our_protect_rows,
+        "enemy_protect_rows": enemy_protect_rows,
+        "map_samples": map_samples,
+    }
+
+
 @app.route("/scrims/<int:scrim_id>/timelines/<path:map_name>")
 def scrim_map_timeline(scrim_id: int, map_name: str):
     scrim = get_scrim_or_404(scrim_id)
     participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
+    participant_one, participant_two = get_scrim_participants(scrim)
 
-    team_id = scrim.get("team_id")
-    team_name = (scrim.get("team_name") or scrim.get("team1_name") or "").strip()
+    team_id = participant_one.get("id") or scrim.get("team_id")
+    team_name = (participant_one.get("name") or scrim.get("team_name") or scrim.get("team1_name") or "").strip()
+    enemy_team_id = participant_two.get("id")
+    enemy_team_name = (participant_two.get("name") or scrim.get("team2_name") or scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
     map_timeline_row = None
     map_overview = {
         "maps": 0,
@@ -13305,8 +13585,32 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
     }
     top_hero_rows: list[dict] = []
     enemy_top_hero_rows: list[dict] = []
+    map_draft_intel = {
+        "our_comp_rows": [],
+        "enemy_comp_rows": [],
+        "our_ban_rows": [],
+        "enemy_ban_rows": [],
+        "our_protect_rows": [],
+        "enemy_protect_rows": [],
+        "map_samples": 0,
+    }
     if team_id and team_name:
-        source_scrims = get_scrims_for_team(team_id, team_name)
+        db = get_db()
+        team_row = db.execute("SELECT id, name FROM teams WHERE id = ?", (team_id,)).fetchone()
+        if team_row is not None:
+            source_scrims = get_team_history_scrims(team_row)
+        else:
+            source_scrims = get_scrims_for_team(team_id, team_name)
+
+        # Keep this page matchup-specific (Team A vs Team B), not broad all-opponents history.
+        if enemy_team_id is not None or enemy_team_name:
+            source_scrims = [
+                source_scrim
+                for source_scrim in source_scrims
+                if scrim_involves_team(source_scrim, enemy_team_id, enemy_team_name)
+            ]
+
+        map_draft_intel = _collect_map_draft_intel(source_scrims, map_name)
         draft_timeline = build_draft_phase_timeline(source_scrims)
         map_timeline_row = next(
             (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
@@ -13316,6 +13620,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
         our_hero_counts = defaultdict(int)
         our_hero_win_counts = defaultdict(int)
         enemy_hero_counts = defaultdict(int)
+        enemy_hero_win_counts = defaultdict(int)
         total_our_instances = 0
         total_enemy_instances = 0
         map_count = 0
@@ -13333,6 +13638,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
 
                 result = get_map_outcome_for_slot(map_entry, our_team_slot)
                 is_win = result == "Win"
+                is_enemy_win = result == "Loss"
                 if is_win:
                     win_count += 1
                 elif result == "Loss":
@@ -13349,6 +13655,8 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
                         our_hero_win_counts[hero_name] += 1
                 for hero_name in enemy_heroes_in_map:
                     enemy_hero_counts[hero_name] += 1
+                    if is_enemy_win:
+                        enemy_hero_win_counts[hero_name] += 1
 
         map_overview = {
             "maps": map_count,
@@ -13370,6 +13678,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
                 "hero": hero_name,
                 "appearances": hero_maps,
                 "play_rate": round((hero_maps / total_enemy_instances) * 100, 1) if total_enemy_instances else 0,
+                "win_rate": round((enemy_hero_win_counts.get(hero_name, 0) / hero_maps) * 100, 1) if hero_maps else 0,
             }
             for hero_name, hero_maps in sorted(enemy_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
         ]
@@ -13381,6 +13690,12 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
         map_overview=map_overview,
         top_hero_rows=top_hero_rows,
         enemy_top_hero_rows=enemy_top_hero_rows,
+        our_comp_rows=map_draft_intel["our_comp_rows"],
+        enemy_comp_rows=map_draft_intel["enemy_comp_rows"],
+        our_ban_rows=map_draft_intel["our_ban_rows"],
+        enemy_ban_rows=map_draft_intel["enemy_ban_rows"],
+        our_protect_rows=map_draft_intel["our_protect_rows"],
+        enemy_protect_rows=map_draft_intel["enemy_protect_rows"],
         participant_one_label=participant_one_label,
         participant_two_label=participant_two_label,
         is_tournament=False,
@@ -13395,6 +13710,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
 
     perspective = tournament_match.get("our_team_slot", "team1") if tournament_match.get("our_team_slot", "team1") in TEAM_SLOTS else "team1"
     source_scrims = build_tournament_match_scrims(tournament_record, perspective=perspective)
+    map_draft_intel = _collect_map_draft_intel(source_scrims, map_name)
     draft_timeline = build_draft_phase_timeline(source_scrims)
     map_timeline_row = next(
         (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
@@ -13404,6 +13720,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
     our_hero_counts = defaultdict(int)
     our_hero_win_counts = defaultdict(int)
     enemy_hero_counts = defaultdict(int)
+    enemy_hero_win_counts = defaultdict(int)
     map_count = 0
     win_count = 0
     loss_count = 0
@@ -13419,6 +13736,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
 
             result = get_map_outcome_for_slot(map_entry, our_team_slot)
             is_win = result == "Win"
+            is_enemy_win = result == "Loss"
             if is_win:
                 win_count += 1
             elif result == "Loss":
@@ -13442,6 +13760,8 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
                     our_hero_win_counts[hero_name] += 1
             for hero_name in enemy_heroes_in_map:
                 enemy_hero_counts[hero_name] += 1
+                if is_enemy_win:
+                    enemy_hero_win_counts[hero_name] += 1
 
     map_overview = {
         "maps": map_count,
@@ -13465,6 +13785,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
             "hero": hero_name,
             "appearances": hero_maps,
             "play_rate": round((hero_maps / total_enemy_instances) * 100, 1) if total_enemy_instances else 0,
+            "win_rate": round((enemy_hero_win_counts.get(hero_name, 0) / hero_maps) * 100, 1) if hero_maps else 0,
         }
         for hero_name, hero_maps in sorted(enemy_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
     ]
@@ -13479,6 +13800,12 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
         map_overview=map_overview,
         top_hero_rows=top_hero_rows,
         enemy_top_hero_rows=enemy_top_hero_rows,
+        our_comp_rows=map_draft_intel["our_comp_rows"],
+        enemy_comp_rows=map_draft_intel["enemy_comp_rows"],
+        our_ban_rows=map_draft_intel["our_ban_rows"],
+        enemy_ban_rows=map_draft_intel["enemy_ban_rows"],
+        our_protect_rows=map_draft_intel["our_protect_rows"],
+        enemy_protect_rows=map_draft_intel["enemy_protect_rows"],
         participant_one_label=team1_label,
         participant_two_label=team2_label,
         is_tournament=True,

@@ -49,7 +49,7 @@
     <div class="section-kicker">Enemy Heroes</div>
     <h3>{{ participant_two_label }} Most Played Heroes On {{ map_name }}</h3>
     {% if enemy_top_hero_rows %}
-        {% call stats_table(['Hero', 'Instances', 'Usage Share'], extra_wrap_class='top-gap') %}
+        {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate When Used'], extra_wrap_class='top-gap') %}
             {% for row in enemy_top_hero_rows %}
                 <tr>
                     <td>
@@ -60,11 +60,119 @@
                     </td>
                     <td>{{ sample_warn(row.appearances) }}</td>
                     <td>{{ row.play_rate }}%</td>
+                    <td>{{ row.win_rate }}%</td>
                 </tr>
             {% endfor %}
         {% endcall %}
     {% else %}
         <p class="empty-text">No enemy hero usage data for this map yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel top-gap">
+    <div class="section-kicker">Map Draft Intel</div>
+    <h3>Most Played Comps On {{ map_name }}</h3>
+    <div class="panel-intro">These are map-specific comp patterns and draft priorities, not global team trends.</div>
+
+    <h4 class="top-gap">{{ participant_one_label }} Core Comps</h4>
+    {% if our_comp_rows %}
+        {% call stats_table(['Comp', 'Maps', 'Map Share', 'Win Rate'], extra_wrap_class='top-gap') %}
+            {% for row in our_comp_rows %}
+                <tr>
+                    <td>{{ row.heroes | join(', ') }}</td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.play_rate }}%</td>
+                    <td>{{ row.win_rate }}%</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text">No comp history for this map yet.</p>
+    {% endif %}
+
+    <h4 class="top-gap">{{ participant_two_label }} Core Comps</h4>
+    {% if enemy_comp_rows %}
+        {% call stats_table(['Comp', 'Maps', 'Map Share', 'Win Rate'], extra_wrap_class='top-gap') %}
+            {% for row in enemy_comp_rows %}
+                <tr>
+                    <td>{{ row.heroes | join(', ') }}</td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.play_rate }}%</td>
+                    <td>{{ row.win_rate }}%</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text">No enemy comp history for this map yet.</p>
+    {% endif %}
+</section>
+
+<section class="panel panel-soft-violet top-gap">
+    <div class="section-kicker">Map Draft Priorities</div>
+    <h3>Most Frequent Bans And Protects On {{ map_name }}</h3>
+
+    <h4 class="top-gap">{{ participant_one_label }} Bans</h4>
+    {% if our_ban_rows %}
+        {% call stats_table(['Hero', 'Times Banned', 'Ban Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
+            {% for row in our_ban_rows %}
+                <tr>
+                    <td>{{ row.hero }}</td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.share }}%</td>
+                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text">No ban data for this map yet.</p>
+    {% endif %}
+
+    <h4 class="top-gap">{{ participant_two_label }} Bans</h4>
+    {% if enemy_ban_rows %}
+        {% call stats_table(['Hero', 'Times Banned', 'Ban Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
+            {% for row in enemy_ban_rows %}
+                <tr>
+                    <td>{{ row.hero }}</td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.share }}%</td>
+                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text">No enemy ban data for this map yet.</p>
+    {% endif %}
+
+    <h4 class="top-gap">{{ participant_one_label }} Protects</h4>
+    {% if our_protect_rows %}
+        {% call stats_table(['Hero', 'Times Protected', 'Protect Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
+            {% for row in our_protect_rows %}
+                <tr>
+                    <td>{{ row.hero }}</td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.share }}%</td>
+                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text">No protect data for this map yet.</p>
+    {% endif %}
+
+    <h4 class="top-gap">{{ participant_two_label }} Protects</h4>
+    {% if enemy_protect_rows %}
+        {% call stats_table(['Hero', 'Times Protected', 'Protect Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
+            {% for row in enemy_protect_rows %}
+                <tr>
+                    <td>{{ row.hero }}</td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.share }}%</td>
+                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text">No enemy protect data for this map yet.</p>
     {% endif %}
 </section>
 

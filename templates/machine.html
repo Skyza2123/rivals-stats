@@ -83,6 +83,23 @@
 .dr-hero-chip img { width:18px; height:18px; border-radius:50%; object-fit:cover; }
 .dr-hero-chip.ban-chip { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.2); color:#fecaca; }
 .dr-hero-chip.protect-chip { background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.2); color:#bbf7d0; }
+/* assignment grid */
+.dr-assign-grid { display:flex; flex-direction:column; gap:0.28rem; margin-top:0.1rem; }
+.dr-assign-row { display:flex; align-items:center; gap:0.45rem; font-size:0.83rem; }
+.dr-assign-hero { flex-shrink:0; }
+.dr-assign-arrow { color:#475569; flex-shrink:0; font-size:0.8rem; }
+.dr-assign-player { flex:1; color:#e2e8f0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dr-assign-role { color:#94a3b8; font-size:0.77rem; }
+.dr-assign-conf { flex-shrink:0; font-size:0.69rem; font-weight:700; padding:0.1rem 0.38rem; border-radius:999px; }
+.dr-conf-high { background:rgba(74,222,128,0.12); border:1px solid rgba(74,222,128,0.25); color:#4ade80; }
+.dr-conf-med  { background:rgba(251,191,36,0.1);  border:1px solid rgba(251,191,36,0.25);  color:#fbbf24; }
+.dr-conf-low  { background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.2);  color:#f87171; }
+/* force analysis */
+.dr-force-rows { display:flex; flex-direction:column; gap:0.4rem; }
+.dr-force-row { background:rgba(15,23,42,0.4); border:1px solid rgba(248,113,113,0.18); border-radius:0.4rem; padding:0.45rem 0.65rem; }
+.dr-force-ban-line { display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; font-size:0.82rem; color:#cbd5e1; }
+.dr-force-arrow { color:#64748b; font-size:0.78rem; }
+.dr-force-note { font-size:0.74rem; color:#64748b; margin-top:0.15rem; font-style:italic; }
 .dr-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
 .dr-model-status { font-size:0.82rem; color:#94a3b8; margin-top:0.5rem; }
 .dr-workspace { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,0.85fr); gap:1rem; align-items:start; margin-bottom:1rem; }
@@ -369,10 +386,22 @@
                 <div class="matchup-slot-row" id="dr-suggest-bans-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-bans"></div></div>
                 <div class="matchup-slot-row" id="dr-suggest-protects-row" style="display:none"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row" id="dr-suggest-protects"></div></div>
             </div>
+            <div class="dr-suggest-section" id="dr-suggest-our-assign-section" style="display:none">
+                <div class="dr-suggest-section-label">Recommended player assignments for this comp:</div>
+                <div id="dr-suggest-our-assign"></div>
+            </div>
             <div class="dr-suggest-section" id="dr-suggest-enemy-section" style="display:none">
-                <div class="dr-suggest-section-label">Enemy (<span id="dr-suggest-enemy-name">Enemy</span>) likely response:</div>
+                <div class="dr-suggest-section-label">Enemy (<span id="dr-suggest-enemy-name">Enemy</span>) likely forced response:</div>
                 <div class="matchup-hero-row" id="dr-suggest-enemy-comp"></div>
                 <div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-enemy-bans"></div></div>
+                <div class="dr-suggest-section" id="dr-suggest-enemy-assign-section" style="display:none">
+                    <div class="dr-suggest-section-label">Enemy player assignments (predicted):</div>
+                    <div id="dr-suggest-enemy-assign"></div>
+                </div>
+                <div class="dr-suggest-section" id="dr-suggest-enemy-force-section" style="display:none">
+                    <div class="dr-suggest-section-label">&#x1F3AF; Ban targets — force players onto worse heroes:</div>
+                    <div id="dr-suggest-enemy-force"></div>
+                </div>
             </div>
         </div>
 
@@ -621,10 +650,12 @@ function heroChipHtml(hero, type) {
     const drDraft = {a:{}, b:{}};
     let drSuggest = {a:{bans:[],protects:[]}, b:{bans:[],protects:[]}};
     const drHeroPlayerHints = {a: new Map(), b: new Map()};
+    const drPlayerHeroHints = {a: new Map(), b: new Map()};
     const drRosterLookup = {
         a: {rows: [], byNameKey: new Map()},
         b: {rows: [], byNameKey: new Map()},
     };
+    const drHeroRoleLookup = new Map();
 
     const analyzeBtn  = document.getElementById('dr-analyze-btn');
     const resetBtn    = document.getElementById('dr-reset-btn');
@@ -672,7 +703,35 @@ function heroChipHtml(hero, type) {
     }
 
     function drPlayerNameKey(name) {
-        return (name || '').trim().toLowerCase();
+        return (name || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
+    function drNormalizeRoleName(roleName) {
+        const raw = (roleName || '').trim().toLowerCase();
+        if (!raw) return '';
+        if (raw === 'duelist' || raw === 'dps') return 'duelist';
+        if (raw === 'vanguard' || raw === 'tank') return 'vanguard';
+        if (raw === 'strategist' || raw === 'support') return 'strategist';
+        return raw;
+    }
+
+    function drBuildHeroRoleLookup() {
+        drHeroRoleLookup.clear();
+        document.querySelectorAll('.hero-role-section').forEach(function(sectionEl) {
+            const roleKey = drNormalizeRoleName(sectionEl.dataset.role || '');
+            sectionEl.querySelectorAll('.hero-pick-btn[data-hero]').forEach(function(btn) {
+                const heroName = (btn.dataset.hero || '').trim();
+                if (!heroName) return;
+                drHeroRoleLookup.set(heroName, roleKey);
+            });
+        });
+    }
+
+    function drGetHeroRole(heroName) {
+        return drHeroRoleLookup.get((heroName || '').trim()) || '';
     }
 
     function drBuildRosterLookup(teamKey, rows) {
@@ -693,6 +752,8 @@ function heroChipHtml(hero, type) {
     function drBuildHeroHints(teamKey, teamPayload) {
         const model = (teamPayload || {}).model || {};
         const hints = new Map();
+        const playerHints = new Map();
+
         (model.hero_pool_rows || []).forEach(function(row) {
             const hero = (row.hero || '').trim();
             if (!hero) return;
@@ -706,7 +767,29 @@ function heroChipHtml(hero, type) {
                 top: top,
             });
         });
+
+        (model.player_hero_rows || []).forEach(function(playerRow) {
+            const playerName = (playerRow.player || '').trim();
+            if (!playerName) return;
+            const playerKey = drPlayerNameKey(playerName);
+            const heroMap = new Map();
+            (playerRow.top_heroes || []).forEach(function(heroRow) {
+                const hero = (heroRow.hero || '').trim();
+                if (!hero) return;
+                heroMap.set(hero, {
+                    appearances: Number(heroRow.appearances || 0),
+                    usage_rate: Number(heroRow.usage_rate || 0),
+                    win_rate: Number(heroRow.win_rate || 0),
+                });
+            });
+            playerHints.set(playerKey, {
+                appearances: Number(playerRow.appearances || 0),
+                heroes: heroMap,
+            });
+        });
+
         drHeroPlayerHints[teamKey] = hints;
+        drPlayerHeroHints[teamKey] = playerHints;
         drBuildRosterLookup(teamKey, (teamPayload || {}).roster_players || []);
     }
 
@@ -756,6 +839,244 @@ function heroChipHtml(hero, type) {
                 heroSub.textContent = hero ? drGetHeroPlayerSuggestion(team, hero) : '';
             }
         });
+    }
+
+    function drBuildCompAssignments(teamKey, heroes) {
+        const roster = (drRosterLookup[teamKey] || {rows: []}).rows || [];
+        const uniqueHeroes = Array.from(new Set((heroes || []).filter(Boolean)));
+        if (!uniqueHeroes.length || !roster.length) return [];
+
+        const hints = drHeroPlayerHints[teamKey] || new Map();
+
+        // Score function: how well does playerRow fit hero
+        function heroPlayerScore(hero, playerRow) {
+            const hint = hints.get(hero);
+            const topList = hint ? (hint.top || []).map(function(n) { return (n || '').trim(); }).filter(Boolean) : [];
+            const topRank = new Map(topList.map(function(n, i) { return [drPlayerNameKey(n), i]; }));
+            const playerKey = drPlayerNameKey(playerRow.name);
+            const playerHint = (drPlayerHeroHints[teamKey] || new Map()).get(playerKey);
+            const playerHeroStats = playerHint ? playerHint.heroes.get(hero) : null;
+
+            let score = 0;
+
+            // Primary signal: what this player already plays in history
+            if (playerHeroStats) {
+                score += 70;
+                score += Math.min(50, (playerHeroStats.usage_rate || 0) * 0.9);
+                score += Math.min(25, (playerHeroStats.appearances || 0) * 2.0);
+                score += ((playerHeroStats.win_rate || 0) - 50) * 0.25;
+            } else {
+                score -= 20;
+            }
+
+            // Secondary signal: hero-centric top player ranking
+            const rank = topRank.has(playerKey) ? topRank.get(playerKey) : null;
+            if (rank !== null) score += 60 - (rank * 12);
+
+            // Explicit roster main hero fallback
+            if ((playerRow.main_hero || '').trim() === hero) score += 45;
+
+            const heroRole = drGetHeroRole(hero);
+            const playerRole = drNormalizeRoleName(playerRow.role || '');
+            if (heroRole && playerRole) {
+                if (heroRole === playerRole) score += 35;
+                else score -= 70;
+            }
+
+            if (playerRow.is_sub) score -= 10;
+            return score;
+        }
+
+        const n = uniqueHeroes.length;
+        const m = roster.length;
+
+        // Build score matrix [hero x player]
+        const scores = uniqueHeroes.map(function(hero) {
+            return roster.map(function(playerRow) { return heroPlayerScore(hero, playerRow); });
+        });
+
+        // Use full-roster global matching (no candidate truncation) so hero specialists
+        // are never dropped from consideration.
+        const size = Math.max(n, m);
+        const DUMMY_PLAYER_PENALTY = -20;
+        const padded = Array.from({length: size}, function(_, hi) {
+            return Array.from({length: size}, function(_, pi) {
+                if (hi < n && pi < m) return scores[hi][pi];
+                if (hi < n && pi >= m) return DUMMY_PLAYER_PENALTY;
+                return 0;
+            });
+        });
+
+        const assignment = drHungarianMax(padded);
+        return uniqueHeroes.map(function(hero, hi) {
+            const pi = assignment[hi];
+            if (pi >= 0 && pi < m) {
+                return { hero: hero, player: roster[pi], score: scores[hi][pi] };
+            }
+            // If matched to dummy column (rare), fall back to best real player.
+            let bestScore = -Infinity;
+            let bestIdx = 0;
+            for (let realPi = 0; realPi < m; realPi += 1) {
+                if (scores[hi][realPi] > bestScore) {
+                    bestScore = scores[hi][realPi];
+                    bestIdx = realPi;
+                }
+            }
+            return { hero: hero, player: roster[bestIdx], score: bestScore };
+        });
+    }
+
+    drBuildHeroRoleLookup();
+
+    // O(n^3) Hungarian algorithm — maximum weight bipartite matching (square matrix)
+    function drHungarianMax(cost) {
+        const n = cost.length;
+        if (!n) return [];
+        const INF = 1e12;
+        // Negate for minimization
+        const maxVal = Math.max(...cost.map(function(r) { return Math.max(...r); }));
+        const c = cost.map(function(r) { return r.map(function(v) { return maxVal - v; }); });
+        // 1-indexed potential arrays
+        const u = new Array(n + 1).fill(0);
+        const v = new Array(n + 1).fill(0);
+        const p = new Array(n + 1).fill(0); // p[j] = row assigned to col j
+        const way = new Array(n + 1).fill(0);
+        for (let i = 1; i <= n; i++) {
+            p[0] = i;
+            let j0 = 0;
+            const minDist = new Array(n + 1).fill(INF);
+            const used = new Array(n + 1).fill(false);
+            do {
+                used[j0] = true;
+                const i0 = p[j0];
+                let delta = INF, j1 = -1;
+                for (let j = 1; j <= n; j++) {
+                    if (!used[j]) {
+                        const cur = c[i0 - 1][j - 1] - u[i0] - v[j];
+                        if (cur < minDist[j]) { minDist[j] = cur; way[j] = j0; }
+                        if (minDist[j] < delta) { delta = minDist[j]; j1 = j; }
+                    }
+                }
+                for (let j = 0; j <= n; j++) {
+                    if (used[j]) { u[p[j]] += delta; v[j] -= delta; }
+                    else { minDist[j] -= delta; }
+                }
+                j0 = j1;
+            } while (p[j0] !== 0);
+            do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+        }
+        // Build answer: for each row i, find col j where p[j] === i
+        const ans = new Array(n).fill(0);
+        for (let j = 1; j <= n; j++) { if (p[j] !== 0) ans[p[j] - 1] = j - 1; }
+        return ans;
+    }
+
+    function drRenderCompAssignments(targetEl, assignmentRows) {
+        if (!targetEl) return;
+        if (!assignmentRows || !assignmentRows.length) {
+            targetEl.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem">No player mapping signal yet.</span>';
+            return;
+        }
+        targetEl.innerHTML = '<div class="dr-assign-grid">' + assignmentRows.map(function(row) {
+            const playerName = row.player.is_sub ? (row.player.name + ' (sub)') : row.player.name;
+            const roleLabel = (row.player.role || '').trim();
+            const confClass = row.score >= 100 ? 'dr-conf-high' : row.score >= 50 ? 'dr-conf-med' : 'dr-conf-low';
+            const confLabel = row.score >= 100 ? 'High' : row.score >= 50 ? 'Med' : 'Low';
+            return '<div class="dr-assign-row">'
+                + '<div class="dr-assign-hero">' + heroChipHtml(row.hero, '') + '</div>'
+                + '<span class="dr-assign-arrow">&#8594;</span>'
+                + '<span class="dr-assign-player">' + escapeHtml(playerName) + (roleLabel ? ' <span class="dr-assign-role">&#xB7; ' + escapeHtml(roleLabel) + '</span>' : '') + '</span>'
+                + '<span class="dr-assign-conf ' + confClass + '">' + confLabel + '</span>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
+    function drBuildForceAnalysis(teamKey) {
+        const hints = drHeroPlayerHints[teamKey] || new Map();
+        const rosterByName = (drRosterLookup[teamKey] || {byNameKey: new Map()}).byNameKey || new Map();
+        if (!hints.size) return [];
+
+        // Build playerKey -> [{hero, score}]
+        const playerHeroScores = new Map();
+        hints.forEach(function(hint, hero) {
+            (hint.top || []).forEach(function(name, idx) {
+                const key = drPlayerNameKey(name);
+                if (!playerHeroScores.has(key)) playerHeroScores.set(key, []);
+                const playerRow = rosterByName.get(key);
+                let score = 100 - (idx * 16);
+                if (playerRow && (playerRow.main_hero || '').trim() === hero) score += 55;
+                if (playerRow && playerRow.is_sub) score -= 10;
+                playerHeroScores.get(key).push({hero: hero, score: score});
+            });
+        });
+        // Seed from main_hero for players not captured by hints
+        rosterByName.forEach(function(playerRow, key) {
+            if (!playerRow.main_hero) return;
+            if (!playerHeroScores.has(key)) playerHeroScores.set(key, []);
+            const existing = playerHeroScores.get(key);
+            if (existing.find(function(h) { return h.hero === playerRow.main_hero; })) return;
+            existing.push({hero: playerRow.main_hero, score: 55});
+        });
+        // Sort each player's list by score desc
+        playerHeroScores.forEach(function(list) {
+            list.sort(function(a, b) { return b.score - a.score; });
+        });
+
+        // Build hero -> [{playerKey, name, score}]
+        const heroPlayers = new Map();
+        playerHeroScores.forEach(function(heroList, playerKey) {
+            const playerRow = rosterByName.get(playerKey);
+            const displayName = playerRow ? playerRow.name : playerKey;
+            heroList.forEach(function(entry) {
+                if (!heroPlayers.has(entry.hero)) heroPlayers.set(entry.hero, []);
+                heroPlayers.get(entry.hero).push({playerKey: playerKey, name: displayName, score: entry.score});
+            });
+        });
+
+        const forceOps = [];
+        heroPlayers.forEach(function(players, hero) {
+            if (players.length < 2) return;
+            const sorted = players.slice().sort(function(a, b) { return b.score - a.score; });
+            const primary = sorted[0];
+            const conflict = sorted[1];
+            const primaryList = playerHeroScores.get(primary.playerKey) || [];
+            const altEntry = primaryList.find(function(h) { return h.hero !== hero; });
+            if (!altEntry) return;
+            const scoreDrop = primary.score - altEntry.score;
+            if (scoreDrop < 20) return;
+            forceOps.push({
+                ban_hero: hero,
+                primary_player: primary.name,
+                primary_score: primary.score,
+                alt_hero: altEntry.hero,
+                alt_score: altEntry.score,
+                score_drop: scoreDrop,
+                conflict_player: conflict.name,
+            });
+        });
+        return forceOps.sort(function(a, b) { return b.score_drop - a.score_drop; }).slice(0, 5);
+    }
+
+    function drRenderForceAnalysis(targetEl, rows) {
+        if (!targetEl) return;
+        if (!rows || !rows.length) {
+            targetEl.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem">No shared-hero overlap detected.</span>';
+            return;
+        }
+        targetEl.innerHTML = '<div class="dr-force-rows">' + rows.map(function(row) {
+            const confClass = row.score_drop > 50 ? 'dr-conf-high' : row.score_drop > 25 ? 'dr-conf-med' : 'dr-conf-low';
+            const confLabel = row.score_drop > 50 ? 'Strong' : row.score_drop > 25 ? 'Med' : 'Mild';
+            return '<div class="dr-force-row">'
+                + '<div class="dr-force-ban-line">'
+                + 'Ban ' + heroChipHtml(row.ban_hero, 'ban')
+                + ' <span class="dr-force-arrow">&#8594; forces</span> '
+                + '<strong>' + escapeHtml(row.primary_player) + '</strong>'
+                + ' onto ' + heroChipHtml(row.alt_hero, '')
+                + ' <span class="dr-assign-conf ' + confClass + '">' + confLabel + '</span>'
+                + '</div>'
+                + '<div class="dr-force-note">Also played by ' + escapeHtml(row.conflict_player) + ' &mdash; banning removes both options</div>'
+                + '</div>';
+        }).join('') + '</div>';
     }
 
     function drGetActiveTurnPhase() {
@@ -1213,14 +1534,51 @@ function heroChipHtml(hero, type) {
             document.getElementById('dr-suggest-protects-row').style.display = 'none';
         }
 
+        const ourAssignSection = document.getElementById('dr-suggest-our-assign-section');
+        const ourAssignTarget = document.getElementById('dr-suggest-our-assign');
+        const ourAssignments = drBuildCompAssignments('a', drSuggest.a.comp || []);
+        if (ourAssignments.length) {
+            ourAssignSection.style.display = '';
+            drRenderCompAssignments(ourAssignTarget, ourAssignments);
+        } else {
+            ourAssignSection.style.display = 'none';
+            drRenderCompAssignments(ourAssignTarget, []);
+        }
+
         const enemySec = document.getElementById('dr-suggest-enemy-section');
+        const enemyAssignSection = document.getElementById('dr-suggest-enemy-assign-section');
+        const enemyAssignTarget = document.getElementById('dr-suggest-enemy-assign');
         if (drSuggest.b.comp.length || drSuggest.b.bans.length) {
             enemySec.style.display = '';
             document.getElementById('dr-suggest-enemy-name').textContent = nameB;
             document.getElementById('dr-suggest-enemy-comp').innerHTML = drSuggest.b.comp.map(h => heroChipHtml(h,'')).join('');
-            document.getElementById('dr-suggest-enemy-bans').innerHTML = drSuggest.b.bans.map(h => heroChipHtml(h,'ban')).join('');
+            document.getElementById('dr-suggest-enemy-bans').innerHTML = drSuggest.b.bans.map(h => heroChipHtml(h,'ban')).join('') || '<span style="color:#94a3b8;font-size:0.82rem">None</span>';
+
+            const enemyAssignments = drBuildCompAssignments('b', drSuggest.b.comp || []);
+            if (enemyAssignments.length) {
+                enemyAssignSection.style.display = '';
+                drRenderCompAssignments(enemyAssignTarget, enemyAssignments);
+            } else {
+                enemyAssignSection.style.display = 'none';
+                drRenderCompAssignments(enemyAssignTarget, []);
+            }
         } else {
             enemySec.style.display = 'none';
+            enemyAssignSection.style.display = 'none';
+            drRenderCompAssignments(enemyAssignTarget, []);
+        }
+
+        // Force analysis — always runs against the enemy team's full hero pool
+        const enemyForceSec = document.getElementById('dr-suggest-enemy-force-section');
+        const enemyForceTarget = document.getElementById('dr-suggest-enemy-force');
+        if (enemyForceSec && enemyForceTarget) {
+            const forceRows = drBuildForceAnalysis('b');
+            if (forceRows.length && (drSuggest.b.comp.length || drSuggest.b.bans.length)) {
+                enemyForceSec.style.display = '';
+                drRenderForceAnalysis(enemyForceTarget, forceRows);
+            } else {
+                enemyForceSec.style.display = 'none';
+            }
         }
 
         suggestBlock.style.display = '';
