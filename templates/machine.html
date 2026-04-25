@@ -217,7 +217,6 @@
     <div class="button-row top-gap">
         <button type="button" id="dr-analyze-btn">Analyze &amp; Suggest Draft</button>
         <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
-        <button type="button" class="button-secondary" id="dr-apply-suggest-btn" style="display:none">Apply Suggestions</button>
     </div>
     <p class="dr-model-status" id="dr-status">No model loaded yet.</p>
 </section>
@@ -621,10 +620,14 @@ function heroChipHtml(hero, type) {
     let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
     const drDraft = {a:{}, b:{}};
     let drSuggest = {a:{bans:[],protects:[]}, b:{bans:[],protects:[]}};
+    const drHeroPlayerHints = {a: new Map(), b: new Map()};
+    const drRosterLookup = {
+        a: {rows: [], byNameKey: new Map()},
+        b: {rows: [], byNameKey: new Map()},
+    };
 
     const analyzeBtn  = document.getElementById('dr-analyze-btn');
     const resetBtn    = document.getElementById('dr-reset-btn');
-    const applyBtn    = document.getElementById('dr-apply-suggest-btn');
     const statusEl    = document.getElementById('dr-status');
     const workspaceSec= document.getElementById('dr-workspace');
     const pickerSec   = document.getElementById('dr-picker-section');
@@ -639,6 +642,9 @@ function heroChipHtml(hero, type) {
         ],
         [
             {team: 'a', slot: 'ban2', type: 'ban'},
+        ],
+        [
+            {team: 'b', slot: 'ban2', type: 'ban'},
         ],
         [
             {team: 'a', slot: 'protect1', type: 'protect'},
@@ -663,6 +669,93 @@ function heroChipHtml(hero, type) {
 
     function drGetSlotElement(team, slot) {
         return document.querySelector('[data-team="' + team + '"][data-slot="' + slot + '"]');
+    }
+
+    function drPlayerNameKey(name) {
+        return (name || '').trim().toLowerCase();
+    }
+
+    function drBuildRosterLookup(teamKey, rows) {
+        const normalizedRows = (rows || []).map(function(row) {
+            return {
+                name: (row && row.name) ? String(row.name).trim() : '',
+                role: (row && row.role) ? String(row.role).trim() : '',
+                main_hero: (row && row.main_hero) ? String(row.main_hero).trim() : '',
+                is_sub: Boolean(row && row.is_sub),
+            };
+        }).filter(function(row) { return row.name; });
+        drRosterLookup[teamKey] = {
+            rows: normalizedRows,
+            byNameKey: new Map(normalizedRows.map(function(row) { return [drPlayerNameKey(row.name), row]; })),
+        };
+    }
+
+    function drBuildHeroHints(teamKey, teamPayload) {
+        const model = (teamPayload || {}).model || {};
+        const hints = new Map();
+        (model.hero_pool_rows || []).forEach(function(row) {
+            const hero = (row.hero || '').trim();
+            if (!hero) return;
+            const top = (row.top_players || []).map(function(p) {
+                if (!p) return '';
+                if (typeof p === 'string') return p;
+                return p.player || '';
+            }).filter(Boolean);
+            hints.set(hero, {
+                primary: (row.primary_player || top[0] || '').trim(),
+                top: top,
+            });
+        });
+        drHeroPlayerHints[teamKey] = hints;
+        drBuildRosterLookup(teamKey, (teamPayload || {}).roster_players || []);
+    }
+
+    function drDecoratePlayerName(teamKey, playerName) {
+        const cleanName = (playerName || '').trim();
+        if (!cleanName) return '';
+        const roster = drRosterLookup[teamKey] || {byNameKey: new Map()};
+        const playerRow = roster.byNameKey.get(drPlayerNameKey(cleanName));
+        if (playerRow && playerRow.is_sub) {
+            return cleanName + ' (sub)';
+        }
+        return cleanName;
+    }
+
+    function drGetHeroPlayerSuggestion(teamKey, heroName) {
+        const hero = (heroName || '').trim();
+        if (!hero) return '';
+
+        const hint = drHeroPlayerHints[teamKey].get(hero);
+        const decoratedTop = hint
+            ? (hint.top || []).map(function(name) { return drDecoratePlayerName(teamKey, name); }).filter(Boolean)
+            : [];
+        if (decoratedTop.length) {
+            return 'Players: ' + decoratedTop.slice(0, 2).join(' / ');
+        }
+
+        const rosterRows = (drRosterLookup[teamKey] || {rows: []}).rows;
+        const mainHeroMatches = rosterRows.filter(function(row) {
+            return (row.main_hero || '').trim() === hero;
+        });
+        if (mainHeroMatches.length) {
+            return 'Players: ' + mainHeroMatches.slice(0, 2).map(function(row) {
+                return row.is_sub ? (row.name + ' (sub)') : row.name;
+            }).join(' / ');
+        }
+
+        return '';
+    }
+
+    function drRefreshSlotSubLabels() {
+        document.querySelectorAll('.draft-slot[data-team]').forEach(function(sl) {
+            const team = sl.dataset.team;
+            const slot = sl.dataset.slot;
+            const hero = ((drDraft[team] || {})[slot] || '').trim();
+            const heroSub = sl.querySelector('.slot-hero-sub');
+            if (heroSub) {
+                heroSub.textContent = hero ? drGetHeroPlayerSuggestion(team, hero) : '';
+            }
+        });
     }
 
     function drGetActiveTurnPhase() {
@@ -765,6 +858,8 @@ function heroChipHtml(hero, type) {
             const nameB = (teams[1]||{}).name || 'Enemy Team';
             document.getElementById('dr-col-a-label').textContent = nameA;
             document.getElementById('dr-col-b-label').textContent = nameB;
+            drBuildHeroHints('a', teams[0] || {});
+            drBuildHeroHints('b', teams[1] || {});
 
             const mA = (teams[0]||{}).model || {};
             const mB = (teams[1]||{}).model || {};
@@ -777,8 +872,8 @@ function heroChipHtml(hero, type) {
 
             workspaceSec.style.display = '';
             pickerSec.style.display = '';
-            applyBtn.style.display = '';
             drRender();
+            drRefreshSlotSubLabels();
             drAutoFocusNextStep();
         } catch(e) {
             statusEl.textContent = 'Failed to load model.';
@@ -933,6 +1028,7 @@ function heroChipHtml(hero, type) {
         const ourLockedProtects = ['protect1','protect2'].map(function(k) { return drDraft.a[k] || ''; }).filter(Boolean);
         const enemyLockedBans = ['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean);
         const enemyLockedProtects = ['protect1','protect2'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean);
+        const hardBannedHeroes = new Set(enemyLockedBans.concat(ourLockedBans));
 
         // Adaptive simulator: evaluate each candidate comp against current locks/bans.
         let bestCandidate = null;
@@ -940,6 +1036,11 @@ function heroChipHtml(hero, type) {
             const compRow = candidate.row;
             const compHeroes = (compRow.heroes || []).filter(Boolean);
             if (!compHeroes.length) return;
+
+            // Fully remove comp candidates that contain already-banned heroes.
+            if (compHeroes.some(function(hero) { return hardBannedHeroes.has(hero); })) {
+                return;
+            }
 
             const targetCompKey = heroesKey(compHeroes);
             const matchingPathRow = (mA.comp_path_rows || []).find(function(pathRow) {
@@ -1125,34 +1226,6 @@ function heroChipHtml(hero, type) {
         suggestBlock.style.display = '';
     }
 
-    // apply suggestions to board
-    applyBtn.addEventListener('click', function() {
-        // Fill team A's slots
-        const aSlotMap = {ban1:0, ban2:1, ban3:2, ban4:3};
-        const aBans = drSuggest.a.bans;
-        const aProtects = drSuggest.a.protects;
-        aBans.forEach((hero, i) => {
-            const key = ['ban1','ban2','ban3','ban4'][i];
-            if (key && hero) drSetSlot('a', key, hero);
-        });
-        aProtects.forEach((hero, i) => {
-            const key = ['protect1','protect2'][i];
-            if (key && hero) drSetSlot('a', key, hero);
-        });
-        // Fill team B's top ban line
-        const bBans = drSuggest.b.bans;
-        const bProtects = drSuggest.b.protects;
-        bBans.forEach((hero, i) => {
-            const key = ['ban1','ban2','ban3','ban4'][i];
-            if (key && hero) drSetSlot('b', key, hero);
-        });
-        bProtects.forEach((hero, i) => {
-            const key = ['protect1','protect2'][i];
-            if (key && hero) drSetSlot('b', key, hero);
-        });
-        drRender();
-    });
-
     function drSetSlot(team, slot, hero) {
         drDraft[team][slot] = hero;
         const el = document.querySelector('[data-team="' + team + '"][data-slot="' + slot + '"]');
@@ -1165,7 +1238,7 @@ function heroChipHtml(hero, type) {
         if (hidden) hidden.value = hero || '';
 
         heroLabel.textContent = hero || '';
-        if (heroSub) heroSub.textContent = '';
+        if (heroSub) heroSub.textContent = hero ? drGetHeroPlayerSuggestion(team, hero) : '';
 
         if (!hero) {
             if (slotWrap) slotWrap.remove();

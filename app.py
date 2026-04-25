@@ -10,6 +10,7 @@ import zipfile
 import hashlib
 import sqlite3
 import importlib
+import shutil
 from difflib import SequenceMatcher
 from itertools import combinations
 from collections import Counter, defaultdict
@@ -71,6 +72,12 @@ def _default_logo_dir() -> Path:
     if configured:
         return Path(configured)
 
+    # If the database path is explicitly configured, keep logos next to it so
+    # both data sets share the same persistence behavior across redeploys.
+    configured_db = (os.environ.get("DATABASE_PATH") or "").strip()
+    if configured_db and configured_db != ":memory:":
+        return Path(configured_db).parent / "team_logos"
+
     render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
     if render_mount:
         return Path(render_mount) / "team_logos"
@@ -85,7 +92,9 @@ def _default_logo_dir() -> Path:
 
 TEAM_LOGO_DIR = _default_logo_dir()
 # True when logos live outside the static folder (persistent disk on Render).
-_LOGOS_ON_DISK = TEAM_LOGO_DIR != Path(app.static_folder) / "uploads" / "team_logos"
+_LOGOS_ON_DISK = os.path.normcase(str(TEAM_LOGO_DIR.resolve())) != os.path.normcase(
+    str((Path(app.static_folder) / "uploads" / "team_logos").resolve())
+)
 PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
 TEAM_SLOTS = ["team1", "team2"]
 TEAM_QUALITY_TAG_OPTIONS = ("Preferred", "Semi Preferred", "Good", "Avoid")
@@ -219,6 +228,12 @@ PREDICTOR_GROUPS = (
 UNSPECIFIED_SEASON_TOKEN = "__unspecified__"
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 COMFORT_CORE_MIN_RATE = 40.0
+RECENCY_HALFLIFE_DAYS = max(1.0, float(os.environ.get("MACHINE_RECENCY_HALFLIFE_DAYS", "45")))
+MACHINE_TREND_MIN_POINTS = max(3, int(os.environ.get("MACHINE_TREND_MIN_POINTS", "3")))
+MACHINE_HERO_TREND_BLEND = min(1.0, max(0.0, float(os.environ.get("MACHINE_HERO_TREND_BLEND", "0.60"))))
+MACHINE_COMP_TREND_BLEND = min(1.0, max(0.0, float(os.environ.get("MACHINE_COMP_TREND_BLEND", "0.55"))))
+MACHINE_HERO_TREND_CAP = max(0.0, float(os.environ.get("MACHINE_HERO_TREND_CAP", "12.0")))
+MACHINE_COMP_TREND_CAP = max(0.0, float(os.environ.get("MACHINE_COMP_TREND_CAP", "11.0")))
 
 SCRIMS = []
 TOURNAMENT_MATCHES = []
@@ -406,6 +421,7 @@ def init_db() -> None:
 
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
         migrate_enemy_teams_to_team_database(conn)
+        migrate_legacy_logo_paths_to_disk(conn)
         conn.commit()
     finally:
         conn.close()
@@ -1440,6 +1456,15 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
         remapped_scrims.append(scrim)
 
     return remapped_scrims
+
+
+def get_team_history_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
+    """Return scrim + tournament scrim history for a team row."""
+    team_id = int(team_row["id"])
+    team_name = (team_row["name"] or "").strip()
+    scrims = get_scrims_for_team(team_id, team_name)
+    tournament_scrims = build_team_tournament_scrims(team_row)
+    return scrims + tournament_scrims
 
 
 def normalize_scrim_record(scrim: dict) -> dict:
@@ -4004,6 +4029,53 @@ def save_team_logo(file: FileStorage | None, team_name: str) -> str:
     return f"uploads/team_logos/{filename}"
 
 
+def migrate_legacy_logo_paths_to_disk(conn: sqlite3.Connection) -> None:
+    """Move legacy static logo references to persistent disk-backed paths."""
+    if not _LOGOS_ON_DISK:
+        return
+
+    static_logo_root = (Path(app.static_folder) / "uploads" / "team_logos").resolve()
+    TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
+
+    for table_name in ("teams", "enemy_teams"):
+        rows = conn.execute(
+            f"SELECT id, logo_path FROM {table_name} WHERE logo_path LIKE ?",
+            ("uploads/team_logos/%",),
+        ).fetchall()
+        for row in rows:
+            stored_path = (row["logo_path"] or "").strip()
+            if not stored_path:
+                continue
+
+            source = (Path(app.static_folder) / stored_path).resolve()
+            try:
+                source.relative_to(static_logo_root)
+            except ValueError:
+                continue
+            if not source.exists() or not source.is_file():
+                continue
+
+            source_name = secure_filename(source.name)
+            if not source_name:
+                continue
+
+            destination = TEAM_LOGO_DIR / source_name
+            if destination.exists():
+                stem = Path(source_name).stem or "team-logo"
+                suffix = Path(source_name).suffix.lower()
+                destination = TEAM_LOGO_DIR / f"{stem}-{uuid4().hex[:8]}{suffix}"
+
+            try:
+                shutil.copy2(source, destination)
+            except OSError:
+                continue
+
+            conn.execute(
+                f"UPDATE {table_name} SET logo_path = ? WHERE id = ?",
+                (f"__disk__/{destination.name}", row["id"]),
+            )
+
+
 def _resolve_logo_file_path(relative_path: str) -> Path | None:
     """Return the absolute Path for a stored logo_path value, or None."""
     if not relative_path:
@@ -6533,10 +6605,44 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         b_values = list(b)
         return sum(1 for idx in range(min(len(a_values), len(b_values))) if a_values[idx] != b_values[idx])
 
+    def weighted_linear_delta_pct(points: list[tuple[float, float, float]]) -> float:
+        if len(points) < MACHINE_TREND_MIN_POINTS:
+            return 0.0
+        valid_points = [(x, y, w) for x, y, w in points if w > 0]
+        if len(valid_points) < MACHINE_TREND_MIN_POINTS:
+            return 0.0
+
+        min_x = min(x for x, _y, _w in valid_points)
+        max_x = max(x for x, _y, _w in valid_points)
+        x_range = max_x - min_x
+        if x_range <= 0:
+            return 0.0
+
+        sum_w = sum(w for _x, _y, w in valid_points)
+        if sum_w <= 0:
+            return 0.0
+
+        mean_x = sum(x * w for x, _y, w in valid_points) / sum_w
+        mean_y = sum(y * w for _x, y, w in valid_points) / sum_w
+        cov_xy = sum(w * (x - mean_x) * (y - mean_y) for x, y, w in valid_points)
+        var_x = sum(w * (x - mean_x) ** 2 for x, _y, w in valid_points)
+        if var_x <= 1e-9:
+            return 0.0
+
+        slope = cov_xy / var_x
+        return slope * x_range * 100.0
+
     analytics = build_scrim_analytics(team_scrims)
     total_maps = analytics.get("summary", {}).get("total_maps", 0)
     weighted_total_maps = 0.0
     weighted_total_wins = 0.0
+    recency_decay_lambda = math.log(2.0) / RECENCY_HALFLIFE_DAYS
+    dated_scrim_dates = [
+        parsed
+        for parsed in (_parse_scrim_date(scrim.get("scrim_date", "")) for scrim in team_scrims)
+        if parsed is not None
+    ]
+    newest_scrim_date = max(dated_scrim_dates) if dated_scrim_dates else None
 
     hero_weighted_apps = defaultdict(float)
     hero_weighted_wins = defaultdict(float)
@@ -6557,18 +6663,35 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
     mode_comp_totals: defaultdict[str, float] = defaultdict(float)
     map_state_counts: dict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
     map_state_totals: defaultdict[str, float] = defaultdict(float)
+    hero_trend_points: dict[str, list[tuple[float, float, float]]] = defaultdict(list)
+    comp_trend_points: dict[tuple[str, ...], list[tuple[float, float, float]]] = defaultdict(list)
+    map_time_index = 0
 
-    for scrim in team_scrims:
+    def scrim_sort_key(item: tuple[int, dict]) -> tuple[bool, date, int]:
+        idx, scrim = item
+        scrim_date = _parse_scrim_date(scrim.get("scrim_date", ""))
+        return (scrim_date is None, scrim_date or date.min, idx)
+
+    for _scrim_idx, scrim in sorted(enumerate(team_scrims), key=scrim_sort_key):
+        scrim_date = _parse_scrim_date(scrim.get("scrim_date", ""))
+        recency_weight = 1.0
+        if newest_scrim_date is not None and scrim_date is not None:
+            age_days = max(0, (newest_scrim_date - scrim_date).days)
+            recency_weight = math.exp(-recency_decay_lambda * age_days)
+
         used_maps_in_series: set[str] = set()
         cycle_modes_played: set[str] = set()
         ordered_maps = [map_entry for map_entry in scrim.get("maps", []) if isinstance(map_entry, dict)]
 
         for index, map_entry in enumerate(ordered_maps):
+            map_time_index += 1
+            time_x = float(map_time_index)
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
             outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
-            map_weight = map_type_weight(map_entry.get("map_type", ""))
+            decided_outcome = 1.0 if outcome == "Win" else 0.0 if outcome == "Loss" else None
+            map_weight = map_type_weight(map_entry.get("map_type", "")) * recency_weight
             weighted_total_maps += map_weight
             if outcome == "Win":
                 weighted_total_wins += map_weight
@@ -6601,6 +6724,8 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
                 comp_counts[richest_comp] += map_weight
                 if outcome == "Win":
                     comp_wins[richest_comp] += map_weight
+                if decided_outcome is not None:
+                    comp_trend_points[richest_comp].append((time_x, decided_outcome, map_weight))
                 if line_is_complete:
                     line_key = tuple(line_values)
                     line_to_comp_counts[line_key][richest_comp] += map_weight
@@ -6637,6 +6762,10 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
                                 hero_player_weighted_wins[hero_name][player_name] += map_weight
                             map_seen_hero_players.add(hero_player_key)
 
+            if decided_outcome is not None:
+                for hero_name in map_seen_heroes:
+                    hero_trend_points[hero_name].append((time_x, decided_outcome, map_weight))
+
             map_name = (map_entry.get("map_name", "") or "").strip()
             mode_name = MAP_MODES.get(map_name, "Other")
             if mode_name in {"Control", "Escort", "Hybrid"}:
@@ -6663,6 +6792,15 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
                     cycle_modes_played = set()
                 cycle_modes_played.add(mode_name)
 
+    hero_trend_deltas = {
+        hero_name: weighted_linear_delta_pct(points)
+        for hero_name, points in hero_trend_points.items()
+    }
+    comp_trend_deltas = {
+        comp_key: weighted_linear_delta_pct(points)
+        for comp_key, points in comp_trend_points.items()
+    }
+
     overall_wr = (weighted_total_wins / weighted_total_maps) if weighted_total_maps else 0.0
     total_hero_weight = sum(hero_weighted_apps.values())
     hero_lookup: dict[str, dict] = {}
@@ -6671,7 +6809,14 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         raw_wr = (hero_weighted_wins[hero_name] / appearances) if appearances else 0.0
         confidence = min(1.0, appearances / 20.0) if appearances else 0.0
         adjusted_wr = (confidence * raw_wr) + ((1.0 - confidence) * overall_wr)
-        profile_score = round(((comfort * 0.6) + (adjusted_wr * 0.4)) * 100, 1)
+        base_profile_score = ((comfort * 0.6) + (adjusted_wr * 0.4)) * 100
+        trend_delta = hero_trend_deltas.get(hero_name, 0.0)
+        trend_confidence = min(1.0, appearances / 14.0) if appearances else 0.0
+        trend_bonus = max(
+            -MACHINE_HERO_TREND_CAP,
+            min(MACHINE_HERO_TREND_CAP, trend_delta * MACHINE_HERO_TREND_BLEND * trend_confidence),
+        )
+        profile_score = round(max(0.0, min(100.0, base_profile_score + trend_bonus)), 1)
         player_rows = []
         for player_name, player_apps in sorted(
             hero_player_weighted_apps.get(hero_name, {}).items(),
@@ -6696,6 +6841,9 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
             "raw_win_rate": round(raw_wr * 100, 1),
             "adjusted_win_rate": round(adjusted_wr * 100, 1),
             "confidence": round(confidence * 100, 1),
+            "trend_delta_pp": round(trend_delta, 1),
+            "trend_bonus": round(trend_bonus, 1),
+            "base_profile_score": round(base_profile_score, 1),
             "player_count": len(hero_weighted_players.get(hero_name, set())),
             "primary_player": player_rows[0]["player"] if player_rows else "",
             "top_players": player_rows[:3],
@@ -6771,7 +6919,21 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
             1,
         ) if hero_profiles else 0.0
         comp_wr = round((comp_wins[comp_key] / count) * 100, 1) if count else 0.0
-        comp_strength = round((avg_comfort * 0.5) + (avg_adjusted_wr * 0.5), 1)
+        comp_strength_base = (avg_comfort * 0.5) + (avg_adjusted_wr * 0.5)
+        direct_comp_trend_delta = comp_trend_deltas.get(comp_key, 0.0)
+        hero_trend_values = [hero_trend_deltas.get(hero_name, 0.0) for hero_name in heroes if hero_name]
+        hero_avg_trend_delta = (sum(hero_trend_values) / len(hero_trend_values)) if hero_trend_values else 0.0
+        if abs(direct_comp_trend_delta) > 0.05:
+            comp_trend_delta = (direct_comp_trend_delta * 0.7) + (hero_avg_trend_delta * 0.3)
+        else:
+            # Exact 6-hero comps can be sparse; fall back to member-hero trend signal.
+            comp_trend_delta = hero_avg_trend_delta
+        comp_trend_confidence = min(1.0, count / 10.0) if count else 0.0
+        comp_trend_bonus = max(
+            -MACHINE_COMP_TREND_CAP,
+            min(MACHINE_COMP_TREND_CAP, comp_trend_delta * MACHINE_COMP_TREND_BLEND * comp_trend_confidence),
+        )
+        comp_strength = round(max(0.0, min(100.0, comp_strength_base + comp_trend_bonus)), 1)
         comp_rows.append(
             {
                 "heroes": heroes,
@@ -6780,9 +6942,23 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
                 "avg_comfort": avg_comfort,
                 "avg_adjusted_win_rate": avg_adjusted_wr,
                 "comp_win_rate": comp_wr,
+                "comp_direct_trend_delta_pp": round(direct_comp_trend_delta, 1),
+                "comp_hero_avg_trend_delta_pp": round(hero_avg_trend_delta, 1),
+                "comp_trend_delta_pp": round(comp_trend_delta, 1),
+                "comp_trend_bonus": round(comp_trend_bonus, 1),
+                "comp_strength_base": round(comp_strength_base, 1),
                 "comp_strength": comp_strength,
             }
         )
+
+    comp_rows.sort(
+        key=lambda row: (
+            float(row.get("comp_strength", 0) or 0),
+            float(row.get("rate", 0) or 0),
+            float(row.get("count", 0) or 0),
+        ),
+        reverse=True,
+    )
 
     comp_path_rows = []
     equivalent_path_rows = []
@@ -6991,6 +7167,14 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         "equivalent_path_rows": equivalent_path_rows[:8],
         "map_state_rows": map_state_rows,
         "map_type_weights": {"Standard": 1.0, "PTW": 1.75, "Test": 0.55},
+        "recency_half_life_days": RECENCY_HALFLIFE_DAYS,
+        "trend_model": {
+            "min_points": MACHINE_TREND_MIN_POINTS,
+            "hero_blend": MACHINE_HERO_TREND_BLEND,
+            "comp_blend": MACHINE_COMP_TREND_BLEND,
+            "hero_cap": MACHINE_HERO_TREND_CAP,
+            "comp_cap": MACHINE_COMP_TREND_CAP,
+        },
     }
 
 
@@ -10040,7 +10224,7 @@ def team_opponent_tree(team_id: int):
     if team is None:
         abort(404)
 
-    all_team_scrims = get_scrims_for_team(team["id"], team["name"])
+    all_team_scrims = get_team_history_scrims(team)
     season_options = get_scrim_season_options(all_team_scrims)
     default_season = get_current_season_from_recent_scrim(all_team_scrims)
     has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in all_team_scrims)
@@ -10079,7 +10263,7 @@ def team_matchup_tree():
     selected_map_name = (request.args.get("map", "") or "").strip()
 
     def filtered_scrims_for(team_row) -> list[dict]:
-        all_team_scrims = get_scrims_for_team(team_row["id"], team_row["name"])
+        all_team_scrims = get_team_history_scrims(team_row)
         season_options = get_scrim_season_options(all_team_scrims)
         default_season = get_current_season_from_recent_scrim(all_team_scrims)
         has_unseasoned_scrims = any(
@@ -14315,7 +14499,7 @@ def api_draft_reasoner_model():
     selected_map_name = (request.args.get("map", "") or "").strip()
 
     def _get_filtered_scrims(team_row) -> list[dict]:
-        all_scrims = get_scrims_for_team(team_row["id"], team_row["name"])
+        all_scrims = get_team_history_scrims(team_row)
         season_options = get_scrim_season_options(all_scrims)
         default_season = get_current_season_from_recent_scrim(all_scrims)
         has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in all_scrims)
@@ -14338,9 +14522,35 @@ def api_draft_reasoner_model():
             return filtered
         return scrims
 
+    def _get_team_roster(team_id: int) -> list[dict]:
+        rows = db.execute(
+            """
+            SELECT name, role, main_hero, COALESCE(is_sub, 0) AS is_sub
+            FROM players
+            WHERE team_id = ?
+            ORDER BY COALESCE(is_sub, 0), name COLLATE NOCASE
+            """,
+            (team_id,),
+        ).fetchall()
+        return [
+            {
+                "name": (row["name"] or "").strip(),
+                "role": (row["role"] or "").strip(),
+                "main_hero": normalize_hero_slot_value(row["main_hero"] or ""),
+                "is_sub": bool(row["is_sub"]),
+            }
+            for row in rows
+            if (row["name"] or "").strip()
+        ]
+
     a_scrims = _get_filtered_scrims(team_a)
     b_scrims = _get_filtered_scrims(team_b)
     matchup = build_matchup_tree_model(team_a["name"], a_scrims, team_b["name"], b_scrims)
+    teams_payload = matchup.get("teams", [])
+    if len(teams_payload) >= 1:
+        teams_payload[0]["roster_players"] = _get_team_roster(team_a_id)
+    if len(teams_payload) >= 2:
+        teams_payload[1]["roster_players"] = _get_team_roster(team_b_id)
     return jsonify(matchup)
 
 

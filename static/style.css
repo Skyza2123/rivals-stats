@@ -4207,18 +4207,35 @@ th {
     background: rgba(59, 130, 246, 0.85);
     padding: 1px;
     box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+}
+
+.slot-img-wrap .hero-pool-icon-overlay.pool-icon-tankpool {
+    width: 6px;
+    height: 6px;
 }
 
 .hero-pool-icon-overlay.pool-icon-dpspool {
     background: rgba(239, 68, 68, 0.85);
     padding: 1px;
     box-sizing: border-box;
+    width: 8px;
+    height: 8px;
 }
 
 .hero-pool-icon-overlay.pool-icon-supportpool {
     background: rgba(34, 197, 94, 0.85);
     padding: 1px;
     box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+}
+
+.slot-img-wrap .hero-pool-icon-overlay.pool-icon-dpspool,
+.slot-img-wrap .hero-pool-icon-overlay.pool-icon-supportpool {
+    width: 6px;
+    height: 6px;
 }
 
 .hero-inline-link {
