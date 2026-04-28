@@ -9081,20 +9081,32 @@ def teams():
 
         # Calculate hero pool (top 5 heroes)
         pick_counter: Counter = Counter()
+
         for scrim in team_scrims:
             for map_entry in scrim.get("maps", []):
                 if not isinstance(map_entry, dict):
                     continue
+
                 our_slot = map_entry.get("our_team_slot", "team1")
+
+                # prevents same hero being counted multiple times in one map
+                heroes_this_map = set()
+
                 for section in map_entry.get("comp", []):
                     if not isinstance(section, dict):
                         continue
+
                     for slot in section.get(our_slot, []):
                         if not isinstance(slot, dict):
                             continue
+
                         hero = canonicalize_hero_name(slot.get("hero", ""))
                         if hero:
-                            pick_counter[hero] += 1
+                            heroes_this_map.add(hero)
+
+                # count each hero once per map
+                for hero in heroes_this_map:
+                    pick_counter[hero] += 1
 
         hero_pool = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
 
