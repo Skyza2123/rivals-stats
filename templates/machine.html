@@ -5,8 +5,8 @@
 {% block content %}
 <style>
 /* ── Machine page shared ─────────────────────────────────────── */
-.dashboard-layout { max-width:min(1880px, 98vw); }
-.main-content { padding-left:clamp(12px, 2vw, 28px); padding-right:clamp(12px, 2vw, 28px); }
+.dashboard-layout { max-width:min(2040px, 99vw); }
+.main-content { padding-left:clamp(18px, 2.6vw, 40px); padding-right:clamp(18px, 2.6vw, 40px); }
 .machine-tab-bar { display:flex; gap:0; border-bottom:2px solid rgba(148,163,184,0.12); margin-bottom:1.5rem; }
 .machine-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:0.6rem 1.4rem; font-size:0.95rem; font-weight:600; color:#94a3b8; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
 .machine-tab.active { color:#e2e8f0; border-bottom-color:#60a5fa; }
@@ -14,37 +14,44 @@
 .machine-tab-panel.active { display:block; }
 
 /* ── Matchup panel (reused from dashboard) ────────────────────── */
-.matchup-shell { }
-.matchup-form-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1rem; }
-@media (max-width:900px) { .matchup-form-grid { grid-template-columns:1fr 1fr; } }
-.matchup-toolbar { display:flex; gap:0.75rem; flex-wrap:wrap; }
-.matchup-results-flow { display:flex; flex-direction:column; gap:1.5rem; margin-top:1rem; }
-.matchup-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
-.matchup-team-card { background:rgba(15,23,42,0.45); border:1px solid rgba(148,163,184,0.1); border-radius:0.65rem; padding:1rem 1.25rem; }
+.matchup-form-grid { display:grid; grid-template-columns:repeat(4, minmax(190px, 1fr)); gap:1.1rem; }
+@media (max-width:1080px) { .matchup-form-grid { grid-template-columns:1fr 1fr; } }
+.matchup-toolbar { display:flex; gap:0.9rem; flex-wrap:wrap; margin-top:0.15rem; }
+.matchup-results-flow { display:flex; flex-direction:column; gap:2rem; margin-top:1.25rem; }
+.matchup-shell .panel-intro { max-width:980px; line-height:1.62; margin-bottom:1.05rem; }
+.matchup-results-flow > h4,
+.matchup-results-flow h4.top-gap { margin:0 0 0.5rem; font-size:1.02rem; letter-spacing:0.01em; }
+.matchup-section-note { margin:0 0 0.65rem; color:#94a3b8; font-size:0.84rem; line-height:1.52; }
+.matchup-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1.5rem; }
+.matchup-team-card { background:rgba(15,23,42,0.45); border:1px solid rgba(148,163,184,0.1); border-radius:0.75rem; padding:1.2rem 1.35rem; }
 .matchup-stat { display:flex; justify-content:space-between; padding:0.3rem 0; border-bottom:1px solid rgba(148,163,184,0.07); font-size:0.88rem; }
 .matchup-stat:last-of-type { border-bottom:none; }
 .matchup-stat span { color:#94a3b8; }
-.matchup-surface { background:rgba(15,23,42,0.35); border:1px solid rgba(148,163,184,0.1); border-radius:0.6rem; padding:1rem 1.25rem; }
-.matchup-surface-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-@media (max-width:900px) { .matchup-surface-grid { grid-template-columns:1fr; } .matchup-grid { grid-template-columns:1fr; } }
-.matchup-surface h4 { margin:0 0 0.5rem; font-size:0.95rem; color:#e2e8f0; }
+.matchup-surface { background:rgba(15,23,42,0.35); border:1px solid rgba(148,163,184,0.1); border-radius:0.7rem; padding:1.15rem 1.35rem; }
+.matchup-surface-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:1.2rem; }
+@media (max-width:1260px) { .matchup-surface-grid { grid-template-columns:1fr; } }
+@media (max-width:1080px) { .matchup-grid { grid-template-columns:1fr; } }
+.matchup-surface h4 { margin:0 0 0.68rem; font-size:0.95rem; color:#e2e8f0; }
 .matchup-surface h4+p { margin-top:0; }
-.matchup-chip-grid { display:flex; flex-wrap:wrap; gap:0.5rem; }
-.matchup-chip { background:rgba(30,41,59,0.6); border:1px solid rgba(148,163,184,0.12); border-radius:0.45rem; padding:0.4rem 0.65rem; font-size:0.82rem; }
-.matchup-line-stack { display:flex; flex-direction:column; gap:0.5rem; }
-.matchup-line-card { background:rgba(30,41,59,0.5); border:1px solid rgba(148,163,184,0.1); border-radius:0.5rem; padding:0.65rem 0.85rem; font-size:0.85rem; }
+.matchup-chip-grid { display:flex; flex-wrap:wrap; gap:0.6rem; }
+.matchup-chip { background:rgba(30,41,59,0.6); border:1px solid rgba(148,163,184,0.12); border-radius:0.45rem; padding:0.5rem 0.72rem; font-size:0.82rem; }
+.matchup-line-stack { display:flex; flex-direction:column; gap:0.72rem; }
+.matchup-line-card { background:rgba(30,41,59,0.5); border:1px solid rgba(148,163,184,0.1); border-radius:0.5rem; padding:0.82rem 1rem; font-size:0.85rem; }
 .matchup-card-title { font-weight:600; color:#e2e8f0; font-size:0.88rem; margin-bottom:0.35rem; }
-.matchup-card-copy { color:#94a3b8; font-size:0.82rem; margin-top:0.25rem; }
-.matchup-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
-.matchup-line-meta { display:flex; flex-wrap:wrap; gap:0.35rem; margin:0.2rem 0; }
+.matchup-card-copy { color:#94a3b8; font-size:0.82rem; margin-top:0.35rem; }
+.matchup-hero-row { display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0; }
+.matchup-line-meta { display:flex; flex-wrap:wrap; gap:0.45rem; margin:0.3rem 0; }
 .matchup-badge { display:inline-block; font-size:0.76rem; padding:0.15rem 0.5rem; border-radius:999px; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); color:#bfdbfe; }
 .matchup-badge-warn { background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.25); color:#fef08a; }
 .matchup-badge-muted { background:rgba(100,116,139,0.15); border-color:rgba(100,116,139,0.25); color:#94a3b8; }
 .matchup-vs { font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; color:rgba(191,219,254,0.72); margin:0.4rem 0; }
 .matchup-section-head { display:flex; justify-content:space-between; gap:1rem; }
 .matchup-empty { color:#94a3b8; font-style:italic; font-size:0.85rem; }
-.matchup-map-list { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.35rem; }
-.matchup-map-chip { background:rgba(30,41,59,0.6); border:1px solid rgba(148,163,184,0.12); border-radius:0.4rem; padding:0.3rem 0.55rem; font-size:0.8rem; }
+.matchup-map-list { display:flex; flex-wrap:wrap; gap:0.62rem; margin-top:0.5rem; }
+.matchup-map-chip { background:rgba(30,41,59,0.6); border:1px solid rgba(148,163,184,0.12); border-radius:0.45rem; padding:0.45rem 0.65rem; font-size:0.8rem; }
+.matchup-map-chip { display:flex; align-items:center; gap:0.45rem; }
+.matchup-map-thumb { width:64px; height:40px; border-radius:0.35rem; object-fit:cover; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.7); flex-shrink:0; }
+.matchup-map-copy { display:flex; flex-direction:column; gap:0.14rem; line-height:1.25; }
 .hero-inline-cell { display:inline-flex; align-items:center; gap:0.3rem; }
 .hero-inline-thumb { width:26px; height:26px; border-radius:50%; object-fit:cover; vertical-align:middle; }
 .matchup-slot-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.2rem; }
@@ -302,7 +309,7 @@
 <section class="panel matchup-shell">
     <div class="section-kicker">Draft Matchup</div>
     <h3>Two-Team Draft Outlook</h3>
-    <p class="panel-intro">Compare two teams' likely draft priorities, contested heroes, end-state comps, and map preferences from recorded scrim data.</p>
+    <p class="panel-intro">Get a quick pre-draft read on both teams: comfort priority, overlap pressure, map agreement, and the most likely open-to-closed draft direction from recorded scrims.</p>
     {% if teams %}
     <div class="matchup-form-grid">
         <div class="field">
@@ -766,7 +773,19 @@ function openHeroIconHtml(hero) {
     function renderMapConsensus(rows, a, b) {
         if (!rows || !rows.length) return '<p class="matchup-empty">No mutual map preference yet.</p>';
         return rows.map(row => {
-            const opts = (row.options||[]).map(o => '<div class="matchup-map-chip"><strong>' + escapeHtml(o.map_name) + '</strong> ' + escapeHtml(o.mode) + ' – ' + escapeHtml(a) + ' ' + escapeHtml(o.team_a_rate) + '% / ' + escapeHtml(b) + ' ' + escapeHtml(o.team_b_rate) + '%</div>').join('');
+            const opts = (row.options||[]).map(function(o) {
+                const thumb = String(o.image || '').trim();
+                const imgHtml = thumb
+                    ? '<img class="matchup-map-thumb" src="' + escapeHtml(thumb) + '" alt="' + escapeHtml(o.map_name) + '" onerror="this.style.display=\'none\'">'
+                    : '';
+                return '<div class="matchup-map-chip">'
+                    + imgHtml
+                    + '<div class="matchup-map-copy">'
+                    + '<strong>' + escapeHtml(o.map_name) + '</strong>'
+                    + '<span>' + escapeHtml(o.mode) + ' – ' + escapeHtml(a) + ' ' + escapeHtml(o.team_a_rate) + '% / ' + escapeHtml(b) + ' ' + escapeHtml(o.team_b_rate) + '%</span>'
+                    + '</div>'
+                    + '</div>';
+            }).join('');
             return '<div class="matchup-surface top-gap"><h4>' + escapeHtml(row.label) + '</h4><div class="matchup-map-list">' + opts + '</div></div>';
         }).join('');
     }
@@ -776,18 +795,40 @@ function openHeroIconHtml(hero) {
         return '<div class="matchup-line-stack">' + rows.slice(0, 4).map(function(row) {
             const ourComp = (row.our_comp || []).map(heroCell).join('');
             const enemyComp = (row.enemy_comp || []).map(heroCell).join('');
+            const enemyAltComp = (row.enemy_alt_comp || []).map(heroCell).join('');
             const bans = (row.our_bans || []).map(escapeHtml).join(', ') || 'None';
+            const pressureBans = (row.pressure_bans || []);
+            const pressureBanText = pressureBans.length
+                ? pressureBans.map(function(entry) {
+                    const hero = escapeHtml(entry.hero || '');
+                    const affected = escapeHtml(entry.affected_count || 0);
+                    const drop = escapeHtml(Number(entry.total_score_drop || 0).toFixed(1));
+                    return hero + ' (' + affected + ' players, drop ' + drop + ')';
+                }).join(', ')
+                : 'None';
+            const blockedHeroes = (row.enemy_blocked_heroes || []).map(escapeHtml).join(', ') || 'None';
+            const readTier = escapeHtml(row.read_tier || 'Playable');
+            const readScore = escapeHtml(Number(row.read_score || 0).toFixed(1));
             return '<div class="matchup-line-card">'
-                + '<div class="matchup-card-title">Comp target for ' + escapeHtml(a) + '</div>'
+                + '<div class="matchup-card-title">Primary Plan for ' + escapeHtml(a) + '</div>'
                 + '<div class="matchup-hero-row">' + ourComp + '</div>'
                 + '<div class="matchup-line-meta">'
-                + '<span class="matchup-badge">Win Prob ' + escapeHtml(row.ml_win_prob) + '%</span>'
-                + '<span class="matchup-badge">Read ' + escapeHtml(row.ml_confidence) + '%</span>'
-                + '<span class="matchup-badge">Path Share ' + escapeHtml(row.our_path_share) + '%</span>'
+                + '<span class="matchup-badge">Model WR ' + escapeHtml(row.ml_win_prob) + '%</span>'
+                + '<span class="matchup-badge">Confidence ' + escapeHtml(row.ml_confidence) + '%</span>'
+                + '<span class="matchup-badge">Route Share ' + escapeHtml(row.our_path_share) + '%</span>'
+                + '<span class="matchup-badge matchup-badge-warn">' + readTier + ' Score ' + readScore + '</span>'
                 + '</div>'
-                + '<div class="matchup-vs">Likely ' + escapeHtml(b) + ' response</div>'
+                + '<div class="matchup-vs">Expected ' + escapeHtml(b) + ' counterplan</div>'
                 + '<div class="matchup-hero-row">' + enemyComp + '</div>'
-                + '<div class="matchup-line-meta"><span class="matchup-badge">Bans: ' + bans + '</span></div>'
+                + (enemyAltComp ? '<div class="matchup-line-meta"><span class="matchup-badge matchup-badge-muted">Fallback response:</span></div><div class="matchup-hero-row">' + enemyAltComp + '</div>' : '')
+                + '<div class="matchup-line-meta"><span class="matchup-badge">Route bans: ' + bans + '</span></div>'
+                + '<div class="matchup-line-meta"><span class="matchup-badge matchup-badge-warn">Pressure bans: ' + pressureBanText + '</span></div>'
+                + '<div class="matchup-line-meta">'
+                + '<span class="matchup-badge">Enemy preserved ' + escapeHtml(row.enemy_preserved_ratio) + '%</span>'
+                + '<span class="matchup-badge">Choice gap ' + escapeHtml(row.enemy_choice_gap) + '</span>'
+                + '<span class="matchup-badge">Blocked heroes ' + escapeHtml(row.enemy_blocked_count) + '</span>'
+                + '</div>'
+                + '<div class="matchup-card-copy">Blocked set: ' + blockedHeroes + '</div>'
                 + '</div>';
         }).join('') + '</div>';
     }
@@ -799,11 +840,11 @@ function openHeroIconHtml(hero) {
         h += '<div class="matchup-stat"><span>Maps</span><strong>' + escapeHtml(m.training_maps) + '</strong></div>';
         h += '<div class="matchup-stat"><span>WR</span><strong>' + escapeHtml(m.overall_win_rate) + '%</strong></div>';
         h += '</div>';
-        h += '<div class="matchup-surface top-gap"><h4>Comfort Core</h4>'
+        h += '<div class="matchup-surface top-gap"><h4>Comfort Core Snapshot</h4>'
             + renderHeroChips((m.comfort_core_rows||[]).slice(0,6), r => ' – ' + escapeHtml(r.comfort_rate) + '% comfort, ' + escapeHtml(r.adjusted_win_rate) + '% WR')
             + '</div>';
-        h += '<div class="matchup-surface top-gap"><h4>Ban Lines</h4>' + renderLineCards(m.ban_line_rows||[], team.name, 'ban lines') + '</div>';
-        h += '<div class="matchup-surface top-gap"><h4>Comps</h4>' + renderLineCards(m.comp_rows||[], team.name, 'comps') + '</div>';
+        h += '<div class="matchup-surface top-gap"><h4>Common Ban Routes</h4>' + renderLineCards(m.ban_line_rows||[], team.name, 'ban routes') + '</div>';
+        h += '<div class="matchup-surface top-gap"><h4>Most Played Comp Shells</h4>' + renderLineCards(m.comp_rows||[], team.name, 'comp shells') + '</div>';
         return h;
     }
 
@@ -818,21 +859,18 @@ function openHeroIconHtml(hero) {
         let h = '<div class="matchup-results-flow">';
         h += '<div class="matchup-grid"><div>' + renderTeamModel(tA) + '</div><div>' + renderTeamModel(tB) + '</div></div>';
 
-        h += '<h4>Contested Heroes</h4><div class="matchup-surface">'
+        h += '<h4>Contested Priority</h4><p class="matchup-section-note">Heroes both teams value highly. These often decide whether the draft stays stable or forks early.</p><div class="matchup-surface">'
             + (()=>{const r=data.contested_heroes||[];if(!r.length)return '<p class="matchup-empty">None yet.</p>';return '<div class="matchup-chip-grid">'+r.map(row=>'<div class="matchup-chip"><strong>'+heroCell(row.hero)+'</strong>'+escapeHtml(tA.name)+' '+escapeHtml(row.team_a_score)+' / '+escapeHtml(tB.name)+' '+escapeHtml(row.team_b_score)+'</div>').join('')+'</div>';})()
             + '</div>';
 
-        h += '<h4 class="top-gap">Force Path</h4><div class="matchup-surface">' + renderForceRows(data.force_matchup_rows||[], tA.name, tB.name) + '</div>';
-
         h += '<div class="matchup-surface-grid top-gap">';
-        h += '<div class="matchup-surface"><h4>Ban Collisions</h4>' + renderVsCards(data.ban_clash_rows||[], tA.name, tB.name, 'No overlap yet.') + '</div>';
-        h += '<div class="matchup-surface"><h4>Comp Collisions</h4>' + renderVsCards(data.comp_clash_rows||[], tA.name, tB.name, 'No overlap yet.') + '</div>';
-        h += '<div class="matchup-surface"><h4>Volatile Heroes</h4>' + renderVolatileRows(data.volatile_matchup_rows||[], tA.name, tB.name) + '</div>';
-        h += '<div class="matchup-surface"><h4>Equivalent Draft Paths</h4>' + renderEquivalentPathRows(data.equivalent_path_rows||[], tA.name, tB.name) + '</div>';
+        h += '<div class="matchup-surface"><h4>Ban Overlap Pressure</h4>' + renderVsCards(data.ban_clash_rows||[], tA.name, tB.name, 'No overlap yet.') + '</div>';
+        h += '<div class="matchup-surface"><h4>Comp Overlap Pressure</h4>' + renderVsCards(data.comp_clash_rows||[], tA.name, tB.name, 'No overlap yet.') + '</div>';
+        h += '<div class="matchup-surface"><h4>Volatility Watch</h4>' + renderVolatileRows(data.volatile_matchup_rows||[], tA.name, tB.name) + '</div>';
         h += '</div>';
 
-        h += '<h4 class="top-gap">Map Consensus</h4>' + renderMapConsensus(data.map_consensus_rows||[], tA.name, tB.name);
-        h += '<h4 class="top-gap">Matchup Read</h4><div class="matchup-surface">' + renderMlOutlook(data.ml_outlook_rows||[], tA.name, tB.name) + '</div>';
+        h += '<h4 class="top-gap">Map Consensus</h4><p class="matchup-section-note">Shared map comfort between both teams for this draft state.</p>' + renderMapConsensus(data.map_consensus_rows||[], tA.name, tB.name);
+        h += '<h4 class="top-gap">Matchup Read</h4><p class="matchup-section-note">Model-guided draft direction with response and pressure context.</p><div class="matchup-surface">' + renderMlOutlook(data.ml_outlook_rows||[], tA.name, tB.name) + '</div>';
         h += '</div>';
         results.innerHTML = h;
     }
@@ -845,10 +883,23 @@ function openHeroIconHtml(hero) {
         if (seasonSel.value) p.set('season', seasonSel.value);
         if (mapSel.value && mapSel.value !== 'all') p.set('map', mapSel.value);
         const resp = await fetch('/teams/matchup-tree?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+        if (resp.redirected && /\/login(\?|$)/i.test(resp.url || '')) {
+            window.location.href = resp.url;
+            return;
+        }
+        const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+        if (!resp.ok || !contentType.includes('application/json')) {
+            const body = await resp.text();
+            throw new Error('Unexpected response (' + resp.status + '): ' + body.slice(0, 180));
+        }
         renderTree(await resp.json());
     }
 
-    loadBtn.addEventListener('click', () => loadTree().catch(e => { results.innerHTML = '<p class="empty-text">Could not load this matchup.</p>'; console.error(e); }));
+    loadBtn.addEventListener('click', () => loadTree().catch(e => {
+        const reason = (e && e.message) ? e.message : 'Unknown error';
+        results.innerHTML = '<p class="empty-text">Could not load this matchup. ' + escapeHtml(reason) + '</p>';
+        console.error(e);
+    }));
     swapBtn.addEventListener('click', () => { const v = teamSelA.value; teamSelA.value = teamSelB.value; teamSelB.value = v; results.innerHTML = ''; });
     [teamSelA, teamSelB, seasonSel, mapSel].forEach(el => el.addEventListener('change', () => results.innerHTML = ''));
 })();
@@ -992,6 +1043,12 @@ function openHeroIconHtml(hero) {
 
     function drGetHeroRole(heroName) {
         return drHeroRoleLookup.get((heroName || '').trim()) || '';
+    }
+
+    function drGetReasonerPlayerRole(heroName) {
+        const heroKey = (heroName || '').trim().toLowerCase();
+        if (heroKey === 'ultron') return 'duelist';
+        return drGetHeroRole(heroName);
     }
 
     function drBuildRosterLookup(teamKey, rows) {
@@ -1176,7 +1233,7 @@ function openHeroIconHtml(hero) {
             // Explicit roster main hero fallback
             if ((playerRow.main_hero || '').trim() === hero) score += 45;
 
-            const heroRole = drGetHeroRole(hero);
+            const heroRole = drGetReasonerPlayerRole(hero);
             const playerRole = drNormalizeRoleName(playerRow.role || '');
             if (heroRole && playerRole) {
                 if (heroRole === playerRole) score += 35;
@@ -1351,21 +1408,22 @@ function openHeroIconHtml(hero) {
             const affectedPlayers = [];
             sorted.forEach(function(playerEntry) {
                 const playerList = playerHeroScores.get(playerEntry.playerKey) || [];
-                const heroRole = drGetHeroRole(hero);
+                const heroRole = drGetReasonerPlayerRole(hero);
                 const altCandidates = playerList.filter(function(h) { return h.hero !== hero; });
                 altCandidates.sort(function(a, b) {
-                    const aSameRole = heroRole && drGetHeroRole(a.hero) === heroRole ? 1 : 0;
-                    const bSameRole = heroRole && drGetHeroRole(b.hero) === heroRole ? 1 : 0;
-                    return (bSameRole - aSameRole)
+                    const aSameRole = heroRole && drGetReasonerPlayerRole(a.hero) === heroRole ? 1 : 0;
+                    const bSameRole = heroRole && drGetReasonerPlayerRole(b.hero) === heroRole ? 1 : 0;
+                    return (Number(b.appearances || 0) - Number(a.appearances || 0))
+                        || (Number(b.usage_rate || 0) - Number(a.usage_rate || 0))
+                        || (bSameRole - aSameRole)
                         || (Number(b.win_rate || 0) - Number(a.win_rate || 0))
                         || (Number(b.pool_rating || 0) - Number(a.pool_rating || 0))
-                        || (Number(b.appearances || 0) - Number(a.appearances || 0))
                         || (Number(b.score || 0) - Number(a.score || 0));
                 });
                 const altEntry = altCandidates[0];
                 if (!altEntry) return;
                 const scoreDrop = playerEntry.score - altEntry.score;
-                const altSameRole = Boolean(heroRole && drGetHeroRole(altEntry.hero) === heroRole);
+                const altSameRole = Boolean(heroRole && drGetReasonerPlayerRole(altEntry.hero) === heroRole);
                 const isPreferredHero =
                     playerEntry.score >= DR_FORCE_PREFERRED_HERO_SCORE
                     || (Number(playerEntry.usage_rate || 0) >= DR_FORCE_PREFERRED_USAGE_RATE

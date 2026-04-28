@@ -7541,6 +7541,99 @@ def build_matchup_tree_model(
         )
         return scored_rows
 
+    def build_player_pressure_rows(enemy_model: dict) -> list[dict]:
+        player_rows = enemy_model.get("player_hero_rows", [])
+        hero_pressure: dict[str, dict] = {}
+
+        def hero_score(hero_row: dict) -> float:
+            appearances = float(hero_row.get("appearances", 0) or 0)
+            usage_rate = float(hero_row.get("usage_rate", 0) or 0)
+            win_rate = float(hero_row.get("win_rate", 0) or 0)
+            return (appearances * 2.5) + (usage_rate * 0.8) + ((win_rate - 50.0) * 0.18)
+
+        for player_row in player_rows:
+            player_name = (player_row.get("player", "") or "").strip()
+            if not player_name:
+                continue
+
+            hero_rows = [
+                row for row in (player_row.get("top_heroes", []) or [])
+                if (row.get("hero") or "").strip() and float(row.get("appearances", 0) or 0) > 0
+            ]
+            if len(hero_rows) < 2:
+                continue
+
+            # Use most-played fallback first, then usage and win rate as tie-breakers.
+            sorted_rows = sorted(
+                hero_rows,
+                key=lambda row: (
+                    float(row.get("appearances", 0) or 0),
+                    float(row.get("usage_rate", 0) or 0),
+                    float(row.get("win_rate", 0) or 0),
+                ),
+                reverse=True,
+            )
+            primary = sorted_rows[0]
+            fallback = sorted_rows[1]
+            primary_hero = (primary.get("hero", "") or "").strip()
+            fallback_hero = (fallback.get("hero", "") or "").strip()
+            if not primary_hero or not fallback_hero:
+                continue
+
+            score_drop = max(0.0, hero_score(primary) - hero_score(fallback))
+            if score_drop <= 0:
+                continue
+
+            bucket = hero_pressure.setdefault(
+                primary_hero,
+                {
+                    "hero": primary_hero,
+                    "affected_players": [],
+                    "affected_count": 0,
+                    "total_score_drop": 0.0,
+                    "max_score_drop": 0.0,
+                },
+            )
+            bucket["affected_players"].append(
+                {
+                    "player": player_name,
+                    "fallback_hero": fallback_hero,
+                    "score_drop": round(score_drop, 1),
+                    "primary_appearances": int(float(primary.get("appearances", 0) or 0)),
+                }
+            )
+            bucket["affected_count"] += 1
+            bucket["total_score_drop"] += score_drop
+            bucket["max_score_drop"] = max(float(bucket["max_score_drop"]), score_drop)
+
+        rows = []
+        for row in hero_pressure.values():
+            affected_players = sorted(
+                row["affected_players"],
+                key=lambda p: (float(p.get("score_drop", 0) or 0), int(p.get("primary_appearances", 0) or 0)),
+                reverse=True,
+            )
+            rows.append(
+                {
+                    "hero": row["hero"],
+                    "affected_players": affected_players,
+                    "affected_count": int(row["affected_count"]),
+                    "total_score_drop": round(float(row["total_score_drop"]), 1),
+                    "max_score_drop": round(float(row["max_score_drop"]), 1),
+                }
+            )
+
+        rows.sort(
+            key=lambda row: (
+                int(row.get("affected_count", 0) or 0),
+                float(row.get("total_score_drop", 0) or 0),
+                float(row.get("max_score_drop", 0) or 0),
+                (row.get("hero", "") or "").lower(),
+            ),
+            reverse=True,
+        )
+        return rows
+
     team_a_heroes = hero_index(team_a_model.get("comfort_core_rows", []))
     team_b_heroes = hero_index(team_b_model.get("comfort_core_rows", []))
 
@@ -7662,6 +7755,7 @@ def build_matchup_tree_model(
             shared_maps.append(
                 {
                     "map_name": map_name,
+                    "image": get_map_image_url(map_name),
                     "mode": map_a.get("mode", "Other"),
                     "team_a_rate": float(map_a.get("rate", 0) or 0),
                     "team_b_rate": float(map_b.get("rate", 0) or 0),
@@ -7744,20 +7838,121 @@ def build_matchup_tree_model(
         reverse=True,
     )
 
-    ml_outlook_rows = [
-        {
-            "our_comp": row.get("our_comp", []),
-            "our_bans": row.get("our_bans", []),
-            "our_protects": row.get("our_protects", []),
-            "enemy_comp": row.get("enemy_comp", []),
-            "ml_win_prob": round(float(row.get("ml_win_prob", 0) or 0), 1),
-            "ml_confidence": round(float(row.get("ml_confidence", 0) or 0), 1),
-            "ml_comp_score": round(float(row.get("ml_comp_score", 0) or 0), 1),
-            "enemy_choice_gap": round(float(row.get("enemy_choice_gap", 0) or 0), 1),
-            "our_path_share": round(float(row.get("our_path_share", 0) or 0), 1),
-        }
-        for row in force_matchup_rows[:6]
-    ]
+    team_b_pressure_rows = build_player_pressure_rows(team_b_model)
+
+    ml_outlook_rows = []
+    for row in force_matchup_rows[:6]:
+        our_comp = row.get("our_comp", [])
+        our_bans = row.get("our_bans", [])
+        enemy_comp = row.get("enemy_comp", [])
+        pressure_bans = [
+            {
+                "hero": pressure_row.get("hero", ""),
+                "affected_count": int(pressure_row.get("affected_count", 0) or 0),
+                "total_score_drop": round(float(pressure_row.get("total_score_drop", 0) or 0), 1),
+            }
+            for pressure_row in team_b_pressure_rows
+            if (pressure_row.get("hero", "") or "")
+            and (pressure_row.get("hero", "") not in set(our_comp))
+        ][:3]
+
+        top_pressure_drop = float(pressure_bans[0].get("total_score_drop", 0) or 0) if pressure_bans else 0.0
+        top_pressure_count = int(pressure_bans[0].get("affected_count", 0) or 0) if pressure_bans else 0
+        enemy_preserved = float(row.get("enemy_preserved_ratio", 0) or 0)
+        enemy_choice_gap = float(row.get("enemy_choice_gap", 0) or 0)
+        ml_win_prob = float(row.get("ml_win_prob", 0) or 0)
+        ml_confidence = float(row.get("ml_confidence", 0) or 0)
+        ml_comp_score = float(row.get("ml_comp_score", 0) or 0)
+        our_path_share = float(row.get("our_path_share", 0) or 0)
+        blocked_count = int(row.get("enemy_blocked_count", 0) or 0)
+        path_ban_set = set(our_bans)
+
+        pressure_bans = [
+            pressure for pressure in pressure_bans
+            if (pressure.get("hero", "") or "") not in path_ban_set
+        ]
+
+        read_score = (
+            (ml_win_prob * 0.28)
+            + (ml_confidence * 0.16)
+            + (ml_comp_score * 0.20)
+            + ((100.0 - enemy_preserved) * 0.14)
+            + (enemy_choice_gap * 0.10)
+            + (our_path_share * 0.05)
+            + (blocked_count * 2.2)
+            + (top_pressure_drop * 0.10)
+            + (top_pressure_count * 1.2)
+        )
+        if read_score >= 68:
+            read_tier = "High Leverage"
+        elif read_score >= 54:
+            read_tier = "Strong"
+        elif read_score >= 42:
+            read_tier = "Playable"
+        else:
+            read_tier = "Volatile"
+
+        ml_outlook_rows.append(
+            {
+                "our_comp": our_comp,
+                "our_bans": our_bans,
+                "our_protects": row.get("our_protects", []),
+                "enemy_comp": enemy_comp,
+                "enemy_alt_comp": row.get("enemy_alt_comp", []),
+                "ml_win_prob": round(float(row.get("ml_win_prob", 0) or 0), 1),
+                "ml_confidence": round(float(row.get("ml_confidence", 0) or 0), 1),
+                "ml_comp_score": round(ml_comp_score, 1),
+                "enemy_choice_gap": round(enemy_choice_gap, 1),
+                "our_path_share": round(our_path_share, 1),
+                "enemy_blocked_count": blocked_count,
+                "enemy_blocked_heroes": row.get("enemy_blocked_heroes", []),
+                "enemy_conditioned_rate": round(float(row.get("enemy_conditioned_rate", 0) or 0), 1),
+                "enemy_preserved_ratio": round(enemy_preserved, 1),
+                "pressure_bans": pressure_bans,
+                "top_pressure_drop": round(top_pressure_drop, 1),
+                "top_pressure_count": top_pressure_count,
+                "read_score": round(read_score, 1),
+                "read_tier": read_tier,
+            }
+        )
+
+    ml_outlook_rows.sort(
+        key=lambda out: (
+            float(out.get("read_score", 0) or 0),
+            float(out.get("ml_win_prob", 0) or 0),
+            float(out.get("our_path_share", 0) or 0),
+        ),
+        reverse=True,
+    )
+
+    if ml_outlook_rows:
+        score_values = sorted(
+            [float(row.get("read_score", 0) or 0) for row in ml_outlook_rows],
+            reverse=True,
+        )
+
+        def score_percentile(p: float) -> float:
+            if not score_values:
+                return 0.0
+            index = int(round((len(score_values) - 1) * p))
+            index = max(0, min(len(score_values) - 1, index))
+            return float(score_values[index])
+
+        high_cut = max(76.0, score_percentile(0.25))
+        strong_cut = max(62.0, score_percentile(0.50))
+        playable_cut = max(50.0, score_percentile(0.75))
+
+        for outlook in ml_outlook_rows:
+            score = float(outlook.get("read_score", 0) or 0)
+            if score >= high_cut:
+                tier = "High Leverage"
+            elif score >= strong_cut:
+                tier = "Strong"
+            elif score >= playable_cut:
+                tier = "Playable"
+            else:
+                tier = "Volatile"
+            outlook["read_tier"] = tier
 
     deviation_rows = []
     for our_comp in team_a_comp_paths[:6]:
@@ -10584,7 +10779,7 @@ def team_matchup_tree():
     season_value = request.args.get("season", "")
     selected_map_name = (request.args.get("map", "") or "").strip()
 
-    def filtered_scrims_for(team_row) -> list[dict]:
+    def filtered_scrims_for(team_row) -> tuple[list[dict], list[dict]]:
         all_team_scrims = get_team_history_scrims(team_row)
         season_options = get_scrim_season_options(all_team_scrims)
         default_season = get_current_season_from_recent_scrim(all_team_scrims)
@@ -10605,27 +10800,31 @@ def team_matchup_tree():
         )
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
         team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
+        hero_pool_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+        hero_pool_scrims = filter_scrims_by_map_type(hero_pool_scrims, selected_map_type)
         if selected_map_name and selected_map_name.lower() != "all":
             filtered = []
             for scrim in team_scrims:
                 scrim_copy = dict(scrim)
                 scrim_copy["maps"] = [
                     m for m in scrim.get("maps", [])
-                    if (m.get("map") or "").strip().lower() == selected_map_name.lower()
+                    if ((m.get("map") or m.get("map_name") or "").strip().lower() == selected_map_name.lower())
                 ]
                 if scrim_copy["maps"]:
                     filtered.append(scrim_copy)
-            return filtered
-        return team_scrims
+            return filtered, hero_pool_scrims
+        return team_scrims, hero_pool_scrims
 
-    team_a_scrims = filtered_scrims_for(team_a)
-    team_b_scrims = filtered_scrims_for(team_b)
+    team_a_scrims, team_a_hero_pool_scrims = filtered_scrims_for(team_a)
+    team_b_scrims, team_b_hero_pool_scrims = filtered_scrims_for(team_b)
     return jsonify(
         build_matchup_tree_model(
             team_a["name"],
             team_a_scrims,
             team_b["name"],
             team_b_scrims,
+            team_a_hero_pool_scrims=team_a_hero_pool_scrims,
+            team_b_hero_pool_scrims=team_b_hero_pool_scrims,
         )
     )
 
@@ -11982,6 +12181,7 @@ def inject_template_helpers():
 
     return {
         "hero_image_url": _hero_image_url,
+        "map_image_url": get_map_image_url,
         "hero_pool_label": _hero_pool_label,
         "hero_display_name": _hero_display_name,
         "sample_warn": _sample_warn,
