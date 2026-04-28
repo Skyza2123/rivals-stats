@@ -2232,7 +2232,6 @@
                     {% elif map_row.win_rate < 50 %}
                         {% set rate_tier = 'map-rate-low' %}
                     {% endif %}
-                    {% if map_row.timeline_scrim_id %}
                     <a
                         class="team-map-card {{ rate_tier }}"
                         data-map-name="{{ map_row.map_name|lower }}"
@@ -2240,7 +2239,7 @@
                         data-map-win-rate="{{ map_row.win_rate }}"
                         data-map-games="{{ map_row.maps }}"
                         title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
-                        href="{{ url_for('scrim_map_timeline', scrim_id=map_row.timeline_scrim_id, map_name=map_row.map_name) }}"
+                        href="{{ url_for('team_map_timeline', team_id=team.id, map_name=map_row.map_name) }}"
                     >
                         <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('{{ map_row.image }}')"{% endif %}></div>
                         <div class="team-map-overlay"></div>
@@ -2257,31 +2256,6 @@
                             </div>
                         </div>
                     </a>
-                    {% else %}
-                    <article
-                        class="team-map-card {{ rate_tier }}"
-                        data-map-name="{{ map_row.map_name|lower }}"
-                        data-map-mode="{{ map_row.mode|lower }}"
-                        data-map-win-rate="{{ map_row.win_rate }}"
-                        data-map-games="{{ map_row.maps }}"
-                        title="Attack Avg: {{ map_row.attack_score_avg if map_row.attack_score_avg is not none else 'N/A' }} | Defense Avg: {{ map_row.defense_score_avg if map_row.defense_score_avg is not none else 'N/A' }}"
-                    >
-                        <div class="team-map-bg {% if not map_row.image %}team-map-bg-fallback{% endif %}" {% if map_row.image %}style="background-image:url('{{ map_row.image }}')"{% endif %}></div>
-                        <div class="team-map-overlay"></div>
-                        <div class="team-map-top">
-                            <span class="team-map-mode">{{ map_row.mode }}</span>
-                            <span class="team-map-rate">{{ map_row.win_rate }}%</span>
-                        </div>
-                        <div class="team-map-bottom">
-                            <h4>{{ map_row.map_name }}</h4>
-                            <p>{{ map_row.wins }}W - {{ map_row.losses }}L &bull; {{ sample_warn(map_row.maps) }} games</p>
-                            <div class="team-map-footer-meta">
-                                <span class="team-map-chip">Winrate</span>
-                                <span class="team-map-chip">{{ map_row.win_rate }}%</span>
-                            </div>
-                        </div>
-                    </article>
-                    {% endif %}
                 {% endfor %}
             </div>
             <p class="empty-text map-empty" id="mapEmptyState" hidden>No maps match this filter.</p>

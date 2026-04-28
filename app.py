@@ -33,6 +33,11 @@ from data import (
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
 
+
+@app.route("/favicon.ico")
+def favicon_ico():
+    return app.send_static_file("favicon.png")
+
 # Serve static assets reliably behind WSGI hosts (Render/Gunicorn) when available.
 _whitenoise_module = importlib.util.find_spec("whitenoise")
 if _whitenoise_module is not None:
@@ -167,6 +172,27 @@ HERO_NAME_ALIASES = {
 PLAYER_NAME_ALIASES = {
     "drstrange": "Dr Strange",
 }
+MAP_NAME_ALIASES = {
+    "musume of contemplation": "Museum of Contemplation",
+    "museum of contemplation": "Museum of Contemplation",
+    "lower manhatten": "Lower Manhattan",
+    "lower manhattan": "Lower Manhattan",
+}
+
+
+def _normalize_map_name_key(value: str) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def get_map_image_url(map_name: str) -> str:
+    if not map_name:
+        return ""
+    direct_url = MAP_IMAGES.get(map_name)
+    if direct_url:
+        return direct_url
+    canonical_name = MAP_NAME_ALIASES.get(_normalize_map_name_key(map_name), map_name)
+    return MAP_IMAGES.get(canonical_name, "")
+
 _RINGER_NAME_MARKERS = (
     "r",
     "ringer",
@@ -491,7 +517,7 @@ EDIT_PASSWORD = os.environ.get("EDIT_PASSWORD", "").strip()
 VIEW_PASSWORD = os.environ.get("VIEW_PASSWORD", "").strip()
 AUTH_ROLES = {"view", "edit"}
 
-_AUTH_EXEMPT = {"/login", "/logout", "/setup-password"}
+_AUTH_EXEMPT = {"/login", "/logout", "/setup-password", "/favicon.ico"}
 
 
 def _is_write_request() -> bool:
@@ -2192,7 +2218,7 @@ def build_player_hero_map_breakdown(player_name: str, scrims: list[dict]) -> dic
                 "wins": stats["wins"],
                 "losses": stats["losses"],
                 "win_rate": round((stats["wins"] / decided_maps) * 100, 1) if decided_maps else 0,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
             }
         )
     map_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
@@ -3219,7 +3245,7 @@ def build_tournament_team_pick_rows(tournament_record: dict, tournament_team: di
                 "wins": stats["wins"],
                 "losses": stats["losses"],
                 "win_rate": round((stats["wins"] / maps_played) * 100, 1) if maps_played else 0,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
             }
         )
     pick_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
@@ -3348,7 +3374,7 @@ def build_tournament_overview_analytics(tournament_record: dict) -> dict:
                 "unmirrored_completed": stats["unmirrored_completed"],
                 "unmirrored_win_rate": round((stats["unmirrored_wins"] / stats["unmirrored_completed"]) * 100, 1) if stats["unmirrored_completed"] else None,
                 "play_rate": round((stats["count"] / total_maps) * 100, 1) if total_maps else 0,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
             }
         )
     map_rows.sort(key=lambda row: (row["count"], row["completed"], row["map_name"]), reverse=True)
@@ -5166,7 +5192,7 @@ def build_scrim_analytics(
         map_draft_rows.append(
             {
                 "map_name": map_name,
-                "map_image": MAP_IMAGES.get(map_name, ""),
+                "map_image": get_map_image_url(map_name),
                 "top_ban_hero": top_ban_hero,
                 "top_ban_count": top_ban_count,
                 "top_ban_rate": top_ban_rate,
@@ -7820,7 +7846,7 @@ def build_map_mode_breakdown(scrims: list[dict]) -> tuple[list[dict], list[dict]
                 "wins": stats["wins"],
                 "losses": stats["losses"],
                 "win_rate": win_rate,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
                 "attack_score_avg": (
                     round(
                         side_score_records[map_name]["Attack"]["sum"]
@@ -8116,7 +8142,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                 "wins": stats["wins"],
                 "losses": stats["losses"],
                 "win_rate": round((stats["wins"] / maps_played) * 100, 1) if maps_played else 0,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
             }
         )
     map_rows.sort(key=lambda r: (r["maps"], r["win_rate"]), reverse=True)
@@ -9688,7 +9714,7 @@ def team_detail(team_id: int):
                 "wins": stats["wins"],
                 "losses": stats["losses"],
                 "win_rate": win_rate,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
                 "timeline_scrim_id": map_timeline_targets.get(map_name),
             }
         )
@@ -10160,7 +10186,7 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
                 "wins": stats["wins"],
                 "losses": stats["losses"],
                 "win_rate": win_rate,
-                "image": MAP_IMAGES.get(map_name, ""),
+                "image": get_map_image_url(map_name),
                 "timeline_match_id": map_timeline_targets.get(map_name),
             }
         )
@@ -13571,6 +13597,20 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
     scrim = get_scrim_or_404(scrim_id)
     participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
     participant_one, participant_two = get_scrim_participants(scrim)
+    db = get_db()
+
+    def _canonical_team_label(participant: dict, fallback: str) -> str:
+        team_id_value = participant.get("id")
+        if not team_id_value:
+            return fallback
+        row = db.execute("SELECT name FROM teams WHERE id = ?", (team_id_value,)).fetchone()
+        if row is None:
+            return fallback
+        canonical_name = str(row["name"] or "").strip()
+        return canonical_name or fallback
+
+    participant_one_label = _canonical_team_label(participant_one, participant_one_label)
+    participant_two_label = _canonical_team_label(participant_two, participant_two_label)
 
     team_id = participant_one.get("id") or scrim.get("team_id")
     team_name = (participant_one.get("name") or scrim.get("team_name") or scrim.get("team1_name") or "").strip()
@@ -13595,7 +13635,6 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
         "map_samples": 0,
     }
     if team_id and team_name:
-        db = get_db()
         team_row = db.execute("SELECT id, name FROM teams WHERE id = ?", (team_id,)).fetchone()
         if team_row is not None:
             source_scrims = get_team_history_scrims(team_row)
@@ -13700,6 +13739,121 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
         participant_two_label=participant_two_label,
         is_tournament=False,
         back_to_maps_url=(url_for("team_detail", team_id=scrim.get("team_id")) + "#maps") if scrim.get("team_id") else url_for("teams"),
+    )
+
+
+@app.route("/teams/<int:team_id>/timelines/<path:map_name>")
+def team_map_timeline(team_id: int, map_name: str):
+    db = get_db()
+    team_row = db.execute("SELECT id, name FROM teams WHERE id = ?", (team_id,)).fetchone()
+    if team_row is None:
+        abort(404)
+
+    source_scrims = get_team_history_scrims(team_row)
+    participant_one_label = (team_row["name"] or "").strip() or "Your Team"
+    participant_two_label = "All Opponents"
+
+    map_timeline_row = None
+    map_overview = {
+        "maps": 0,
+        "wins": 0,
+        "losses": 0,
+        "win_rate": 0,
+    }
+    top_hero_rows: list[dict] = []
+    enemy_top_hero_rows: list[dict] = []
+    map_draft_intel = _collect_map_draft_intel(source_scrims, map_name)
+
+    draft_timeline = build_draft_phase_timeline(source_scrims)
+    map_timeline_row = next(
+        (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
+        None,
+    )
+
+    our_hero_counts = defaultdict(int)
+    our_hero_win_counts = defaultdict(int)
+    enemy_hero_counts = defaultdict(int)
+    enemy_hero_win_counts = defaultdict(int)
+    total_our_instances = 0
+    total_enemy_instances = 0
+    map_count = 0
+    win_count = 0
+    loss_count = 0
+
+    for source_scrim in source_scrims:
+        for map_entry in source_scrim.get("maps", []):
+            if (map_entry.get("map_name") or "").strip() != map_name:
+                continue
+            map_count += 1
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            enemy_team_slot = opposite_team_slot(our_team_slot)
+
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+            is_win = result == "Win"
+            is_enemy_win = result == "Loss"
+            if is_win:
+                win_count += 1
+            elif result == "Loss":
+                loss_count += 1
+
+            heroes_in_map = _canonical_map_hero_instances(map_entry, our_team_slot)
+            enemy_heroes_in_map = _canonical_map_hero_instances(map_entry, enemy_team_slot)
+            total_our_instances += len(heroes_in_map)
+            total_enemy_instances += len(enemy_heroes_in_map)
+
+            for hero_name in heroes_in_map:
+                our_hero_counts[hero_name] += 1
+                if is_win:
+                    our_hero_win_counts[hero_name] += 1
+            for hero_name in enemy_heroes_in_map:
+                enemy_hero_counts[hero_name] += 1
+                if is_enemy_win:
+                    enemy_hero_win_counts[hero_name] += 1
+
+    map_overview = {
+        "maps": map_count,
+        "wins": win_count,
+        "losses": loss_count,
+        "win_rate": round((win_count / map_count) * 100, 1) if map_count else 0,
+    }
+    top_hero_rows = [
+        {
+            "hero": hero_name,
+            "appearances": hero_maps,
+            "play_rate": round((hero_maps / total_our_instances) * 100, 1) if total_our_instances else 0,
+            "win_rate": round((our_hero_win_counts.get(hero_name, 0) / hero_maps) * 100, 1) if hero_maps else 0,
+        }
+        for hero_name, hero_maps in sorted(our_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
+    ]
+    enemy_top_hero_rows = [
+        {
+            "hero": hero_name,
+            "appearances": hero_maps,
+            "play_rate": round((hero_maps / total_enemy_instances) * 100, 1) if total_enemy_instances else 0,
+            "win_rate": round((enemy_hero_win_counts.get(hero_name, 0) / hero_maps) * 100, 1) if hero_maps else 0,
+        }
+        for hero_name, hero_maps in sorted(enemy_hero_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:12]
+    ]
+
+    return render_template(
+        "map_timeline_detail.html",
+        map_name=map_name,
+        map_timeline_row=map_timeline_row,
+        map_overview=map_overview,
+        top_hero_rows=top_hero_rows,
+        enemy_top_hero_rows=enemy_top_hero_rows,
+        our_comp_rows=map_draft_intel["our_comp_rows"],
+        enemy_comp_rows=map_draft_intel["enemy_comp_rows"],
+        our_ban_rows=map_draft_intel["our_ban_rows"],
+        enemy_ban_rows=map_draft_intel["enemy_ban_rows"],
+        our_protect_rows=map_draft_intel["our_protect_rows"],
+        enemy_protect_rows=map_draft_intel["enemy_protect_rows"],
+        participant_one_label=participant_one_label,
+        participant_two_label=participant_two_label,
+        is_tournament=False,
+        back_to_maps_url=url_for("team_detail", team_id=team_id) + "#maps",
     )
 
 

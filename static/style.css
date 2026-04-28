@@ -7058,3 +7058,192 @@ th {
     color: #cbd5e1;
     white-space: nowrap;
 }
+
+/* Map timeline detail redesign */
+.timeline-hero {
+    position: relative;
+    overflow: hidden;
+}
+
+.timeline-hero::after {
+    content: "";
+    position: absolute;
+    right: -120px;
+    top: -100px;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.24), transparent 65%);
+    pointer-events: none;
+}
+
+.timeline-hero-top {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.timeline-hero h2 {
+    margin: 0;
+    font-size: clamp(1.45rem, 2.8vw, 2.1rem);
+}
+
+.timeline-hero-subtitle {
+    margin: 8px 0 0;
+    color: var(--text);
+    font-weight: 700;
+}
+
+.timeline-meta-note {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.timeline-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+}
+
+.timeline-summary-card {
+    backdrop-filter: blur(3px);
+}
+
+.timeline-split-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.timeline-team-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    background: var(--panel-2);
+}
+
+.timeline-team-card h4 {
+    margin: 0;
+    font-size: 0.94rem;
+}
+
+.timeline-team-card-enemy {
+    background: color-mix(in srgb, var(--panel-2) 84%, #3b82f6 16%);
+}
+
+.timeline-comp-list {
+    display: grid;
+    gap: 10px;
+}
+
+.timeline-comp-item {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    background: color-mix(in srgb, var(--panel) 86%, var(--panel-2) 14%);
+}
+
+.timeline-comp-heroes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+}
+
+.timeline-comp-stats {
+    margin-top: 8px;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.timeline-comp-stats span {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.timeline-slot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+    gap: 12px;
+}
+
+.timeline-slot-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel-2);
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+}
+
+.timeline-slot-head {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 800;
+}
+
+.timeline-slot-team {
+    font-size: 0.75rem;
+    color: #a5b4fc;
+    font-weight: 700;
+}
+
+.timeline-slot-team-enemy {
+    color: #7dd3fc;
+}
+
+.timeline-slot-pick {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 10px;
+    padding: 7px 8px;
+}
+
+.timeline-rate {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    white-space: nowrap;
+}
+
+@media (max-width: 1080px) {
+    .timeline-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .timeline-split-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 620px) {
+    .timeline-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-slot-grid {
+        grid-template-columns: 1fr;
+    }
+}

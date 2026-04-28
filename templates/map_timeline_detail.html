@@ -4,200 +4,275 @@
 {% block title %}{{ map_name }} Draft Timeline{% endblock %}
 
 {% block content %}
-<div class="main-header">
-    <div>
-        <h2>{{ map_name }} Draft Timeline</h2>
-        <p>{{ participant_one_label }} vs {{ participant_two_label }}</p>
+<section class="timeline-hero panel panel-soft-blue">
+    <div class="timeline-hero-top">
+        <div>
+            <div class="section-kicker">Draft Report</div>
+            <h2>{{ map_name }} Matchup Scout</h2>
+            <p class="timeline-hero-subtitle">{{ participant_one_label }} vs {{ participant_two_label }}</p>
+            <p class="timeline-meta-note">Team names on this page come from the scrim record for this matchup.</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ back_to_maps_url }}" class="button-secondary timeline-back-link">Back to Map Stats</a>
+        </div>
     </div>
-    <div class="header-actions">
-        <a href="{{ back_to_maps_url }}" class="button-secondary timeline-back-link">Back to Map Stats</a>
+
+    <div class="timeline-summary-grid top-gap">
+        <section class="stat-card timeline-summary-card">
+            <strong>Map Samples</strong>
+            <span>{{ sample_warn(map_overview.maps) }}</span>
+        </section>
+        <section class="stat-card timeline-summary-card">
+            <strong>{{ participant_one_label }} Wins</strong>
+            <span>{{ map_overview.wins }}</span>
+        </section>
+        <section class="stat-card timeline-summary-card">
+            <strong>{{ participant_one_label }} Losses</strong>
+            <span>{{ map_overview.losses }}</span>
+        </section>
+        <section class="stat-card timeline-summary-card">
+            <strong>Win Rate</strong>
+            <span>{{ map_overview.win_rate }}%</span>
+        </section>
     </div>
-</div>
-
-<div class="summary-grid">
-    <section class="stat-card"><strong>Maps</strong><span>{{ sample_warn(map_overview.maps) }}</span></section>
-    <section class="stat-card"><strong>Wins</strong><span>{{ map_overview.wins }}</span></section>
-    <section class="stat-card"><strong>Losses</strong><span>{{ map_overview.losses }}</span></section>
-    <section class="stat-card"><strong>Win Rate</strong><span>{{ map_overview.win_rate }}%</span></section>
-</div>
-
-<section class="panel top-gap">
-    <div class="section-kicker">Hero Usage</div>
-    <h3>{{ participant_one_label }} Most Played Heroes On {{ map_name }}</h3>
-    {% if top_hero_rows %}
-        {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate When Used'], extra_wrap_class='top-gap') %}
-            {% for row in top_hero_rows %}
-                <tr>
-                    <td>
-                        <span class="hero-inline-cell">
-                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                            <span>{{ hero_display_name(row.hero) }}</span>
-                        </span>
-                    </td>
-                    <td>{{ sample_warn(row.appearances) }}</td>
-                    <td>{{ row.play_rate }}%</td>
-                    <td>{{ row.win_rate }}%</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No hero usage data for this map yet.</p>
-    {% endif %}
-</section>
-
-<section class="panel panel-soft-blue top-gap">
-    <div class="section-kicker">Enemy Heroes</div>
-    <h3>{{ participant_two_label }} Most Played Heroes On {{ map_name }}</h3>
-    {% if enemy_top_hero_rows %}
-        {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate When Used'], extra_wrap_class='top-gap') %}
-            {% for row in enemy_top_hero_rows %}
-                <tr>
-                    <td>
-                        <span class="hero-inline-cell">
-                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                            <span>{{ hero_display_name(row.hero) }}</span>
-                        </span>
-                    </td>
-                    <td>{{ sample_warn(row.appearances) }}</td>
-                    <td>{{ row.play_rate }}%</td>
-                    <td>{{ row.win_rate }}%</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No enemy hero usage data for this map yet.</p>
-    {% endif %}
 </section>
 
 <section class="panel top-gap">
-    <div class="section-kicker">Map Draft Intel</div>
-    <h3>Most Played Comps On {{ map_name }}</h3>
-    <div class="panel-intro">These are map-specific comp patterns and draft priorities, not global team trends.</div>
+    <div class="section-kicker">Compositions</div>
+    <h3>Most Played Compositions On {{ map_name }}</h3>
+    <div class="panel-intro">Comp trends are map-specific and matchup-specific.</div>
 
-    <h4 class="top-gap">{{ participant_one_label }} Core Comps</h4>
-    {% if our_comp_rows %}
-        {% call stats_table(['Comp', 'Maps', 'Map Share', 'Win Rate'], extra_wrap_class='top-gap') %}
-            {% for row in our_comp_rows %}
-                <tr>
-                    <td>{{ row.heroes | join(', ') }}</td>
-                    <td>{{ sample_warn(row.count) }}</td>
-                    <td>{{ row.play_rate }}%</td>
-                    <td>{{ row.win_rate }}%</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No comp history for this map yet.</p>
-    {% endif %}
+    <div class="timeline-split-grid">
+        <article class="timeline-team-card">
+            <h4>{{ participant_one_label }} Core Comps</h4>
+            {% if our_comp_rows %}
+                <div class="timeline-comp-list top-gap">
+                    {% for row in our_comp_rows %}
+                        <div class="timeline-comp-item">
+                            <div class="timeline-comp-heroes">
+                                {% for hero in row.heroes %}
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero | urlencode }}'">
+                                        <span>{{ hero_display_name(hero) }}</span>
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            <div class="timeline-comp-stats">
+                                <span>{{ sample_warn(row.count) }} maps</span>
+                                <span>{{ row.play_rate }}% share</span>
+                                <span>{{ row.win_rate }}% win</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No composition history for this side yet.</p>
+            {% endif %}
+        </article>
 
-    <h4 class="top-gap">{{ participant_two_label }} Core Comps</h4>
-    {% if enemy_comp_rows %}
-        {% call stats_table(['Comp', 'Maps', 'Map Share', 'Win Rate'], extra_wrap_class='top-gap') %}
-            {% for row in enemy_comp_rows %}
-                <tr>
-                    <td>{{ row.heroes | join(', ') }}</td>
-                    <td>{{ sample_warn(row.count) }}</td>
-                    <td>{{ row.play_rate }}%</td>
-                    <td>{{ row.win_rate }}%</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No enemy comp history for this map yet.</p>
-    {% endif %}
+        <article class="timeline-team-card timeline-team-card-enemy">
+            <h4>{{ participant_two_label }} Core Comps</h4>
+            {% if enemy_comp_rows %}
+                <div class="timeline-comp-list top-gap">
+                    {% for row in enemy_comp_rows %}
+                        <div class="timeline-comp-item">
+                            <div class="timeline-comp-heroes">
+                                {% for hero in row.heroes %}
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero | urlencode }}'">
+                                        <span>{{ hero_display_name(hero) }}</span>
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            <div class="timeline-comp-stats">
+                                <span>{{ sample_warn(row.count) }} maps</span>
+                                <span>{{ row.play_rate }}% share</span>
+                                <span>{{ row.win_rate }}% win</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No composition history for this side yet.</p>
+            {% endif %}
+        </article>
+    </div>
 </section>
 
 <section class="panel panel-soft-violet top-gap">
-    <div class="section-kicker">Map Draft Priorities</div>
-    <h3>Most Frequent Bans And Protects On {{ map_name }}</h3>
+    <div class="section-kicker">Priority Heroes</div>
+    <h3>Bans And Protects On {{ map_name }}</h3>
 
-    <h4 class="top-gap">{{ participant_one_label }} Bans</h4>
-    {% if our_ban_rows %}
-        {% call stats_table(['Hero', 'Times Banned', 'Ban Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
-            {% for row in our_ban_rows %}
-                <tr>
-                    <td>{{ row.hero }}</td>
-                    <td>{{ sample_warn(row.count) }}</td>
-                    <td>{{ row.share }}%</td>
-                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No ban data for this map yet.</p>
-    {% endif %}
+    <div class="timeline-split-grid">
+        <article class="timeline-team-card">
+            <h4>{{ participant_one_label }} Draft Priorities</h4>
+            {% if our_ban_rows or our_protect_rows %}
+                {% call stats_table(['Type', 'Hero', 'Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
+                    {% for row in our_ban_rows[:6] %}
+                        <tr>
+                            <td><span class="compare-tag compare-tag-negative">Ban</span></td>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.share }}%</td>
+                            <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                        </tr>
+                    {% endfor %}
+                    {% for row in our_protect_rows[:6] %}
+                        <tr>
+                            <td><span class="compare-tag compare-tag-positive">Protect</span></td>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.share }}%</td>
+                            <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                        </tr>
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="empty-text">No ban or protect data for this side yet.</p>
+            {% endif %}
+        </article>
 
-    <h4 class="top-gap">{{ participant_two_label }} Bans</h4>
-    {% if enemy_ban_rows %}
-        {% call stats_table(['Hero', 'Times Banned', 'Ban Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
-            {% for row in enemy_ban_rows %}
-                <tr>
-                    <td>{{ row.hero }}</td>
-                    <td>{{ sample_warn(row.count) }}</td>
-                    <td>{{ row.share }}%</td>
-                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No enemy ban data for this map yet.</p>
-    {% endif %}
+        <article class="timeline-team-card timeline-team-card-enemy">
+            <h4>{{ participant_two_label }} Draft Priorities</h4>
+            {% if enemy_ban_rows or enemy_protect_rows %}
+                {% call stats_table(['Type', 'Hero', 'Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
+                    {% for row in enemy_ban_rows[:6] %}
+                        <tr>
+                            <td><span class="compare-tag compare-tag-negative">Ban</span></td>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.share }}%</td>
+                            <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                        </tr>
+                    {% endfor %}
+                    {% for row in enemy_protect_rows[:6] %}
+                        <tr>
+                            <td><span class="compare-tag compare-tag-positive">Protect</span></td>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.share }}%</td>
+                            <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
+                        </tr>
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="empty-text">No ban or protect data for this side yet.</p>
+            {% endif %}
+        </article>
+    </div>
+</section>
 
-    <h4 class="top-gap">{{ participant_one_label }} Protects</h4>
-    {% if our_protect_rows %}
-        {% call stats_table(['Hero', 'Times Protected', 'Protect Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
-            {% for row in our_protect_rows %}
-                <tr>
-                    <td>{{ row.hero }}</td>
-                    <td>{{ sample_warn(row.count) }}</td>
-                    <td>{{ row.share }}%</td>
-                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No protect data for this map yet.</p>
-    {% endif %}
+<section class="panel top-gap">
+    <div class="section-kicker">Hero Presence</div>
+    <h3>Most Played Heroes On {{ map_name }}</h3>
+    <div class="timeline-split-grid">
+        <article class="timeline-team-card">
+            <h4>{{ participant_one_label }}</h4>
+            {% if top_hero_rows %}
+                {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate'], extra_wrap_class='top-gap') %}
+                    {% for row in top_hero_rows[:10] %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ sample_warn(row.appearances) }}</td>
+                            <td>{{ row.play_rate }}%</td>
+                            <td>{{ row.win_rate }}%</td>
+                        </tr>
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="empty-text">No hero usage data yet.</p>
+            {% endif %}
+        </article>
 
-    <h4 class="top-gap">{{ participant_two_label }} Protects</h4>
-    {% if enemy_protect_rows %}
-        {% call stats_table(['Hero', 'Times Protected', 'Protect Share', 'Most Common Slot'], extra_wrap_class='top-gap') %}
-            {% for row in enemy_protect_rows %}
-                <tr>
-                    <td>{{ row.hero }}</td>
-                    <td>{{ sample_warn(row.count) }}</td>
-                    <td>{{ row.share }}%</td>
-                    <td>{{ row.top_slot }} ({{ row.top_slot_rate }}%)</td>
-                </tr>
-            {% endfor %}
-        {% endcall %}
-    {% else %}
-        <p class="empty-text">No enemy protect data for this map yet.</p>
-    {% endif %}
+        <article class="timeline-team-card timeline-team-card-enemy">
+            <h4>{{ participant_two_label }}</h4>
+            {% if enemy_top_hero_rows %}
+                {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate'], extra_wrap_class='top-gap') %}
+                    {% for row in enemy_top_hero_rows[:10] %}
+                        <tr>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ sample_warn(row.appearances) }}</td>
+                            <td>{{ row.play_rate }}%</td>
+                            <td>{{ row.win_rate }}%</td>
+                        </tr>
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="empty-text">No hero usage data yet.</p>
+            {% endif %}
+        </article>
+    </div>
 </section>
 
 <section class="panel panel-soft-violet top-gap">
-    <div class="section-kicker">Map Draft Timeline</div>
-    <h3>Draft Phase Timeline For {{ map_name }}</h3>
-
+    <div class="section-kicker">Draft Order</div>
+    <h3>Most Common Hero By Draft Slot</h3>
     {% if map_timeline_row %}
         {% set map_main_lookup = {} %}
         {% for row in map_timeline_row.main_rows %}
             {% set _ = map_main_lookup.update({row.slot_key: row}) %}
         {% endfor %}
-
         <div class="panel-intro">Based on {{ sample_warn(map_timeline_row.maps) }} map sample{% if map_timeline_row.maps != 1 %}s{% endif %}.</div>
 
-        {% call stats_table(['Draft Slot', participant_one_label, participant_two_label], extra_wrap_class='top-gap') %}
+        <div class="timeline-slot-grid top-gap">
             {% for row in map_timeline_row.enemy_rows %}
-                {% set main_row = map_main_lookup[row.slot_key] %}
-                <tr>
-                    <td>{{ row.slot_label }}</td>
-                    <td>{{ main_row.top_hero }}{% if main_row.top_hero and main_row.top_hero != '—' %} ({{ main_row.top_rate }}%){% endif %}</td>
-                    <td>{{ row.top_hero }}{% if row.top_hero and row.top_hero != '—' %} ({{ row.top_rate }}%){% endif %}</td>
-                </tr>
+                {% set main_row = map_main_lookup.get(row.slot_key) %}
+                <article class="timeline-slot-card">
+                    <div class="timeline-slot-head">{{ row.slot_label }}</div>
+                    <div class="timeline-slot-team">{{ participant_one_label }}</div>
+                    <div class="timeline-slot-pick">
+                        {% if main_row and main_row.top_hero and main_row.top_hero != '—' %}
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(main_row.top_hero) }}" alt="{{ main_row.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ main_row.top_hero | urlencode }}'">
+                                <span>{{ hero_display_name(main_row.top_hero) }}</span>
+                            </span>
+                            <span class="timeline-rate">{{ main_row.top_rate }}%</span>
+                        {% else %}
+                            <span class="empty-text">No data</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="timeline-slot-team timeline-slot-team-enemy">{{ participant_two_label }}</div>
+                    <div class="timeline-slot-pick">
+                        {% if row.top_hero and row.top_hero != '—' %}
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.top_hero) }}" alt="{{ row.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.top_hero) }}</span>
+                            </span>
+                            <span class="timeline-rate">{{ row.top_rate }}%</span>
+                        {% else %}
+                            <span class="empty-text">No data</span>
+                        {% endif %}
+                    </div>
+                </article>
             {% endfor %}
-        {% endcall %}
+        </div>
     {% else %}
         <p class="empty-text">No draft timeline data available for this map yet.</p>
     {% endif %}
