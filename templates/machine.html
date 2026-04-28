@@ -244,6 +244,16 @@
 .dr-force-arrow { color:#64748b; font-size:0.78rem; }
 .dr-force-note { font-size:0.74rem; color:#64748b; margin-top:0.15rem; font-style:italic; }
 .dr-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
+.dr-open-hero-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin:0.25rem 0; }
+.dr-open-hero-icon {
+    width:54px;
+    height:54px;
+    border-radius:0.55rem;
+    object-fit:cover;
+    border:1px solid rgba(148,163,184,0.38);
+    background:rgba(15,23,42,0.72);
+    box-shadow:0 6px 14px rgba(2,6,23,0.35);
+}
 .dr-model-status { font-size:0.82rem; color:#94a3b8; margin-top:0.5rem; }
 .dr-workspace { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,0.85fr); gap:1rem; align-items:start; margin-bottom:1rem; }
 .dr-overview-strip { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.75rem; }
@@ -643,6 +653,9 @@ function heroChipHtml(hero, type, playerName) {
         ? '<span class="dr-hero-chip-meta">\u00b7 ' + escapeHtml(playerName) + '</span>'
         : '';
     return '<span class="dr-hero-chip ' + cls + '"><img src="' + heroThumbUrl(hero) + '" alt="" onerror="this.style.display=\'none\'">' + escapeHtml(hero) + playerMeta + '</span>';
+}
+function openHeroIconHtml(hero) {
+    return '<img src="' + heroThumbUrl(hero) + '" alt="' + escapeHtml(hero) + '" title="' + escapeHtml(hero) + '" class="dr-open-hero-icon" onerror="this.style.display=\'none\'">';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1441,10 +1454,99 @@ function heroChipHtml(hero, type, playerName) {
             drRefreshSlotSubLabels();
             drAutoFocusNextStep();
         } catch(e) {
-            statusEl.textContent = 'Failed to load model.';
+            const reason = (e && e.message) ? e.message : String(e || 'unknown error');
+            statusEl.textContent = 'Failed to load model: ' + reason;
             console.error(e);
         }
     });
+
+    function drBuildEnemyBanTargetRows(enemyModel, enemyProtects, ourProtects, hardBannedSet) {
+        const protectedByEnemy = new Set((enemyProtects || []).filter(Boolean));
+        const protectedByUs = new Set((ourProtects || []).filter(Boolean));
+        const bannedSet = hardBannedSet instanceof Set ? hardBannedSet : new Set((hardBannedSet || []).filter(Boolean));
+        const openEnemyCompRows = (enemyModel.comp_rows || []).filter(function(row) {
+            const heroes = (row.heroes || []).filter(Boolean);
+            if (!heroes.length) return false;
+            if (heroes.some(function(hero) { return bannedSet.has(hero); })) return false;
+            if ((enemyProtects || []).some(function(hero) { return heroes.includes(hero); })) return false;
+            if ((ourProtects || []).some(function(hero) { return !heroes.includes(hero); })) return false;
+            return true;
+        });
+        const heroImpact = new Map();
+
+        openEnemyCompRows.forEach(function(row) {
+            const compStrength = Number(row.comp_strength || 0);
+            const compRate = Number(row.rate || 0);
+            const compWinRate = Number(row.comp_win_rate || 0);
+            (row.heroes || []).filter(Boolean).forEach(function(hero) {
+                if (bannedSet.has(hero) || protectedByEnemy.has(hero) || protectedByUs.has(hero)) return;
+                if (!heroImpact.has(hero)) {
+                    heroImpact.set(hero, {
+                        hero: hero,
+                        compsCrippled: 0,
+                        blockedStrength: 0,
+                        blockedRate: 0,
+                        bestCompWinRate: 0,
+                    });
+                }
+                const entry = heroImpact.get(hero);
+                entry.compsCrippled += 1;
+                entry.blockedStrength += compStrength;
+                entry.blockedRate += compRate;
+                entry.bestCompWinRate = Math.max(entry.bestCompWinRate, compWinRate);
+            });
+        });
+
+        const comfortLookup = new Map();
+        (enemyModel.comfort_core_rows || []).concat(enemyModel.hero_pool_rows || []).forEach(function(row) {
+            const hero = row.hero || '';
+            if (!hero) return;
+            const existing = comfortLookup.get(hero) || {comfort: 0, wr: 0};
+            comfortLookup.set(hero, {
+                comfort: Math.max(existing.comfort, Number(row.comfort_rate || row.rate || 0)),
+                wr: Math.max(existing.wr, Number(row.adjusted_win_rate || 0)),
+            });
+        });
+
+        const contestedSet = new Set((((drModel || {}).contested_heroes) || []).map(function(row) { return row.hero; }).filter(Boolean));
+
+        return Array.from(heroImpact.values()).map(function(entry) {
+            const comfortRow = comfortLookup.get(entry.hero) || {comfort: 0, wr: 0};
+            const openingBanScore =
+                (comfortRow.comfort * 0.95)
+                + (comfortRow.wr * 0.45)
+                + (entry.bestCompWinRate * 0.35)
+                + (entry.blockedStrength * 0.55)
+                + (entry.blockedRate * 0.35)
+                + (contestedSet.has(entry.hero) ? 8 : 0);
+            const strongHeroScore =
+                (entry.compsCrippled * 100)
+                + (entry.blockedStrength * 1.35)
+                + (entry.blockedRate * 0.85)
+                + (comfortRow.comfort * 0.60)
+                + (comfortRow.wr * 0.25)
+                + (entry.bestCompWinRate * 0.20)
+                + (contestedSet.has(entry.hero) ? 10 : 0);
+            return {
+                hero: entry.hero,
+                compsCrippled: entry.compsCrippled,
+                blockedStrength: entry.blockedStrength,
+                blockedRate: entry.blockedRate,
+                comfort: comfortRow.comfort,
+                wr: comfortRow.wr,
+                bestCompWinRate: entry.bestCompWinRate,
+                contested: contestedSet.has(entry.hero),
+                openingBanScore: openingBanScore,
+                strongHeroScore: strongHeroScore,
+            };
+        }).sort(function(a, b) {
+            return (b.strongHeroScore - a.strongHeroScore)
+                || (b.compsCrippled - a.compsCrippled)
+                || (b.comfort - a.comfort)
+                || (b.blockedStrength - a.blockedStrength)
+                || (a.hero > b.hero ? 1 : -1);
+        });
+    }
 
     function drComputeSuggestions(mA, mB, nameA, nameB, mapFilter) {
         function pairKey(a, b) {
@@ -1528,9 +1630,46 @@ function heroChipHtml(hero, type, playerName) {
             });
         }
 
+        function compRoleCounts(compHeroes) {
+            const counts = {vanguard: 0, duelist: 0, strategist: 0, unknown: 0};
+            (compHeroes || []).forEach(function(hero) {
+                const roleKey = drGetHeroRole(hero);
+                if (roleKey === 'vanguard' || roleKey === 'duelist' || roleKey === 'strategist') {
+                    counts[roleKey] += 1;
+                } else {
+                    counts.unknown += 1;
+                }
+            });
+            return counts;
+        }
+
+        function compRoleShapeScore(compHeroes) {
+            const counts = compRoleCounts(compHeroes);
+            // Reward close to 2/2/2 while allowing some variation.
+            const imbalance =
+                Math.abs((counts.vanguard || 0) - 2)
+                + Math.abs((counts.duelist || 0) - 2)
+                + Math.abs((counts.strategist || 0) - 2);
+            return Math.max(0, 30 - (imbalance * 8) - ((counts.unknown || 0) * 10));
+        }
+
+        function hasPoolPlaceholderHero(compHeroes) {
+            return (compHeroes || []).some(function(hero) {
+                return /pool$/i.test((hero || '').trim());
+            });
+        }
+
         function isLegalCompCandidate(compHeroes, ownProtects, enemyProtects, hardBannedSet) {
             const heroes = (compHeroes || []).filter(Boolean);
-            if (!heroes.length) return false;
+            if (heroes.length !== 6) return false;
+            if (new Set(heroes).size !== heroes.length) return false;
+            if (hasPoolPlaceholderHero(heroes)) return false;
+
+            const roleCounts = compRoleCounts(heroes);
+            if ((roleCounts.unknown || 0) > 1) return false;
+            if ((roleCounts.vanguard || 0) < 1 || (roleCounts.duelist || 0) < 1 || (roleCounts.strategist || 0) < 1) return false;
+            if ((roleCounts.vanguard || 0) > 3 || (roleCounts.duelist || 0) > 3 || (roleCounts.strategist || 0) > 3) return false;
+
             if (heroes.some(function(hero) { return hardBannedSet.has(hero); })) return false;
             if ((enemyProtects || []).some(function(hero) { return heroes.includes(hero); })) return false;
             if ((ownProtects || []).some(function(hero) { return !heroes.includes(hero); })) return false;
@@ -1674,17 +1813,21 @@ function heroChipHtml(hero, type, playerName) {
             const mlScore = Number(row.ml_comp_score || 0);
             const mlWinProb = Number(row.ml_win_prob || 0);
             const mlConfidence = Number(row.ml_confidence || 0);
+            const sampleCount = Number(row.count || 0);
+            const roleShape = compRoleShapeScore(row.heroes || []);
             const relationship = compRelationshipScore(row.heroes || [], ourPairLookup);
             const fitScore =
                 (strength * 0.40)
                 + (mlScore * 0.30)
                 + (mlWinProb * 0.18)
-                + (usage * 0.18)
+                + (usage * 0.30)
                 + (compWr * 0.14)
                 + (comfort * 0.08)
                 + (adjusted * 0.06)
                 + (mlConfidence * 0.05)
-                + (relationship * 0.04);
+                + (relationship * 0.04)
+                + (roleShape * 0.35)
+                + Math.min(26, sampleCount * 3.2);
             return {
                 row: row,
                 fit_score: fitScore,
@@ -1710,6 +1853,14 @@ function heroChipHtml(hero, type, playerName) {
         rankedCompRows.forEach(function(candidate) {
             const compRow = candidate.row;
             const compHeroes = (compRow.heroes || []).filter(Boolean);
+            const sampleCount = Number(compRow.count || 0);
+            const hasStrongData = Number(mA.training_maps || 0) >= 20;
+
+            // With enough history, avoid constructing from thin/novel comps.
+            if (hasStrongData && sampleCount < 3) {
+                return;
+            }
+
             if (!isLegalCompCandidate(compHeroes, ourLockedProtects, enemyLockedProtects, hardBannedHeroes)) {
                 return;
             }
@@ -1733,12 +1884,23 @@ function heroChipHtml(hero, type, playerName) {
                 const lineAdjustedWr = Number(lineMetrics.avg_adjusted_win_rate || 0);
                 const pathDistance = Number(path.distance_from_primary || 0);
                 let score = Number(candidate.fit_score || 0);
+                const establishedBonus = Math.min(80, sampleCount * 8) + (Number(compRow.rate || 0) * 1.1);
+                score += establishedBonus;
+
+                // Prefer comps with established historical path structure.
+                if (!matchingPathRow) {
+                    score -= hasStrongData ? 120 : 25;
+                }
+
                 const protectedCount = compHeroes.filter(function(hero) { return ourLockedProtects.includes(hero); }).length;
                 const missingProtectedCount = ourLockedProtects.filter(function(hero) { return !compHeroes.includes(hero); }).length;
                 score += protectedCount * 14;
                 score -= missingProtectedCount * 120;
                 score += (pathRate * 1.35);
                 score += (topPathShare * 0.55);
+                if (hasStrongData && topPathShare > 0 && topPathShare < 8) {
+                    score -= 35;
+                }
                 score += (lineStrength * 0.32);
                 score += (lineWinRate * 0.18);
                 score += (lineComfort * 0.10);
@@ -1898,7 +2060,8 @@ function heroChipHtml(hero, type, playerName) {
         }
         drSuggest.a.banPath = drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, drSuggest.a.protects);
 
-        // Adaptive enemy comp selection based on current bans (just like ours)
+        // Enemy comp should reflect the enemy team's own best legal comp model
+        // so it remains consistent when the same team is selected on either side.
         const enemyCompRows = (mB.comp_rows || []);
         let bestEnemyComp = null;
         enemyCompRows.forEach(function(compRow) {
@@ -1907,24 +2070,17 @@ function heroChipHtml(hero, type, playerName) {
                 return;
             }
 
-            // Score based on viability and strength given current locks
-            let score = Number(compRow.comp_strength || 0) * 0.7 
-                      + Number(compRow.comp_win_rate || 0) * 0.2 
-                      + Number(compRow.rate || 0) * 0.1;
+            let score = (Number(compRow.comp_strength || 0) * 0.40)
+                + (Number(compRow.ml_comp_score || 0) * 0.30)
+                + (Number(compRow.ml_win_prob || 0) * 0.18)
+                + (Number(compRow.rate || 0) * 0.18)
+                + (Number(compRow.comp_win_rate || 0) * 0.14)
+                + (Number(compRow.avg_comfort || 0) * 0.08)
+                + (Number(compRow.avg_adjusted_win_rate || 0) * 0.06)
+                + (Number(compRow.ml_confidence || 0) * 0.05);
 
-            // Reward comps that keep the enemy's own protected heroes alive.
             const protectedBySelf = compHeroes.filter(function(h) { return enemyLockedProtects.includes(h); }).length;
-
             score += protectedBySelf * 6;
-
-            // If forced comp exists, use it; otherwise pick best available
-            if (bestCandidate && bestCandidate.forceRow && (bestCandidate.forceRow.enemy_comp || []).length) {
-                const forcedCompKey = heroesKey(bestCandidate.forceRow.enemy_comp);
-                const thisKey = heroesKey(compHeroes);
-                if (forcedCompKey === thisKey) {
-                    score += 999; // Huge bonus to force the predetermined comp
-                }
-            }
 
             if (!bestEnemyComp || score > bestEnemyComp.score) {
                 bestEnemyComp = {score: score, comp: compHeroes};
@@ -2418,17 +2574,19 @@ function heroChipHtml(hero, type, playerName) {
                 ? (openHeroes.length + ' heroes remain open after bans and protects.')
                 : 'No heroes remain fully open.';
             drOpenHeroesList.innerHTML = openHeroes.length
-                ? '<div class="dr-hero-row">' + openHeroes.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
+                ? '<div class="dr-open-hero-grid">' + openHeroes.map(function(hero) { return openHeroIconHtml(hero); }).join('') + '</div>'
                 : '<p class="matchup-empty">All likely heroes are already banned or protected.</p>';
         }
 
         if (drOpenBanMeta && drOpenBanTargetsList) {
             const ourCompSet = new Set(drSuggest.a.comp || []);
-            const targetRows = buildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned).slice(0, 8).map(function(row) {
-                return Object.assign({}, row, {
-                    blocks_ours: ourCompSet.has(row.hero),
-                });
-            });
+            const targetRows = drBuildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned)
+                .filter(function(row) {
+                    // Open Ban Targets should be bans we can take against the enemy
+                    // without sacrificing our current target comp.
+                    return !ourCompSet.has(row.hero);
+                })
+                .slice(0, 8);
 
             drOpenBanMeta.textContent = targetRows.length
                 ? ('Top ' + targetRows.length + ' open ban targets for ' + nameA + ' (ranked by high-impact enemy strength).')
@@ -2438,7 +2596,6 @@ function heroChipHtml(hero, type, playerName) {
                 ? '<div class="dr-guide-details-grid">' + targetRows.map(function(row) {
                     const tags = [];
                     if (row.contested) tags.push('<span class="matchup-badge matchup-badge-warn">Contested</span>');
-                    if (row.blocks_ours) tags.push('<span class="matchup-badge matchup-badge-muted">In our comp</span>');
                     return '<div class="dr-reason-card">'
                         + '<div class="dr-reason-title">' + heroChipHtml(row.hero, 'ban') + '</div>'
                         + '<div class="matchup-line-meta"><span class="matchup-badge">Cripples ' + escapeHtml(row.compsCrippled) + ' comps</span><span class="matchup-badge">Strength ' + escapeHtml(row.blockedStrength.toFixed(1)) + '</span><span class="matchup-badge">Playrate ' + escapeHtml(row.comfort.toFixed(1)) + '%</span></div>'

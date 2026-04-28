@@ -1051,7 +1051,33 @@ def _get_season_from_date(scrim_date_str: str) -> str:
 
 
 def normalize_season_value(raw_value: str) -> str:
-    return " ".join((raw_value or "").strip().split())
+    value = " ".join((raw_value or "").strip().split())
+    if not value:
+        return ""
+    if value == UNSPECIFIED_SEASON_TOKEN:
+        return UNSPECIFIED_SEASON_TOKEN
+
+    lower_value = value.lower()
+    if lower_value == "all":
+        return "all"
+
+    def _normalize_numeric_season_token(token: str) -> str:
+        try:
+            numeric = float(token)
+        except (TypeError, ValueError):
+            return token
+        if numeric.is_integer():
+            return str(int(numeric))
+        return f"{numeric:.6f}".rstrip("0").rstrip(".")
+
+    season_token_match = re.search(r"(?:^|\b)s(?:eason)?\s*([0-9]+(?:\.[0-9]+)?)\b", lower_value)
+    if season_token_match:
+        return _normalize_numeric_season_token(season_token_match.group(1))
+
+    if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", lower_value):
+        return _normalize_numeric_season_token(lower_value)
+
+    return value
 
 
 def normalize_match_team_slot(raw_value: str) -> str:
@@ -1888,6 +1914,7 @@ def get_selected_season(
     *,
     allow_unspecified: bool = False,
     default_season: str = "all",
+    strict: bool = False,
 ) -> str:
     selected = normalize_season_value(raw_value)
     if not selected or selected.lower() == "all":
@@ -1899,6 +1926,8 @@ def get_selected_season(
         return "all"
     if selected == UNSPECIFIED_SEASON_TOKEN and allow_unspecified:
         return UNSPECIFIED_SEASON_TOKEN
+    if strict:
+        return selected
     return selected if selected in season_options else "all"
 
 
@@ -10502,7 +10531,8 @@ def team_opponent_tree(team_id: int):
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
-    hero_pool_scrims = filter_scrims_by_map_type(all_team_scrims, selected_map_type)
+    hero_pool_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
+    hero_pool_scrims = filter_scrims_by_map_type(hero_pool_scrims, selected_map_type)
     return jsonify(build_opponent_tree_model(team_scrims, hero_pool_scrims=hero_pool_scrims))
 
 
@@ -10545,6 +10575,7 @@ def team_matchup_tree():
             season_options,
             allow_unspecified=has_unseasoned_scrims,
             default_season=effective_default,
+            strict=True,
         )
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
         team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
@@ -15149,11 +15180,16 @@ def api_draft_reasoner_model():
         has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in all_scrims)
         effective_default = "all" if not season_value or season_value.lower() == "all" else default_season
         selected_season = get_selected_season(
-            season_value, season_options, allow_unspecified=has_unseasoned, default_season=effective_default
+            season_value,
+            season_options,
+            allow_unspecified=has_unseasoned,
+            default_season=effective_default,
+            strict=True,
         )
         scrims = filter_scrims_by_season(all_scrims, selected_season)
         scrims = filter_scrims_by_map_type(scrims, selected_map_type)
-        hero_pool_scrims = filter_scrims_by_map_type(all_scrims, selected_map_type)
+        hero_pool_scrims = filter_scrims_by_season(all_scrims, selected_season)
+        hero_pool_scrims = filter_scrims_by_map_type(hero_pool_scrims, selected_map_type)
         if selected_map_name and selected_map_name.lower() != "all":
             filtered = []
             for scrim in scrims:
