@@ -153,8 +153,8 @@ MAP_IMAGES = {
     "Symbiotic Surface": "https://marvelrivalsapi.com/rivals/maps/large/map_1290.png",
     "Throne of Knull": "https://marvelrivalsapi.com/rivals/maps/large/map_1320.png",
     "Yggdrasill Path": "https://marvelrivalsapi.com/rivals/maps/large/map_1231.png",
-    "Museum of Contemplation": "https://liquipedia.net/commons/images/thumb/5/50/Marvel_Rivals_map_Museum_of_Contemplation.jpg/600px-Marvel_Rivals_map_Museum_of_Contemplation.jpg",
-    "Lower Manhattan": "https://liquipedia.net/commons/images/thumb/d/d9/Marvel_Rivals_map_Lower_Manhattan.jpg/600px-Marvel_Rivals_map_Lower_Manhattan.jpg",
+    "Museum of Contemplation": "/static/maps/museum_of_contemplation.jpg",
+    "Lower Manhattan": "/static/maps/lower_manhattan.jpg",
     # Submaps
     "Frozen Airfield": "https://marvelrivalsapi.com/rivals/maps/large/map_1243.png",
     "Super-Soldier Factory": "https://marvelrivalsapi.com/rivals/maps/large/map_1244.png",

@@ -6589,8 +6589,11 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
     }
 
 
-def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
-    if not team_scrims:
+def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[dict] | None = None) -> dict:
+    if hero_pool_scrims is None:
+        hero_pool_scrims = team_scrims
+
+    if not team_scrims and not hero_pool_scrims:
         return {
             "status": "empty",
             "training_maps": 0,
@@ -6848,6 +6851,92 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
                     cycle_modes_played = set()
                 cycle_modes_played.add(mode_name)
 
+    hero_pool_dated_scrim_dates = [
+        parsed
+        for parsed in (
+            _parse_scrim_date(scrim.get("scrim_date", ""))
+            or _infer_date_from_season(scrim.get("season", ""))
+            for scrim in hero_pool_scrims
+        )
+        if parsed is not None
+    ]
+    newest_hero_pool_date = max(hero_pool_dated_scrim_dates) if hero_pool_dated_scrim_dates else None
+    earliest_hero_pool_date = min(hero_pool_dated_scrim_dates) if hero_pool_dated_scrim_dates else None
+    hero_pool_undated_offset = (
+        (newest_hero_pool_date - earliest_hero_pool_date).days + 1
+        if newest_hero_pool_date and earliest_hero_pool_date else 0
+    )
+
+    hero_weighted_apps = defaultdict(float)
+    hero_weighted_wins = defaultdict(float)
+    hero_weighted_players = defaultdict(set)
+    hero_player_weighted_apps = defaultdict(lambda: defaultdict(float))
+    hero_player_weighted_wins = defaultdict(lambda: defaultdict(float))
+    hero_trend_points = defaultdict(list)
+    hero_pool_weighted_total_maps = 0.0
+    hero_pool_weighted_total_wins = 0.0
+    hero_pool_map_time_index = 0
+
+    for _scrim_idx, scrim in sorted(enumerate(hero_pool_scrims), key=scrim_sort_key):
+        scrim_date = (
+            _parse_scrim_date(scrim.get("scrim_date", ""))
+            or _infer_date_from_season(scrim.get("season", ""))
+        )
+        recency_weight = 1.0
+        if newest_hero_pool_date is not None and scrim_date is not None:
+            age_days = max(0, (newest_hero_pool_date - scrim_date).days)
+            recency_weight = math.exp(-recency_decay_lambda * age_days)
+
+        ordered_maps = [map_entry for map_entry in scrim.get("maps", []) if isinstance(map_entry, dict)]
+        for map_entry in ordered_maps:
+            hero_pool_map_time_index += 1
+            if scrim_date is not None and earliest_hero_pool_date is not None:
+                time_x = float((scrim_date - earliest_hero_pool_date).days)
+            else:
+                time_x = float(hero_pool_undated_offset + hero_pool_map_time_index)
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
+            decided_outcome = 1.0 if outcome == "Win" else 0.0 if outcome == "Loss" else None
+            map_weight = map_type_weight(map_entry.get("map_type", "")) * recency_weight
+            hero_pool_weighted_total_maps += map_weight
+            if outcome == "Win":
+                hero_pool_weighted_total_wins += map_weight
+
+            map_seen_heroes: set[str] = set()
+            map_seen_hero_players: set[tuple[str, str]] = set()
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                lineup = section.get(our_team_slot, [])
+                if not isinstance(lineup, list):
+                    continue
+                for slot in lineup:
+                    if not isinstance(slot, dict):
+                        continue
+                    hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                    player_name = (slot.get("player", "") or "").strip()
+                    if not hero_name:
+                        continue
+                    if hero_name not in map_seen_heroes:
+                        hero_weighted_apps[hero_name] += map_weight
+                        if outcome == "Win":
+                            hero_weighted_wins[hero_name] += map_weight
+                        map_seen_heroes.add(hero_name)
+                    if player_name:
+                        hero_weighted_players[hero_name].add(player_name)
+                        hero_player_key = (hero_name, player_name)
+                        if hero_player_key not in map_seen_hero_players:
+                            hero_player_weighted_apps[hero_name][player_name] += map_weight
+                            if outcome == "Win":
+                                hero_player_weighted_wins[hero_name][player_name] += map_weight
+                            map_seen_hero_players.add(hero_player_key)
+
+            if decided_outcome is not None:
+                for hero_name in map_seen_heroes:
+                    hero_trend_points[hero_name].append((time_x, decided_outcome, map_weight))
+
     hero_trend_deltas = {
         hero_name: weighted_linear_delta_pct(points)
         for hero_name, points in hero_trend_points.items()
@@ -6857,7 +6946,7 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         for comp_key, points in comp_trend_points.items()
     }
 
-    overall_wr = (weighted_total_wins / weighted_total_maps) if weighted_total_maps else 0.0
+    overall_wr = (hero_pool_weighted_total_wins / hero_pool_weighted_total_maps) if hero_pool_weighted_total_maps else 0.0
     total_hero_weight = sum(hero_weighted_apps.values())
     hero_lookup: dict[str, dict] = {}
     for hero_name, appearances in hero_weighted_apps.items():
@@ -7003,6 +7092,11 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
 
     total_comps = sum(comp_counts.values())
     comp_rows = []
+    # Bayesian win-probability model over comp outcomes.
+    # This provides a lightweight learned estimate that is robust for low-sample comps.
+    prior_strength = 12.0
+    alpha0 = max(1e-6, overall_wr * prior_strength + 1.0)
+    beta0 = max(1e-6, (1.0 - overall_wr) * prior_strength + 1.0)
     for comp_key, count in sorted(comp_counts.items(), key=lambda item: item[1], reverse=True)[:16]:
         heroes = list(comp_key)
         hero_profiles = [hero_lookup.get(hero, {}) for hero in heroes if hero]
@@ -7015,6 +7109,15 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
             1,
         ) if hero_profiles else 0.0
         comp_wr = round((comp_wins[comp_key] / count) * 100, 1) if count else 0.0
+        comp_wins_weighted = float(comp_wins.get(comp_key, 0.0) or 0.0)
+        posterior_win_prob = (
+            (comp_wins_weighted + alpha0) / (count + alpha0 + beta0)
+            if count > 0 else overall_wr
+        )
+        posterior_strength = count + alpha0 + beta0
+        ml_confidence = min(100.0, (count / (count + prior_strength)) * 100.0) if count > 0 else 0.0
+        uncertainty_penalty = (100.0 / math.sqrt(max(1.0, posterior_strength)))
+        ml_comp_score = max(0.0, min(100.0, posterior_win_prob * 100.0 - uncertainty_penalty))
         comp_strength_base = (avg_comfort * 0.5) + (avg_adjusted_wr * 0.5)
         direct_comp_trend_delta = comp_trend_deltas.get(comp_key, 0.0)
         hero_trend_values = [hero_trend_deltas.get(hero_name, 0.0) for hero_name in heroes if hero_name]
@@ -7038,6 +7141,9 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
                 "avg_comfort": avg_comfort,
                 "avg_adjusted_win_rate": avg_adjusted_wr,
                 "comp_win_rate": comp_wr,
+                "ml_win_prob": round(posterior_win_prob * 100, 1),
+                "ml_confidence": round(ml_confidence, 1),
+                "ml_comp_score": round(ml_comp_score, 1),
                 "comp_direct_trend_delta_pp": round(direct_comp_trend_delta, 1),
                 "comp_hero_avg_trend_delta_pp": round(hero_avg_trend_delta, 1),
                 "comp_trend_delta_pp": round(comp_trend_delta, 1),
@@ -7255,6 +7361,7 @@ def build_opponent_tree_model(team_scrims: list[dict]) -> dict:
         "model_methods": {
             "recency_weighting": "exponential_decay",
             "trend_estimator": "weighted_linear_regression",
+            "comp_outcome_model": "bayesian_beta_binomial",
         },
         "overall_win_rate": round(overall_wr * 100, 1),
         "comfort_core_rows": comfort_core_rows,
@@ -7286,9 +7393,11 @@ def build_matchup_tree_model(
     team_a_scrims: list[dict],
     team_b_name: str,
     team_b_scrims: list[dict],
+    team_a_hero_pool_scrims: list[dict] | None = None,
+    team_b_hero_pool_scrims: list[dict] | None = None,
 ) -> dict:
-    team_a_model = build_opponent_tree_model(team_a_scrims)
-    team_b_model = build_opponent_tree_model(team_b_scrims)
+    team_a_model = build_opponent_tree_model(team_a_scrims, hero_pool_scrims=team_a_hero_pool_scrims)
+    team_b_model = build_opponent_tree_model(team_b_scrims, hero_pool_scrims=team_b_hero_pool_scrims)
 
     if (
         team_a_model.get("status") == "empty"
@@ -7505,6 +7614,16 @@ def build_matchup_tree_model(
                 }
             )
 
+    comp_ml_lookup_a = {
+        tuple(row.get("heroes", [])): {
+            "ml_win_prob": float(row.get("ml_win_prob", row.get("comp_win_rate", 0)) or 0),
+            "ml_confidence": float(row.get("ml_confidence", 0) or 0),
+            "ml_comp_score": float(row.get("ml_comp_score", row.get("comp_strength", 0)) or 0),
+        }
+        for row in team_a_model.get("comp_rows", [])
+        if row.get("heroes")
+    }
+
     force_matchup_rows = []
     team_a_comp_paths = team_a_model.get("comp_path_rows", [])[:6]
     team_b_comp_paths = team_b_model.get("comp_path_rows", [])[:6]
@@ -7536,12 +7655,37 @@ def build_matchup_tree_model(
                 "enemy_conditioned_rate": top_enemy["conditioned_rate"],
                 "enemy_preserved_ratio": top_enemy["preserved_ratio"],
                 "micro_path_count": int(our_comp.get("path_count", 0) or 0),
+                "ml_win_prob": comp_ml_lookup_a.get(tuple(our_comp.get("heroes", [])), {}).get("ml_win_prob", 0.0),
+                "ml_confidence": comp_ml_lookup_a.get(tuple(our_comp.get("heroes", [])), {}).get("ml_confidence", 0.0),
+                "ml_comp_score": comp_ml_lookup_a.get(tuple(our_comp.get("heroes", [])), {}).get("ml_comp_score", 0.0),
             }
         )
     force_matchup_rows.sort(
-        key=lambda row: (row["our_path_share"], row["enemy_choice_gap"], -row["enemy_blocked_count"]),
+        key=lambda row: (
+            ((float(row.get("ml_comp_score", 0) or 0) * 0.55)
+             + (float(row.get("our_path_share", 0) or 0) * 0.25)
+             + (float(row.get("enemy_choice_gap", 0) or 0) * 0.20)),
+            row["our_path_share"],
+            row["enemy_choice_gap"],
+            -row["enemy_blocked_count"],
+        ),
         reverse=True,
     )
+
+    ml_outlook_rows = [
+        {
+            "our_comp": row.get("our_comp", []),
+            "our_bans": row.get("our_bans", []),
+            "our_protects": row.get("our_protects", []),
+            "enemy_comp": row.get("enemy_comp", []),
+            "ml_win_prob": round(float(row.get("ml_win_prob", 0) or 0), 1),
+            "ml_confidence": round(float(row.get("ml_confidence", 0) or 0), 1),
+            "ml_comp_score": round(float(row.get("ml_comp_score", 0) or 0), 1),
+            "enemy_choice_gap": round(float(row.get("enemy_choice_gap", 0) or 0), 1),
+            "our_path_share": round(float(row.get("our_path_share", 0) or 0), 1),
+        }
+        for row in force_matchup_rows[:6]
+    ]
 
     deviation_rows = []
     for our_comp in team_a_comp_paths[:6]:
@@ -7748,6 +7892,7 @@ def build_matchup_tree_model(
         "ban_clash_rows": ban_clash_rows[:8],
         "comp_clash_rows": comp_clash_rows[:8],
         "map_consensus_rows": map_consensus_rows[:4],
+        "ml_outlook_rows": ml_outlook_rows,
     }
 
 
@@ -10340,7 +10485,8 @@ def team_opponent_tree(team_id: int):
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
-    return jsonify(build_opponent_tree_model(team_scrims))
+    hero_pool_scrims = filter_scrims_by_map_type(all_team_scrims, selected_map_type)
+    return jsonify(build_opponent_tree_model(team_scrims, hero_pool_scrims=hero_pool_scrims))
 
 
 @app.route("/teams/matchup-tree")
@@ -14979,7 +15125,7 @@ def api_draft_reasoner_model():
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     selected_map_name = (request.args.get("map", "") or "").strip()
 
-    def _get_filtered_scrims(team_row) -> list[dict]:
+    def _get_filtered_scrims(team_row) -> tuple[list[dict], list[dict]]:
         all_scrims = get_team_history_scrims(team_row)
         season_options = get_scrim_season_options(all_scrims)
         default_season = get_current_season_from_recent_scrim(all_scrims)
@@ -14990,6 +15136,7 @@ def api_draft_reasoner_model():
         )
         scrims = filter_scrims_by_season(all_scrims, selected_season)
         scrims = filter_scrims_by_map_type(scrims, selected_map_type)
+        hero_pool_scrims = filter_scrims_by_map_type(all_scrims, selected_map_type)
         if selected_map_name and selected_map_name.lower() != "all":
             filtered = []
             for scrim in scrims:
@@ -15000,8 +15147,8 @@ def api_draft_reasoner_model():
                 ]
                 if scrim_copy["maps"]:
                     filtered.append(scrim_copy)
-            return filtered
-        return scrims
+            return filtered, hero_pool_scrims
+        return scrims, hero_pool_scrims
 
     def _get_team_roster(team_id: int) -> list[dict]:
         rows = db.execute(
@@ -15024,9 +15171,16 @@ def api_draft_reasoner_model():
             if (row["name"] or "").strip()
         ]
 
-    a_scrims = _get_filtered_scrims(team_a)
-    b_scrims = _get_filtered_scrims(team_b)
-    matchup = build_matchup_tree_model(team_a["name"], a_scrims, team_b["name"], b_scrims)
+    a_scrims, a_hero_pool_scrims = _get_filtered_scrims(team_a)
+    b_scrims, b_hero_pool_scrims = _get_filtered_scrims(team_b)
+    matchup = build_matchup_tree_model(
+        team_a["name"],
+        a_scrims,
+        team_b["name"],
+        b_scrims,
+        team_a_hero_pool_scrims=a_hero_pool_scrims,
+        team_b_hero_pool_scrims=b_hero_pool_scrims,
+    )
     teams_payload = matchup.get("teams", [])
     if len(teams_payload) >= 1:
         teams_payload[0]["roster_players"] = _get_team_roster(team_a_id)

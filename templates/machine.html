@@ -62,9 +62,28 @@
 @media (max-width:900px) { .dr-full-grid { grid-template-columns:1fr; } }
 .dr-suggest-banner { background:rgba(30,41,59,0.55); border:1px solid rgba(96,165,250,0.2); border-radius:0.6rem; padding:1rem 1.25rem; margin-bottom:1rem; }
 .dr-suggest-title { font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#94a3b8; margin-bottom:0.45rem; }
+.dr-suggest-meta { font-size:0.75rem; color:#94a3b8; margin-bottom:0.45rem; }
 .dr-suggest-comp { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.5rem; }
 .dr-suggest-section { margin-top:0.5rem; }
 .dr-suggest-section-label { font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:0.25rem; }
+.dr-side-tabs { display:flex; gap:0.4rem; margin-bottom:0.55rem; }
+.dr-side-tab {
+    border:1px solid rgba(148,163,184,0.22);
+    background:rgba(15,23,42,0.55);
+    color:#cbd5e1;
+    border-radius:999px;
+    font-size:0.74rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    padding:0.28rem 0.62rem;
+    cursor:pointer;
+}
+.dr-side-tab.active {
+    border-color:rgba(96,165,250,0.55);
+    background:rgba(59,130,246,0.18);
+    color:#dbeafe;
+}
 .draft-column h4 .dr-team-label { cursor:default; }
 
 /* slot suggestion highlight */
@@ -72,7 +91,130 @@
 .draft-slot.suggested-protect .slot-hero { color:#4ade80; }
 .draft-slot.turn-locked { opacity:0.58; cursor:not-allowed; }
 
+/* Ghost ban hint for next recommended ban */
+.slot-ghost-wrap {
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    opacity:0.35;
+    pointer-events:none;
+    color:#94a3b8;
+    font-size:0.75rem;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+}
+.slot-ghost-img {
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    object-fit:cover;
+    margin-bottom:2px;
+}
+.slot-ghost-label {
+    font-size:0.65rem;
+}
+
 .dr-reason-stream { display:flex; flex-direction:column; gap:0.6rem; }
+.dr-guide {
+    display:grid;
+    gap:0.6rem;
+}
+.dr-guide-step {
+    background:rgba(15,23,42,0.55);
+    border:1px solid rgba(148,163,184,0.2);
+    border-left:4px solid #60a5fa;
+    border-radius:0.55rem;
+    padding:0.6rem 0.75rem;
+}
+.dr-guide-step.good { border-left-color:#4ade80; }
+.dr-guide-step.warn { border-left-color:#fbbf24; }
+.dr-guide-step.bad { border-left-color:#f87171; }
+.dr-guide-label {
+    font-size:0.72rem;
+    color:#94a3b8;
+    text-transform:uppercase;
+    letter-spacing:0.07em;
+    font-weight:700;
+    margin-bottom:0.22rem;
+}
+.dr-guide-title {
+    font-size:0.9rem;
+    color:#e2e8f0;
+    font-weight:700;
+    margin-bottom:0.2rem;
+}
+.dr-guide-body {
+    font-size:0.83rem;
+    color:#cbd5e1;
+    line-height:1.5;
+}
+.dr-guide-meta {
+    font-size:0.8rem;
+    color:#94a3b8;
+    background:rgba(2,6,23,0.45);
+    border:1px solid rgba(148,163,184,0.16);
+    border-radius:0.5rem;
+    padding:0.52rem 0.65rem;
+}
+.dr-guide-details {
+    background:rgba(2,6,23,0.35);
+    border:1px solid rgba(148,163,184,0.14);
+    border-radius:0.5rem;
+    padding:0.35rem 0.5rem;
+}
+.dr-guide-details > summary {
+    cursor:pointer;
+    color:#93c5fd;
+    font-size:0.78rem;
+    font-weight:700;
+}
+.dr-guide-details-grid {
+    display:grid;
+    gap:0.45rem;
+    margin-top:0.45rem;
+}
+.dr-reason-tree { display:grid; gap:0.8rem; }
+.dr-tree-root {
+    background:rgba(30,41,59,0.55);
+    border:1px solid rgba(96,165,250,0.35);
+    border-radius:0.55rem;
+    padding:0.7rem 0.9rem;
+}
+.dr-tree-root-title { font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#93c5fd; margin-bottom:0.25rem; }
+.dr-tree-root-body { font-size:0.84rem; color:#cbd5e1; }
+.dr-tree-branches { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.75rem; }
+.dr-tree-branch {
+    background:rgba(15,23,42,0.46);
+    border:1px solid rgba(148,163,184,0.18);
+    border-radius:0.55rem;
+    padding:0.55rem 0.65rem;
+}
+.dr-tree-branch-title { font-size:0.73rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; margin-bottom:0.4rem; }
+.dr-tree-node-stack { display:grid; gap:0.45rem; }
+.dr-tree-node {
+    background:rgba(2,6,23,0.45);
+    border:1px solid rgba(148,163,184,0.16);
+    border-left:3px solid #60a5fa;
+    border-radius:0.45rem;
+    padding:0.48rem 0.58rem;
+    font-size:0.82rem;
+    color:#94a3b8;
+}
+.dr-tree-node.warn { border-left-color:#fbbf24; }
+.dr-tree-node.good { border-left-color:#4ade80; }
+.dr-tree-node.bad { border-left-color:#f87171; }
+.dr-tree-node-title { font-size:0.74rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#e2e8f0; margin-bottom:0.2rem; }
+.dr-tree-node-body strong { color:#e2e8f0; }
+@media (max-width: 980px) {
+    .dr-tree-branches { grid-template-columns:1fr; }
+}
 .dr-reason-card { background:rgba(15,23,42,0.5); border-left:3px solid #60a5fa; border-radius:0 0.45rem 0.45rem 0; padding:0.65rem 1rem; font-size:0.85rem; line-height:1.55; color:#94a3b8; }
 .dr-reason-card.warn { border-left-color:#fbbf24; }
 .dr-reason-card.good { border-left-color:#4ade80; }
@@ -81,6 +223,7 @@
 .dr-reason-title { font-weight:700; color:#e2e8f0; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:0.2rem; }
 .dr-hero-chip { display:inline-flex; align-items:center; gap:0.3rem; padding:0.18rem 0.5rem; border-radius:999px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.2); font-size:0.78rem; color:#dbeafe; }
 .dr-hero-chip img { width:18px; height:18px; border-radius:50%; object-fit:cover; }
+.dr-hero-chip-meta { color:#94a3b8; font-size:0.72rem; }
 .dr-hero-chip.ban-chip { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.2); color:#fecaca; }
 .dr-hero-chip.protect-chip { background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.2); color:#bbf7d0; }
 /* assignment grid */
@@ -377,12 +520,22 @@
     </div>
 
     <aside class="dr-side-column">
+        <div class="dr-side-tabs" id="dr-side-tabs">
+            <button type="button" class="dr-side-tab active" data-view="assistant">Draft Assistant</button>
+            <button type="button" class="dr-side-tab" data-view="reasoning">Live Reasoning</button>
+            <button type="button" class="dr-side-tab" data-view="open-heroes">Open Heroes</button>
+            <button type="button" class="dr-side-tab" data-view="open-ban-targets">Open Ban Targets</button>
+        </div>
+
+        <div id="dr-side-assistant-view">
         <!-- Auto-suggest banner -->
         <div id="dr-suggest-block" style="display:none" class="dr-suggest-banner">
             <div class="dr-suggest-title">&#11088; Best-fit comp for <span id="dr-suggest-for">Our Team</span> <span id="dr-suggest-map-label"></span></div>
+            <div class="dr-suggest-meta" id="dr-suggest-ml-meta"></div>
             <div class="dr-suggest-comp" id="dr-suggest-comp-heroes"></div>
             <div class="dr-suggest-section">
                 <div class="dr-suggest-section-label">Suggested draft path (primary route to reach this comp):</div>
+                <div class="dr-suggest-meta" id="dr-suggest-path-meta"></div>
                 <div class="matchup-slot-row" id="dr-suggest-bans-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-bans"></div></div>
                 <div class="matchup-slot-row" id="dr-suggest-protects-row" style="display:none"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row" id="dr-suggest-protects"></div></div>
             </div>
@@ -404,7 +557,9 @@
                 </div>
             </div>
         </div>
+        </div>
 
+        <div id="dr-side-reasoning-view" style="display:none">
         <!-- Reasoning panel -->
         <section class="panel dr-side-panel" id="dr-reasoning-section">
             <h3>Live Reasoning</h3>
@@ -412,6 +567,27 @@
                 <p class="matchup-empty">Load a model and fill draft slots to see reasoning here.</p>
             </div>
         </section>
+        </div>
+
+        <div id="dr-side-open-heroes-view" style="display:none">
+        <section class="panel dr-side-panel">
+            <h3>Open Heroes</h3>
+            <div class="dr-suggest-meta" id="dr-open-heroes-meta">Load a model to see open heroes.</div>
+            <div id="dr-open-heroes-list">
+                <p class="matchup-empty">No model loaded yet.</p>
+            </div>
+        </section>
+        </div>
+
+        <div id="dr-side-open-ban-targets-view" style="display:none">
+        <section class="panel dr-side-panel">
+            <h3>Open Ban Targets</h3>
+            <div class="dr-suggest-meta" id="dr-open-ban-meta">Load a model to surface live ban targets.</div>
+            <div id="dr-open-ban-targets-list">
+                <p class="matchup-empty">No model loaded yet.</p>
+            </div>
+        </section>
+        </div>
     </aside>
 </div>
 
@@ -461,9 +637,12 @@ function heroCell(hero) {
     const fallback = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero);
     return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + escapeHtml(hero) + '" class="hero-inline-thumb" onerror="this.src=\'' + fallback + '\'"><span>' + escapeHtml(hero) + '</span></span>';
 }
-function heroChipHtml(hero, type) {
+function heroChipHtml(hero, type, playerName) {
     const cls = type === 'ban' ? 'ban-chip' : type === 'protect' ? 'protect-chip' : '';
-    return '<span class="dr-hero-chip ' + cls + '"><img src="' + heroThumbUrl(hero) + '" alt="" onerror="this.style.display=\'none\'">' + escapeHtml(hero) + '</span>';
+    const playerMeta = (playerName || '').trim()
+        ? '<span class="dr-hero-chip-meta">\u00b7 ' + escapeHtml(playerName) + '</span>'
+        : '';
+    return '<span class="dr-hero-chip ' + cls + '"><img src="' + heroThumbUrl(hero) + '" alt="" onerror="this.style.display=\'none\'">' + escapeHtml(hero) + playerMeta + '</span>';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -579,6 +758,27 @@ function heroChipHtml(hero, type) {
         }).join('');
     }
 
+    function renderMlOutlook(rows, a, b) {
+        if (!rows || !rows.length) return '<p class="matchup-empty">No ML outlook yet.</p>';
+        return '<div class="matchup-line-stack">' + rows.slice(0, 4).map(function(row) {
+            const ourComp = (row.our_comp || []).map(heroCell).join('');
+            const enemyComp = (row.enemy_comp || []).map(heroCell).join('');
+            const bans = (row.our_bans || []).map(escapeHtml).join(', ') || 'None';
+            return '<div class="matchup-line-card">'
+                + '<div class="matchup-card-title">ML comp target for ' + escapeHtml(a) + '</div>'
+                + '<div class="matchup-hero-row">' + ourComp + '</div>'
+                + '<div class="matchup-line-meta">'
+                + '<span class="matchup-badge">Win Prob ' + escapeHtml(row.ml_win_prob) + '%</span>'
+                + '<span class="matchup-badge">Confidence ' + escapeHtml(row.ml_confidence) + '%</span>'
+                + '<span class="matchup-badge">Path Share ' + escapeHtml(row.our_path_share) + '%</span>'
+                + '</div>'
+                + '<div class="matchup-vs">Likely ' + escapeHtml(b) + ' response</div>'
+                + '<div class="matchup-hero-row">' + enemyComp + '</div>'
+                + '<div class="matchup-line-meta"><span class="matchup-badge">Suggested bans: ' + bans + '</span></div>'
+                + '</div>';
+        }).join('') + '</div>';
+    }
+
     function renderTeamModel(team) {
         const m = team.model || {};
         if (!m.training_maps) return '<div class="matchup-team-card"><h4>' + escapeHtml(team.name) + '</h4><p class="matchup-empty">No recorded data.</p></div>';
@@ -619,6 +819,7 @@ function heroChipHtml(hero, type) {
         h += '</div>';
 
         h += '<h4 class="top-gap">Map Consensus</h4>' + renderMapConsensus(data.map_consensus_rows||[], tA.name, tB.name);
+        h += '<h4 class="top-gap">ML Outlook</h4><div class="matchup-surface">' + renderMlOutlook(data.ml_outlook_rows||[], tA.name, tB.name) + '</div>';
         h += '</div>';
         results.innerHTML = h;
     }
@@ -648,7 +849,7 @@ function heroChipHtml(hero, type) {
     let drContext = null;
     let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
     const drDraft = {a:{}, b:{}};
-    let drSuggest = {a:{bans:[],protects:[]}, b:{bans:[],protects:[]}};
+    let drSuggest = {a:{bans:[],protects:[],ml:{},banPath:[]}, b:{bans:[],protects:[],ml:{},banPath:[]}};
     const drHeroPlayerHints = {a: new Map(), b: new Map()};
     const drPlayerHeroHints = {a: new Map(), b: new Map()};
     const drRosterLookup = {
@@ -663,6 +864,15 @@ function heroChipHtml(hero, type) {
     const workspaceSec= document.getElementById('dr-workspace');
     const pickerSec   = document.getElementById('dr-picker-section');
     const suggestBlock= document.getElementById('dr-suggest-block');
+    const drSideTabs = Array.from(document.querySelectorAll('#dr-side-tabs .dr-side-tab'));
+    const drSideAssistantView = document.getElementById('dr-side-assistant-view');
+    const drSideReasoningView = document.getElementById('dr-side-reasoning-view');
+    const drSideOpenHeroesView = document.getElementById('dr-side-open-heroes-view');
+    const drSideOpenBanTargetsView = document.getElementById('dr-side-open-ban-targets-view');
+    const drOpenHeroesMeta = document.getElementById('dr-open-heroes-meta');
+    const drOpenHeroesList = document.getElementById('dr-open-heroes-list');
+    const drOpenBanMeta = document.getElementById('dr-open-ban-meta');
+    const drOpenBanTargetsList = document.getElementById('dr-open-ban-targets-list');
     const DR_TURN_PHASES = [
         [
             {team: 'a', slot: 'ban1', type: 'ban'},
@@ -675,10 +885,10 @@ function heroChipHtml(hero, type) {
             {team: 'a', slot: 'ban2', type: 'ban'},
         ],
         [
-            {team: 'b', slot: 'ban2', type: 'ban'},
+            {team: 'a', slot: 'protect1', type: 'protect'},
         ],
         [
-            {team: 'a', slot: 'protect1', type: 'protect'},
+            {team: 'b', slot: 'ban2', type: 'ban'},
         ],
         [
             {team: 'a', slot: 'ban3', type: 'ban'},
@@ -697,6 +907,31 @@ function heroChipHtml(hero, type) {
             {team: 'a', slot: 'ban4', type: 'ban'},
         ],
     ];
+
+    function drSetSideView(viewName) {
+        const visibility = {
+            assistant: drSideAssistantView,
+            reasoning: drSideReasoningView,
+            'open-heroes': drSideOpenHeroesView,
+            'open-ban-targets': drSideOpenBanTargetsView,
+        };
+        Object.keys(visibility).forEach(function(key) {
+            const el = visibility[key];
+            if (!el) return;
+            el.style.display = key === viewName ? '' : 'none';
+        });
+        drSideTabs.forEach(function(tabBtn) {
+            tabBtn.classList.toggle('active', (tabBtn.dataset.view || '') === viewName);
+        });
+    }
+
+    drSideTabs.forEach(function(tabBtn) {
+        tabBtn.addEventListener('click', function() {
+            drSetSideView((tabBtn.dataset.view || 'assistant').toLowerCase());
+        });
+    });
+
+    drSetSideView('assistant');
 
     function drGetSlotElement(team, slot) {
         return document.querySelector('[data-team="' + team + '"][data-slot="' + slot + '"]');
@@ -827,6 +1062,15 @@ function heroChipHtml(hero, type) {
         }
 
         return '';
+    }
+
+    function drGetHeroPlayerLabel(teamKey, heroName) {
+        const suggestion = drGetHeroPlayerSuggestion(teamKey, heroName);
+        if (!suggestion) return '';
+        const cleaned = suggestion.replace(/^Players:\s*/i, '').trim();
+        if (!cleaned) return '';
+        const first = cleaned.split('/')[0].trim();
+        return first || cleaned;
     }
 
     function drRefreshSlotSubLabels() {
@@ -1242,6 +1486,10 @@ function heroChipHtml(hero, type) {
             return (heroes || []).filter(Boolean).slice().sort().join('||');
         }
 
+        function orderedLineKey(heroes) {
+            return (heroes || []).filter(Boolean).join('||');
+        }
+
         function overlapCount(left, right) {
             const rightSet = new Set((right || []).filter(Boolean));
             return (left || []).filter(function(item) { return rightSet.has(item); }).length;
@@ -1277,6 +1525,97 @@ function heroChipHtml(hero, type) {
                 if (!hero || seen.has(hero)) return false;
                 seen.add(hero);
                 return true;
+            });
+        }
+
+        function isLegalCompCandidate(compHeroes, ownProtects, enemyProtects, hardBannedSet) {
+            const heroes = (compHeroes || []).filter(Boolean);
+            if (!heroes.length) return false;
+            if (heroes.some(function(hero) { return hardBannedSet.has(hero); })) return false;
+            if ((enemyProtects || []).some(function(hero) { return heroes.includes(hero); })) return false;
+            if ((ownProtects || []).some(function(hero) { return !heroes.includes(hero); })) return false;
+            return true;
+        }
+
+        function buildEnemyBanTargetRows(enemyModel, enemyProtects, ourProtects, hardBannedSet) {
+            const protectedByEnemy = new Set((enemyProtects || []).filter(Boolean));
+            const protectedByUs = new Set((ourProtects || []).filter(Boolean));
+            const openEnemyCompRows = (enemyModel.comp_rows || []).filter(function(row) {
+                return isLegalCompCandidate(row.heroes || [], enemyProtects, ourProtects, hardBannedSet);
+            });
+            const heroImpact = new Map();
+
+            openEnemyCompRows.forEach(function(row) {
+                const compStrength = Number(row.comp_strength || 0);
+                const compRate = Number(row.rate || 0);
+                const compWinRate = Number(row.comp_win_rate || 0);
+                (row.heroes || []).filter(Boolean).forEach(function(hero) {
+                    if (hardBannedSet.has(hero) || protectedByEnemy.has(hero) || protectedByUs.has(hero)) return;
+                    if (!heroImpact.has(hero)) {
+                        heroImpact.set(hero, {
+                            hero: hero,
+                            compsCrippled: 0,
+                            blockedStrength: 0,
+                            blockedRate: 0,
+                            bestCompWinRate: 0,
+                        });
+                    }
+                    const entry = heroImpact.get(hero);
+                    entry.compsCrippled += 1;
+                    entry.blockedStrength += compStrength;
+                    entry.blockedRate += compRate;
+                    entry.bestCompWinRate = Math.max(entry.bestCompWinRate, compWinRate);
+                });
+            });
+
+            const comfortLookup = new Map();
+            (enemyModel.comfort_core_rows || []).concat(enemyModel.hero_pool_rows || []).forEach(function(row) {
+                const hero = row.hero || '';
+                if (!hero) return;
+                const existing = comfortLookup.get(hero) || {comfort: 0, wr: 0};
+                comfortLookup.set(hero, {
+                    comfort: Math.max(existing.comfort, Number(row.comfort_rate || row.rate || 0)),
+                    wr: Math.max(existing.wr, Number(row.adjusted_win_rate || 0)),
+                });
+            });
+
+            const contestedSet = new Set((drModel.contested_heroes || []).map(function(row) { return row.hero; }).filter(Boolean));
+
+            return Array.from(heroImpact.values()).map(function(entry) {
+                const comfortRow = comfortLookup.get(entry.hero) || {comfort: 0, wr: 0};
+                const openingBanScore =
+                    (comfortRow.comfort * 0.95)
+                    + (comfortRow.wr * 0.45)
+                    + (entry.bestCompWinRate * 0.35)
+                    + (entry.blockedStrength * 0.55)
+                    + (entry.blockedRate * 0.35)
+                    + (contestedSet.has(entry.hero) ? 8 : 0);
+                const strongHeroScore =
+                    (entry.compsCrippled * 100)
+                    + (entry.blockedStrength * 1.35)
+                    + (entry.blockedRate * 0.85)
+                    + (comfortRow.comfort * 0.60)
+                    + (comfortRow.wr * 0.25)
+                    + (entry.bestCompWinRate * 0.20)
+                    + (contestedSet.has(entry.hero) ? 10 : 0);
+                return {
+                    hero: entry.hero,
+                    compsCrippled: entry.compsCrippled,
+                    blockedStrength: entry.blockedStrength,
+                    blockedRate: entry.blockedRate,
+                    comfort: comfortRow.comfort,
+                    wr: comfortRow.wr,
+                    bestCompWinRate: entry.bestCompWinRate,
+                    contested: contestedSet.has(entry.hero),
+                    openingBanScore: openingBanScore,
+                    strongHeroScore: strongHeroScore,
+                };
+            }).sort(function(a, b) {
+                return (b.strongHeroScore - a.strongHeroScore)
+                    || (b.compsCrippled - a.compsCrippled)
+                    || (b.comfort - a.comfort)
+                    || (b.blockedStrength - a.blockedStrength)
+                    || (a.hero > b.hero ? 1 : -1);
             });
         }
 
@@ -1332,8 +1671,20 @@ function heroChipHtml(hero, type) {
             const compWr = Number(row.comp_win_rate || 0);
             const usage = Number(row.rate || 0);
             const strength = Number(row.comp_strength || 0);
+            const mlScore = Number(row.ml_comp_score || 0);
+            const mlWinProb = Number(row.ml_win_prob || 0);
+            const mlConfidence = Number(row.ml_confidence || 0);
             const relationship = compRelationshipScore(row.heroes || [], ourPairLookup);
-            const fitScore = (strength * 0.45) + (compWr * 0.20) + (usage * 0.15) + (comfort * 0.10) + (adjusted * 0.05) + (relationship * 0.30);
+            const fitScore =
+                (strength * 0.40)
+                + (mlScore * 0.30)
+                + (mlWinProb * 0.18)
+                + (usage * 0.18)
+                + (compWr * 0.14)
+                + (comfort * 0.08)
+                + (adjusted * 0.06)
+                + (mlConfidence * 0.05)
+                + (relationship * 0.04);
             return {
                 row: row,
                 fit_score: fitScore,
@@ -1350,16 +1701,16 @@ function heroChipHtml(hero, type) {
         const enemyLockedBans = ['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean);
         const enemyLockedProtects = ['protect1','protect2'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean);
         const hardBannedHeroes = new Set(enemyLockedBans.concat(ourLockedBans));
+        const ourBanLineLookup = new Map((mA.ban_line_rows || []).map(function(row) {
+            return [orderedLineKey(row.heroes || []), row];
+        }));
 
         // Adaptive simulator: evaluate each candidate comp against current locks/bans.
         let bestCandidate = null;
         rankedCompRows.forEach(function(candidate) {
             const compRow = candidate.row;
             const compHeroes = (compRow.heroes || []).filter(Boolean);
-            if (!compHeroes.length) return;
-
-            // Fully remove comp candidates that contain already-banned heroes.
-            if (compHeroes.some(function(hero) { return hardBannedHeroes.has(hero); })) {
+            if (!isLegalCompCandidate(compHeroes, ourLockedProtects, enemyLockedProtects, hardBannedHeroes)) {
                 return;
             }
 
@@ -1369,35 +1720,69 @@ function heroChipHtml(hero, type) {
             });
             const topPaths = ((matchingPathRow || {}).top_draft_paths || []);
             const pathCandidates = topPaths.length ? topPaths : [{bans:[], protects:[]}];
+            const topPathShare = Number((matchingPathRow || {}).top_path_share || 0);
+            const stableSlots = Number((matchingPathRow || {}).stable_slots || 0);
+            const avgDeviation = Number((matchingPathRow || {}).avg_deviation || 0);
 
             pathCandidates.forEach(function(path) {
+                const lineMetrics = ourBanLineLookup.get(orderedLineKey(path.heroes || [])) || {};
+                const pathRate = Number(path.rate || 0);
+                const lineStrength = Number(lineMetrics.line_strength || 0);
+                const lineWinRate = Number(lineMetrics.line_win_rate || 0);
+                const lineComfort = Number(lineMetrics.avg_comfort || 0);
+                const lineAdjustedWr = Number(lineMetrics.avg_adjusted_win_rate || 0);
+                const pathDistance = Number(path.distance_from_primary || 0);
                 let score = Number(candidate.fit_score || 0);
-                const blockedCount = compHeroes.filter(function(hero) { return enemyLockedBans.includes(hero) || ourLockedBans.includes(hero); }).length;
                 const protectedCount = compHeroes.filter(function(hero) { return ourLockedProtects.includes(hero); }).length;
-                score -= blockedCount * 90;
+                const missingProtectedCount = ourLockedProtects.filter(function(hero) { return !compHeroes.includes(hero); }).length;
                 score += protectedCount * 14;
+                score -= missingProtectedCount * 120;
+                score += (pathRate * 1.35);
+                score += (topPathShare * 0.55);
+                score += (lineStrength * 0.32);
+                score += (lineWinRate * 0.18);
+                score += (lineComfort * 0.10);
+                score += (lineAdjustedWr * 0.10);
+                score += (stableSlots * 5.5);
+                score -= (avgDeviation * 4.5);
+                score -= (pathDistance * 10.0);
                 score += lineCompatibilityScore(path, ourLockedBans, ourLockedProtects);
 
                 // Dual objective: best for us + push enemy toward worse/less favorable response.
                 const pressure = forceEnemyPressureScore(compHeroes, path);
-                score += pressure.score * 0.40;
+                score += pressure.score * 0.18;
 
                 if (!bestCandidate || score > bestCandidate.score) {
                     bestCandidate = {
                         score: score,
                         comp: compHeroes,
+                        compRow: compRow,
                         path: path,
+                        pathMetrics: {
+                            path_rate: pathRate,
+                            top_path_share: topPathShare,
+                            stable_slots: stableSlots,
+                            avg_deviation: avgDeviation,
+                            line_strength: lineStrength,
+                            line_win_rate: lineWinRate,
+                        },
                         forceRow: pressure.row,
                     };
                 }
             });
         });
 
-        drSuggest.a = {bans: [], protects: [], comp: []};
-        drSuggest.b = {bans: [], protects: [], comp: []};
+        drSuggest.a = {bans: [], protects: [], comp: [], ml: {}, banPath: [], path_metrics: {}};
+        drSuggest.b = {bans: [], protects: [], comp: [], ml: {}, banPath: []};
 
         if (bestCandidate) {
             drSuggest.a.comp = bestCandidate.comp || [];
+            drSuggest.a.ml = {
+                win_prob: Number((bestCandidate.compRow || {}).ml_win_prob || 0),
+                confidence: Number((bestCandidate.compRow || {}).ml_confidence || 0),
+                comp_score: Number((bestCandidate.compRow || {}).ml_comp_score || 0),
+            };
+            drSuggest.a.path_metrics = bestCandidate.pathMetrics || {};
 
             const ourCompSet = new Set(drSuggest.a.comp || []);
             const ourLockedBanSet = new Set(ourLockedBans);
@@ -1440,6 +1825,26 @@ function heroChipHtml(hero, type) {
             drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, cleanOurProtects);
         }
 
+        // Initialize default suggestions if no best candidate
+        if (drSuggest.a.bans.length === 0) {
+            const defaultBanPool = uniqueHeroes(
+                (mB.comfort_core_rows || []).map(function(r) { return r.hero; })
+                    .concat((mB.hero_pool_rows || []).map(function(r) { return r.hero; }))
+                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
+            ).filter(function(hero) {
+                return hero && !hardBannedHeroes.has(hero) && !new Set(enemyLockedProtects).has(hero);
+            });
+            drSuggest.a.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.a, defaultBanPool);
+        }
+        if (drSuggest.a.protects.length === 0) {
+            const defaultProtectPool = uniqueHeroes(
+                (mA.comfort_core_rows || []).map(function(r) { return r.hero; })
+            ).filter(function(hero) {
+                return hero && !hardBannedHeroes.has(hero) && !drSuggest.a.bans.includes(hero);
+            });
+            drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, defaultProtectPool);
+        }
+
         // Enemy response simulator: favor lines that attack our selected comp and respect enemy locks.
         const enemyLines = (mB.ban_line_rows || []);
         let bestEnemyLine = null;
@@ -1458,17 +1863,76 @@ function heroChipHtml(hero, type) {
             }
         });
 
-        const enemyCompRows = (mB.comp_rows || []);
-        if (bestCandidate && bestCandidate.forceRow && (bestCandidate.forceRow.enemy_comp || []).length) {
-            drSuggest.b.comp = bestCandidate.forceRow.enemy_comp || [];
-        } else if (enemyCompRows.length) {
-            const topEnemyComp = enemyCompRows.slice().sort(function(a, b) {
-                const aScore = Number(a.comp_strength || 0) * 0.7 + Number(a.comp_win_rate || 0) * 0.2 + Number(a.rate || 0) * 0.1;
-                const bScore = Number(b.comp_strength || 0) * 0.7 + Number(b.comp_win_rate || 0) * 0.2 + Number(b.rate || 0) * 0.1;
-                return bScore - aScore;
+        // Now compute ideal ban path using our finalized protects and the best line's ban structure
+        function drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, ourProtects) {
+            const used = new Set(ourLockedBans.concat(enemyLockedBans).concat(ourProtects || []));
+            const rankedTargets = buildEnemyBanTargetRows(mB, enemyLockedProtects, ourProtects || [], hardBannedHeroes);
+            const path = [];
+
+            const openingTarget = rankedTargets.slice().sort(function(a, b) {
+                return (b.openingBanScore - a.openingBanScore)
+                    || (b.comfort - a.comfort)
+                    || (b.bestCompWinRate - a.bestCompWinRate)
+                    || (a.hero > b.hero ? 1 : -1);
             })[0];
-            drSuggest.b.comp = (topEnemyComp && topEnemyComp.heroes) ? topEnemyComp.heroes : [];
+
+            if (openingTarget && !used.has(openingTarget.hero)) {
+                path.push(openingTarget.hero);
+            }
+
+            if (bestEnemyLine && bestEnemyLine.bans) {
+                (bestEnemyLine.bans || []).forEach(function(hero) {
+                    if (!hero || used.has(hero) || path.includes(hero)) return;
+                    const matchingTarget = rankedTargets.find(function(row) { return row.hero === hero; });
+                    if (matchingTarget) path.push(hero);
+                });
+            }
+
+            rankedTargets.forEach(function(row) {
+                if (path.length >= 4) return;
+                if (used.has(row.hero) || path.includes(row.hero)) return;
+                path.push(row.hero);
+            });
+
+            return path.slice(0, 4);
         }
+        drSuggest.a.banPath = drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, drSuggest.a.protects);
+
+        // Adaptive enemy comp selection based on current bans (just like ours)
+        const enemyCompRows = (mB.comp_rows || []);
+        let bestEnemyComp = null;
+        enemyCompRows.forEach(function(compRow) {
+            const compHeroes = (compRow.heroes || []).filter(Boolean);
+            if (!isLegalCompCandidate(compHeroes, enemyLockedProtects, ourLockedProtects, hardBannedHeroes)) {
+                return;
+            }
+
+            // Score based on viability and strength given current locks
+            let score = Number(compRow.comp_strength || 0) * 0.7 
+                      + Number(compRow.comp_win_rate || 0) * 0.2 
+                      + Number(compRow.rate || 0) * 0.1;
+
+            // Reward comps that keep the enemy's own protected heroes alive.
+            const protectedBySelf = compHeroes.filter(function(h) { return enemyLockedProtects.includes(h); }).length;
+
+            score += protectedBySelf * 6;
+
+            // If forced comp exists, use it; otherwise pick best available
+            if (bestCandidate && bestCandidate.forceRow && (bestCandidate.forceRow.enemy_comp || []).length) {
+                const forcedCompKey = heroesKey(bestCandidate.forceRow.enemy_comp);
+                const thisKey = heroesKey(compHeroes);
+                if (forcedCompKey === thisKey) {
+                    score += 999; // Huge bonus to force the predetermined comp
+                }
+            }
+
+            if (!bestEnemyComp || score > bestEnemyComp.score) {
+                bestEnemyComp = {score: score, comp: compHeroes};
+            }
+        });
+
+        drSuggest.b.comp = (bestEnemyComp && bestEnemyComp.comp) ? bestEnemyComp.comp : [];
+
         if (bestEnemyLine) {
             const enemyCompSet = new Set(drSuggest.b.comp || []);
             const ourProtectSet = new Set(drSuggest.a.protects || []);
@@ -1511,10 +1975,53 @@ function heroChipHtml(hero, type) {
             drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, cleanEnemyProtects);
         }
 
+        // Ensure enemy bans/protects are always populated
+        if (drSuggest.b.bans.length === 0) {
+            const defaultEnemyBanPool = uniqueHeroes(
+                (drSuggest.a.comp || [])
+                    .concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
+                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
+            ).filter(function(hero) {
+                return hero && !hardBannedHeroes.has(hero) && !new Set(ourLockedProtects).has(hero);
+            });
+            drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, defaultEnemyBanPool);
+        }
+        if (drSuggest.b.protects.length === 0) {
+            const defaultEnemyProtectPool = uniqueHeroes(
+                (drSuggest.b.comp || []).concat((mB.comfort_core_rows || []).map(function(r) { return r.hero; }))
+            ).filter(function(hero) {
+                return hero && !hardBannedHeroes.has(hero) && !drSuggest.b.bans.includes(hero);
+            });
+            drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, defaultEnemyProtectPool);
+        }
+
         // Render suggestion banner
         const mapLabel = mapFilter ? 'on ' + mapFilter : '';
         document.getElementById('dr-suggest-for').textContent = nameA;
         document.getElementById('dr-suggest-map-label').textContent = mapLabel;
+        const mlMetaEl = document.getElementById('dr-suggest-ml-meta');
+        const pathMetaEl = document.getElementById('dr-suggest-path-meta');
+        if (mlMetaEl) {
+            if (drSuggest.a.ml && (drSuggest.a.ml.win_prob || drSuggest.a.ml.confidence || drSuggest.a.ml.comp_score)) {
+                mlMetaEl.textContent = 'ML win probability ' + Number(drSuggest.a.ml.win_prob || 0).toFixed(1)
+                    + '% · confidence ' + Number(drSuggest.a.ml.confidence || 0).toFixed(1)
+                    + '% · score ' + Number(drSuggest.a.ml.comp_score || 0).toFixed(1);
+            } else {
+                mlMetaEl.textContent = 'ML model waiting for enough draft signal.';
+            }
+        }
+        if (pathMetaEl) {
+            const pm = drSuggest.a.path_metrics || {};
+            if (pm.path_rate || pm.line_strength || pm.top_path_share) {
+                pathMetaEl.textContent = 'Path rate ' + Number(pm.path_rate || 0).toFixed(1)
+                    + '% · top comp-path share ' + Number(pm.top_path_share || 0).toFixed(1)
+                    + '% · line strength ' + Number(pm.line_strength || 0).toFixed(1)
+                    + ' · stable slots ' + Number(pm.stable_slots || 0).toFixed(0)
+                    + ' · avg deviation ' + Number(pm.avg_deviation || 0).toFixed(1);
+            } else {
+                pathMetaEl.textContent = 'Suggested path will appear once a numeric draft route is available.';
+            }
+        }
 
         const compHeroesEl = document.getElementById('dr-suggest-comp-heroes');
         if (drSuggest.a.comp.length) {
@@ -1548,13 +2055,24 @@ function heroChipHtml(hero, type) {
         const enemySec = document.getElementById('dr-suggest-enemy-section');
         const enemyAssignSection = document.getElementById('dr-suggest-enemy-assign-section');
         const enemyAssignTarget = document.getElementById('dr-suggest-enemy-assign');
+        const enemyAssignments = drBuildCompAssignments('b', drSuggest.b.comp || []);
+        const enemyPlayerByHero = new Map((enemyAssignments || []).map(function(row) {
+            const rowPlayer = row && row.player ? row.player : null;
+            if (!rowPlayer || !(row.hero || '').trim()) return ['', ''];
+            const displayName = rowPlayer.is_sub ? (rowPlayer.name + ' (sub)') : rowPlayer.name;
+            return [row.hero, displayName || ''];
+        }).filter(function(pair) {
+            return pair[0];
+        }));
         if (drSuggest.b.comp.length || drSuggest.b.bans.length) {
             enemySec.style.display = '';
             document.getElementById('dr-suggest-enemy-name').textContent = nameB;
-            document.getElementById('dr-suggest-enemy-comp').innerHTML = drSuggest.b.comp.map(h => heroChipHtml(h,'')).join('');
+            document.getElementById('dr-suggest-enemy-comp').innerHTML = drSuggest.b.comp.map(function(h) {
+                const playerLabel = enemyPlayerByHero.get(h) || drGetHeroPlayerLabel('b', h) || '';
+                return heroChipHtml(h, '', playerLabel);
+            }).join('');
             document.getElementById('dr-suggest-enemy-bans').innerHTML = drSuggest.b.bans.map(h => heroChipHtml(h,'ban')).join('') || '<span style="color:#94a3b8;font-size:0.82rem">None</span>';
 
-            const enemyAssignments = drBuildCompAssignments('b', drSuggest.b.comp || []);
             if (enemyAssignments.length) {
                 enemyAssignSection.style.display = '';
                 drRenderCompAssignments(enemyAssignTarget, enemyAssignments);
@@ -1779,6 +2297,10 @@ function heroChipHtml(hero, type) {
             document.getElementById('dr-overview-open-core').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
             document.getElementById('dr-overview-contested').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
             stream.innerHTML = '<p class="matchup-empty">Load a model first.</p>';
+            if (drOpenHeroesMeta) drOpenHeroesMeta.textContent = 'Load a model to see open heroes.';
+            if (drOpenHeroesList) drOpenHeroesList.innerHTML = '<p class="matchup-empty">No model loaded yet.</p>';
+            if (drOpenBanMeta) drOpenBanMeta.textContent = 'Load a model to surface live ban targets.';
+            if (drOpenBanTargetsList) drOpenBanTargetsList.innerHTML = '<p class="matchup-empty">No model loaded yet.</p>';
             return;
         }
         const teams = drModel.teams || [];
@@ -1793,11 +2315,58 @@ function heroChipHtml(hero, type) {
         }
         drUpdateTurnLocking();
 
+        // Render ghost ban hints on empty ban slots for our team (Team A)
+        function drRenderGhostBans() {
+            const ghostPath = drSuggest.a.banPath || [];
+            document.querySelectorAll('.draft-slot[data-team="a"][data-type="ban"]').forEach(function(slot) {
+                const existingGhost = slot.querySelector('.slot-ghost-wrap');
+                if (existingGhost) existingGhost.remove();
+            });
+
+            const ourBanIndex = drGetTeamHeroes('a', 'ban').length;
+            if (ourBanIndex === 0) return;
+
+            const activePhase = drGetActiveTurnPhase();
+            const nextOurBanStep = activePhase.find(function(step) {
+                return step.team === 'a' && step.type === 'ban' && !((drDraft.a || {})[step.slot]);
+            });
+            if (!nextOurBanStep) return;
+
+            const ghostHero = ghostPath[ourBanIndex] || '';
+            if (!ghostHero) return;
+
+            const slot = document.querySelector('[data-team="a"][data-slot="' + nextOurBanStep.slot + '"]');
+            if (!slot) return;
+
+            if (getComputedStyle(slot).position === 'static') {
+                slot.style.position = 'relative';
+            }
+
+            const ghostWrap = document.createElement('div');
+            ghostWrap.className = 'slot-ghost-wrap';
+
+            const ghostImg = document.createElement('img');
+            ghostImg.className = 'slot-ghost-img';
+            ghostImg.src = heroThumbUrl(ghostHero);
+            ghostImg.alt = ghostHero;
+            ghostImg.onerror = function() { this.style.display = 'none'; };
+
+            const ghostLabel = document.createElement('div');
+            ghostLabel.className = 'slot-ghost-label';
+            ghostLabel.textContent = ourBanIndex === 0 ? 'Priority ban' : 'Next ban';
+
+            ghostWrap.appendChild(ghostImg);
+            ghostWrap.appendChild(ghostLabel);
+            slot.appendChild(ghostWrap);
+        }
+        drRenderGhostBans();
+
         const bansA     = ['ban1','ban2','ban3','ban4'].map(k => drDraft.a[k]).filter(Boolean);
         const protectsA = ['protect1','protect2'].map(k => drDraft.a[k]).filter(Boolean);
         const bansB     = ['ban1','ban2','ban3','ban4'].map(k => drDraft.b[k]).filter(Boolean);
         const protectsB = ['protect1','protect2'].map(k => drDraft.b[k]).filter(Boolean);
         const allSet    = new Set([...bansA,...protectsA,...bansB,...protectsB]);
+        const hardBanned = new Set([...bansA, ...bansB]);
 
         // Keep the top overview strip in sync with draft state.
         const setupLine = nameA + ' vs ' + nameB + ' | ' + bansA.length + '/4 bans and ' + protectsA.length + '/2 protects locked';
@@ -1829,6 +2398,56 @@ function heroChipHtml(hero, type) {
         contestedEl.innerHTML = contestedOpen.length
             ? contestedOpen.map(h => heroChipHtml(h, 'ban')).join('')
             : '<span class="dr-overview-empty">No high-conflict heroes left open.</span>';
+
+        if (drOpenHeroesMeta && drOpenHeroesList) {
+            const openHeroSet = new Set();
+            const protectedSet = new Set(protectsA.concat(protectsB));
+            (mA.comfort_core_rows || []).concat(mA.hero_pool_rows || []).forEach(function(row) {
+                const hero = row.hero || '';
+                if (hero && !hardBanned.has(hero) && !protectedSet.has(hero)) openHeroSet.add(hero);
+            });
+            (mB.comfort_core_rows || []).concat(mB.hero_pool_rows || []).forEach(function(row) {
+                const hero = row.hero || '';
+                if (hero && !hardBanned.has(hero) && !protectedSet.has(hero)) openHeroSet.add(hero);
+            });
+            const openHeroes = Array.from(openHeroSet)
+                .sort(function(a, b) { return a.localeCompare(b); })
+                .slice(0, 18);
+
+            drOpenHeroesMeta.textContent = openHeroes.length
+                ? (openHeroes.length + ' heroes remain open after bans and protects.')
+                : 'No heroes remain fully open.';
+            drOpenHeroesList.innerHTML = openHeroes.length
+                ? '<div class="dr-hero-row">' + openHeroes.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
+                : '<p class="matchup-empty">All likely heroes are already banned or protected.</p>';
+        }
+
+        if (drOpenBanMeta && drOpenBanTargetsList) {
+            const ourCompSet = new Set(drSuggest.a.comp || []);
+            const targetRows = buildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned).slice(0, 8).map(function(row) {
+                return Object.assign({}, row, {
+                    blocks_ours: ourCompSet.has(row.hero),
+                });
+            });
+
+            drOpenBanMeta.textContent = targetRows.length
+                ? ('Top ' + targetRows.length + ' open ban targets for ' + nameA + ' (ranked by high-impact enemy strength).')
+                : 'No legal ban targets available from the enemy hero pool.';
+
+            drOpenBanTargetsList.innerHTML = targetRows.length
+                ? '<div class="dr-guide-details-grid">' + targetRows.map(function(row) {
+                    const tags = [];
+                    if (row.contested) tags.push('<span class="matchup-badge matchup-badge-warn">Contested</span>');
+                    if (row.blocks_ours) tags.push('<span class="matchup-badge matchup-badge-muted">In our comp</span>');
+                    return '<div class="dr-reason-card">'
+                        + '<div class="dr-reason-title">' + heroChipHtml(row.hero, 'ban') + '</div>'
+                        + '<div class="matchup-line-meta"><span class="matchup-badge">Cripples ' + escapeHtml(row.compsCrippled) + ' comps</span><span class="matchup-badge">Strength ' + escapeHtml(row.blockedStrength.toFixed(1)) + '</span><span class="matchup-badge">Playrate ' + escapeHtml(row.comfort.toFixed(1)) + '%</span></div>'
+                        + '<div class="matchup-line-meta"><span class="matchup-badge">Adj WR ' + escapeHtml(row.wr.toFixed(1)) + '%</span><span class="matchup-badge">Impact ' + escapeHtml(row.strongHeroScore.toFixed(1)) + '</span></div>'
+                        + (tags.length ? '<div class="matchup-line-meta">' + tags.join('') + '</div>' : '')
+                        + '</div>';
+                }).join('') + '</div>'
+                : '<p class="matchup-empty">No clear ban targets after current locks.</p>';
+        }
 
         const cards = [];
 
@@ -1959,12 +2578,102 @@ function heroChipHtml(hero, type) {
         });
 
         if (!cards.length) {
+            if (drSuggest.a.comp && drSuggest.a.comp.length) {
+                cards.push({
+                    cls: 'good',
+                    title: 'Recommended comp for ' + nameA,
+                    body: 'Current best-fit comp based on the loaded model: '
+                        + '<div class="dr-hero-row">' + drSuggest.a.comp.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
+                        + (drSuggest.a.ml && (drSuggest.a.ml.win_prob || drSuggest.a.ml.confidence)
+                            ? 'Projected win probability ' + escapeHtml(Number(drSuggest.a.ml.win_prob || 0).toFixed(1)) + '% with confidence ' + escapeHtml(Number(drSuggest.a.ml.confidence || 0).toFixed(1)) + '%. '
+                            : '')
+                });
+            }
+            if (drSuggest.a.bans && drSuggest.a.bans.length) {
+                cards.push({
+                    cls: '',
+                    title: 'Suggested opening ban path',
+                    body: '<div class="dr-hero-row">' + drSuggest.a.bans.map(function(hero) { return heroChipHtml(hero, 'ban'); }).join('') + '</div>'
+                        + 'These are the current recommended bans before more draft information is locked.'
+                });
+            }
+            if (drSuggest.a.protects && drSuggest.a.protects.length) {
+                cards.push({
+                    cls: 'good',
+                    title: 'Suggested protects for ' + nameA,
+                    body: '<div class="dr-hero-row">' + drSuggest.a.protects.map(function(hero) { return heroChipHtml(hero, 'protect'); }).join('') + '</div>'
+                        + 'These protects preserve the current target comp and deny easy counterplay.'
+                });
+            }
+            if (drSuggest.b.comp && drSuggest.b.comp.length) {
+                cards.push({
+                    cls: 'warn',
+                    title: 'Expected enemy response',
+                    body: '<div class="dr-hero-row">' + drSuggest.b.comp.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
+                        + 'Most likely enemy comp if the draft continues on its current path.'
+                });
+            }
+        }
+
+        if (!cards.length) {
             stream.innerHTML = '<p class="matchup-empty">Start filling draft slots to see reasoning.</p>';
             return;
         }
-        stream.innerHTML = cards.map(c =>
-            '<div class="dr-reason-card ' + escapeHtml(c.cls) + '"><div class="dr-reason-title">' + escapeHtml(c.title) + '</div>' + c.body + '</div>'
-        ).join('');
+
+        const ourActionCards = cards.filter(c =>
+            (c.title || '').startsWith(nameA + ' bans') || (c.title || '').startsWith(nameA + ' protects')
+        );
+        const enemyActionCards = cards.filter(c =>
+            (c.title || '').startsWith(nameB + ' bans') || (c.title || '').startsWith(nameB + ' protects')
+        );
+        const pathCards = cards.filter(c => {
+            const t = (c.title || '').toLowerCase();
+            return t.includes('path') || t.includes('disrupted') || t.includes('on track');
+        });
+        const riskCards = cards.filter(c => c.cls === 'warn' || (c.title || '').toLowerCase().includes('volatile'));
+
+        const stepNow = ourActionCards[ourActionCards.length - 1] || cards[0];
+        const stepNext = pathCards[0] || ourActionCards[0] || cards[0];
+        const stepEnemy = enemyActionCards[enemyActionCards.length - 1] || cards.find(c => (c.title || '').toLowerCase().includes('enemy')) || cards[1] || cards[0];
+        const stepRisk = riskCards[0] || cards[cards.length - 1] || cards[0];
+
+        function renderGuideStep(label, card) {
+            const cls = card && card.cls ? card.cls : '';
+            const title = card && card.title ? card.title : 'No signal yet';
+            const body = card && card.body ? card.body : 'Keep filling slots to unlock a stronger recommendation.';
+            return '<section class="dr-guide-step ' + escapeHtml(cls) + '">'
+                + '<div class="dr-guide-label">' + escapeHtml(label) + '</div>'
+                + '<div class="dr-guide-title">' + escapeHtml(title) + '</div>'
+                + '<div class="dr-guide-body">' + body + '</div>'
+                + '</section>';
+        }
+
+        const setupText = 'State: ' + escapeHtml(nameA) + ' vs ' + escapeHtml(nameB)
+            + ' | Our locked ' + bansA.length + '/4 bans and ' + protectsA.length + '/2 protects'
+            + ' | Enemy locked ' + bansB.length + '/4 bans and ' + protectsB.length + '/2 protects';
+
+        const detailCards = cards.filter(c => c !== stepNow && c !== stepNext && c !== stepEnemy && c !== stepRisk);
+        const detailsHtml = detailCards.length
+            ? detailCards.slice(0, 8).map(function(c) {
+                return '<div class="dr-reason-card ' + escapeHtml(c.cls || '') + '">'
+                    + '<div class="dr-reason-title">' + escapeHtml(c.title || '') + '</div>'
+                    + (c.body || '')
+                    + '</div>';
+            }).join('')
+            : '<p class="matchup-empty">No extra branches right now.</p>';
+
+        stream.innerHTML = ''
+            + '<div class="dr-guide">'
+            + '<div class="dr-guide-meta">' + setupText + '</div>'
+            + renderGuideStep('Now', stepNow)
+            + renderGuideStep('Recommended Next Move', stepNext)
+            + renderGuideStep('Likely Enemy Response', stepEnemy)
+            + renderGuideStep('Risk Watch', stepRisk)
+            + '<details class="dr-guide-details">'
+            + '<summary>Show full reasoning details</summary>'
+            + '<div class="dr-guide-details-grid">' + detailsHtml + '</div>'
+            + '</details>'
+            + '</div>';
     }
 })();
 </script>
