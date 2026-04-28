@@ -11,6 +11,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <script>
+    (function () {
+        var stored = localStorage.getItem('rivals-theme');
+        var legacyTheme = stored === 'dark' ? 'blue' : stored;
+        var theme = legacyTheme || 'blue';
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+    </script>
     <link rel="stylesheet" href="{{ static_asset_url('style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
@@ -121,7 +129,16 @@
                 <span class="access-badge {% if access_level == 'edit' %}access-badge-edit{% else %}access-badge-view{% endif %}">
                     {{ 'EDIT MODE' if access_level == 'edit' else 'VIEW MODE' }}
                 </span>
-                <button type="button" id="themeToggle" class="nav-theme-toggle" aria-label="Toggle theme">Light</button>
+                <label class="theme-picker" for="themeSelect">
+                    <span class="theme-picker-dot" aria-hidden="true"></span>
+                    <select id="themeSelect" class="theme-select" aria-label="Theme color">
+                        <option value="blue">Blue</option>
+                        <option value="green">Green</option>
+                        <option value="red">Red</option>
+                        <option value="black">Black</option>
+                        <option value="light">Light</option>
+                    </select>
+                </label>
                 <a href="{{ url_for('logout') }}" class="nav-link nav-link-logout">Logout</a>
             </nav>
         </div>
@@ -142,28 +159,27 @@
         </main>
     </div>
 <script>
-/* Theme toggle */
+/* Theme selector */
 (function () {
     var root = document.documentElement;
-    var toggle = document.getElementById('themeToggle');
-    if (!toggle) return;
+    var select = document.getElementById('themeSelect');
+    if (!select) return;
 
     var stored = localStorage.getItem('rivals-theme');
-    var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-    var current = stored || (prefersLight ? 'light' : 'dark');
+    var allowedThemes = ['blue', 'green', 'red', 'black', 'light'];
+    var current = stored === 'dark' ? 'blue' : stored;
+    if (allowedThemes.indexOf(current) === -1) current = 'blue';
 
     function applyTheme(theme) {
         root.setAttribute('data-theme', theme);
-        toggle.textContent = theme === 'light' ? 'Dark' : 'Light';
-        toggle.setAttribute('aria-label', 'Switch to ' + (theme === 'light' ? 'dark' : 'light') + ' theme');
+        select.value = theme;
         localStorage.setItem('rivals-theme', theme);
         window.dispatchEvent(new Event('theme-changed'));
     }
 
     applyTheme(current);
-    toggle.addEventListener('click', function () {
-        current = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-        applyTheme(current);
+    select.addEventListener('change', function () {
+        applyTheme(select.value);
     });
 })();
 </script>

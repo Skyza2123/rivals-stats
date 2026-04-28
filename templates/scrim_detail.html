@@ -186,6 +186,7 @@
                             data-map-team1-id="{{ map_entry.team1_id or participant_one_id }}"
                             data-map-team1-tournament-team-id="{{ map_entry.team1_tournament_team_id or '' }}"
                             data-map-name="{{ map_entry.map_name }}"
+                            data-map-type="{{ map_entry.get('map_type', 'Standard') }}"
                             data-our-attack-score="{{ map_entry.our_attack_score or '' }}"
                             data-enemy-attack-score="{{ map_entry.enemy_attack_score or '' }}"
                             onclick="openEditMapModalFromButton(this)"
@@ -239,6 +240,14 @@
                 <div class="field" id="em_score_field">
                     <label for="em_score">Score</label>
                     <input type="text" id="em_score" name="score" placeholder="e.g. 3-2">
+                </div>
+                <div class="field">
+                    <label for="em_map_type">Map Type</label>
+                    <select id="em_map_type" name="map_type" required>
+                        {% for map_type in map_types %}
+                            <option value="{{ map_type }}">{{ map_type }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div id="em_atk_def_section" style="display:none; grid-column: 1 / -1;">
                     <p id="em_atk_def_intro" style="margin:0 0 8px; font-size:0.82rem; color:var(--muted);">
@@ -524,11 +533,12 @@ function syncEditMapSideTeams() {
     }
 }
 
-function openEditMapModal(mapId, result, score, ourTeamSlot, mapTeam1Id, mapTeam1TournamentTeamId, mapName, ourAtkScore, enemyAtkScore) {
+function openEditMapModal(mapId, result, score, ourTeamSlot, mapTeam1Id, mapTeam1TournamentTeamId, mapName, mapType, ourAtkScore, enemyAtkScore) {
     var f = document.getElementById("editMapForm");
     f.action = "{% if show_team_selector %}/scrims/{{ scrim.id }}/maps/{% else %}/tournaments/{{ scrim.id }}/maps/{% endif %}" + mapId + "/update-info";
     document.getElementById("em_result").value = result;
     document.getElementById("em_score").value = score;
+    document.getElementById("em_map_type").value = mapType || "Standard";
     document.getElementById("em_our_team_slot").value = (ourTeamSlot === "team2") ? "team2" : "team1";
     var side1ScrimSelect = document.getElementById("em_map_team1_team_id");
     if (side1ScrimSelect && mapTeam1Id) {
@@ -561,9 +571,10 @@ function openEditMapModalFromButton(button) {
     var mapTeam1Id = button.dataset.mapTeam1Id || "";
     var mapTeam1TournamentTeamId = button.dataset.mapTeam1TournamentTeamId || "";
     var mapName = button.dataset.mapName || "";
+    var mapType = button.dataset.mapType || "Standard";
     var ourAtkScore = button.dataset.ourAttackScore || "";
     var enemyAtkScore = button.dataset.enemyAttackScore || "";
-    openEditMapModal(mapId, result, score, ourTeamSlot, mapTeam1Id, mapTeam1TournamentTeamId, mapName, ourAtkScore, enemyAtkScore);
+    openEditMapModal(mapId, result, score, ourTeamSlot, mapTeam1Id, mapTeam1TournamentTeamId, mapName, mapType, ourAtkScore, enemyAtkScore);
 }
 function closeEditMapModal(e) { if (!e || e.target.id === "editMapModal") document.getElementById("editMapModal").classList.remove("show"); }
 

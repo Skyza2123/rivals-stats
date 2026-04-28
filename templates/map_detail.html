@@ -284,7 +284,15 @@
                     <label for="edit_result">Result</label>
                     <select id="edit_result" name="result">
                         <option value="">Not Set</option>
-                        {% for r in results %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+                        {% for r in results %}<option value="{{ r }}" {% if map_entry.result == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_map_type">Map Type</label>
+                    <select id="edit_map_type" name="map_type" required>
+                        {% for map_type in map_types %}
+                            <option value="{{ map_type }}" {% if map_entry.get('map_type', 'Standard') == map_type %}selected{% endif %}>{{ map_type }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 {% if is_tournament %}

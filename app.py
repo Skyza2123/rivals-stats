@@ -4073,6 +4073,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "map_submaps": MAP_SUBMAPS,
         "map_mode": MAP_MODES.get(map_entry.get("map_name", ""), "Other"),
         "maps": MAPS,
+        "map_types": MAP_TYPES,
         "sides": SIDES,
         "results": RESULTS,
         "event_types": EVENT_TYPES,
@@ -11720,6 +11721,12 @@ def normalize_map_type_value(raw_value: str | None) -> str:
     return MAP_TYPE_ALIASES.get(normalized, DEFAULT_MAP_TYPE)
 
 
+def update_map_type_from_form(map_entry: dict) -> None:
+    if "map_type" not in request.form:
+        return
+    map_entry["map_type"] = normalize_map_type_value(request.form.get("map_type", ""))
+
+
 def _match_map_name(raw: str) -> str:
     """
     Try to find the closest canonical map name from MAPS for a raw string.
@@ -14228,6 +14235,7 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
     tournament_record = get_tournament_or_404(tournament_id)
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
     map_entry = get_map_or_404(tournament_match, map_id)
+    update_map_type_from_form(map_entry)
     
     # Get score and auto-calculate result if not provided
     score_team1 = request.form.get("score_team1", "").strip()
@@ -14644,6 +14652,7 @@ def update_tournament_vod(tournament_id: int, map_id: int):
 def update_map_info(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
+    update_map_type_from_form(map_entry)
     participant_one, participant_two = get_scrim_participants(scrim)
     valid_team_ids = {
         participant_one.get("id"),
@@ -14760,6 +14769,7 @@ def update_map_info(scrim_id: int, map_id: int):
 def update_tournament_map_info(tournament_id: int, map_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     map_entry = get_map_or_404(tournament_match, map_id)
+    update_map_type_from_form(map_entry)
     map_entry["result"] = request.form.get("result", map_entry["result"]).strip()
     if map_entry["result"] not in RESULTS:
         map_entry["result"] = ""

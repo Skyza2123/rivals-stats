@@ -2063,29 +2063,63 @@ function openHeroIconHtml(hero) {
         // Enemy comp should reflect the enemy team's own best legal comp model
         // so it remains consistent when the same team is selected on either side.
         const enemyCompRows = (mB.comp_rows || []);
-        let bestEnemyComp = null;
-        enemyCompRows.forEach(function(compRow) {
-            const compHeroes = (compRow.heroes || []).filter(Boolean);
-            if (!isLegalCompCandidate(compHeroes, enemyLockedProtects, ourLockedProtects, hardBannedHeroes)) {
-                return;
-            }
+        const hasStrongEnemyData = Number(mB.training_maps || 0) >= 20;
+        
+        // Two-pass strategy: first strict (>=3 samples), then lenient if needed
+        function findBestEnemyComp(enforceMinSamples) {
+            let bestEnemyComp = null;
+            enemyCompRows.forEach(function(compRow) {
+                const compHeroes = (compRow.heroes || []).filter(Boolean);
+                const sampleCount = Number(compRow.count || 0);
+                
+                if (enforceMinSamples && hasStrongEnemyData && sampleCount < 3) {
+                    return;
+                }
+                if (!isLegalCompCandidate(compHeroes, enemyLockedProtects, ourLockedProtects, hardBannedHeroes)) {
+                    return;
+                }
 
-            let score = (Number(compRow.comp_strength || 0) * 0.40)
-                + (Number(compRow.ml_comp_score || 0) * 0.30)
-                + (Number(compRow.ml_win_prob || 0) * 0.18)
-                + (Number(compRow.rate || 0) * 0.18)
-                + (Number(compRow.comp_win_rate || 0) * 0.14)
-                + (Number(compRow.avg_comfort || 0) * 0.08)
-                + (Number(compRow.avg_adjusted_win_rate || 0) * 0.06)
-                + (Number(compRow.ml_confidence || 0) * 0.05);
+                const matchingEnemyPath = (mB.comp_path_rows || []).find(function(pathRow) {
+                    return heroesKey(pathRow.heroes || []) === heroesKey(compHeroes);
+                });
+                const enemyTopPathShare = Number((matchingEnemyPath || {}).top_path_share || 0);
 
-            const protectedBySelf = compHeroes.filter(function(h) { return enemyLockedProtects.includes(h); }).length;
-            score += protectedBySelf * 6;
+                let score = (Number(compRow.comp_strength || 0) * 0.40)
+                    + (Number(compRow.ml_comp_score || 0) * 0.30)
+                    + (Number(compRow.ml_win_prob || 0) * 0.18)
+                    + (Number(compRow.rate || 0) * 0.30)
+                    + (Number(compRow.comp_win_rate || 0) * 0.14)
+                    + (Number(compRow.avg_comfort || 0) * 0.08)
+                    + (Number(compRow.avg_adjusted_win_rate || 0) * 0.06)
+                    + (Number(compRow.ml_confidence || 0) * 0.05)
+                    + Math.min(26, sampleCount * 3.2)
+                    + Math.min(80, sampleCount * 8)
+                    + (Number(compRow.rate || 0) * 1.1);
 
-            if (!bestEnemyComp || score > bestEnemyComp.score) {
-                bestEnemyComp = {score: score, comp: compHeroes};
-            }
-        });
+                if (!matchingEnemyPath) {
+                    score -= hasStrongEnemyData ? 120 : 25;
+                }
+                if (hasStrongEnemyData && enemyTopPathShare > 0 && enemyTopPathShare < 8) {
+                    score -= 35;
+                }
+
+                const protectedBySelf = compHeroes.filter(function(h) { return enemyLockedProtects.includes(h); }).length;
+                score += protectedBySelf * 6;
+
+                if (!bestEnemyComp || score > bestEnemyComp.score) {
+                    bestEnemyComp = {score: score, comp: compHeroes};
+                }
+            });
+            return bestEnemyComp;
+        }
+        
+        // First try strict filtering if strong data
+        let bestEnemyComp = findBestEnemyComp(true);
+        
+        // If no comp found with strict filtering, retry without sample-count gate
+        if (!bestEnemyComp && hasStrongEnemyData) {
+            bestEnemyComp = findBestEnemyComp(false);
+        }
 
         drSuggest.b.comp = (bestEnemyComp && bestEnemyComp.comp) ? bestEnemyComp.comp : [];
 

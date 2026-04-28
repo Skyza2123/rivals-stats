@@ -270,12 +270,22 @@
                                 <div class="pool-hero-strip">
                                     {% for row in player.hero_rows[:6] %}
                                         {% set wr = row.win_rate %}
-                                        {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
+                                        {% set maps_display = row.maps|round(1) %}
+                                        {% set wr_class = '' if not row.decided_maps else ('wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad')) %}
                                         <div class="pool-hero-chip">
                                             <img class="pool-hero-img" src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" loading="lazy" onerror="this.style.display='none'">
                                             <div class="pool-hero-info">
                                                 <span class="pool-hero-name">{{ hero_display_name(row.hero) }}</span>
-                                                <span class="pool-hero-wr {{ wr_class }}">{{ row.maps }}m &bull; {{ wr }}%</span>
+                                                <span class="pool-hero-stats">
+                                                    <span class="pool-hero-stat">
+                                                        <small>Maps</small>
+                                                        <strong>{{ maps_display|int if maps_display == maps_display|int else maps_display }}</strong>
+                                                    </span>
+                                                    <span class="pool-hero-stat {{ wr_class }}">
+                                                        <small>WR</small>
+                                                        <strong>{% if row.decided_maps %}{{ wr }}%{% else %}--{% endif %}</strong>
+                                                    </span>
+                                                </span>
                                             </div>
                                         </div>
                                     {% endfor %}
