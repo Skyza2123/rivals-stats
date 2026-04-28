@@ -243,6 +243,14 @@
 .dr-force-ban-line { display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; font-size:0.82rem; color:#cbd5e1; }
 .dr-force-arrow { color:#64748b; font-size:0.78rem; }
 .dr-force-note { font-size:0.74rem; color:#64748b; margin-top:0.15rem; font-style:italic; }
+.dr-ban-target-card { display:block; }
+.dr-ban-target-card > summary { list-style:none; cursor:pointer; }
+.dr-ban-target-card > summary::-webkit-details-marker { display:none; }
+.dr-ban-target-card[open] { border-color:rgba(96,165,250,0.35); background:rgba(15,23,42,0.58); }
+.dr-ban-target-comps { display:flex; flex-direction:column; gap:0.45rem; margin-top:0.55rem; padding-top:0.55rem; border-top:1px solid rgba(148,163,184,0.14); }
+.dr-ban-target-comp { background:rgba(2,6,23,0.35); border:1px solid rgba(148,163,184,0.12); border-radius:0.45rem; padding:0.45rem 0.55rem; }
+.dr-ban-target-comp-title { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem; font-size:0.76rem; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+.dr-ban-target-more { color:#64748b; font-size:0.74rem; font-style:italic; }
 .dr-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
 .dr-open-hero-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin:0.25rem 0; }
 .dr-open-hero-icon {
@@ -343,8 +351,8 @@
 
 <section class="panel">
     <div class="section-kicker">Draft Reasoner</div>
-    <h3>Auto-Draft Analysis</h3>
-    <p class="panel-intro">Select a team, enemy, map, and side. The computer will identify the best comp to target on that map and suggest the bans and protects needed to reach it.</p>
+    <h3>Draft Plan</h3>
+    <p class="panel-intro">Pick the matchup and map. The planner will show a target comp, the draft path to reach it, and the bans that put the enemy under pressure.</p>
     <div class="dr-setup-grid">
         <div class="field">
             <label for="dr-team-a">Our Team</label>
@@ -375,39 +383,31 @@
                 {% for map_name in maps %}<option value="{{ map_name }}">{{ map_name }}</option>{% endfor %}
             </select>
         </div>
-        <div class="field">
-            <label for="dr-side">Side</label>
-            <select id="dr-side">
-                <option value="">Both</option>
-                <option value="attack">Attack</option>
-                <option value="defense">Defense</option>
-            </select>
-        </div>
     </div>
     <div class="button-row top-gap">
-        <button type="button" id="dr-analyze-btn">Analyze &amp; Suggest Draft</button>
+        <button type="button" id="dr-analyze-btn">Build Draft Plan</button>
         <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
     </div>
-    <p class="dr-model-status" id="dr-status">No model loaded yet.</p>
+    <p class="dr-model-status" id="dr-status">Choose two teams to start.</p>
 </section>
 
 <div class="dr-workspace" id="dr-workspace" style="display:none">
     <section class="dr-overview-strip" id="dr-overview-strip">
         <div class="dr-overview-card">
             <div class="dr-overview-label">Current Setup</div>
-            <div class="dr-overview-value" id="dr-overview-setup">No model loaded.</div>
+            <div class="dr-overview-value" id="dr-overview-setup">No matchup loaded.</div>
         </div>
         <div class="dr-overview-card">
             <div class="dr-overview-label">Target Comp</div>
-            <div class="dr-overview-chips" id="dr-overview-target"><span class="dr-overview-empty">Analyze to populate.</span></div>
+            <div class="dr-overview-chips" id="dr-overview-target"><span class="dr-overview-empty">Build a plan to see this.</span></div>
         </div>
         <div class="dr-overview-card">
             <div class="dr-overview-label">Open Comfort Core</div>
-            <div class="dr-overview-chips" id="dr-overview-open-core"><span class="dr-overview-empty">Analyze to populate.</span></div>
+            <div class="dr-overview-chips" id="dr-overview-open-core"><span class="dr-overview-empty">Build a plan to see this.</span></div>
         </div>
         <div class="dr-overview-card">
             <div class="dr-overview-label">Contested Still Open</div>
-            <div class="dr-overview-chips" id="dr-overview-contested"><span class="dr-overview-empty">Analyze to populate.</span></div>
+            <div class="dr-overview-chips" id="dr-overview-contested"><span class="dr-overview-empty">Build a plan to see this.</span></div>
         </div>
     </section>
 
@@ -498,14 +498,14 @@
                     </div>
                 </div>
             </div>
-            <p class="draft-hint">Click a slot, then click a hero portrait below. Right-click a slot to clear it.</p>
+            <p class="draft-hint">Click a slot, then pick a hero below. Right-click a slot to clear it.</p>
         </section>
 
         <!-- Hero picker -->
         <section class="panel" id="dr-picker-section" style="display:none">
             <div class="dr-picker-header">
                 <span style="font-size:0.85rem;color:#94a3b8">Assigning: <strong id="dr-picker-label">—</strong></span>
-                <span class="dr-picker-hint">All hero portraits are shown below.</span>
+                <span class="dr-picker-hint">Choose from the hero list below.</span>
             </div>
             <div class="hero-picker" id="dr-hero-picker-grid">
                 {% for role in ["Vanguard", "Duelist", "Strategist"] %}
@@ -532,7 +532,7 @@
     <aside class="dr-side-column">
         <div class="dr-side-tabs" id="dr-side-tabs">
             <button type="button" class="dr-side-tab active" data-view="assistant">Draft Assistant</button>
-            <button type="button" class="dr-side-tab" data-view="reasoning">Live Reasoning</button>
+            <button type="button" class="dr-side-tab" data-view="reasoning">Draft Notes</button>
             <button type="button" class="dr-side-tab" data-view="open-heroes">Open Heroes</button>
             <button type="button" class="dr-side-tab" data-view="open-ban-targets">Open Ban Targets</button>
         </div>
@@ -540,29 +540,29 @@
         <div id="dr-side-assistant-view">
         <!-- Auto-suggest banner -->
         <div id="dr-suggest-block" style="display:none" class="dr-suggest-banner">
-            <div class="dr-suggest-title">&#11088; Best-fit comp for <span id="dr-suggest-for">Our Team</span> <span id="dr-suggest-map-label"></span></div>
+            <div class="dr-suggest-title">&#11088; Best target comp for <span id="dr-suggest-for">Our Team</span> <span id="dr-suggest-map-label"></span></div>
             <div class="dr-suggest-meta" id="dr-suggest-ml-meta"></div>
             <div class="dr-suggest-comp" id="dr-suggest-comp-heroes"></div>
             <div class="dr-suggest-section">
-                <div class="dr-suggest-section-label">Suggested draft path (primary route to reach this comp):</div>
+                <div class="dr-suggest-section-label">Draft path:</div>
                 <div class="dr-suggest-meta" id="dr-suggest-path-meta"></div>
                 <div class="matchup-slot-row" id="dr-suggest-bans-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-bans"></div></div>
                 <div class="matchup-slot-row" id="dr-suggest-protects-row" style="display:none"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row" id="dr-suggest-protects"></div></div>
             </div>
             <div class="dr-suggest-section" id="dr-suggest-our-assign-section" style="display:none">
-                <div class="dr-suggest-section-label">Recommended player assignments for this comp:</div>
+                <div class="dr-suggest-section-label">Likely player fit:</div>
                 <div id="dr-suggest-our-assign"></div>
             </div>
             <div class="dr-suggest-section" id="dr-suggest-enemy-section" style="display:none">
-                <div class="dr-suggest-section-label">Enemy (<span id="dr-suggest-enemy-name">Enemy</span>) likely forced response:</div>
+                <div class="dr-suggest-section-label"><span id="dr-suggest-enemy-name">Enemy</span> response to watch:</div>
                 <div class="matchup-hero-row" id="dr-suggest-enemy-comp"></div>
                 <div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-enemy-bans"></div></div>
                 <div class="dr-suggest-section" id="dr-suggest-enemy-assign-section" style="display:none">
-                    <div class="dr-suggest-section-label">Enemy player assignments (predicted):</div>
+                    <div class="dr-suggest-section-label">Likely enemy player fit:</div>
                     <div id="dr-suggest-enemy-assign"></div>
                 </div>
                 <div class="dr-suggest-section" id="dr-suggest-enemy-force-section" style="display:none">
-                    <div class="dr-suggest-section-label">&#x1F3AF; Ban targets — force players onto worse heroes:</div>
+                    <div class="dr-suggest-section-label">&#x1F3AF; Player-pressure bans:</div>
                     <div id="dr-suggest-enemy-force"></div>
                 </div>
             </div>
@@ -572,9 +572,9 @@
         <div id="dr-side-reasoning-view" style="display:none">
         <!-- Reasoning panel -->
         <section class="panel dr-side-panel" id="dr-reasoning-section">
-            <h3>Live Reasoning</h3>
+            <h3>Draft Notes</h3>
             <div class="dr-reason-stream" id="dr-reason-stream">
-                <p class="matchup-empty">Load a model and fill draft slots to see reasoning here.</p>
+                <p class="matchup-empty">Build a plan, then fill slots to see the read.</p>
             </div>
         </section>
         </div>
@@ -582,9 +582,9 @@
         <div id="dr-side-open-heroes-view" style="display:none">
         <section class="panel dr-side-panel">
             <h3>Open Heroes</h3>
-            <div class="dr-suggest-meta" id="dr-open-heroes-meta">Load a model to see open heroes.</div>
+            <div class="dr-suggest-meta" id="dr-open-heroes-meta">Build a plan to see what is still open.</div>
             <div id="dr-open-heroes-list">
-                <p class="matchup-empty">No model loaded yet.</p>
+                <p class="matchup-empty">No matchup loaded yet.</p>
             </div>
         </section>
         </div>
@@ -592,9 +592,9 @@
         <div id="dr-side-open-ban-targets-view" style="display:none">
         <section class="panel dr-side-panel">
             <h3>Open Ban Targets</h3>
-            <div class="dr-suggest-meta" id="dr-open-ban-meta">Load a model to surface live ban targets.</div>
+            <div class="dr-suggest-meta" id="dr-open-ban-meta">Build a plan to see useful ban targets.</div>
             <div id="dr-open-ban-targets-list">
-                <p class="matchup-empty">No model loaded yet.</p>
+                <p class="matchup-empty">No matchup loaded yet.</p>
             </div>
         </section>
         </div>
@@ -713,7 +713,7 @@ function openHeroIconHtml(hero) {
             + '<div class="matchup-hero-row">' + (row.enemy_comp||[]).map(heroCell).join('') + '</div>'
             + '<div class="matchup-line-meta"><span class="matchup-badge">Conditioned Rate ' + escapeHtml(row.enemy_conditioned_rate) + '%</span>'
             + '<span class="matchup-badge">Blocked ' + ((row.enemy_blocked_heroes||[]).map(escapeHtml).join(', ')||'None') + '</span></div>'
-            + '</div>', 'No force-path signal yet.');
+            + '</div>', 'No force path yet.');
     }
 
     function renderVolatileRows(rows, a, b) {
@@ -749,7 +749,7 @@ function openHeroIconHtml(hero) {
                 + note
                 + '<div class="matchup-line-meta"><span class="matchup-badge matchup-badge-muted">Path diff ' + escapeHtml(row.path_distance) + ' slot(s)</span></div>'
                 + '</div>';
-        }, 'No equivalent-path signal yet.');
+        }, 'No alternate path yet.');
     }
 
     function renderVsCards(rows, a, b, empty) {
@@ -772,22 +772,22 @@ function openHeroIconHtml(hero) {
     }
 
     function renderMlOutlook(rows, a, b) {
-        if (!rows || !rows.length) return '<p class="matchup-empty">No ML outlook yet.</p>';
+        if (!rows || !rows.length) return '<p class="matchup-empty">No matchup read yet.</p>';
         return '<div class="matchup-line-stack">' + rows.slice(0, 4).map(function(row) {
             const ourComp = (row.our_comp || []).map(heroCell).join('');
             const enemyComp = (row.enemy_comp || []).map(heroCell).join('');
             const bans = (row.our_bans || []).map(escapeHtml).join(', ') || 'None';
             return '<div class="matchup-line-card">'
-                + '<div class="matchup-card-title">ML comp target for ' + escapeHtml(a) + '</div>'
+                + '<div class="matchup-card-title">Comp target for ' + escapeHtml(a) + '</div>'
                 + '<div class="matchup-hero-row">' + ourComp + '</div>'
                 + '<div class="matchup-line-meta">'
                 + '<span class="matchup-badge">Win Prob ' + escapeHtml(row.ml_win_prob) + '%</span>'
-                + '<span class="matchup-badge">Confidence ' + escapeHtml(row.ml_confidence) + '%</span>'
+                + '<span class="matchup-badge">Read ' + escapeHtml(row.ml_confidence) + '%</span>'
                 + '<span class="matchup-badge">Path Share ' + escapeHtml(row.our_path_share) + '%</span>'
                 + '</div>'
                 + '<div class="matchup-vs">Likely ' + escapeHtml(b) + ' response</div>'
                 + '<div class="matchup-hero-row">' + enemyComp + '</div>'
-                + '<div class="matchup-line-meta"><span class="matchup-badge">Suggested bans: ' + bans + '</span></div>'
+                + '<div class="matchup-line-meta"><span class="matchup-badge">Bans: ' + bans + '</span></div>'
                 + '</div>';
         }).join('') + '</div>';
     }
@@ -832,7 +832,7 @@ function openHeroIconHtml(hero) {
         h += '</div>';
 
         h += '<h4 class="top-gap">Map Consensus</h4>' + renderMapConsensus(data.map_consensus_rows||[], tA.name, tB.name);
-        h += '<h4 class="top-gap">ML Outlook</h4><div class="matchup-surface">' + renderMlOutlook(data.ml_outlook_rows||[], tA.name, tB.name) + '</div>';
+        h += '<h4 class="top-gap">Matchup Read</h4><div class="matchup-surface">' + renderMlOutlook(data.ml_outlook_rows||[], tA.name, tB.name) + '</div>';
         h += '</div>';
         results.innerHTML = h;
     }
@@ -840,7 +840,7 @@ function openHeroIconHtml(hero) {
     async function loadTree() {
         const a = teamSelA.value, b = teamSelB.value;
         if (!a || !b || a === b) { results.innerHTML = '<p class="empty-text">Select two different teams.</p>'; return; }
-        results.innerHTML = '<p class="panel-intro">Building matchup model…</p>';
+        results.innerHTML = '<p class="panel-intro">Building matchup read...</p>';
         const p = new URLSearchParams({team_a: a, team_b: b});
         if (seasonSel.value) p.set('season', seasonSel.value);
         if (mapSel.value && mapSel.value !== 'all') p.set('map', mapSel.value);
@@ -848,7 +848,7 @@ function openHeroIconHtml(hero) {
         renderTree(await resp.json());
     }
 
-    loadBtn.addEventListener('click', () => loadTree().catch(e => { results.innerHTML = '<p class="empty-text">Failed to load.</p>'; console.error(e); }));
+    loadBtn.addEventListener('click', () => loadTree().catch(e => { results.innerHTML = '<p class="empty-text">Could not load this matchup.</p>'; console.error(e); }));
     swapBtn.addEventListener('click', () => { const v = teamSelA.value; teamSelA.value = teamSelB.value; teamSelB.value = v; results.innerHTML = ''; });
     [teamSelA, teamSelB, seasonSel, mapSel].forEach(el => el.addEventListener('change', () => results.innerHTML = ''));
 })();
@@ -865,6 +865,18 @@ function openHeroIconHtml(hero) {
     let drSuggest = {a:{bans:[],protects:[],ml:{},banPath:[]}, b:{bans:[],protects:[],ml:{},banPath:[]}};
     const drHeroPlayerHints = {a: new Map(), b: new Map()};
     const drPlayerHeroHints = {a: new Map(), b: new Map()};
+    const DR_HERO_POOL_RATINGS = {
+        // Optional future override:
+        // a: { playernamekey: { "Hero Name": 80 } },
+        // b: { playernamekey: { "Hero Name": 80 } },
+        // playernamekey: { "Hero Name": 80 },
+        // "Hero Name": 80,
+    };
+    const DR_FORCE_MIN_HERO_APPEARANCES = 0;
+    const DR_FORCE_MIN_SCORE_DROP = 20;
+    const DR_FORCE_PREFERRED_HERO_SCORE = 105;
+    const DR_FORCE_PREFERRED_USAGE_RATE = 35;
+    const DR_FORCE_PREFERRED_APPEARANCES = 2;
     const drRosterLookup = {
         a: {rows: [], byNameKey: new Map()},
         b: {rows: [], byNameKey: new Map()},
@@ -1052,6 +1064,37 @@ function openHeroIconHtml(hero) {
         return cleanName;
     }
 
+    function drLookupRatingBucket(source, key) {
+        if (!source || !key) return null;
+        if (source[key]) return source[key];
+        const wantedKey = drPlayerNameKey(key);
+        const matchedKey = Object.keys(source).find(function(candidateKey) {
+            return drPlayerNameKey(candidateKey) === wantedKey;
+        });
+        return matchedKey ? source[matchedKey] : null;
+    }
+
+    function drGetHeroPoolRating(teamKey, playerName, heroName) {
+        const playerKey = drPlayerNameKey(playerName);
+        const hero = (heroName || '').trim();
+        if (!hero) return 0;
+
+        const teamRatings = DR_HERO_POOL_RATINGS[teamKey] || {};
+        const directTeamPlayer = drLookupRatingBucket(teamRatings, playerName) || drLookupRatingBucket(teamRatings, playerKey) || {};
+        const globalPlayer = drLookupRatingBucket(DR_HERO_POOL_RATINGS, playerName) || drLookupRatingBucket(DR_HERO_POOL_RATINGS, playerKey) || {};
+        const values = [
+            directTeamPlayer[hero],
+            globalPlayer[hero],
+            teamRatings[hero],
+            DR_HERO_POOL_RATINGS[hero],
+        ];
+        for (let i = 0; i < values.length; i += 1) {
+            const rating = Number(values[i]);
+            if (Number.isFinite(rating)) return Math.max(0, Math.min(100, rating));
+        }
+        return 0;
+    }
+
     function drGetHeroPlayerSuggestion(teamKey, heroName) {
         const hero = (heroName || '').trim();
         if (!hero) return '';
@@ -1231,7 +1274,7 @@ function openHeroIconHtml(hero) {
     function drRenderCompAssignments(targetEl, assignmentRows) {
         if (!targetEl) return;
         if (!assignmentRows || !assignmentRows.length) {
-            targetEl.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem">No player mapping signal yet.</span>';
+            targetEl.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem">No clear player fit yet.</span>';
             return;
         }
         targetEl.innerHTML = '<div class="dr-assign-grid">' + assignmentRows.map(function(row) {
@@ -1249,34 +1292,46 @@ function openHeroIconHtml(hero) {
     }
 
     function drBuildForceAnalysis(teamKey) {
-        const hints = drHeroPlayerHints[teamKey] || new Map();
         const rosterByName = (drRosterLookup[teamKey] || {byNameKey: new Map()}).byNameKey || new Map();
-        if (!hints.size) return [];
+        const playerHints = drPlayerHeroHints[teamKey] || new Map();
+        if (!playerHints.size) return [];
+        const hasRoster = rosterByName.size > 0;
 
-        // Build playerKey -> [{hero, score}]
+        // Build playerKey -> [{hero, score}] from player-specific history only.
+        // This keeps "also played by..." tied to heroes that player actually played.
         const playerHeroScores = new Map();
-        hints.forEach(function(hint, hero) {
-            (hint.top || []).forEach(function(name, idx) {
-                const key = drPlayerNameKey(name);
-                if (!playerHeroScores.has(key)) playerHeroScores.set(key, []);
-                const playerRow = rosterByName.get(key);
-                let score = 100 - (idx * 16);
-                if (playerRow && (playerRow.main_hero || '').trim() === hero) score += 55;
+        playerHints.forEach(function(playerHint, playerKey) {
+            if (hasRoster && !rosterByName.has(playerKey)) return;
+            const playerRow = rosterByName.get(playerKey);
+            const displayName = playerRow ? playerRow.name : playerKey;
+            if (!playerHeroScores.has(playerKey)) playerHeroScores.set(playerKey, []);
+            (playerHint.heroes || new Map()).forEach(function(heroStats, hero) {
+                const appearances = Number(heroStats.appearances || 0);
+                if (appearances <= DR_FORCE_MIN_HERO_APPEARANCES) return;
+                const usageRate = Number(heroStats.usage_rate || 0);
+                const winRate = Number(heroStats.win_rate || 0);
+                const poolRating = drGetHeroPoolRating(teamKey, displayName, hero);
+                let score = 50;
+                score += Math.min(40, usageRate * 0.8);
+                score += Math.min(30, appearances * 2.5);
+                score += (winRate - 50) * 0.18;
+                score += poolRating * 0.55;
+                if (playerRow && (playerRow.main_hero || '').trim() === hero) score += 18;
                 if (playerRow && playerRow.is_sub) score -= 10;
-                playerHeroScores.get(key).push({hero: hero, score: score});
+                playerHeroScores.get(playerKey).push({
+                    hero: hero,
+                    score: score,
+                    appearances: appearances,
+                    usage_rate: usageRate,
+                    win_rate: winRate,
+                    pool_rating: poolRating,
+                });
             });
-        });
-        // Seed from main_hero for players not captured by hints
-        rosterByName.forEach(function(playerRow, key) {
-            if (!playerRow.main_hero) return;
-            if (!playerHeroScores.has(key)) playerHeroScores.set(key, []);
-            const existing = playerHeroScores.get(key);
-            if (existing.find(function(h) { return h.hero === playerRow.main_hero; })) return;
-            existing.push({hero: playerRow.main_hero, score: 55});
+            if (!playerHeroScores.get(playerKey).length) playerHeroScores.delete(playerKey);
         });
         // Sort each player's list by score desc
         playerHeroScores.forEach(function(list) {
-            list.sort(function(a, b) { return b.score - a.score; });
+            list.sort(function(a, b) { return (b.score - a.score) || (b.appearances - a.appearances); });
         });
 
         // Build hero -> [{playerKey, name, score}]
@@ -1292,46 +1347,113 @@ function openHeroIconHtml(hero) {
 
         const forceOps = [];
         heroPlayers.forEach(function(players, hero) {
-            if (players.length < 2) return;
             const sorted = players.slice().sort(function(a, b) { return b.score - a.score; });
-            const primary = sorted[0];
-            const conflict = sorted[1];
-            const primaryList = playerHeroScores.get(primary.playerKey) || [];
-            const altEntry = primaryList.find(function(h) { return h.hero !== hero; });
-            if (!altEntry) return;
-            const scoreDrop = primary.score - altEntry.score;
-            if (scoreDrop < 20) return;
+            const affectedPlayers = [];
+            sorted.forEach(function(playerEntry) {
+                const playerList = playerHeroScores.get(playerEntry.playerKey) || [];
+                const heroRole = drGetHeroRole(hero);
+                const altCandidates = playerList.filter(function(h) { return h.hero !== hero; });
+                altCandidates.sort(function(a, b) {
+                    const aSameRole = heroRole && drGetHeroRole(a.hero) === heroRole ? 1 : 0;
+                    const bSameRole = heroRole && drGetHeroRole(b.hero) === heroRole ? 1 : 0;
+                    return (bSameRole - aSameRole)
+                        || (Number(b.win_rate || 0) - Number(a.win_rate || 0))
+                        || (Number(b.pool_rating || 0) - Number(a.pool_rating || 0))
+                        || (Number(b.appearances || 0) - Number(a.appearances || 0))
+                        || (Number(b.score || 0) - Number(a.score || 0));
+                });
+                const altEntry = altCandidates[0];
+                if (!altEntry) return;
+                const scoreDrop = playerEntry.score - altEntry.score;
+                const altSameRole = Boolean(heroRole && drGetHeroRole(altEntry.hero) === heroRole);
+                const isPreferredHero =
+                    playerEntry.score >= DR_FORCE_PREFERRED_HERO_SCORE
+                    || (Number(playerEntry.usage_rate || 0) >= DR_FORCE_PREFERRED_USAGE_RATE
+                        && Number(playerEntry.appearances || 0) >= DR_FORCE_PREFERRED_APPEARANCES)
+                    || Number(playerEntry.pool_rating || 0) >= 80;
+                if (scoreDrop < DR_FORCE_MIN_SCORE_DROP && !isPreferredHero) return;
+                affectedPlayers.push({
+                    player: playerEntry.name,
+                    hero_score: playerEntry.score,
+                    appearances: playerEntry.appearances,
+                    usage_rate: playerEntry.usage_rate,
+                    win_rate: playerEntry.win_rate,
+                    pool_rating: playerEntry.pool_rating,
+                    alt_hero: altEntry.hero,
+                    alt_score: altEntry.score,
+                    alt_win_rate: altEntry.win_rate,
+                    alt_same_role: altSameRole,
+                    score_drop: scoreDrop,
+                    preferred: isPreferredHero,
+                });
+            });
+            if (!affectedPlayers.length) return;
+            affectedPlayers.sort(function(a, b) {
+                return (b.score_drop - a.score_drop) || (b.hero_score - a.hero_score);
+            });
+            const primary = affectedPlayers[0];
             forceOps.push({
                 ban_hero: hero,
-                primary_player: primary.name,
-                primary_score: primary.score,
-                alt_hero: altEntry.hero,
-                alt_score: altEntry.score,
-                score_drop: scoreDrop,
-                conflict_player: conflict.name,
+                primary_player: primary.player,
+                primary_score: primary.hero_score,
+                alt_hero: primary.alt_hero,
+                alt_score: primary.alt_score,
+                score_drop: primary.score_drop,
+                affected_players: affectedPlayers,
+                affected_count: affectedPlayers.length,
+                shared_count: sorted.length,
+                conflict_players: sorted
+                    .filter(function(playerEntry) { return playerEntry.name !== primary.player; })
+                    .map(function(playerEntry) { return playerEntry.name; }),
             });
         });
-        return forceOps.sort(function(a, b) { return b.score_drop - a.score_drop; }).slice(0, 5);
+        return forceOps.sort(function(a, b) {
+            return (b.affected_count - a.affected_count)
+                || (b.score_drop - a.score_drop)
+                || (b.shared_count - a.shared_count)
+                || (a.ban_hero > b.ban_hero ? 1 : -1);
+        });
     }
 
     function drRenderForceAnalysis(targetEl, rows) {
         if (!targetEl) return;
         if (!rows || !rows.length) {
-            targetEl.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem">No shared-hero overlap detected.</span>';
+            targetEl.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem">No useful shared-hero pressure yet.</span>';
             return;
         }
         targetEl.innerHTML = '<div class="dr-force-rows">' + rows.map(function(row) {
             const confClass = row.score_drop > 50 ? 'dr-conf-high' : row.score_drop > 25 ? 'dr-conf-med' : 'dr-conf-low';
             const confLabel = row.score_drop > 50 ? 'Strong' : row.score_drop > 25 ? 'Med' : 'Mild';
+            const affected = row.affected_players || [];
+            const affectedLines = affected.slice(0, 4).map(function(playerRow) {
+                const reason = playerRow.preferred
+                    ? 'Preferred hero'
+                    : 'Drop ' + Number(playerRow.score_drop || 0).toFixed(1);
+                return '<div class="dr-force-note">'
+                    + '<strong>' + escapeHtml(playerRow.player) + '</strong>'
+                    + ' falls to ' + heroChipHtml(playerRow.alt_hero, '')
+                    + ' <span class="matchup-badge">' + escapeHtml(reason) + '</span>'
+                    + (Number(playerRow.alt_win_rate || 0)
+                        ? ' <span class="matchup-badge">Alt WR ' + escapeHtml(Number(playerRow.alt_win_rate || 0).toFixed(1)) + '%</span>'
+                        : '')
+                    + (playerRow.alt_same_role ? ' <span class="matchup-badge">Same role</span>' : '')
+                    + (playerRow.preferred && Number(playerRow.score_drop || 0) > 0
+                        ? ' <span class="matchup-badge">Drop ' + escapeHtml(Number(playerRow.score_drop || 0).toFixed(1)) + '</span>'
+                        : '')
+                    + '</div>';
+            }).join('');
+            const hiddenCount = Math.max(0, affected.length - 4);
+            const sharedNames = (row.conflict_players || []).slice(0, 3);
             return '<div class="dr-force-row">'
                 + '<div class="dr-force-ban-line">'
                 + 'Ban ' + heroChipHtml(row.ban_hero, 'ban')
-                + ' <span class="dr-force-arrow">&#8594; forces</span> '
-                + '<strong>' + escapeHtml(row.primary_player) + '</strong>'
-                + ' onto ' + heroChipHtml(row.alt_hero, '')
+                + ' <span class="dr-force-arrow">&#8594;</span> '
+                + escapeHtml(row.affected_count || affected.length || 1) + ' player' + ((row.affected_count || affected.length || 1) === 1 ? '' : 's') + ' lose comfort'
                 + ' <span class="dr-assign-conf ' + confClass + '">' + confLabel + '</span>'
                 + '</div>'
-                + '<div class="dr-force-note">Also played by ' + escapeHtml(row.conflict_player) + ' &mdash; banning removes both options</div>'
+                + affectedLines
+                + (hiddenCount ? '<div class="dr-force-note">+' + escapeHtml(hiddenCount) + ' more affected player' + (hiddenCount === 1 ? '' : 's') + '</div>' : '')
+                + (sharedNames.length ? '<div class="dr-force-note">Also in pool for ' + escapeHtml(sharedNames.join(' / ')) + '</div>' : '')
                 + '</div>';
         }).join('') + '</div>';
     }
@@ -1422,7 +1544,7 @@ function openHeroIconHtml(hero) {
         const season = document.getElementById('dr-season').value;
         const map    = document.getElementById('dr-map').value;
         if (!teamA || !teamB) { statusEl.textContent = 'Select both teams first.'; return; }
-        statusEl.textContent = 'Loading model…';
+        statusEl.textContent = 'Building draft plan...';
         const p = new URLSearchParams({team_a: teamA, team_b: teamB});
         if (season) p.set('season', season);
         if (map) p.set('map', map);
@@ -1442,7 +1564,7 @@ function openHeroIconHtml(hero) {
             const mA = (teams[0]||{}).model || {};
             const mB = (teams[1]||{}).model || {};
             const mapsA = mA.training_maps || 0;
-            statusEl.textContent = 'Model loaded: ' + nameA + ' (' + mapsA + ' maps) vs ' + nameB + ' (' + (mB.training_maps||0) + ' maps)';
+            statusEl.textContent = 'Plan ready: ' + nameA + ' (' + mapsA + ' maps) vs ' + nameB + ' (' + (mB.training_maps||0) + ' maps)';
 
             // Seed context and compute first recommendation.
             drContext = {mA, mB, nameA, nameB, mapFilter: map};
@@ -1455,7 +1577,7 @@ function openHeroIconHtml(hero) {
             drAutoFocusNextStep();
         } catch(e) {
             const reason = (e && e.message) ? e.message : String(e || 'unknown error');
-            statusEl.textContent = 'Failed to load model: ' + reason;
+            statusEl.textContent = 'Could not build draft plan: ' + reason;
             console.error(e);
         }
     });
@@ -1475,10 +1597,11 @@ function openHeroIconHtml(hero) {
         const heroImpact = new Map();
 
         openEnemyCompRows.forEach(function(row) {
+            const heroes = (row.heroes || []).filter(Boolean);
             const compStrength = Number(row.comp_strength || 0);
             const compRate = Number(row.rate || 0);
             const compWinRate = Number(row.comp_win_rate || 0);
-            (row.heroes || []).filter(Boolean).forEach(function(hero) {
+            heroes.forEach(function(hero) {
                 if (bannedSet.has(hero) || protectedByEnemy.has(hero) || protectedByUs.has(hero)) return;
                 if (!heroImpact.has(hero)) {
                     heroImpact.set(hero, {
@@ -1487,6 +1610,7 @@ function openHeroIconHtml(hero) {
                         blockedStrength: 0,
                         blockedRate: 0,
                         bestCompWinRate: 0,
+                        affectedComps: [],
                     });
                 }
                 const entry = heroImpact.get(hero);
@@ -1494,6 +1618,12 @@ function openHeroIconHtml(hero) {
                 entry.blockedStrength += compStrength;
                 entry.blockedRate += compRate;
                 entry.bestCompWinRate = Math.max(entry.bestCompWinRate, compWinRate);
+                entry.affectedComps.push({
+                    heroes: heroes,
+                    compStrength: compStrength,
+                    rate: compRate,
+                    compWinRate: compWinRate,
+                });
             });
         });
 
@@ -1535,6 +1665,11 @@ function openHeroIconHtml(hero) {
                 comfort: comfortRow.comfort,
                 wr: comfortRow.wr,
                 bestCompWinRate: entry.bestCompWinRate,
+                affectedComps: entry.affectedComps.sort(function(a, b) {
+                    return (b.compStrength - a.compStrength)
+                        || (b.rate - a.rate)
+                        || (b.compWinRate - a.compWinRate);
+                }),
                 contested: contestedSet.has(entry.hero),
                 openingBanScore: openingBanScore,
                 strongHeroScore: strongHeroScore,
@@ -1545,6 +1680,86 @@ function openHeroIconHtml(hero) {
                 || (b.comfort - a.comfort)
                 || (b.blockedStrength - a.blockedStrength)
                 || (a.hero > b.hero ? 1 : -1);
+        });
+    }
+
+    function drBuildDuoBanTargetRows(targetRows) {
+        const rows = targetRows || [];
+        const duoRows = [];
+
+        function compKey(comp) {
+            return (comp.heroes || []).filter(Boolean).slice().sort().join('||');
+        }
+
+        for (let i = 0; i < rows.length; i += 1) {
+            for (let j = i + 1; j < rows.length; j += 1) {
+                const left = rows[i];
+                const right = rows[j];
+                if (!left.hero || !right.hero || left.hero === right.hero) continue;
+
+                const unionComps = new Map();
+                const sharedComps = new Map();
+                (left.affectedComps || []).forEach(function(comp) {
+                    unionComps.set(compKey(comp), comp);
+                    if ((comp.heroes || []).includes(right.hero)) {
+                        sharedComps.set(compKey(comp), comp);
+                    }
+                });
+                (right.affectedComps || []).forEach(function(comp) {
+                    unionComps.set(compKey(comp), comp);
+                    if ((comp.heroes || []).includes(left.hero)) {
+                        sharedComps.set(compKey(comp), comp);
+                    }
+                });
+
+                if (!sharedComps.size) continue;
+
+                const sharedList = Array.from(sharedComps.values()).sort(function(a, b) {
+                    return (Number(b.compStrength || 0) - Number(a.compStrength || 0))
+                        || (Number(b.rate || 0) - Number(a.rate || 0))
+                        || (Number(b.compWinRate || 0) - Number(a.compWinRate || 0));
+                });
+                const unionList = Array.from(unionComps.values());
+                const sharedStrength = sharedList.reduce(function(total, comp) {
+                    return total + Number(comp.compStrength || 0);
+                }, 0);
+                const sharedRate = sharedList.reduce(function(total, comp) {
+                    return total + Number(comp.rate || 0);
+                }, 0);
+                const unionStrength = unionList.reduce(function(total, comp) {
+                    return total + Number(comp.compStrength || 0);
+                }, 0);
+                const score =
+                    (sharedStrength * 2.0)
+                    + (sharedRate * 1.25)
+                    + (unionStrength * 0.45)
+                    + (Number(left.comfort || 0) * 0.35)
+                    + (Number(right.comfort || 0) * 0.35)
+                    + (Number(left.wr || 0) * 0.15)
+                    + (Number(right.wr || 0) * 0.15)
+                    + ((left.contested || right.contested) ? 8 : 0);
+
+                duoRows.push({
+                    heroes: [left.hero, right.hero],
+                    sharedComps: sharedList,
+                    unionComps: unionList.sort(function(a, b) {
+                        return (Number(b.compStrength || 0) - Number(a.compStrength || 0))
+                            || (Number(b.rate || 0) - Number(a.rate || 0));
+                    }),
+                    sharedCompCount: sharedList.length,
+                    totalCompCount: unionList.length,
+                    sharedStrength: sharedStrength,
+                    sharedRate: sharedRate,
+                    score: score,
+                    contested: Boolean(left.contested || right.contested),
+                });
+            }
+        }
+
+        return duoRows.sort(function(a, b) {
+            return (b.score - a.score)
+                || (b.sharedCompCount - a.sharedCompCount)
+                || (b.sharedStrength - a.sharedStrength);
         });
     }
 
@@ -1685,10 +1900,11 @@ function openHeroIconHtml(hero) {
             const heroImpact = new Map();
 
             openEnemyCompRows.forEach(function(row) {
+                const heroes = (row.heroes || []).filter(Boolean);
                 const compStrength = Number(row.comp_strength || 0);
                 const compRate = Number(row.rate || 0);
                 const compWinRate = Number(row.comp_win_rate || 0);
-                (row.heroes || []).filter(Boolean).forEach(function(hero) {
+                heroes.forEach(function(hero) {
                     if (hardBannedSet.has(hero) || protectedByEnemy.has(hero) || protectedByUs.has(hero)) return;
                     if (!heroImpact.has(hero)) {
                         heroImpact.set(hero, {
@@ -1697,6 +1913,7 @@ function openHeroIconHtml(hero) {
                             blockedStrength: 0,
                             blockedRate: 0,
                             bestCompWinRate: 0,
+                            affectedComps: [],
                         });
                     }
                     const entry = heroImpact.get(hero);
@@ -1704,6 +1921,12 @@ function openHeroIconHtml(hero) {
                     entry.blockedStrength += compStrength;
                     entry.blockedRate += compRate;
                     entry.bestCompWinRate = Math.max(entry.bestCompWinRate, compWinRate);
+                    entry.affectedComps.push({
+                        heroes: heroes,
+                        compStrength: compStrength,
+                        rate: compRate,
+                        compWinRate: compWinRate,
+                    });
                 });
             });
 
@@ -1745,6 +1968,11 @@ function openHeroIconHtml(hero) {
                     comfort: comfortRow.comfort,
                     wr: comfortRow.wr,
                     bestCompWinRate: entry.bestCompWinRate,
+                    affectedComps: entry.affectedComps.sort(function(a, b) {
+                        return (b.compStrength - a.compStrength)
+                            || (b.rate - a.rate)
+                            || (b.compWinRate - a.compWinRate);
+                    }),
                     contested: contestedSet.has(entry.hero),
                     openingBanScore: openingBanScore,
                     strongHeroScore: strongHeroScore,
@@ -1802,7 +2030,7 @@ function openHeroIconHtml(hero) {
             return best || {score: 0, row: null};
         }
 
-        // Pick a "best-fit" comp: comfort + adjusted performance + consistency.
+        // Pick a target comp from comfort, adjusted performance, and consistency.
         const ourPairLookup = buildPairRelationshipLookup(mA.comp_rows || []);
         const rankedCompRows = (mA.comp_rows || []).map(function(row) {
             const comfort = Number(row.avg_comfort || 0);
@@ -2193,11 +2421,11 @@ function openHeroIconHtml(hero) {
         const pathMetaEl = document.getElementById('dr-suggest-path-meta');
         if (mlMetaEl) {
             if (drSuggest.a.ml && (drSuggest.a.ml.win_prob || drSuggest.a.ml.confidence || drSuggest.a.ml.comp_score)) {
-                mlMetaEl.textContent = 'ML win probability ' + Number(drSuggest.a.ml.win_prob || 0).toFixed(1)
-                    + '% · confidence ' + Number(drSuggest.a.ml.confidence || 0).toFixed(1)
+                mlMetaEl.textContent = 'Projected WR ' + Number(drSuggest.a.ml.win_prob || 0).toFixed(1)
+                    + '% · read strength ' + Number(drSuggest.a.ml.confidence || 0).toFixed(1)
                     + '% · score ' + Number(drSuggest.a.ml.comp_score || 0).toFixed(1);
             } else {
-                mlMetaEl.textContent = 'ML model waiting for enough draft signal.';
+                mlMetaEl.textContent = 'Waiting for more draft context.';
             }
         }
         if (pathMetaEl) {
@@ -2209,7 +2437,7 @@ function openHeroIconHtml(hero) {
                     + ' · stable slots ' + Number(pm.stable_slots || 0).toFixed(0)
                     + ' · avg deviation ' + Number(pm.avg_deviation || 0).toFixed(1);
             } else {
-                pathMetaEl.textContent = 'Suggested path will appear once a numeric draft route is available.';
+                pathMetaEl.textContent = 'Draft path will appear once there is enough route data.';
             }
         }
 
@@ -2217,7 +2445,7 @@ function openHeroIconHtml(hero) {
         if (drSuggest.a.comp.length) {
             compHeroesEl.innerHTML = drSuggest.a.comp.map(h => heroChipHtml(h,'')).join('');
         } else {
-            compHeroesEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic">No comp data recorded yet.</span>';
+            compHeroesEl.innerHTML = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic">No reliable comp read yet.</span>';
         }
 
         const bansEl = document.getElementById('dr-suggest-bans');
@@ -2482,15 +2710,15 @@ function openHeroIconHtml(hero) {
     function drRender() {
         const stream = document.getElementById('dr-reason-stream');
         if (!drModel) {
-            document.getElementById('dr-overview-setup').textContent = 'No model loaded.';
-            document.getElementById('dr-overview-target').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
-            document.getElementById('dr-overview-open-core').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
-            document.getElementById('dr-overview-contested').innerHTML = '<span class="dr-overview-empty">Analyze to populate.</span>';
-            stream.innerHTML = '<p class="matchup-empty">Load a model first.</p>';
-            if (drOpenHeroesMeta) drOpenHeroesMeta.textContent = 'Load a model to see open heroes.';
-            if (drOpenHeroesList) drOpenHeroesList.innerHTML = '<p class="matchup-empty">No model loaded yet.</p>';
-            if (drOpenBanMeta) drOpenBanMeta.textContent = 'Load a model to surface live ban targets.';
-            if (drOpenBanTargetsList) drOpenBanTargetsList.innerHTML = '<p class="matchup-empty">No model loaded yet.</p>';
+            document.getElementById('dr-overview-setup').textContent = 'No matchup loaded.';
+            document.getElementById('dr-overview-target').innerHTML = '<span class="dr-overview-empty">Build a plan to see this.</span>';
+            document.getElementById('dr-overview-open-core').innerHTML = '<span class="dr-overview-empty">Build a plan to see this.</span>';
+            document.getElementById('dr-overview-contested').innerHTML = '<span class="dr-overview-empty">Build a plan to see this.</span>';
+            stream.innerHTML = '<p class="matchup-empty">Build a plan first.</p>';
+            if (drOpenHeroesMeta) drOpenHeroesMeta.textContent = 'Build a plan to see what is still open.';
+            if (drOpenHeroesList) drOpenHeroesList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
+            if (drOpenBanMeta) drOpenBanMeta.textContent = 'Build a plan to see useful ban targets.';
+            if (drOpenBanTargetsList) drOpenBanTargetsList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
             return;
         }
         const teams = drModel.teams || [];
@@ -2566,7 +2794,7 @@ function openHeroIconHtml(hero) {
         if (drSuggest.a.comp && drSuggest.a.comp.length) {
             targetEl.innerHTML = drSuggest.a.comp.map(h => heroChipHtml(h, '')).join('');
         } else {
-            targetEl.innerHTML = '<span class="dr-overview-empty">No target comp identified yet.</span>';
+            targetEl.innerHTML = '<span class="dr-overview-empty">No strong comp read yet.</span>';
         }
 
         const openCore = (mA.comfort_core_rows || [])
@@ -2614,30 +2842,79 @@ function openHeroIconHtml(hero) {
 
         if (drOpenBanMeta && drOpenBanTargetsList) {
             const ourCompSet = new Set(drSuggest.a.comp || []);
-            const targetRows = drBuildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned)
+            const allTargetRows = drBuildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned)
                 .filter(function(row) {
                     // Open Ban Targets should be bans we can take against the enemy
                     // without sacrificing our current target comp.
                     return !ourCompSet.has(row.hero);
-                })
-                .slice(0, 8);
+                });
+            const duoRows = drBuildDuoBanTargetRows(allTargetRows).slice(0, 4);
+            const targetRows = allTargetRows.slice(0, 8);
 
             drOpenBanMeta.textContent = targetRows.length
-                ? ('Top ' + targetRows.length + ' open ban targets for ' + nameA + ' (ranked by high-impact enemy strength).')
-                : 'No legal ban targets available from the enemy hero pool.';
+                ? (targetRows.length + ' useful ban targets for ' + nameA + '. Click one to see the comps it hurts.')
+                : 'No useful enemy ban targets are open right now.';
 
-            drOpenBanTargetsList.innerHTML = targetRows.length
-                ? '<div class="dr-guide-details-grid">' + targetRows.map(function(row) {
+            const duoHtml = duoRows.length
+                ? '<div class="dr-suggest-section-label">Duo ban targets</div>'
+                    + '<div class="dr-guide-details-grid">' + duoRows.map(function(row) {
+                        const sharedComps = (row.sharedComps || []).slice(0, 3);
+                        const hiddenCount = Math.max(0, (row.sharedComps || []).length - sharedComps.length);
+                        const compHtml = sharedComps.length
+                            ? '<div class="dr-ban-target-comps">' + sharedComps.map(function(comp, idx) {
+                                return '<div class="dr-ban-target-comp">'
+                                    + '<div class="dr-ban-target-comp-title"><span>Shared comp ' + escapeHtml(idx + 1) + '</span><span>Strength ' + escapeHtml(Number(comp.compStrength || 0).toFixed(1)) + '</span></div>'
+                                    + '<div class="dr-hero-row">' + (comp.heroes || []).map(function(hero) {
+                                        return heroChipHtml(hero, row.heroes.includes(hero) ? 'ban' : '');
+                                    }).join('') + '</div>'
+                                    + '<div class="matchup-line-meta"><span class="matchup-badge">Rate ' + escapeHtml(Number(comp.rate || 0).toFixed(1)) + '%</span><span class="matchup-badge">WR ' + escapeHtml(Number(comp.compWinRate || 0).toFixed(1)) + '%</span></div>'
+                                    + '</div>';
+                            }).join('') + (hiddenCount ? '<div class="dr-ban-target-more">+' + escapeHtml(hiddenCount) + ' more shared comps</div>' : '') + '</div>'
+                            : '<div class="dr-ban-target-more">No shared comp details yet.</div>';
+                        return '<details class="dr-reason-card dr-ban-target-card">'
+                            + '<summary>'
+                            + '<div class="dr-reason-title">' + row.heroes.map(function(hero) { return heroChipHtml(hero, 'ban'); }).join('') + '</div>'
+                            + '<div class="matchup-line-meta"><span class="matchup-badge">Breaks ' + escapeHtml(row.sharedCompCount) + ' shared comps</span><span class="matchup-badge">Total comps hit ' + escapeHtml(row.totalCompCount) + '</span><span class="matchup-badge">Strength ' + escapeHtml(row.sharedStrength.toFixed(1)) + '</span></div>'
+                            + '<div class="matchup-line-meta"><span class="matchup-badge">Impact ' + escapeHtml(row.score.toFixed(1)) + '</span>' + (row.contested ? '<span class="matchup-badge matchup-badge-warn">Contested</span>' : '') + '</div>'
+                            + '</summary>'
+                            + compHtml
+                            + '</details>';
+                    }).join('') + '</div>'
+                : '';
+
+            const singleHtml = targetRows.length
+                ? '<div class="dr-suggest-section-label">Single ban targets</div>'
+                    + '<div class="dr-guide-details-grid">' + targetRows.map(function(row) {
                     const tags = [];
                     if (row.contested) tags.push('<span class="matchup-badge matchup-badge-warn">Contested</span>');
-                    return '<div class="dr-reason-card">'
+                    const affectedComps = (row.affectedComps || []).slice(0, 4);
+                    const hiddenCount = Math.max(0, (row.affectedComps || []).length - affectedComps.length);
+                    const compHtml = affectedComps.length
+                        ? '<div class="dr-ban-target-comps">' + affectedComps.map(function(comp, idx) {
+                            return '<div class="dr-ban-target-comp">'
+                                + '<div class="dr-ban-target-comp-title"><span>Comp ' + escapeHtml(idx + 1) + '</span><span>Strength ' + escapeHtml(Number(comp.compStrength || 0).toFixed(1)) + '</span></div>'
+                                + '<div class="dr-hero-row">' + (comp.heroes || []).map(function(hero) {
+                                    return heroChipHtml(hero, hero === row.hero ? 'ban' : '');
+                                }).join('') + '</div>'
+                                + '<div class="matchup-line-meta"><span class="matchup-badge">Rate ' + escapeHtml(Number(comp.rate || 0).toFixed(1)) + '%</span><span class="matchup-badge">WR ' + escapeHtml(Number(comp.compWinRate || 0).toFixed(1)) + '%</span></div>'
+                                + '</div>';
+                        }).join('') + (hiddenCount ? '<div class="dr-ban-target-more">+' + escapeHtml(hiddenCount) + ' more affected comps</div>' : '') + '</div>'
+                        : '<div class="dr-ban-target-more">No comp details for this target yet.</div>';
+                    return '<details class="dr-reason-card dr-ban-target-card">'
+                        + '<summary>'
                         + '<div class="dr-reason-title">' + heroChipHtml(row.hero, 'ban') + '</div>'
                         + '<div class="matchup-line-meta"><span class="matchup-badge">Cripples ' + escapeHtml(row.compsCrippled) + ' comps</span><span class="matchup-badge">Strength ' + escapeHtml(row.blockedStrength.toFixed(1)) + '</span><span class="matchup-badge">Playrate ' + escapeHtml(row.comfort.toFixed(1)) + '%</span></div>'
                         + '<div class="matchup-line-meta"><span class="matchup-badge">Adj WR ' + escapeHtml(row.wr.toFixed(1)) + '%</span><span class="matchup-badge">Impact ' + escapeHtml(row.strongHeroScore.toFixed(1)) + '</span></div>'
                         + (tags.length ? '<div class="matchup-line-meta">' + tags.join('') + '</div>' : '')
-                        + '</div>';
+                        + '</summary>'
+                        + compHtml
+                        + '</details>';
                 }).join('') + '</div>'
-                : '<p class="matchup-empty">No clear ban targets after current locks.</p>';
+                : '';
+
+            drOpenBanTargetsList.innerHTML = (duoHtml || singleHtml)
+                ? duoHtml + singleHtml
+                : '<p class="matchup-empty">No clean ban targets after the current locks.</p>';
         }
 
         const cards = [];
@@ -2649,23 +2926,23 @@ function openHeroIconHtml(hero) {
             let body = '';
             if (slotType === 'ban') {
                 if (inCore) {
-                    body = '<strong>' + escapeHtml(hero) + '</strong> is a comfort core hero for <strong>' + escapeHtml(name) + '</strong> (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%). Directly targets their identity.';
+                    body = '<strong>' + escapeHtml(hero) + '</strong> is one of <strong>' + escapeHtml(name) + '</strong>\'s comfort picks (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%). This ban hits their usual plan.';
                 } else if (inPool) {
-                    body = '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(name) + '\'s pool but not core (adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%).';
+                    body = '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(name) + '\'s pool, but it is not a main comfort pick (adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%).';
                 } else {
-                    body = '<strong>' + escapeHtml(hero) + '</strong> has little recorded history for ' + escapeHtml(name) + '. Speculative or meta ban.';
+                    body = '<strong>' + escapeHtml(hero) + '</strong> has little history for ' + escapeHtml(name) + '. Treat this as a meta read, not a data-backed target.';
                 }
             } else {
                 // protect
                 if (inCore) {
-                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong> — a comfort core pick (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%).';
+                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong>, one of our comfort picks (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%).';
                 } else {
-                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong> — not in recorded comfort core. Pocket pick or signal block.';
+                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong>. It is not a recorded comfort pick, so this is probably a pocket pick or a deny.';
                 }
             }
             if (vol) {
                 const sign = vol.delta >= 0 ? '+' : '';
-                body += ' WR swings ' + sign + escapeHtml(vol.delta) + '% when active — ' + (Math.abs(vol.delta) > 5 ? '<strong>volatile pick.</strong>' : 'minor swing.');
+                body += ' Results move ' + sign + escapeHtml(vol.delta) + '% when this hero is active — ' + (Math.abs(vol.delta) > 5 ? '<strong>watch this pick.</strong>' : 'small swing.');
             }
             return body;
         }
@@ -2691,7 +2968,7 @@ function openHeroIconHtml(hero) {
         protectsA.forEach(hero => {
             let body = coreRow('a', nameA, mA, hero, 'protect');
             const inBBans = (mB.ban_line_rows||[]).filter(l => (l.bans||[]).includes(hero));
-            if (inBBans.length) body += ' <strong>' + escapeHtml(nameB) + '</strong> targets this hero in ' + inBBans.length + ' of their top ban line(s) — protect disrupts those lines.';
+            if (inBBans.length) body += ' <strong>' + escapeHtml(nameB) + '</strong> often bans this hero, so protecting it cuts off that route.';
             cards.push({cls:'good', title: nameA + ' protects ' + hero, body});
         });
 
@@ -2706,7 +2983,7 @@ function openHeroIconHtml(hero) {
                         + '<div class="dr-hero-row">' + (comp.heroes||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>';
                     // Alt route?
                     const altPath = (comp.top_draft_paths||[])[1];
-                    if (altPath) body += 'Alt route available: <div class="dr-hero-row">' + (altPath.bans||[]).map(h=>heroChipHtml(h,'ban')).join('') + (altPath.protects||[]).map(h=>heroChipHtml(h,'protect')).join('') + '</div>';
+                    if (altPath) body += 'Backup route: <div class="dr-hero-row">' + (altPath.bans||[]).map(h=>heroChipHtml(h,'ban')).join('') + (altPath.protects||[]).map(h=>heroChipHtml(h,'protect')).join('') + '</div>';
                 }
             });
             cards.push({cls: inACore ? 'bad' : '', title: nameB + ' bans ' + hero, body});
@@ -2714,11 +2991,11 @@ function openHeroIconHtml(hero) {
 
         // Enemy protects
         protectsB.forEach(hero => {
-            let body = 'Enemy protects <strong>' + escapeHtml(hero) + '</strong>. ';
+            let body = '<strong>' + escapeHtml(nameB) + '</strong> protects <strong>' + escapeHtml(hero) + '</strong>. ';
             const inBCore = (mB.comfort_core_rows||[]).find(r => r.hero === hero);
             if (inBCore) body += 'Core pick for them (' + escapeHtml(inBCore.comfort_rate) + '% usage).';
             const inABans = (mA.ban_line_rows||[]).filter(l => (l.bans||[]).includes(hero));
-            if (inABans.length) body += ' We target this in ' + inABans.length + ' ban line(s) — their protect counters our tendency.';
+            if (inABans.length) body += ' We often ban this hero, so their protect directly blocks that plan.';
             cards.push({cls:'warn', title: nameB + ' protects ' + hero, body});
         });
 
@@ -2733,7 +3010,7 @@ function openHeroIconHtml(hero) {
                         cls: intact.length === 0 ? 'good' : '',
                         title: nameB + ' comp path #' + (i+1) + ' (' + escapeHtml(line.top_path_share || 0) + '%) — ' + (intact.length ? 'partial' : 'fully') + ' disrupted',
                         body: 'Blocked: <div class="dr-hero-row">' + blocked.map(h=>heroChipHtml(h,'ban')).join('') + '</div>'
-                            + (intact.length ? 'Still intact: <div class="dr-hero-row">' + intact.map(h=>heroChipHtml(h,'')).join('') + '</div>' : '<strong>Fully disrupted.</strong>')
+                            + (intact.length ? 'Still alive: <div class="dr-hero-row">' + intact.map(h=>heroChipHtml(h,'')).join('') + '</div>' : '<strong>Fully broken.</strong>')
                     });
                 }
             });
@@ -2747,7 +3024,7 @@ function openHeroIconHtml(hero) {
             const onTrack = overlap.length >= 2;
             cards.push({
                 cls: onTrack ? 'good' : '',
-                title: (onTrack ? '✓ On track for ' : 'Suggested force path — ') + nameA,
+                title: (onTrack ? 'On track for ' : 'Pressure path for ') + nameA,
                 body: 'Target comp: <div class="dr-hero-row">' + (force.our_comp||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>'
                     + 'Bans needed: <div class="dr-hero-row">' + (force.our_bans||[]).map(h=>heroChipHtml(h,'ban')).join('') + '</div>'
                     + 'Expected enemy: <div class="dr-hero-row">' + (force.enemy_comp||[]).map(h=>heroChipHtml(h,'')).join('') + '</div>'
@@ -2773,41 +3050,41 @@ function openHeroIconHtml(hero) {
                 cards.push({
                     cls: 'good',
                     title: 'Recommended comp for ' + nameA,
-                    body: 'Current best-fit comp based on the loaded model: '
+                    body: 'Best current comp read: '
                         + '<div class="dr-hero-row">' + drSuggest.a.comp.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
                         + (drSuggest.a.ml && (drSuggest.a.ml.win_prob || drSuggest.a.ml.confidence)
-                            ? 'Projected win probability ' + escapeHtml(Number(drSuggest.a.ml.win_prob || 0).toFixed(1)) + '% with confidence ' + escapeHtml(Number(drSuggest.a.ml.confidence || 0).toFixed(1)) + '%. '
+                            ? 'Projected WR ' + escapeHtml(Number(drSuggest.a.ml.win_prob || 0).toFixed(1)) + '% with read strength ' + escapeHtml(Number(drSuggest.a.ml.confidence || 0).toFixed(1)) + '%. '
                             : '')
                 });
             }
             if (drSuggest.a.bans && drSuggest.a.bans.length) {
                 cards.push({
                     cls: '',
-                    title: 'Suggested opening ban path',
+                    title: 'Opening ban path',
                     body: '<div class="dr-hero-row">' + drSuggest.a.bans.map(function(hero) { return heroChipHtml(hero, 'ban'); }).join('') + '</div>'
-                        + 'These are the current recommended bans before more draft information is locked.'
+                        + 'These are the bans I would start from before more slots are locked.'
                 });
             }
             if (drSuggest.a.protects && drSuggest.a.protects.length) {
                 cards.push({
                     cls: 'good',
-                    title: 'Suggested protects for ' + nameA,
+                    title: 'Protects for ' + nameA,
                     body: '<div class="dr-hero-row">' + drSuggest.a.protects.map(function(hero) { return heroChipHtml(hero, 'protect'); }).join('') + '</div>'
-                        + 'These protects preserve the current target comp and deny easy counterplay.'
+                        + 'These protects keep the target comp alive and make counterplay harder.'
                 });
             }
             if (drSuggest.b.comp && drSuggest.b.comp.length) {
                 cards.push({
                     cls: 'warn',
-                    title: 'Expected enemy response',
+                    title: 'Enemy response to expect',
                     body: '<div class="dr-hero-row">' + drSuggest.b.comp.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
-                        + 'Most likely enemy comp if the draft continues on its current path.'
+                        + 'Likely enemy comp if the draft stays on this path.'
                 });
             }
         }
 
         if (!cards.length) {
-            stream.innerHTML = '<p class="matchup-empty">Start filling draft slots to see reasoning.</p>';
+            stream.innerHTML = '<p class="matchup-empty">Start filling draft slots to see the read.</p>';
             return;
         }
 
@@ -2830,8 +3107,8 @@ function openHeroIconHtml(hero) {
 
         function renderGuideStep(label, card) {
             const cls = card && card.cls ? card.cls : '';
-            const title = card && card.title ? card.title : 'No signal yet';
-            const body = card && card.body ? card.body : 'Keep filling slots to unlock a stronger recommendation.';
+            const title = card && card.title ? card.title : 'No clear read yet';
+            const body = card && card.body ? card.body : 'Keep filling slots to sharpen the recommendation.';
             return '<section class="dr-guide-step ' + escapeHtml(cls) + '">'
                 + '<div class="dr-guide-label">' + escapeHtml(label) + '</div>'
                 + '<div class="dr-guide-title">' + escapeHtml(title) + '</div>'
@@ -2857,11 +3134,11 @@ function openHeroIconHtml(hero) {
             + '<div class="dr-guide">'
             + '<div class="dr-guide-meta">' + setupText + '</div>'
             + renderGuideStep('Now', stepNow)
-            + renderGuideStep('Recommended Next Move', stepNext)
+            + renderGuideStep('Next Move', stepNext)
             + renderGuideStep('Likely Enemy Response', stepEnemy)
             + renderGuideStep('Risk Watch', stepRisk)
             + '<details class="dr-guide-details">'
-            + '<summary>Show full reasoning details</summary>'
+            + '<summary>Show the rest of the read</summary>'
             + '<div class="dr-guide-details-grid">' + detailsHtml + '</div>'
             + '</details>'
             + '</div>';

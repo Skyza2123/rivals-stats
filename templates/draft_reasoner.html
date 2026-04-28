@@ -270,10 +270,10 @@
         </div>
     </div>
     <div class="button-row top-gap">
-        <button type="button" id="dr-load-btn">Load Model</button>
+        <button type="button" id="dr-load-btn">Build Draft Plan</button>
         <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
     </div>
-    <p class="dr-model-status" id="dr-model-status">No model loaded yet.</p>
+    <p class="dr-model-status" id="dr-model-status">Choose two teams to start.</p>
 </section>
 
 <div class="reasoner-layout" id="dr-main" style="display:none">
@@ -363,9 +363,9 @@
 
     <!-- Live reasoning -->
     <div class="dr-panel reasoner-full">
-        <h3 style="margin:0 0 1rem">Live Reasoning</h3>
+        <h3 style="margin:0 0 1rem">Draft Notes</h3>
         <div class="dr-reasoning-panel" id="dr-reasoning">
-            <p class="dr-empty">Load a model and start filling draft slots to see reasoning here.</p>
+            <p class="dr-empty">Build a plan, then fill slots to see the read.</p>
         </div>
     </div>
 
@@ -419,13 +419,13 @@
             document.getElementById('dr-label-a').textContent = nameA;
             document.getElementById('dr-label-b').textContent = nameB;
             document.getElementById('dr-model-status').textContent =
-                'Model loaded: ' + nameA + ' (' + ((teams[0]||{}).model||{}).training_maps + ' maps) vs '
+                'Plan ready: ' + nameA + ' (' + ((teams[0]||{}).model||{}).training_maps + ' maps) vs '
                 + nameB + ' (' + ((teams[1]||{}).model||{}).training_maps + ' maps)';
             document.getElementById('dr-main').style.display = '';
             buildHeroGrid();
             renderReasoning();
         } catch(e) {
-            document.getElementById('dr-model-status').textContent = 'Failed to load model.';
+            document.getElementById('dr-model-status').textContent = 'Could not build draft plan.';
             console.error(e);
         }
     });
@@ -532,7 +532,7 @@
     function renderReasoning() {
         const container = document.getElementById('dr-reasoning');
         if (!model) {
-            container.innerHTML = '<p class="dr-empty">Load a model first.</p>';
+            container.innerHTML = '<p class="dr-empty">Build a plan first.</p>';
             return;
         }
 
@@ -720,7 +720,7 @@
                 const onTrack = banOverlap.length >= 2;
                 reasons.push({
                     cls: onTrack ? 'good' : '',
-                    title: (onTrack ? '✓ On track: ' : '') + 'Suggested force path — draft toward ' + nameA + ' comp',
+                    title: (onTrack ? 'On track: ' : '') + 'Pressure path toward ' + nameA + ' comp',
                     body: 'Target comp: <div class="dr-hero-row">' + ourComp + '</div>'
                         + 'Bans to reach it: <div class="dr-hero-row">' + ourBans + '</div>'
                         + 'Expected enemy response: <div class="dr-hero-row">' + enemyComp + '</div>'
@@ -748,7 +748,7 @@
         }
 
         if (reasons.length === 0) {
-            container.innerHTML = '<p class="dr-empty">No reasoning to surface yet for the current draft state.</p>';
+            container.innerHTML = '<p class="dr-empty">Start filling draft slots to see the read.</p>';
             return;
         }
         container.innerHTML = reasons.map(function(r) {

@@ -2341,9 +2341,10 @@ def build_player_ban_impact(player_name: str, scrims: list[dict]) -> list[dict]:
                 if "ban" in k and _canonical_draft_hero(v)
             }
 
-            player_heroes: set[str] = set()
+            player_hero_counts: Counter[str] = Counter()
+            player_hero_first_seen: dict[str, int] = {}
             player_found = False
-            for section in map_entry.get("comp", []):
+            for section_index, section in enumerate(map_entry.get("comp", [])):
                 if not isinstance(section, dict):
                     continue
                 for slot in section.get(our_team_slot, []):
@@ -2352,10 +2353,12 @@ def build_player_ban_impact(player_name: str, scrims: list[dict]) -> list[dict]:
                     player_found = True
                     h = _canonical_draft_hero(slot.get("hero", ""))
                     if h:
-                        player_heroes.add(h)
+                        player_hero_counts[h] += 1
+                        player_hero_first_seen.setdefault(h, section_index)
 
             if not player_found:
                 continue
+            player_heroes = set(player_hero_counts)
 
             for hero_h in all_heroes:
                 if hero_h in enemy_bans:
@@ -2364,13 +2367,21 @@ def build_player_ban_impact(player_name: str, scrims: list[dict]) -> list[dict]:
                         ban_wins[hero_h] += 1
                     elif result == "Loss":
                         ban_losses[hero_h] += 1
-                    for h in player_heroes:
-                        if h != hero_h:
-                            pivot_stats[hero_h][h]["count"] += 1
-                            if result == "Win":
-                                pivot_stats[hero_h][h]["wins"] += 1
-                            elif result == "Loss":
-                                pivot_stats[hero_h][h]["losses"] += 1
+                    pivot_candidates = [
+                        (h, count)
+                        for h, count in player_hero_counts.items()
+                        if h != hero_h
+                    ]
+                    if pivot_candidates:
+                        pivot_candidates.sort(
+                            key=lambda item: (-item[1], player_hero_first_seen.get(item[0], 9999), item[0])
+                        )
+                        pivot_hero = pivot_candidates[0][0]
+                        pivot_stats[hero_h][pivot_hero]["count"] += 1
+                        if result == "Win":
+                            pivot_stats[hero_h][pivot_hero]["wins"] += 1
+                        elif result == "Loss":
+                            pivot_stats[hero_h][pivot_hero]["losses"] += 1
                 elif hero_h in player_heroes:
                     if result == "Win":
                         avail_wins[hero_h] += 1
@@ -5798,9 +5809,12 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
                 if "ban" in k and _canonical_draft_hero(v)
             }
 
-            # Build map: roster player -> heroes they played this map
-            player_heroes_this_map: dict[str, list] = defaultdict(list)
-            for section in map_entry.get("comp", []):
+            # Build map: roster player -> section-counted heroes they played this map.
+            # A ban-pivot row should count one replacement per map, not every
+            # short section swap the player touched after their main was banned.
+            player_heroes_this_map: dict[str, Counter[str]] = defaultdict(Counter)
+            player_hero_first_seen_this_map: dict[str, dict[str, int]] = defaultdict(dict)
+            for section_index, section in enumerate(map_entry.get("comp", [])):
                 if not isinstance(section, dict):
                     continue
                 for slot in section.get(our_team_slot, []):
@@ -5811,19 +5825,30 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
                     if h and p:
                         roster_pname = roster_name_lookup.get(p.lower())
                         if roster_pname:
-                            player_heroes_this_map[roster_pname].append(h)
+                            player_heroes_this_map[roster_pname][h] += 1
+                            player_hero_first_seen_this_map[roster_pname].setdefault(h, section_index)
 
             for pname, mains in player_main_heroes.items():
                 for main_h in mains:
                     if main_h in enemy_bans:
                         player_main_ban_total[(pname, main_h)] += 1
-                        for h in player_heroes_this_map.get(pname, []):
-                            if h != main_h:
-                                player_ban_pivot_counts[(pname, main_h)][h]["count"] += 1
-                                if pivot_result == "Win":
-                                    player_ban_pivot_counts[(pname, main_h)][h]["wins"] += 1
-                                elif pivot_result == "Loss":
-                                    player_ban_pivot_counts[(pname, main_h)][h]["losses"] += 1
+                        pivot_candidates = [
+                            (hero_name, count)
+                            for hero_name, count in player_heroes_this_map.get(pname, {}).items()
+                            if hero_name != main_h
+                        ]
+                        if not pivot_candidates:
+                            continue
+                        first_seen = player_hero_first_seen_this_map.get(pname, {})
+                        pivot_candidates.sort(
+                            key=lambda item: (-item[1], first_seen.get(item[0], 9999), item[0])
+                        )
+                        pivot_hero = pivot_candidates[0][0]
+                        player_ban_pivot_counts[(pname, main_h)][pivot_hero]["count"] += 1
+                        if pivot_result == "Win":
+                            player_ban_pivot_counts[(pname, main_h)][pivot_hero]["wins"] += 1
+                        elif pivot_result == "Loss":
+                            player_ban_pivot_counts[(pname, main_h)][pivot_hero]["losses"] += 1
 
     player_pivot_rows: list[dict] = []
     for pname, mains in player_main_heroes.items():
