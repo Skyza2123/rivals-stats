@@ -34,6 +34,23 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
 
 
+def static_asset_url(filename: str) -> str:
+    """Return a static asset URL with mtime-based cache busting."""
+    version = "1"
+    try:
+        asset_path = Path(app.static_folder) / filename
+        if asset_path.exists():
+            version = str(int(asset_path.stat().st_mtime))
+    except OSError:
+        pass
+    return url_for("static", filename=filename, v=version)
+
+
+@app.context_processor
+def inject_static_asset_url() -> dict:
+    return {"static_asset_url": static_asset_url}
+
+
 @app.route("/favicon.ico")
 def favicon_ico():
     return app.send_static_file("favicon.png")

@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Scrim Dashboard{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.png', v='20260428') }}" sizes="any">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png', v='20260428') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png', v='20260428') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.png', v='20260428') }}">
+    <link rel="icon" href="{{ static_asset_url('favicon.png') }}" sizes="any">
+    <link rel="icon" type="image/png" href="{{ static_asset_url('favicon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ static_asset_url('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ static_asset_url('favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
     function getThemeCssVar(name, fallback) {
