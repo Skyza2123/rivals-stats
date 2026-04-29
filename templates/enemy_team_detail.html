@@ -470,13 +470,14 @@
                     const endpointUrl = '{{ url_for("enemy_draft_predict", enemy_team_id=enemy_team.id) }}';
 
                     const groups = [
-                        ['t1_ban1', 't2_ban1'],
-                        ['t2_protect1'],
-                        ['t1_ban2', 't1_protect1'],
-                        ['t1_ban3', 't2_ban2'],
-                        ['t1_protect2'],
-                        ['t2_ban3', 't2_ban4', 't2_protect2'],
-                        ['t1_ban4'],
+                        ['t1_ban1', 't2_ban1'],     // P1
+                        ['t2_protect1'],            // P2
+                        ['t1_ban2', 't1_protect1'], // P3
+                        ['t2_ban2'],                // P4
+                        ['t1_ban3', 't2_ban3'],     // P5
+                        ['t1_protect2'],            // P6
+                        ['t2_ban4', 't2_protect2'], // P7
+                        ['t1_ban4'],                // P8
                     ];
 
                     let activeField = null;

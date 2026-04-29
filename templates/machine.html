@@ -3377,6 +3377,41 @@ function openHeroIconHtml(hero) {
 
         drSuggest.b.comp = (bestEnemyComp && bestEnemyComp.comp) ? bestEnemyComp.comp : [];
 
+        // Fallback: no clean enemy comp survived ban filtering — adapt top-ranked enemy comp
+        if (!bestEnemyComp && enemyCompRows.length > 0) {
+            // Score all rows the same way but ignoring the legality check, pick the top
+            let topEnemyRow = null;
+            let topEnemyScore = -Infinity;
+            enemyCompRows.forEach(function(compRow) {
+                const sc = (Number(compRow.comp_strength || 0) * 0.40)
+                    + (Number(compRow.ml_comp_score || 0) * 0.30)
+                    + (Number(compRow.rate || 0) * 0.30)
+                    + Math.min(80, Number(compRow.count || 0) * 8);
+                if (sc > topEnemyScore) { topEnemyScore = sc; topEnemyRow = compRow; }
+            });
+            const topEnemyHeroes = ((topEnemyRow && topEnemyRow.heroes) || []).filter(Boolean);
+            const bannedKeySetB = new Set(Array.from(hardBannedHeroes).map(drHeroPoolHeroKey));
+            const ourProtKeySet = heroKeySet(ourLockedProtects);
+            const enemyPoolCandidates = uniqueHeroes(
+                (mB.comfort_core_rows || []).map(function(r) { return r.hero; })
+                    .concat((mB.hero_pool_rows || []).map(function(r) { return r.hero; }))
+            ).filter(function(h) {
+                return h && !bannedKeySetB.has(drHeroPoolHeroKey(h)) && !ourProtKeySet.has(drHeroPoolHeroKey(h));
+            });
+            const adaptedEnemy = topEnemyHeroes.filter(function(h) { return !bannedKeySetB.has(drHeroPoolHeroKey(h)); });
+            const adaptedEnemyKeySet = heroKeySet(adaptedEnemy);
+            for (let ci = 0; ci < enemyPoolCandidates.length && adaptedEnemy.length < 6; ci++) {
+                const sub = enemyPoolCandidates[ci];
+                if (!adaptedEnemyKeySet.has(drHeroPoolHeroKey(sub))) {
+                    adaptedEnemy.push(sub);
+                    adaptedEnemyKeySet.add(drHeroPoolHeroKey(sub));
+                }
+            }
+            if (adaptedEnemy.length > 0) {
+                drSuggest.b.comp = adaptedEnemy.slice(0, 6);
+            }
+        }
+
         if (bestEnemyLine) {
             const enemyCompSet = heroKeySet(drSuggest.b.comp || []);
             const ourProtectSet = heroKeySet(drSuggest.a.protects || []);
