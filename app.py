@@ -6784,9 +6784,11 @@ def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[di
 
     hero_weighted_apps = defaultdict(float)
     hero_weighted_wins = defaultdict(float)
+    hero_raw_apps = defaultdict(int)
     hero_weighted_players = defaultdict(set)
     hero_player_weighted_apps = defaultdict(lambda: defaultdict(float))
     hero_player_weighted_wins = defaultdict(lambda: defaultdict(float))
+    hero_player_raw_apps = defaultdict(lambda: defaultdict(int))
     hero_trend_points = defaultdict(list)
     hero_pool_weighted_total_maps = 0.0
     hero_pool_weighted_total_wins = 0.0
@@ -6836,6 +6838,7 @@ def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[di
                         continue
                     if hero_name not in map_seen_heroes:
                         hero_weighted_apps[hero_name] += map_weight
+                        hero_raw_apps[hero_name] += 1
                         if outcome == "Win":
                             hero_weighted_wins[hero_name] += map_weight
                         map_seen_heroes.add(hero_name)
@@ -6844,6 +6847,7 @@ def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[di
                         hero_player_key = (hero_name, player_name)
                         if hero_player_key not in map_seen_hero_players:
                             hero_player_weighted_apps[hero_name][player_name] += map_weight
+                            hero_player_raw_apps[hero_name][player_name] += 1
                             if outcome == "Win":
                                 hero_player_weighted_wins[hero_name][player_name] += map_weight
                             map_seen_hero_players.add(hero_player_key)
@@ -6890,12 +6894,14 @@ def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[di
             player_rows.append(
                 {
                     "player": player_name,
+                    "maps": int(hero_player_raw_apps.get(hero_name, {}).get(player_name, 0) or 0),
                     "appearances": round(player_apps, 2),
                     "win_rate": round(player_wr * 100, 1),
                 }
             )
         hero_lookup[hero_name] = {
             "hero": hero_name,
+            "maps": int(hero_raw_apps.get(hero_name, 0) or 0),
             "appearances": round(appearances, 2),
             "comfort_rate": round(comfort * 100, 1),
             "raw_win_rate": round(raw_wr * 100, 1),
@@ -6941,23 +6947,26 @@ def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[di
             if apps <= 0:
                 continue
             wins = float(hero_player_weighted_wins.get(hero_name, {}).get(player_name, 0.0) or 0.0)
+            raw_maps = int(hero_player_raw_apps.get(hero_name, {}).get(player_name, 0) or 0)
             hero_rows.append(
                 {
                     "hero": hero_name,
+                    "maps": raw_maps,
                     "appearances": round(apps, 2),
                     "usage_rate": round((apps / total_apps) * 100, 1) if total_apps else 0.0,
                     "win_rate": round((wins / apps) * 100, 1) if apps else 0.0,
                 }
             )
-        hero_rows.sort(key=lambda row: (row["appearances"], row["usage_rate"], row["hero"].lower()), reverse=True)
+        hero_rows.sort(key=lambda row: (row["maps"], row["appearances"], row["usage_rate"], row["hero"].lower()), reverse=True)
         player_hero_breakdown[player_name] = hero_rows
 
     player_hero_rows = [
         {
             "player": player_name,
+            "maps": int(sum(row.get("maps", 0) for row in player_hero_breakdown.get(player_name, []))),
             "appearances": round(total_apps, 2),
             "overall_win_rate": round((player_hero_wins.get(player_name, 0.0) / total_apps) * 100, 1) if total_apps else 0.0,
-            "top_heroes": player_hero_breakdown.get(player_name, [])[:8],
+            "top_heroes": player_hero_breakdown.get(player_name, []),
         }
         for player_name, total_apps in sorted(
             player_hero_apps.items(),
@@ -14187,10 +14196,52 @@ def api_draft_reasoner_model():
         team_b_hero_pool_scrims=b_hero_pool_scrims,
     )
     teams_payload = matchup.get("teams", [])
+
+    def _build_player_hero_rows(roster: list[dict], hero_pool_scrims: list[dict]) -> list[dict]:
+        rows = []
+        for player in roster:
+            player_name = (player.get("name") or "").strip()
+            if not player_name:
+                continue
+            bd = build_player_hero_map_breakdown(
+                player_name,
+                hero_pool_scrims,
+                team_slots=TEAM_SLOTS,
+                canonical_draft_hero=_canonical_draft_hero,
+                get_map_outcome_for_slot=get_map_outcome_for_slot,
+                map_modes=MAP_MODES,
+                get_map_image_url=get_map_image_url,
+            )
+            hero_rows = bd.get("hero_rows", [])
+            total_maps = round(sum(h.get("maps", 0) for h in hero_rows), 2)
+            top_heroes = [
+                {
+                    "hero": h["hero"],
+                    "maps": h["maps"],
+                    "appearances": h["maps"],
+                    "usage_rate": round((h["maps"] / total_maps) * 100, 1) if total_maps else 0.0,
+                    "win_rate": h.get("win_rate", 0),
+                }
+                for h in hero_rows
+            ]
+            rows.append({
+                "player": player_name,
+                "maps": total_maps,
+                "appearances": total_maps,
+                "overall_win_rate": 0.0,
+                "top_heroes": top_heroes,
+            })
+        rows.sort(key=lambda r: (r["maps"], r["player"].lower()), reverse=True)
+        return rows
+
     if len(teams_payload) >= 1:
-        teams_payload[0]["roster_players"] = _get_team_roster(team_a_id)
+        roster_a = _get_team_roster(team_a_id)
+        teams_payload[0]["roster_players"] = roster_a
+        teams_payload[0].setdefault("model", {})["player_hero_rows"] = _build_player_hero_rows(roster_a, a_hero_pool_scrims)
     if len(teams_payload) >= 2:
-        teams_payload[1]["roster_players"] = _get_team_roster(team_b_id)
+        roster_b = _get_team_roster(team_b_id)
+        teams_payload[1]["roster_players"] = roster_b
+        teams_payload[1].setdefault("model", {})["player_hero_rows"] = _build_player_hero_rows(roster_b, b_hero_pool_scrims)
     return jsonify(matchup)
 
 

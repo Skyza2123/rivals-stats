@@ -5,8 +5,8 @@
 {% block content %}
 <style>
 /* ── Machine page shared ─────────────────────────────────────── */
-.dashboard-layout { max-width:min(2040px, 99vw); }
-.main-content { padding-left:clamp(18px, 2.6vw, 40px); padding-right:clamp(18px, 2.6vw, 40px); }
+.dashboard-layout { max-width:none; width:100%; }
+.main-content { padding-left:clamp(10px, 1.2vw, 22px); padding-right:clamp(10px, 1.2vw, 22px); }
 .machine-tab-bar { display:flex; gap:0; border-bottom:2px solid rgba(148,163,184,0.12); margin-bottom:1.5rem; }
 .machine-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:0.6rem 1.4rem; font-size:0.95rem; font-weight:600; color:#94a3b8; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
 .machine-tab.active { color:#e2e8f0; border-bottom-color:#60a5fa; }
@@ -43,6 +43,7 @@
 .matchup-line-meta { display:flex; flex-wrap:wrap; gap:0.45rem; margin:0.3rem 0; }
 .matchup-badge { display:inline-block; font-size:0.76rem; padding:0.15rem 0.5rem; border-radius:999px; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); color:#bfdbfe; }
 .matchup-badge-warn { background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.25); color:#fef08a; }
+.matchup-badge-good { background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.24); color:#bbf7d0; }
 .matchup-badge-muted { background:rgba(100,116,139,0.15); border-color:rgba(100,116,139,0.25); color:#94a3b8; }
 .matchup-vs { font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; color:rgba(191,219,254,0.72); margin:0.4rem 0; }
 .matchup-section-head { display:flex; justify-content:space-between; gap:1rem; }
@@ -143,6 +144,17 @@
 .dr-guide-step.good { border-left-color:#4ade80; }
 .dr-guide-step.warn { border-left-color:#fbbf24; }
 .dr-guide-step.bad { border-left-color:#f87171; }
+.dr-notes-section { margin-bottom:1.1rem; }
+.dr-notes-heading {
+    font-size:0.68rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.07em;
+    color:#64748b;
+    padding:0.3rem 0 0.35rem;
+    border-bottom:1px solid rgba(148,163,184,0.12);
+    margin-bottom:0.5rem;
+}
 .dr-guide-label {
     font-size:0.72rem;
     color:#94a3b8;
@@ -258,8 +270,119 @@
 .dr-ban-target-comp { background:rgba(2,6,23,0.35); border:1px solid rgba(148,163,184,0.12); border-radius:0.45rem; padding:0.45rem 0.55rem; }
 .dr-ban-target-comp-title { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.3rem; font-size:0.76rem; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
 .dr-ban-target-more { color:#64748b; font-size:0.74rem; font-style:italic; }
+.dr-hero-pools-split { display:grid; grid-template-columns:1fr; gap:1rem; }
+.dr-hero-pool-side { background:rgba(2,6,23,0.26); border:1px solid rgba(148,163,184,0.14); border-radius:0.7rem; padding:1.05rem 1.2rem; }
+.dr-hero-pool-side-title { font-size:0.8rem; color:#94a3b8; font-weight:900; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 0.5rem; }
+.dr-hero-pool-team { display:flex; flex-direction:column; gap:0.7rem; margin-top:0.3rem; }
+.dr-hero-pool-team-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:0.7rem; }
+.dr-hero-pool-team-title { font-size:0.82rem; color:#94a3b8; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; }
+.dr-hero-pool-player { background:rgba(15,23,42,0.42); border:1px solid rgba(148,163,184,0.14); border-radius:0.6rem; padding:0.9rem 1.05rem; }
+.dr-hero-pool-player-head { display:flex; justify-content:space-between; gap:0.7rem; align-items:center; margin-bottom:0.55rem; }
+.dr-hero-pool-player-name { color:#e2e8f0; font-weight:800; font-size:0.95rem; }
+.dr-hero-pool-player-role { color:#94a3b8; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; }
+.dr-hero-pool-list { display:flex; flex-direction:column; gap:0.45rem; }
+.dr-hero-pool-row { display:flex; align-items:center; justify-content:space-between; gap:0.55rem; flex-wrap:wrap; }
+.dr-hero-pool-row .hero-chip { margin:0; }
+.dr-hero-pool-meta { display:flex; gap:0.3rem; flex-wrap:wrap; justify-content:flex-end; }
+.dr-pool-hero-grid { display:flex; flex-wrap:wrap; gap:0.52rem; margin:0.3rem 0 0.45rem; }
+.dr-pool-hero-chip {
+    position:relative;
+    display:inline-flex;
+    flex-direction:column;
+    align-items:center;
+    gap:0.14rem;
+    padding:0.42rem 0.28rem 0.32rem;
+    background:rgba(15,23,42,0.44);
+    border:1px solid rgba(148,163,184,0.16);
+    border-radius:0.55rem;
+    cursor:default;
+    transition:opacity 0.15s, filter 0.15s;
+    min-width:64px;
+    max-width:72px;
+}
+.dr-pool-hero-chip:hover { border-color:rgba(148,163,184,0.38); background:rgba(30,41,59,0.62); }
+.dr-pool-hero-chip.dr-pool-hero-unavailable { opacity:0.32; filter:grayscale(0.9); }
+.dr-pool-hero-chip img { width:44px; height:44px; border-radius:0.36rem; object-fit:cover; border:1px solid rgba(148,163,184,0.22); }
+.dr-pool-hero-chip.dr-tier-splus img { border-color:#f97316; box-shadow:0 0 0 1px rgba(249,115,22,0.35); }
+.dr-pool-hero-chip.dr-tier-s img { border-color:#fbbf24; box-shadow:0 0 0 1px rgba(251,191,36,0.3); }
+.dr-pool-hero-chip.dr-tier-a img { border-color:#22c55e; box-shadow:0 0 0 1px rgba(34,197,94,0.28); }
+.dr-pool-hero-chip.dr-tier-b img { border-color:#38bdf8; box-shadow:0 0 0 1px rgba(56,189,248,0.28); }
+.dr-pool-hero-chip.dr-tier-c img { border-color:#a78bfa; box-shadow:0 0 0 1px rgba(167,139,250,0.25); }
+.dr-pool-hero-chip.dr-tier-d img { border-color:#f87171; box-shadow:0 0 0 1px rgba(248,113,113,0.28); }
+.dr-pool-hero-chip-name { font-size:0.62rem; color:#94a3b8; text-align:center; white-space:nowrap; max-width:66px; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+.dr-pool-hero-chip-tier { font-size:0.62rem; font-weight:800; color:#fbbf24; line-height:1; }
+.dr-pool-hero-chip[data-tip]:hover::after {
+    content:attr(data-tip);
+    position:absolute;
+    bottom:calc(100% + 7px);
+    left:50%;
+    transform:translateX(-50%);
+    white-space:pre;
+    background:rgba(15,23,42,0.97);
+    color:#e2e8f0;
+    border:1px solid rgba(148,163,184,0.22);
+    border-radius:0.45rem;
+    padding:0.45rem 0.65rem;
+    font-size:0.7rem;
+    line-height:1.55;
+    z-index:200;
+    pointer-events:none;
+    min-width:120px;
+    text-align:left;
+}
+.dr-pool-hero-chip[data-tip]:hover::before {
+    content:'';
+    position:absolute;
+    bottom:calc(100% + 2px);
+    left:50%;
+    transform:translateX(-50%);
+    border:5px solid transparent;
+    border-top-color:rgba(148,163,184,0.22);
+    z-index:200;
+    pointer-events:none;
+}
+.dr-pool-tier-group { margin:0.2rem 0 0.55rem; }
+.dr-pool-tier-label {
+    font-size:0.7rem;
+    font-weight:800;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:#94a3b8;
+    margin:0 0 0.28rem;
+}
 .dr-hero-row { display:flex; flex-wrap:wrap; gap:0.3rem; margin:0.25rem 0; }
 .dr-open-hero-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin:0.25rem 0; }
+.dr-open-hero-card {
+    display:flex;
+    align-items:center;
+    gap:0.55rem;
+    min-width:180px;
+    max-width:100%;
+    background:rgba(15,23,42,0.44);
+    border:1px solid rgba(148,163,184,0.16);
+    border-radius:0.55rem;
+    padding:0.45rem 0.55rem;
+}
+.dr-open-hero-card.dr-open-hero-ban-reason { border-color:rgba(248,113,113,0.26); background:rgba(127,29,29,0.12); }
+.dr-open-hero-card.dr-open-hero-unavailable { opacity:0.42; filter:grayscale(0.7); }
+.dr-open-hero-player-label {
+    width:100%;
+    font-size:0.68rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.07em;
+    color:#64748b;
+    padding:0.45rem 0 0.2rem;
+    border-bottom:1px solid rgba(148,163,184,0.12);
+    margin-bottom:0.1rem;
+}
+@media (max-width: 980px) {
+    .dr-hero-pools-split { grid-template-columns:1fr; }
+    .dr-hero-pool-team-grid { grid-template-columns:1fr; }
+}
+.dr-open-hero-body { min-width:0; display:flex; flex-direction:column; gap:0.25rem; }
+.dr-open-hero-name { color:#e2e8f0; font-weight:800; font-size:0.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dr-open-hero-tags { display:flex; flex-wrap:wrap; gap:0.25rem; }
 .dr-open-hero-icon {
     width:54px;
     height:54px;
@@ -270,7 +393,7 @@
     box-shadow:0 6px 14px rgba(2,6,23,0.35);
 }
 .dr-model-status { font-size:0.82rem; color:#94a3b8; margin-top:0.5rem; }
-.dr-workspace { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,0.85fr); gap:1rem; align-items:start; margin-bottom:1rem; }
+.dr-workspace { display:grid; grid-template-columns:minmax(0,1.22fr) minmax(360px,0.98fr); gap:1.1rem; align-items:start; margin-bottom:1rem; }
 .dr-overview-strip { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:0.75rem; }
 .dr-overview-card { background:rgba(15,23,42,0.42); border:1px solid rgba(148,163,184,0.12); border-radius:0.55rem; padding:0.7rem 0.8rem; min-height:94px; }
 .dr-overview-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; margin-bottom:0.35rem; font-weight:700; }
@@ -279,7 +402,8 @@
 .dr-overview-empty { color:#94a3b8; font-size:0.82rem; font-style:italic; }
 .dr-main-column,
 .dr-side-column { display:flex; flex-direction:column; gap:1rem; min-width:0; }
-.dr-side-panel { position:sticky; top:0.9rem; max-height:78vh; overflow:auto; }
+.dr-side-panel { position:sticky; top:0.9rem; max-height:78vh; overflow:auto; padding:1rem 1.1rem; }
+.dr-side-panel.hero-pools-panel { position:static; max-height:none; overflow:visible; }
 .dr-picker-header { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap; }
 .dr-picker-hint { font-size:0.82rem; color:#94a3b8; }
 @media (max-width:1300px) { .dr-overview-strip { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
@@ -389,6 +513,13 @@
                 <option value="">All Maps</option>
                 {% for map_name in maps %}<option value="{{ map_name }}">{{ map_name }}</option>{% endfor %}
             </select>
+        </div>
+        <div class="field">
+            <label for="dr-use-pool-weights">Pool Weights</label>
+            <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;align-self:start">
+                <input type="checkbox" id="dr-use-pool-weights" checked>
+                Use tiers
+            </label>
         </div>
     </div>
     <div class="button-row top-gap">
@@ -540,7 +671,7 @@
         <div class="dr-side-tabs" id="dr-side-tabs">
             <button type="button" class="dr-side-tab active" data-view="assistant">Draft Assistant</button>
             <button type="button" class="dr-side-tab" data-view="reasoning">Draft Notes</button>
-            <button type="button" class="dr-side-tab" data-view="open-heroes">Open Heroes</button>
+            <button type="button" class="dr-side-tab" data-view="hero-pools">Hero Pools</button>
             <button type="button" class="dr-side-tab" data-view="open-ban-targets">Open Ban Targets</button>
         </div>
 
@@ -586,11 +717,11 @@
         </section>
         </div>
 
-        <div id="dr-side-open-heroes-view" style="display:none">
-        <section class="panel dr-side-panel">
-            <h3>Open Heroes</h3>
-            <div class="dr-suggest-meta" id="dr-open-heroes-meta">Build a plan to see what is still open.</div>
-            <div id="dr-open-heroes-list">
+        <div id="dr-side-hero-pools-view" style="display:none">
+        <section class="panel dr-side-panel hero-pools-panel">
+            <h3>Hero Pools</h3>
+            <div class="dr-suggest-meta" id="dr-hero-pools-meta">Build a plan to see player hero pools.</div>
+            <div id="dr-hero-pools-list">
                 <p class="matchup-empty">No matchup loaded yet.</p>
             </div>
         </section>
@@ -914,14 +1045,88 @@ function openHeroIconHtml(hero) {
     let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
     const drDraft = {a:{}, b:{}};
     let drSuggest = {a:{bans:[],protects:[],ml:{},banPath:[]}, b:{bans:[],protects:[],ml:{},banPath:[]}};
+    const drTeamNames = {a: '', b: ''};
     const drHeroPlayerHints = {a: new Map(), b: new Map()};
     const drPlayerHeroHints = {a: new Map(), b: new Map()};
-    const DR_HERO_POOL_RATINGS = {
-        // Optional future override:
-        // a: { playernamekey: { "Hero Name": 80 } },
-        // b: { playernamekey: { "Hero Name": 80 } },
-        // playernamekey: { "Hero Name": 80 },
-        // "Hero Name": 80,
+    const DR_HERO_POOL_TIER_MULTIPLIERS = {
+        'S+': 2,
+        S: 1.5,
+        A: 1.25,
+        B: 1,
+        C: 0.5,
+        D: 0.25,
+    };
+    const DR_HERO_POOL_TEAM_ALIASES = {
+        '100t': '100thieves',
+        '100thieves': '100thieves',
+        'teamliquidcitadel': 'teamliquidcitadel',
+        'teamliquid': 'teamliquidcitadel',
+        liquid: 'teamliquidcitadel',
+        sentinels: 'sentinels',
+        sen: 'sentinels',
+        nrgshock: 'nrgshock',
+        nrg: 'nrgshock',
+        };
+    const DR_HERO_POOL_HERO_ALIASES = {
+        deadpools: 'supportpool',
+        deadpoolsupport: 'supportpool',
+        supportpool: 'supportpool',
+        deadpoolt: 'tankpool',
+        deadpooltank: 'tankpool',
+        deadpoolvanguard: 'tankpool',
+        tankpool: 'tankpool',
+        jeffthelandshark: 'jefftls',
+        jefftls: 'jefftls',
+        landshark: 'jefftls',
+        starlord: 'starlord',
+        star: 'starlord',
+        thething: 'thing',
+        thing: 'thing',
+        cloakanddagger: 'cloakdagger',
+        cloakdagger: 'cloakdagger',
+        rocketracoon: 'rocketraccoon',
+        rocketraccoon: 'rocketraccoon',
+        drstrange: 'doctorstrange',
+        doctorstrange: 'doctorstrange',
+    };
+    const DR_HERO_POOL_PLAYER_ALIASES = {
+        shpeed: 'speedily',
+        shpeediry: 'speedily',
+        speedily: 'speedily',
+    };
+        const DR_HERO_POOL_TIERS = {
+            '100thieves': {
+            Vinnie: {'Groot': 'S+', 'The Thing': 'B', 'Venom': 'B', 'Captain America': 'B', 'Deadpool (T)': 'C', 'Rogue': 'D'},
+            TTK: {'Angela': 'S+', 'Emma Frost': 'S+', 'Magneto': 'B', 'Dr. Strange': 'B', 'The Thing': 'C', 'Deadpool (T)': 'D'},
+            Delena: {'Hela': 'S+', 'Elsa Bloodstone': 'S', 'Phoenix': 'A', 'Namor': 'A', 'Psylocke': 'B', 'Winter Soldier': 'C', 'Star Lord': 'D', 'Adam Warlock': 'B', 'Ultron': 'B'},
+            Self: {'Black Panther': 'S+', 'Human Torch': 'A', 'Daredevil': 'S', 'Phoenix': 'B', 'Wolverine': 'D', 'Star Lord': 'D', 'Ultron': 'C'},
+            Malenia: {'Jeff the Land Shark': 'S', 'Invisible Woman': 'A', 'Luna Snow': 'B', 'Cloak & Dagger': 'B', 'Gambit': 'C'},
+            Wyni: {'Deadpool (S)': 'S', 'Jeff the Land Shark': 'A', 'Invisible Woman': 'B', 'White Fox': 'B', 'Loki': 'D'},
+        },
+        'teamliquidcitadel': {
+            SparkChief: {'The Thing': 'S+', 'Captain America': 'S', 'Venom': 'A', 'Groot': 'B', 'Hulk': 'B', 'Angela': 'B'},
+            Polly: {'Captain America': 'S+', 'Emma Frost': 'A', 'Deadpool (T)': 'B', 'Magneto': 'B', 'Groot': 'B'},
+            energy: {'Winter Soldier': 'S+', 'Star Lord': 'S+', 'Wolverine': 'S', 'Elsa Bloodstone': 'S', 'Moon Knight': 'S', 'Phoenix': 'A', 'Psylocke': 'A', 'Hela': 'A', 'Human Torch': 'B', 'Mantis': 'S'},
+            Speedily: {'Human Torch': 'S+', 'Storm': 'S+', 'Ultron': 'S+', 'Psylocke': 'S', 'Daredevil': 'A', 'Mantis': 'B', 'Wolverine': 'D', 'Star Lord': 'D'},
+            cooper: {'Loki': 'S+', 'Gambit': 'S+', 'Luna Snow': 'S', 'Mantis': 'S', 'Deadpool (S)': 'S', 'Invisible Woman': 'A', 'Cloak & Dagger': 'A', 'Jeff the Land Shark': 'B', 'Rocket Raccoon': 'D'},
+            nero: {'Jeff the Land Shark': 'S+', 'Invisible Woman': 'S', 'White Fox': 'S', 'Cloak & Dagger': 'A', 'Luna Snow': 'A', 'Gambit': 'C'},
+        },
+        sentinels: {
+            Crimzo: {'Captain America': 'S', 'Groot': 'A', 'Angela': 'B', 'Deadpool (T)': 'B', 'The Thing': 'C'},
+            Dongmin: {'Peni Parker': 'S', 'Dr. Strange': 'A', 'Magneto': 'B', 'Emma Frost': 'C', 'Venom': 'D'},
+            eusher: {'Phoenix': 'A', 'Hela': 'A', 'Elsa Bloodstone': 'B', 'Psylocke': 'B', 'Namor': 'B', 'Winter Soldier': 'C'},
+            Rymazing: {'Iron Man': 'S+', 'Mantis': 'S', 'Daredevil': 'S', 'Ultron': 'A', 'Storm': 'A', 'Magik': 'A', 'Human Torch': 'C', 'Hela': 'C', 'Phoenix': 'C'},
+            Flamay: {'Loki': 'S', 'Luna Snow': 'A', 'Cloak & Dagger': 'A', 'Jeff the Land Shark': 'A', 'Rocket Raccoon': 'A', 'Invisible Woman': 'B', 'Gambit': 'C'},
+            Karova: {'Adam Warlock': 'S+', 'Jeff the Land Shark': 'A', 'Invisible Woman': 'B', 'Luna Snow': 'C', 'Cloak & Dagger': 'C', 'Gambit': 'D'},
+        },
+        nrgshock: {
+            Window: {'Deadpool (T)': 'A', 'Venom': 'B', 'Groot': 'B', 'Captain America': 'C', 'Magneto': 'C', 'Hulk': 'C'},
+            Madara: {'Dr. Strange': 'S', 'Rogue': 'S', 'Emma Frost': 'A', 'Magneto': 'B', 'Venom': 'D'},
+            chime: {'Phoenix': 'S', 'Elsa Bloodstone': 'A', 'Namor': 'A', 'Winter Soldier': 'B', 'Hela': 'C', 'Star Lord': 'C', 'Mantis': 'S+', 'Ultron': 'A', 'White Fox': 'B'},
+            stinkrs: {'Wolverine': 'S', 'Iron Fist': 'S', 'Hela': 'A', 'Namor': 'B', 'Psylocke': 'A', 'Daredevil': 'C', 'Ultron': 'B'},
+            renko: {'Jeff the Land Shark': 'B', 'Invisible Woman': 'B', 'Cloak & Dagger': 'B', 'Luna Snow': 'C', 'Gambit': 'D'},
+            Velocity: {'Loki': 'A', 'Luna Snow': 'B', 'Invisible Woman': 'B', 'Cloak & Dagger': 'B', 'Gambit': 'B'},
+        },
     };
     const DR_FORCE_MIN_HERO_APPEARANCES = 0;
     const DR_FORCE_MIN_SCORE_DROP = 20;
@@ -929,22 +1134,25 @@ function openHeroIconHtml(hero) {
     const DR_FORCE_PREFERRED_USAGE_RATE = 35;
     const DR_FORCE_PREFERRED_APPEARANCES = 2;
     const drRosterLookup = {
-        a: {rows: [], byNameKey: new Map()},
-        b: {rows: [], byNameKey: new Map()},
+        a: {rows: [], byNameKey: new Map(), byPoolKey: new Map()},
+        b: {rows: [], byNameKey: new Map(), byPoolKey: new Map()},
     };
     const drHeroRoleLookup = new Map();
 
     const analyzeBtn  = document.getElementById('dr-analyze-btn');
     const resetBtn    = document.getElementById('dr-reset-btn');
     const statusEl    = document.getElementById('dr-status');
+    const poolWeightsToggle = document.getElementById('dr-use-pool-weights');
     const workspaceSec= document.getElementById('dr-workspace');
     const pickerSec   = document.getElementById('dr-picker-section');
     const suggestBlock= document.getElementById('dr-suggest-block');
     const drSideTabs = Array.from(document.querySelectorAll('#dr-side-tabs .dr-side-tab'));
     const drSideAssistantView = document.getElementById('dr-side-assistant-view');
     const drSideReasoningView = document.getElementById('dr-side-reasoning-view');
-    const drSideOpenHeroesView = document.getElementById('dr-side-open-heroes-view');
+    const drSideHeroPoolsView = document.getElementById('dr-side-hero-pools-view');
     const drSideOpenBanTargetsView = document.getElementById('dr-side-open-ban-targets-view');
+    const drHeroPoolsMeta = document.getElementById('dr-hero-pools-meta');
+    const drHeroPoolsList = document.getElementById('dr-hero-pools-list');
     const drOpenHeroesMeta = document.getElementById('dr-open-heroes-meta');
     const drOpenHeroesList = document.getElementById('dr-open-heroes-list');
     const drOpenBanMeta = document.getElementById('dr-open-ban-meta');
@@ -988,7 +1196,7 @@ function openHeroIconHtml(hero) {
         const visibility = {
             assistant: drSideAssistantView,
             reasoning: drSideReasoningView,
-            'open-heroes': drSideOpenHeroesView,
+            'hero-pools': drSideHeroPoolsView,
             'open-ban-targets': drSideOpenBanTargetsView,
         };
         Object.keys(visibility).forEach(function(key) {
@@ -1018,6 +1226,72 @@ function openHeroIconHtml(hero) {
             .trim()
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '');
+    }
+
+    function drHeroPoolHeroKey(heroName) {
+        const rawKey = drPlayerNameKey(heroName);
+        return DR_HERO_POOL_HERO_ALIASES[rawKey] || rawKey;
+    }
+
+    function drHeroPoolPlayerKey(playerName) {
+        const rawKey = drPlayerNameKey(playerName);
+        return DR_HERO_POOL_PLAYER_ALIASES[rawKey] || rawKey;
+    }
+
+    function drNormalizeTeamPoolKey(name) {
+        const key = drPlayerNameKey(name);
+        return DR_HERO_POOL_TEAM_ALIASES[key] || key;
+    }
+
+    function drUseHeroPoolWeights() {
+        return !poolWeightsToggle || poolWeightsToggle.checked;
+    }
+
+    function drGetTeamPoolTiers(teamKey) {
+        const normalized = drNormalizeTeamPoolKey(drTeamNames[teamKey] || '');
+        if (DR_HERO_POOL_TIERS[normalized]) return DR_HERO_POOL_TIERS[normalized];
+
+        // Fallback: infer the correct hardcoded team by roster-name overlap.
+        // This catches cases where API team names drift from alias mapping.
+        const rosterRows = (drRosterLookup[teamKey] || {rows: []}).rows || [];
+        if (!rosterRows.length) return {};
+        const rosterKeys = new Set(rosterRows.map(function(row) { return drHeroPoolPlayerKey(row.name); }));
+        let bestTeamKey = '';
+        let bestScore = 0;
+        let secondBest = 0;
+
+        Object.keys(DR_HERO_POOL_TIERS || {}).forEach(function(candidateTeamKey) {
+            const candidatePlayers = Object.keys((DR_HERO_POOL_TIERS || {})[candidateTeamKey] || {});
+            let score = 0;
+            candidatePlayers.forEach(function(playerName) {
+                if (rosterKeys.has(drHeroPoolPlayerKey(playerName))) score += 1;
+            });
+            if (score > bestScore) {
+                secondBest = bestScore;
+                bestScore = score;
+                bestTeamKey = candidateTeamKey;
+            } else if (score > secondBest) {
+                secondBest = score;
+            }
+        });
+
+        // Only accept inferred team when confidence is reasonable.
+        const minHits = Math.max(2, Math.floor((rosterRows.length || 0) * 0.34));
+        const confident = bestScore >= minHits && (bestScore - secondBest) >= 1;
+        return confident ? (DR_HERO_POOL_TIERS[bestTeamKey] || {}) : {};
+    }
+
+    function drGetActiveTeamPoolTiers(teamKey) {
+        const teamTiers = drGetTeamPoolTiers(teamKey);
+        const activeTiers = {};
+        Object.keys(teamTiers).forEach(function(playerName) {
+            if (drIsPlayerOnDraftTeam(teamKey, playerName)) {
+                activeTiers[playerName] = teamTiers[playerName];
+            }
+        });
+        // If roster-name matching fails (alias drift, missing roster payload, etc.),
+        // keep machine tiers available so ranked heroes don't collapse into "Unranked".
+        return Object.keys(activeTiers).length ? activeTiers : teamTiers;
     }
 
     function drNormalizeRoleName(roleName) {
@@ -1063,7 +1337,19 @@ function openHeroIconHtml(hero) {
         drRosterLookup[teamKey] = {
             rows: normalizedRows,
             byNameKey: new Map(normalizedRows.map(function(row) { return [drPlayerNameKey(row.name), row]; })),
+            byPoolKey: new Map(normalizedRows.map(function(row) { return [drHeroPoolPlayerKey(row.name), row]; })),
         };
+    }
+
+    function drIsPlayerOnDraftTeam(teamKey, playerName) {
+        const roster = drRosterLookup[teamKey] || {rows: [], byPoolKey: new Map(), byNameKey: new Map()};
+        const poolKey = drHeroPoolPlayerKey(playerName);
+        const nameKey = drPlayerNameKey(playerName);
+        if ((roster.rows || []).length) {
+            return (roster.byPoolKey && roster.byPoolKey.has(poolKey))
+                || (roster.byNameKey && roster.byNameKey.has(nameKey));
+        }
+        return false;
     }
 
     function drBuildHeroHints(teamKey, teamPayload) {
@@ -1088,18 +1374,20 @@ function openHeroIconHtml(hero) {
         (model.player_hero_rows || []).forEach(function(playerRow) {
             const playerName = (playerRow.player || '').trim();
             if (!playerName) return;
-            const playerKey = drPlayerNameKey(playerName);
+            const playerKey = drHeroPoolPlayerKey(playerName);
             const heroMap = new Map();
             (playerRow.top_heroes || []).forEach(function(heroRow) {
                 const hero = (heroRow.hero || '').trim();
                 if (!hero) return;
                 heroMap.set(hero, {
+                    maps: Number(heroRow.maps || heroRow.appearances || 0),
                     appearances: Number(heroRow.appearances || 0),
                     usage_rate: Number(heroRow.usage_rate || 0),
                     win_rate: Number(heroRow.win_rate || 0),
                 });
             });
             playerHints.set(playerKey, {
+                maps: Number(playerRow.maps || playerRow.appearances || 0),
                 appearances: Number(playerRow.appearances || 0),
                 heroes: heroMap,
             });
@@ -1124,32 +1412,282 @@ function openHeroIconHtml(hero) {
     function drLookupRatingBucket(source, key) {
         if (!source || !key) return null;
         if (source[key]) return source[key];
-        const wantedKey = drPlayerNameKey(key);
+        const wantedKey = drHeroPoolPlayerKey(key);
         const matchedKey = Object.keys(source).find(function(candidateKey) {
-            return drPlayerNameKey(candidateKey) === wantedKey;
+            return drHeroPoolPlayerKey(candidateKey) === wantedKey;
         });
         return matchedKey ? source[matchedKey] : null;
     }
 
-    function drGetHeroPoolRating(teamKey, playerName, heroName) {
-        const playerKey = drPlayerNameKey(playerName);
-        const hero = (heroName || '').trim();
-        if (!hero) return 0;
+    function drLookupPlayerTiersWithFallback(teamKey, playerName) {
+        const teamTiers = drGetActiveTeamPoolTiers(teamKey);
+        const direct = drLookupRatingBucket(teamTiers, playerName);
+        if (direct) return direct;
+        return {};
+    }
 
-        const teamRatings = DR_HERO_POOL_RATINGS[teamKey] || {};
-        const directTeamPlayer = drLookupRatingBucket(teamRatings, playerName) || drLookupRatingBucket(teamRatings, playerKey) || {};
-        const globalPlayer = drLookupRatingBucket(DR_HERO_POOL_RATINGS, playerName) || drLookupRatingBucket(DR_HERO_POOL_RATINGS, playerKey) || {};
-        const values = [
-            directTeamPlayer[hero],
-            globalPlayer[hero],
-            teamRatings[hero],
-            DR_HERO_POOL_RATINGS[hero],
-        ];
-        for (let i = 0; i < values.length; i += 1) {
-            const rating = Number(values[i]);
-            if (Number.isFinite(rating)) return Math.max(0, Math.min(100, rating));
+    function drGetHeroPoolInfo(teamKey, playerName, heroName) {
+        const hero = (heroName || '').trim();
+        const playerTiers = drLookupPlayerTiersWithFallback(teamKey, playerName) || {};
+        const heroKey = drHeroPoolHeroKey(hero);
+        const matchedHero = Object.keys(playerTiers).find(function(candidateHero) {
+            return drHeroPoolHeroKey(candidateHero) === heroKey;
+        });
+        const rawTier = (matchedHero ? playerTiers[matchedHero] : playerTiers[hero]) || '';
+        const normalizedTier = String(rawTier || '').toUpperCase().replace(/\s+/g, '');
+        const tier = ['S+','S','A','B','C','D'].indexOf(normalizedTier) >= 0 ? normalizedTier : '';
+        const rawMultiplier = DR_HERO_POOL_TIER_MULTIPLIERS[tier] || 1;
+        const multiplier = drUseHeroPoolWeights() ? rawMultiplier : 1;
+        return {
+            tier: tier,
+            multiplier: multiplier,
+            raw_multiplier: rawMultiplier,
+            rating: (multiplier - 1) * 220,
+        };
+    }
+
+    function drGetHeroPoolRating(teamKey, playerName, heroName) {
+        return drGetHeroPoolInfo(teamKey, playerName, heroName).rating;
+    }
+
+    function drFindPlayerHint(teamKey, playerName) {
+        const playerHints = drPlayerHeroHints[teamKey] || new Map();
+        const poolKey = drHeroPoolPlayerKey(playerName);
+        const nameKey = drPlayerNameKey(playerName);
+        const direct = playerHints.get(poolKey) || playerHints.get(nameKey);
+        if (direct) return direct;
+
+        // Conservative fallback for handle drift; avoid broad fuzzy matching.
+        let bestHint = null;
+        let bestOverlap = 0;
+        playerHints.forEach(function(hint, key) {
+            const k = drHeroPoolPlayerKey(key);
+            if (!k) return;
+            const sameInitial = k.charAt(0) && (k.charAt(0) === poolKey.charAt(0) || k.charAt(0) === nameKey.charAt(0));
+            if (!sameInitial) return;
+            const includes = k.includes(poolKey) || poolKey.includes(k) || k.includes(nameKey) || nameKey.includes(k);
+            if (!includes) return;
+            const overlap = Math.min(k.length, Math.max(poolKey.length, nameKey.length));
+            if (overlap > bestOverlap) {
+                bestOverlap = overlap;
+                bestHint = hint;
+            }
+        });
+        return bestOverlap >= 5 ? bestHint : null;
+    }
+
+    function drGetPlayerHeroSeasonStats(teamKey, playerName, heroName) {
+        const hint = drFindPlayerHint(teamKey, playerName);
+        const heroKey = drHeroPoolHeroKey(heroName);
+        let stats = null;
+        let matchedHero = (heroName || '').trim();
+        if (hint && hint.heroes) {
+            hint.heroes.forEach(function(heroStats, candidateHero) {
+                if (stats) return;
+                if (drHeroPoolHeroKey(candidateHero) === heroKey) {
+                    stats = heroStats || {};
+                    matchedHero = candidateHero;
+                }
+            });
         }
+        return {
+            hero: matchedHero,
+            maps: Number((stats || {}).maps || 0),
+            appearances: Number((stats || {}).appearances || 0),
+            usage_rate: Number((stats || {}).usage_rate || 0),
+            win_rate: Number((stats || {}).win_rate || 0),
+        };
+    }
+
+    function drGetHeroTopPlayerBySeason(teamKey, heroName) {
+        // Returns the display name of the player with the most season maps on this hero.
+        // Used as a grouping key when no pool tier is set (raw_multiplier stays at 1).
+        const playerHints = drPlayerHeroHints[teamKey] || new Map();
+        const heroKey = drHeroPoolHeroKey(heroName);
+        let bestPlayer = '';
+        let bestMaps = 0;
+        playerHints.forEach(function(hint, playerPoolKey) {
+            if (!hint || !hint.heroes) return;
+            hint.heroes.forEach(function(heroStats, candidateHero) {
+                if (drHeroPoolHeroKey(candidateHero) !== heroKey) return;
+                const maps = Number((heroStats || {}).maps || 0);
+                if (maps > bestMaps) {
+                    bestMaps = maps;
+                    bestPlayer = playerPoolKey;
+                }
+            });
+        });
+        return bestPlayer;
+    }
+
+    function drGetTeamHeroPoolInfo(teamKey, heroName, options) {
+        const requireSeasonPlay = Boolean(options && options.requireSeasonPlay);
+        const teamTiers = drGetActiveTeamPoolTiers(teamKey);
+        let best = {tier: '', multiplier: 1, raw_multiplier: 1, rating: 0, player: ''};
+        Object.keys(teamTiers).forEach(function(playerName) {
+            const info = drGetHeroPoolInfo(teamKey, playerName, heroName);
+            const seasonStats = drGetPlayerHeroSeasonStats(teamKey, playerName, heroName);
+            const hasSeasonPlay = seasonStats.maps > 0;
+            if (requireSeasonPlay && !hasSeasonPlay) return;
+            if (info.raw_multiplier > best.raw_multiplier) {
+                best = {
+                    tier: info.tier,
+                    multiplier: info.multiplier,
+                    raw_multiplier: info.raw_multiplier,
+                    rating: info.rating,
+                    player: playerName,
+                    maps: seasonStats.maps,
+                    appearances: seasonStats.appearances,
+                    usage_rate: seasonStats.usage_rate,
+                    win_rate: seasonStats.win_rate,
+                };
+            }
+        });
+        return best;
+    }
+
+    function drTierPriority(tier) {
+        const t = String(tier || '').toUpperCase().replace(/\s+/g, '');
+        if (t === 'S+') return 4;
+        if (t === 'S') return 3;
+        if (t === 'A') return 2;
+        if (t === 'B') return 1;
+        if (t === 'C') return -1;
+        if (t === 'D') return -2;
         return 0;
+    }
+
+    function drGetTeamPoolThreatRows(teamKey, options) {
+        const minPriority = Number((options || {}).minPriority || 0);
+        const requireSeasonPlay = Boolean(options && options.requireSeasonPlay);
+        const excludedHeroes = (options && options.excludedHeroes) || new Set();
+        const excludedHeroKeys = new Set(Array.from(excludedHeroes).map(function(hero) { return drHeroPoolHeroKey(hero); }));
+        const teamTiers = drGetActiveTeamPoolTiers(teamKey);
+        const byHero = new Map();
+        Object.keys(teamTiers).forEach(function(playerName) {
+            const playerTiers = teamTiers[playerName] || {};
+            Object.keys(playerTiers).forEach(function(heroName) {
+                const hero = (heroName || '').trim();
+                const tier = playerTiers[heroName] || '';
+                if (!hero || drTierPriority(tier) < minPriority || excludedHeroKeys.has(drHeroPoolHeroKey(hero))) return;
+                const info = drGetHeroPoolInfo(teamKey, playerName, hero);
+                const seasonStats = drGetPlayerHeroSeasonStats(teamKey, playerName, hero);
+                const hasSeasonPlay = seasonStats.maps > 0;
+                if (requireSeasonPlay && !hasSeasonPlay) return;
+                const existing = byHero.get(hero);
+                const row = {
+                    hero: seasonStats.hero || hero,
+                    tier: info.tier,
+                    multiplier: info.multiplier,
+                    raw_multiplier: info.raw_multiplier,
+                    rating: info.rating,
+                    player: playerName,
+                    maps: seasonStats.maps,
+                    appearances: seasonStats.appearances,
+                    usage_rate: seasonStats.usage_rate,
+                    win_rate: seasonStats.win_rate,
+                };
+                if (!existing
+                    || drTierPriority(row.tier) > drTierPriority(existing.tier)
+                    || (drTierPriority(row.tier) === drTierPriority(existing.tier) && row.maps > existing.maps)) {
+                    byHero.set(hero, row);
+                }
+            });
+        });
+        return Array.from(byHero.values()).sort(function(a, b) {
+            return (drTierPriority(b.tier) - drTierPriority(a.tier))
+                || (Number(b.maps || 0) - Number(a.maps || 0))
+                || (Number(b.win_rate || 0) - Number(a.win_rate || 0))
+                || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+        });
+    }
+
+    function drFormatPoolMultiplier(value) {
+        return Number(value || 1).toFixed(2).replace(/\.00$/, '').replace(/0$/, '');
+    }
+
+    function drSetHasHero(heroSet, heroName) {
+        const heroKey = drHeroPoolHeroKey(heroName);
+        return Array.from(heroSet || []).some(function(hero) {
+            return drHeroPoolHeroKey(hero) === heroKey;
+        });
+    }
+
+    function drPoolPresenceRank(enemyPool, ourPool) {
+        const enemyOpen = Boolean(enemyPool && enemyPool.open);
+        const ourOpen = Boolean(ourPool && ourPool.open);
+        if (enemyOpen && ourOpen) return 0;
+        if (enemyOpen) return 1;
+        if (ourOpen) return 2;
+        return 3;
+    }
+
+    function drSortOpenHeroRows(rows) {
+        // Sort by player first so all of a player's open heroes are grouped together.
+        // Order: available heroes before greyed-out (unavailable) ones; within each
+        // group, enemy-pool player alphabetically (no-player heroes last), then our
+        // pool player, then tier priority desc, then maps desc, then hero name.
+        return (rows || []).sort(function(a, b) {
+            // Unavailable (banned/protected) sink to the bottom
+            const aUnavail = a.unavailable ? 1 : 0;
+            const bUnavail = b.unavailable ? 1 : 0;
+            if (aUnavail !== bUnavail) return aUnavail - bUnavail;
+
+            // Primary: enemy pool player (alphabetical; no player → last)
+            const aEP = String((a.enemyPool || {}).player || '').toLowerCase();
+            const bEP = String((b.enemyPool || {}).player || '').toLowerCase();
+            const aEPKey = aEP || '\uFFFF';
+            const bEPKey = bEP || '\uFFFF';
+            const epCmp = aEPKey.localeCompare(bEPKey);
+            if (epCmp !== 0) return epCmp;
+
+            // Secondary: enemy tier priority (higher tier → first within same player)
+            const tierCmp = drTierPriority((b.enemyPool || {}).tier || '') - drTierPriority((a.enemyPool || {}).tier || '');
+            if (tierCmp !== 0) return tierCmp;
+
+            // Tertiary: enemy maps (more maps → first)
+            const mapsCmp = Number((b.enemyPool || {}).maps || 0) - Number((a.enemyPool || {}).maps || 0);
+            if (mapsCmp !== 0) return mapsCmp;
+
+            // Quaternary: our pool player alphabetical (no player → last)
+            const aOP = String((a.ourPool || {}).player || '').toLowerCase();
+            const bOP = String((b.ourPool || {}).player || '').toLowerCase();
+            const aOPKey = aOP || '\uFFFF';
+            const bOPKey = bOP || '\uFFFF';
+            const opCmp = aOPKey.localeCompare(bOPKey);
+            if (opCmp !== 0) return opCmp;
+
+            // Our tier / maps
+            const ourTierCmp = drTierPriority((b.ourPool || {}).tier || '') - drTierPriority((a.ourPool || {}).tier || '');
+            if (ourTierCmp !== 0) return ourTierCmp;
+            const ourMapsCmp = Number((b.ourPool || {}).maps || 0) - Number((a.ourPool || {}).maps || 0);
+            if (ourMapsCmp !== 0) return ourMapsCmp;
+
+            return String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+        });
+    }
+
+    function drSortBanTargetRows(rows) {
+        return (rows || []).sort(function(a, b) {
+            const aPlayer = String(a.pool_player || 'zzzzzz').toLowerCase();
+            const bPlayer = String(b.pool_player || 'zzzzzz').toLowerCase();
+            return aPlayer.localeCompare(bPlayer)
+                || (drTierPriority(b.pool_tier || '') - drTierPriority(a.pool_tier || ''))
+                || (Number(b.pool_maps || 0) - Number(a.pool_maps || 0))
+                || (Number(b.strongHeroScore || 0) - Number(a.strongHeroScore || 0))
+                || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+        });
+    }
+
+    function drFindVolatileHeroRow(heroName, matchupRows, teamRows) {
+        const heroKey = drHeroPoolHeroKey(heroName);
+        const matchupRow = (matchupRows || []).find(function(row) {
+            return drHeroPoolHeroKey(row.hero || '') === heroKey;
+        });
+        if (matchupRow) return matchupRow;
+        return (teamRows || []).find(function(row) {
+            return drHeroPoolHeroKey(row.hero || '') === heroKey;
+        }) || null;
     }
 
     function drGetHeroPlayerSuggestion(teamKey, heroName) {
@@ -1186,6 +1724,250 @@ function openHeroIconHtml(hero) {
         return first || cleaned;
     }
 
+    function drBuildPlayerPoolRows(teamKey) {
+        const rosterRows = (drRosterLookup[teamKey] || {rows: []}).rows || [];
+        const playerHints = drPlayerHeroHints[teamKey] || new Map();
+        const hardcodedTiers = drGetActiveTeamPoolTiers(teamKey);
+        const rows = [];
+        const seen = new Set();
+        function tierRank(tier) {
+            const t = String(tier || '').toUpperCase().replace(/\s+/g, '');
+            if (t === 'S+') return 4;
+            if (t === 'S') return 3;
+            if (t === 'A') return 2;
+            if (t === 'B') return 1;
+            if (t === 'C') return -1;
+            if (t === 'D') return -2;
+            return -3;
+        }
+        function sortHeroRows(a, b) {
+            return (tierRank(b.pool_tier || '') - tierRank(a.pool_tier || ''))
+                || (Number(b.pool_rating || 0) - Number(a.pool_rating || 0))
+                || (Number(b.maps || b.appearances || 0) - Number(a.maps || a.appearances || 0))
+                || (Number(b.win_rate || 0) - Number(a.win_rate || 0))
+                || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+        }
+
+        rosterRows.forEach(function(playerRow) {
+            const playerKey = drHeroPoolPlayerKey(playerRow.name);
+            seen.add(playerKey);
+            const hint = drFindPlayerHint(teamKey, playerRow.name);
+            const hardcodedPlayerTiers = drLookupPlayerTiersWithFallback(teamKey, playerRow.name) || {};
+            const heroRows = hint
+                ? Array.from(hint.heroes.entries()).map(function(item) {
+                    const hero = item[0];
+                    const stats = item[1] || {};
+                    const poolInfo = drGetHeroPoolInfo(teamKey, playerRow.name, hero);
+                    return {
+                        hero: hero,
+                        maps: Number(stats.maps || 0),
+                        appearances: Number(stats.appearances || 0),
+                        usage_rate: Number(stats.usage_rate || 0),
+                        win_rate: Number(stats.win_rate || 0),
+                        pool_tier: poolInfo.tier,
+                        pool_multiplier: poolInfo.multiplier,
+                        pool_rating: poolInfo.rating,
+                    };
+                })
+                : [];
+            Object.keys(hardcodedPlayerTiers).forEach(function(hero) {
+                const heroKey = drHeroPoolHeroKey(hero);
+                if (heroRows.find(function(row) { return drHeroPoolHeroKey(row.hero) === heroKey; })) return;
+                const poolInfo = drGetHeroPoolInfo(teamKey, playerRow.name, hero);
+                const seasonStats = drGetPlayerHeroSeasonStats(teamKey, playerRow.name, hero);
+                heroRows.push({
+                    hero: hero,
+                    maps: seasonStats.maps,
+                    appearances: seasonStats.appearances,
+                    usage_rate: seasonStats.usage_rate,
+                    win_rate: seasonStats.win_rate,
+                    pool_tier: poolInfo.tier,
+                    pool_multiplier: poolInfo.multiplier,
+                    pool_rating: poolInfo.rating,
+                });
+            });
+            if (playerRow.main_hero && !heroRows.find(function(row) { return row.hero === playerRow.main_hero; })) {
+                const poolInfo = drGetHeroPoolInfo(teamKey, playerRow.name, playerRow.main_hero);
+                heroRows.push({
+                    hero: playerRow.main_hero,
+                    maps: 0,
+                    appearances: 0,
+                    usage_rate: 0,
+                    win_rate: 0,
+                    pool_tier: poolInfo.tier,
+                    pool_multiplier: poolInfo.multiplier,
+                    pool_rating: poolInfo.rating,
+                });
+            }
+            heroRows.sort(sortHeroRows);
+            rows.push({
+                player: playerRow.name,
+                role: playerRow.role || '',
+                is_sub: Boolean(playerRow.is_sub),
+                playerMaps: Number(hint ? hint.maps : 0),
+                heroes: heroRows,
+            });
+        });
+
+        Object.keys(hardcodedTiers).forEach(function(playerName) {
+            const playerKey = drHeroPoolPlayerKey(playerName);
+            if (seen.has(playerKey)) return;
+            seen.add(playerKey);
+            const heroRows = Object.keys(hardcodedTiers[playerName] || {}).map(function(hero) {
+                const poolInfo = drGetHeroPoolInfo(teamKey, playerName, hero);
+                const seasonStats = drGetPlayerHeroSeasonStats(teamKey, playerName, hero);
+                return {
+                    hero: hero,
+                    maps: seasonStats.maps,
+                    appearances: seasonStats.appearances,
+                    usage_rate: seasonStats.usage_rate,
+                    win_rate: seasonStats.win_rate,
+                    pool_tier: poolInfo.tier,
+                    pool_multiplier: poolInfo.multiplier,
+                    pool_rating: poolInfo.rating,
+                };
+            }).sort(sortHeroRows);
+            rows.push({
+                player: playerName,
+                role: '',
+                is_sub: false,
+                playerMaps: 0,
+                heroes: heroRows,
+            });
+        });
+
+        if (playerHints.size) {
+            playerHints.forEach(function(hint, playerKey) {
+                if (seen.has(playerKey)) return;
+                if (!drIsPlayerOnDraftTeam(teamKey, playerKey)) return;
+                const heroRows = Array.from((hint.heroes || new Map()).entries()).map(function(item) {
+                    const hero = item[0];
+                    const stats = item[1] || {};
+                    const poolInfo = drGetHeroPoolInfo(teamKey, playerKey, hero);
+                    return {
+                        hero: hero,
+                        maps: Number(stats.maps || 0),
+                        appearances: Number(stats.appearances || 0),
+                        usage_rate: Number(stats.usage_rate || 0),
+                        win_rate: Number(stats.win_rate || 0),
+                        pool_tier: poolInfo.tier,
+                        pool_multiplier: poolInfo.multiplier,
+                        pool_rating: poolInfo.rating,
+                    };
+                }).sort(sortHeroRows);
+                rows.push({
+                    player: playerKey,
+                    role: '',
+                    is_sub: false,
+                    playerMaps: Number(hint.maps || 0),
+                    heroes: heroRows,
+                });
+            });
+        }
+
+        return rows;
+    }
+
+    function drRenderHeroPools(nameA, nameB) {
+        if (!drHeroPoolsMeta || !drHeroPoolsList) return;
+        if (!drModel) {
+            drHeroPoolsMeta.textContent = 'Build a plan to see player hero pools.';
+            drHeroPoolsList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
+            return;
+        }
+
+        // Compute current ban state from draft slots
+        const _bansA = ['ban1','ban2','ban3','ban4'].map(k => (drDraft.a||{})[k]).filter(Boolean);
+        const _bansB = ['ban1','ban2','ban3','ban4'].map(k => (drDraft.b||{})[k]).filter(Boolean);
+        const _bansAgainstA = new Set(_bansB);
+        const _bansAgainstB = new Set(_bansA);
+
+        function renderTeam(teamKey, teamName, sectionLabel) {
+            const rows = drBuildPlayerPoolRows(teamKey);
+            if (!rows.length) {
+                return '<div class="dr-hero-pool-side">'
+                    + '<div class="dr-hero-pool-side-title">' + escapeHtml(sectionLabel) + '</div>'
+                    + '<div class="dr-hero-pool-team">'
+                    + '<div class="dr-hero-pool-team-title">' + escapeHtml(teamName) + '</div>'
+                    + '<p class="matchup-empty">No player pool data yet.</p>'
+                    + '</div>'
+                    + '</div>';
+            }
+            return '<div class="dr-hero-pool-side">'
+                + '<div class="dr-hero-pool-side-title">' + escapeHtml(sectionLabel) + '</div>'
+                + '<div class="dr-hero-pool-team">'
+                + '<div class="dr-hero-pool-team-title">' + escapeHtml(teamName) + '</div>'
+                + '<div class="dr-hero-pool-team-grid">'
+                + rows.map(function(row) {
+                    function normalizeTier(tier) {
+                        const t = String(tier || '').toUpperCase().replace(/\s+/g, '');
+                        return (t === 'S+' || t === 'S' || t === 'A' || t === 'B' || t === 'C' || t === 'D') ? t : '';
+                    }
+                    function tierRank(tier) {
+                        const t = normalizeTier(tier);
+                        if (t === 'S+') return 6;
+                        if (t === 'S') return 5;
+                        if (t === 'A') return 4;
+                        if (t === 'B') return 3;
+                        if (t === 'C') return 2;
+                        if (t === 'D') return 1;
+                        return 0;
+                    }
+                    const playerName = row.player + (row.is_sub ? ' (sub)' : '');
+                    const _teamBannedSet = teamKey === 'a' ? _bansAgainstA : _bansAgainstB;
+                    const hasExplicitTiers = (row.heroes || []).some(function(h) { return !!h.pool_tier; });
+                    const playerTotalMaps = Number(row.playerMaps || 0);
+                    if (playerTotalMaps < 10 && !hasExplicitTiers) return '';
+                    const sortedHeroes = (row.heroes || []).filter(function(heroRow) {
+                        return !!heroRow.pool_tier || Number(heroRow.maps || heroRow.appearances || 0) >= 1;
+                    }).slice().sort(function(a, b) {
+                        return (tierRank(b.pool_tier) - tierRank(a.pool_tier))
+                            || (Number(b.pool_rating || 0) - Number(a.pool_rating || 0))
+                            || (Number(b.maps || b.appearances || 0) - Number(a.maps || a.appearances || 0))
+                            || (Number(b.win_rate || 0) - Number(a.win_rate || 0))
+                            || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+                    });
+                    const heroHtml = sortedHeroes.map(function(heroRow) {
+                        const unavailable = _teamBannedSet.has(heroRow.hero);
+                        const tipLines = [];
+                        const tierKey = normalizeTier(heroRow.pool_tier);
+                        const tierClass = tierKey ? (' dr-tier-' + tierKey.toLowerCase().replace('+', 'plus')) : '';
+                        tipLines.push(heroRow.hero);
+                        if (heroRow.pool_tier) tipLines.push('Pool: ' + heroRow.pool_tier + ' x' + drFormatPoolMultiplier(heroRow.pool_multiplier || 1));
+                        if (heroRow.maps || heroRow.appearances) tipLines.push('Maps: ' + Number(heroRow.maps || heroRow.appearances || 0).toFixed(0));
+                        if (heroRow.win_rate) tipLines.push('Win rate: ' + Number(heroRow.win_rate || 0).toFixed(1) + '%');
+                        if (heroRow.usage_rate) tipLines.push('Pick rate: ' + Number(heroRow.usage_rate || 0).toFixed(1) + '%');
+                        if (unavailable) tipLines.push('\u2014 BANNED BY OPPOSITE SIDE \u2014');
+                        const tip = tipLines.join('\n');
+                        return '<div class="dr-pool-hero-chip' + tierClass + (unavailable ? ' dr-pool-hero-unavailable' : '') + '"'
+                            + ' data-tip="' + escapeHtml(tip) + '">'
+                            + '<img src="' + heroThumbUrl(heroRow.hero) + '" alt="' + escapeHtml(heroRow.hero) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+                            + '<span class="dr-pool-hero-chip-name">' + escapeHtml(heroRow.hero) + '</span>'
+                            + (heroRow.pool_tier ? '<span class="dr-pool-hero-chip-tier">' + escapeHtml(heroRow.pool_tier) + '</span>' : '')
+                            + '</div>';
+                    }).join('');
+                    return '<div class="dr-hero-pool-player">'
+                        + '<div class="dr-hero-pool-player-head">'
+                        + '<span class="dr-hero-pool-player-name">' + escapeHtml(playerName) + '</span>'
+                        + (row.role ? '<span class="dr-hero-pool-player-role">' + escapeHtml(row.role) + '</span>' : '')
+                        + '</div>'
+                        + '<div class="dr-hero-pool-list"><div class="dr-pool-hero-grid">' + (heroHtml || '<p class="matchup-empty">No hero data recorded for this player yet.</p>') + '</div></div>'
+                        + '</div>';
+                }).join('')
+                + '</div>'
+                + '</div>'
+                + '</div>';
+        }
+
+        drHeroPoolsMeta.textContent = (_bansA.length + _bansB.length)
+                    ? 'Showing heroes for players with 10+ total maps. Grayed heroes are banned by the opposite side. Hover for stats.'
+                    : 'Showing heroes for players with 10+ total maps. Hover a hero for stats.';
+        drHeroPoolsList.innerHTML = '<div class="dr-hero-pools-split">'
+            + renderTeam('a', nameA, 'Our Team')
+            + renderTeam('b', nameB, 'Enemy Team')
+            + '</div>';
+    }
+
     function drRefreshSlotSubLabels() {
         document.querySelectorAll('.draft-slot[data-team]').forEach(function(sl) {
             const team = sl.dataset.team;
@@ -1209,8 +1991,8 @@ function openHeroIconHtml(hero) {
         function heroPlayerScore(hero, playerRow) {
             const hint = hints.get(hero);
             const topList = hint ? (hint.top || []).map(function(n) { return (n || '').trim(); }).filter(Boolean) : [];
-            const topRank = new Map(topList.map(function(n, i) { return [drPlayerNameKey(n), i]; }));
-            const playerKey = drPlayerNameKey(playerRow.name);
+            const topRank = new Map(topList.map(function(n, i) { return [drHeroPoolPlayerKey(n), i]; }));
+            const playerKey = drHeroPoolPlayerKey(playerRow.name);
             const playerHint = (drPlayerHeroHints[teamKey] || new Map()).get(playerKey);
             const playerHeroStats = playerHint ? playerHint.heroes.get(hero) : null;
 
@@ -1348,9 +2130,10 @@ function openHeroIconHtml(hero) {
         }).join('') + '</div>';
     }
 
-    function drBuildForceAnalysis(teamKey) {
+    function drBuildForceAnalysis(teamKey, unavailableHeroes) {
         const rosterByName = (drRosterLookup[teamKey] || {byNameKey: new Map()}).byNameKey || new Map();
         const playerHints = drPlayerHeroHints[teamKey] || new Map();
+        const unavailableHeroKeys = new Set(Array.from(unavailableHeroes || []).map(function(hero) { return drHeroPoolHeroKey(hero); }));
         if (!playerHints.size) return [];
         const hasRoster = rosterByName.size > 0;
 
@@ -1367,20 +2150,23 @@ function openHeroIconHtml(hero) {
                 if (appearances <= DR_FORCE_MIN_HERO_APPEARANCES) return;
                 const usageRate = Number(heroStats.usage_rate || 0);
                 const winRate = Number(heroStats.win_rate || 0);
-                const poolRating = drGetHeroPoolRating(teamKey, displayName, hero);
+                const poolInfo = drGetHeroPoolInfo(teamKey, displayName, hero);
+                const poolRating = poolInfo.rating;
                 let score = 50;
                 score += Math.min(40, usageRate * 0.8);
                 score += Math.min(30, appearances * 2.5);
                 score += (winRate - 50) * 0.18;
-                score += poolRating * 0.55;
                 if (playerRow && (playerRow.main_hero || '').trim() === hero) score += 18;
                 if (playerRow && playerRow.is_sub) score -= 10;
+                score *= poolInfo.multiplier;
                 playerHeroScores.get(playerKey).push({
                     hero: hero,
                     score: score,
                     appearances: appearances,
                     usage_rate: usageRate,
                     win_rate: winRate,
+                    pool_tier: poolInfo.tier,
+                    pool_multiplier: poolInfo.multiplier,
                     pool_rating: poolRating,
                 });
             });
@@ -1398,7 +2184,17 @@ function openHeroIconHtml(hero) {
             const displayName = playerRow ? playerRow.name : playerKey;
             heroList.forEach(function(entry) {
                 if (!heroPlayers.has(entry.hero)) heroPlayers.set(entry.hero, []);
-                heroPlayers.get(entry.hero).push({playerKey: playerKey, name: displayName, score: entry.score});
+                heroPlayers.get(entry.hero).push({
+                    playerKey: playerKey,
+                    name: displayName,
+                    score: entry.score,
+                    appearances: entry.appearances,
+                    usage_rate: entry.usage_rate,
+                    win_rate: entry.win_rate,
+                    pool_tier: entry.pool_tier,
+                    pool_multiplier: entry.pool_multiplier,
+                    pool_rating: entry.pool_rating,
+                });
             });
         });
 
@@ -1409,26 +2205,31 @@ function openHeroIconHtml(hero) {
             sorted.forEach(function(playerEntry) {
                 const playerList = playerHeroScores.get(playerEntry.playerKey) || [];
                 const heroRole = drGetReasonerPlayerRole(hero);
-                const altCandidates = playerList.filter(function(h) { return h.hero !== hero; });
+                const altCandidates = playerList.filter(function(h) {
+                    return drHeroPoolHeroKey(h.hero) !== drHeroPoolHeroKey(hero)
+                        && !unavailableHeroKeys.has(drHeroPoolHeroKey(h.hero));
+                });
                 altCandidates.sort(function(a, b) {
                     const aSameRole = heroRole && drGetReasonerPlayerRole(a.hero) === heroRole ? 1 : 0;
                     const bSameRole = heroRole && drGetReasonerPlayerRole(b.hero) === heroRole ? 1 : 0;
-                    return (Number(b.appearances || 0) - Number(a.appearances || 0))
-                        || (Number(b.usage_rate || 0) - Number(a.usage_rate || 0))
-                        || (bSameRole - aSameRole)
+                    return (bSameRole - aSameRole)
+                        || (Number(b.score || 0) - Number(a.score || 0))
+                        || (Number(b.pool_multiplier || 1) - Number(a.pool_multiplier || 1))
                         || (Number(b.win_rate || 0) - Number(a.win_rate || 0))
-                        || (Number(b.pool_rating || 0) - Number(a.pool_rating || 0))
-                        || (Number(b.score || 0) - Number(a.score || 0));
+                        || (Number(b.appearances || 0) - Number(a.appearances || 0))
+                        || (Number(b.usage_rate || 0) - Number(a.usage_rate || 0))
+                        || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
                 });
                 const altEntry = altCandidates[0];
                 if (!altEntry) return;
                 const scoreDrop = playerEntry.score - altEntry.score;
+                if (scoreDrop <= 0) return;
                 const altSameRole = Boolean(heroRole && drGetReasonerPlayerRole(altEntry.hero) === heroRole);
                 const isPreferredHero =
                     playerEntry.score >= DR_FORCE_PREFERRED_HERO_SCORE
                     || (Number(playerEntry.usage_rate || 0) >= DR_FORCE_PREFERRED_USAGE_RATE
                         && Number(playerEntry.appearances || 0) >= DR_FORCE_PREFERRED_APPEARANCES)
-                    || Number(playerEntry.pool_rating || 0) >= 80;
+                    || Number(playerEntry.pool_multiplier || 1) >= 1.5;
                 if (scoreDrop < DR_FORCE_MIN_SCORE_DROP && !isPreferredHero) return;
                 affectedPlayers.push({
                     player: playerEntry.name,
@@ -1436,6 +2237,8 @@ function openHeroIconHtml(hero) {
                     appearances: playerEntry.appearances,
                     usage_rate: playerEntry.usage_rate,
                     win_rate: playerEntry.win_rate,
+                    pool_tier: playerEntry.pool_tier,
+                    pool_multiplier: playerEntry.pool_multiplier,
                     pool_rating: playerEntry.pool_rating,
                     alt_hero: altEntry.hero,
                     alt_score: altEntry.score,
@@ -1469,7 +2272,7 @@ function openHeroIconHtml(hero) {
             return (b.affected_count - a.affected_count)
                 || (b.score_drop - a.score_drop)
                 || (b.shared_count - a.shared_count)
-                || (a.ban_hero > b.ban_hero ? 1 : -1);
+                || String(a.ban_hero || '').localeCompare(String(b.ban_hero || ''), undefined, {sensitivity:'base'});
         });
     }
 
@@ -1491,6 +2294,7 @@ function openHeroIconHtml(hero) {
                     + '<strong>' + escapeHtml(playerRow.player) + '</strong>'
                     + ' falls to ' + heroChipHtml(playerRow.alt_hero, '')
                     + ' <span class="matchup-badge">' + escapeHtml(reason) + '</span>'
+                    + (playerRow.pool_tier ? ' <span class="matchup-badge">Pool ' + escapeHtml(playerRow.pool_tier) + ' x' + escapeHtml(drFormatPoolMultiplier(playerRow.pool_multiplier || 1)) + '</span>' : '')
                     + (Number(playerRow.alt_win_rate || 0)
                         ? ' <span class="matchup-badge">Alt WR ' + escapeHtml(Number(playerRow.alt_win_rate || 0).toFixed(1)) + '%</span>'
                         : '')
@@ -1614,6 +2418,8 @@ function openHeroIconHtml(hero) {
             const teams = drModel.teams || [];
             const nameA = (teams[0]||{}).name || 'Our Team';
             const nameB = (teams[1]||{}).name || 'Enemy Team';
+            drTeamNames.a = nameA;
+            drTeamNames.b = nameB;
             document.getElementById('dr-col-a-label').textContent = nameA;
             document.getElementById('dr-col-b-label').textContent = nameB;
             drBuildHeroHints('a', teams[0] || {});
@@ -1640,7 +2446,8 @@ function openHeroIconHtml(hero) {
         }
     });
 
-    function drBuildEnemyBanTargetRows(enemyModel, enemyProtects, ourProtects, hardBannedSet) {
+    function drBuildEnemyBanTargetRows(enemyModel, enemyProtects, ourProtects, hardBannedSet, enemyTeamKey) {
+        enemyTeamKey = enemyTeamKey || 'b';
         const protectedByEnemy = new Set((enemyProtects || []).filter(Boolean));
         const protectedByUs = new Set((ourProtects || []).filter(Boolean));
         const bannedSet = hardBannedSet instanceof Set ? hardBannedSet : new Set((hardBannedSet || []).filter(Boolean));
@@ -1698,14 +2505,33 @@ function openHeroIconHtml(hero) {
 
         const contestedSet = new Set((((drModel || {}).contested_heroes) || []).map(function(row) { return row.hero; }).filter(Boolean));
 
+        drGetTeamPoolThreatRows(enemyTeamKey, {
+            minPriority: 2,
+            requireSeasonPlay: true,
+            excludedHeroes: new Set(Array.from(bannedSet).concat(Array.from(protectedByEnemy)).concat(Array.from(protectedByUs))),
+        }).forEach(function(poolRow) {
+            if (heroImpact.has(poolRow.hero)) return;
+            heroImpact.set(poolRow.hero, {
+                hero: poolRow.hero,
+                compsCrippled: 0,
+                blockedStrength: 0,
+                blockedRate: 0,
+                bestCompWinRate: 0,
+                affectedComps: [],
+                poolOnly: true,
+            });
+        });
+
         return Array.from(heroImpact.values()).map(function(entry) {
             const comfortRow = comfortLookup.get(entry.hero) || {comfort: 0, wr: 0};
+            const poolInfo = drGetTeamHeroPoolInfo(enemyTeamKey, entry.hero, {requireSeasonPlay: true});
             const openingBanScore =
                 (comfortRow.comfort * 0.95)
                 + (comfortRow.wr * 0.45)
                 + (entry.bestCompWinRate * 0.35)
                 + (entry.blockedStrength * 0.55)
                 + (entry.blockedRate * 0.35)
+                + (poolInfo.rating * 1.4)
                 + (contestedSet.has(entry.hero) ? 8 : 0);
             const strongHeroScore =
                 (entry.compsCrippled * 100)
@@ -1714,6 +2540,7 @@ function openHeroIconHtml(hero) {
                 + (comfortRow.comfort * 0.60)
                 + (comfortRow.wr * 0.25)
                 + (entry.bestCompWinRate * 0.20)
+                + (poolInfo.rating * 2.15)
                 + (contestedSet.has(entry.hero) ? 10 : 0);
             return {
                 hero: entry.hero,
@@ -1723,6 +2550,12 @@ function openHeroIconHtml(hero) {
                 comfort: comfortRow.comfort,
                 wr: comfortRow.wr,
                 bestCompWinRate: entry.bestCompWinRate,
+                pool_tier: poolInfo.tier,
+                pool_multiplier: poolInfo.multiplier,
+                pool_player: poolInfo.player,
+                pool_maps: poolInfo.maps || 0,
+                pool_appearances: poolInfo.appearances || 0,
+                pool_only: Boolean(entry.poolOnly),
                 affectedComps: entry.affectedComps.sort(function(a, b) {
                     return (b.compStrength - a.compStrength)
                         || (b.rate - a.rate)
@@ -1737,7 +2570,7 @@ function openHeroIconHtml(hero) {
                 || (b.compsCrippled - a.compsCrippled)
                 || (b.comfort - a.comfort)
                 || (b.blockedStrength - a.blockedStrength)
-                || (a.hero > b.hero ? 1 : -1);
+                || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
         });
     }
 
@@ -1787,6 +2620,13 @@ function openHeroIconHtml(hero) {
                 const unionStrength = unionList.reduce(function(total, comp) {
                     return total + Number(comp.compStrength || 0);
                 }, 0);
+                const leftPlayer = left.pool_player || '';
+                const rightPlayer = right.pool_player || '';
+                const enemyPlayers = Array.from(new Set([leftPlayer, rightPlayer].filter(Boolean))).sort(function(a, b) {
+                    return a.toLowerCase().localeCompare(b.toLowerCase());
+                });
+                const poolTierScore = drTierPriority(left.pool_tier || '') + drTierPriority(right.pool_tier || '');
+                const poolMaps = Number(left.pool_maps || 0) + Number(right.pool_maps || 0);
                 const score =
                     (sharedStrength * 2.0)
                     + (sharedRate * 1.25)
@@ -1795,10 +2635,15 @@ function openHeroIconHtml(hero) {
                     + (Number(right.comfort || 0) * 0.35)
                     + (Number(left.wr || 0) * 0.15)
                     + (Number(right.wr || 0) * 0.15)
+                    + (poolTierScore * 18)
+                    + Math.min(40, poolMaps * 3)
                     + ((left.contested || right.contested) ? 8 : 0);
 
                 duoRows.push({
                     heroes: [left.hero, right.hero],
+                    enemy_players: enemyPlayers,
+                    player_label: enemyPlayers.join(' / '),
+                    hero_pool_rows: [left, right].filter(function(row) { return row.pool_player || row.pool_tier; }),
                     sharedComps: sharedList,
                     unionComps: unionList.sort(function(a, b) {
                         return (Number(b.compStrength || 0) - Number(a.compStrength || 0))
@@ -1815,7 +2660,8 @@ function openHeroIconHtml(hero) {
         }
 
         return duoRows.sort(function(a, b) {
-            return (b.score - a.score)
+            return String(a.player_label || 'zzzzzz').toLowerCase().localeCompare(String(b.player_label || 'zzzzzz').toLowerCase())
+                || (b.score - a.score)
                 || (b.sharedCompCount - a.sharedCompCount)
                 || (b.sharedStrength - a.sharedStrength);
         });
@@ -2001,14 +2847,33 @@ function openHeroIconHtml(hero) {
 
             const contestedSet = new Set((drModel.contested_heroes || []).map(function(row) { return row.hero; }).filter(Boolean));
 
+            drGetTeamPoolThreatRows('b', {
+                minPriority: 2,
+                requireSeasonPlay: true,
+                excludedHeroes: new Set(Array.from(hardBannedSet).concat(Array.from(protectedByEnemy)).concat(Array.from(protectedByUs))),
+            }).forEach(function(poolRow) {
+                if (heroImpact.has(poolRow.hero)) return;
+                heroImpact.set(poolRow.hero, {
+                    hero: poolRow.hero,
+                    compsCrippled: 0,
+                    blockedStrength: 0,
+                    blockedRate: 0,
+                    bestCompWinRate: 0,
+                    affectedComps: [],
+                    poolOnly: true,
+                });
+            });
+
             return Array.from(heroImpact.values()).map(function(entry) {
                 const comfortRow = comfortLookup.get(entry.hero) || {comfort: 0, wr: 0};
+                const poolInfo = drGetTeamHeroPoolInfo('b', entry.hero, {requireSeasonPlay: true});
                 const openingBanScore =
                     (comfortRow.comfort * 0.95)
                     + (comfortRow.wr * 0.45)
                     + (entry.bestCompWinRate * 0.35)
                     + (entry.blockedStrength * 0.55)
                     + (entry.blockedRate * 0.35)
+                    + (poolInfo.rating * 1.4)
                     + (contestedSet.has(entry.hero) ? 8 : 0);
                 const strongHeroScore =
                     (entry.compsCrippled * 100)
@@ -2017,6 +2882,7 @@ function openHeroIconHtml(hero) {
                     + (comfortRow.comfort * 0.60)
                     + (comfortRow.wr * 0.25)
                     + (entry.bestCompWinRate * 0.20)
+                    + (poolInfo.rating * 2.15)
                     + (contestedSet.has(entry.hero) ? 10 : 0);
                 return {
                     hero: entry.hero,
@@ -2026,6 +2892,12 @@ function openHeroIconHtml(hero) {
                     comfort: comfortRow.comfort,
                     wr: comfortRow.wr,
                     bestCompWinRate: entry.bestCompWinRate,
+                    pool_tier: poolInfo.tier,
+                    pool_multiplier: poolInfo.multiplier,
+                    pool_player: poolInfo.player,
+                    pool_maps: poolInfo.maps || 0,
+                    pool_appearances: poolInfo.appearances || 0,
+                    pool_only: Boolean(entry.poolOnly),
                     affectedComps: entry.affectedComps.sort(function(a, b) {
                         return (b.compStrength - a.compStrength)
                             || (b.rate - a.rate)
@@ -2040,7 +2912,7 @@ function openHeroIconHtml(hero) {
                     || (b.compsCrippled - a.compsCrippled)
                     || (b.comfort - a.comfort)
                     || (b.blockedStrength - a.blockedStrength)
-                    || (a.hero > b.hero ? 1 : -1);
+                    || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
             });
         }
 
@@ -2321,7 +3193,7 @@ function openHeroIconHtml(hero) {
                 return (b.openingBanScore - a.openingBanScore)
                     || (b.comfort - a.comfort)
                     || (b.bestCompWinRate - a.bestCompWinRate)
-                    || (a.hero > b.hero ? 1 : -1);
+                    || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
             })[0];
 
             if (openingTarget && !used.has(openingTarget.hero)) {
@@ -2566,7 +3438,12 @@ function openHeroIconHtml(hero) {
         const enemyForceSec = document.getElementById('dr-suggest-enemy-force-section');
         const enemyForceTarget = document.getElementById('dr-suggest-enemy-force');
         if (enemyForceSec && enemyForceTarget) {
-            const forceRows = drBuildForceAnalysis('b');
+            const forceUnavailable = new Set(['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.a[k]; })
+                .concat(['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.b[k]; }))
+                .concat(['protect1','protect2'].map(function(k) { return drDraft.a[k]; }))
+                .concat(['protect1','protect2'].map(function(k) { return drDraft.b[k]; }))
+                .filter(Boolean));
+            const forceRows = drBuildForceAnalysis('b', forceUnavailable);
             if (forceRows.length && (drSuggest.b.comp.length || drSuggest.b.bans.length)) {
                 enemyForceSec.style.display = '';
                 drRenderForceAnalysis(enemyForceTarget, forceRows);
@@ -2764,6 +3641,12 @@ function openHeroIconHtml(hero) {
         drAutoFocusNextStep();
     });
 
+    if (poolWeightsToggle) {
+        poolWeightsToggle.addEventListener('change', function() {
+            drRender();
+        });
+    }
+
     // --- reasoning engine ---
     function drRender() {
         const stream = document.getElementById('dr-reason-stream');
@@ -2777,13 +3660,17 @@ function openHeroIconHtml(hero) {
             if (drOpenHeroesList) drOpenHeroesList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
             if (drOpenBanMeta) drOpenBanMeta.textContent = 'Build a plan to see useful ban targets.';
             if (drOpenBanTargetsList) drOpenBanTargetsList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
+            drRenderHeroPools('Our Team', 'Enemy Team');
             return;
         }
         const teams = drModel.teams || [];
         const nameA = (teams[0]||{}).name || 'Our Team';
         const nameB = (teams[1]||{}).name || 'Enemy Team';
+        drTeamNames.a = nameA;
+        drTeamNames.b = nameB;
         const mA = (teams[0]||{}).model || {};
         const mB = (teams[1]||{}).model || {};
+        drRenderHeroPools(nameA, nameB);
 
         // Re-run simulator recommendations whenever draft inputs change.
         if (drContext) {
@@ -2800,7 +3687,6 @@ function openHeroIconHtml(hero) {
             });
 
             const ourBanIndex = drGetTeamHeroes('a', 'ban').length;
-            if (ourBanIndex === 0) return;
 
             const activePhase = drGetActiveTurnPhase();
             const nextOurBanStep = activePhase.find(function(step) {
@@ -2876,38 +3762,164 @@ function openHeroIconHtml(hero) {
             : '<span class="dr-overview-empty">No high-conflict heroes left open.</span>';
 
         if (drOpenHeroesMeta && drOpenHeroesList) {
-            const openHeroSet = new Set();
+            const openHeroSet = new Map();
             const protectedSet = new Set(protectsA.concat(protectsB));
+            function addOpenHero(hero, side) {
+                if (!hero) return;
+                const key = drHeroPoolHeroKey(hero);
+                const existing = openHeroSet.get(key) || {hero: hero, enemyOpen: false, ourOpen: false};
+                existing.hero = existing.hero || hero;
+                if (side === 'enemy') existing.enemyOpen = true;
+                if (side === 'our') existing.ourOpen = true;
+                openHeroSet.set(key, existing);
+            }
             (mA.comfort_core_rows || []).concat(mA.hero_pool_rows || []).forEach(function(row) {
-                const hero = row.hero || '';
-                if (hero && !hardBanned.has(hero) && !protectedSet.has(hero)) openHeroSet.add(hero);
+                addOpenHero(row.hero || '', 'our');
             });
             (mB.comfort_core_rows || []).concat(mB.hero_pool_rows || []).forEach(function(row) {
-                const hero = row.hero || '';
-                if (hero && !hardBanned.has(hero) && !protectedSet.has(hero)) openHeroSet.add(hero);
+                addOpenHero(row.hero || '', 'enemy');
             });
-            const openHeroes = Array.from(openHeroSet)
-                .sort(function(a, b) { return a.localeCompare(b); })
-                .slice(0, 18);
+            drGetTeamPoolThreatRows('b', {
+                minPriority: 2,
+                requireSeasonPlay: true,
+            }).forEach(function(row) {
+                addOpenHero(row.hero, 'enemy');
+            });
+            drGetTeamPoolThreatRows('a', {
+                minPriority: 2,
+                requireSeasonPlay: true,
+            }).forEach(function(row) {
+                addOpenHero(row.hero, 'our');
+            });
+            const allHeroRows = drSortOpenHeroRows(Array.from(openHeroSet.values()).map(function(row) {
+                    const isBanned = hardBanned.has(row.hero);
+                    const isProtected = protectedSet.has(row.hero);
+                    const enemyPool = drGetTeamHeroPoolInfo('b', row.hero, {requireSeasonPlay: true});
+                    const ourPool = drGetTeamHeroPoolInfo('a', row.hero, {requireSeasonPlay: true});
+                    // Fall back to season-based player lookup when no pool tier is configured
+                    const enemyPlayerKey = enemyPool.player || drGetHeroTopPlayerBySeason('b', row.hero);
+                    const ourPlayerKey = ourPool.player || drGetHeroTopPlayerBySeason('a', row.hero);
+                    return {
+                        hero: row.hero,
+                        enemyOpen: row.enemyOpen,
+                        ourOpen: row.ourOpen,
+                        isBanned: isBanned,
+                        isProtected: isProtected,
+                        unavailable: isBanned || isProtected,
+                        enemyPool: Object.assign({}, enemyPool, {player: enemyPlayerKey}),
+                        ourPool: Object.assign({}, ourPool, {player: ourPlayerKey}),
+                        // Keep original player names for display badges
+                        enemyPoolDisplay: enemyPool,
+                        ourPoolDisplay: ourPool,
+                    };
+                }))
+                .slice(0, 24);
+            const openCount = allHeroRows.filter(function(r) { return !r.unavailable; }).length;
 
-            drOpenHeroesMeta.textContent = openHeroes.length
-                ? (openHeroes.length + ' heroes remain open after bans and protects.')
+            drOpenHeroesMeta.textContent = openCount
+                ? (openCount + ' heroes remain open after bans and protects. Grouped by player pool.')
                 : 'No heroes remain fully open.';
-            drOpenHeroesList.innerHTML = openHeroes.length
-                ? '<div class="dr-open-hero-grid">' + openHeroes.map(function(hero) { return openHeroIconHtml(hero); }).join('') + '</div>'
+            drOpenHeroesList.innerHTML = allHeroRows.length
+                ? (function() {
+                    var html = '<div class="dr-open-hero-grid">';
+                    var lastPlayerKey = undefined;
+                    allHeroRows.forEach(function(row) {
+                        var poolInfo = row.enemyPoolDisplay || row.enemyPool || {};
+                        var ourPoolInfo = row.ourPoolDisplay || row.ourPool || {};
+                        // Derive a stable group key: enemy player, then our player, then null
+                        var playerKey = (row.enemyPool || {}).player || ((row.ourPool || {}).player ? ('\x00our\x00' + (row.ourPool || {}).player) : null);
+                        if (playerKey !== lastPlayerKey) {
+                            lastPlayerKey = playerKey;
+                            var epPlayer = (row.enemyPool || {}).player || '';
+                            var opPlayer = (row.ourPool || {}).player || '';
+                            var label = epPlayer
+                                ? escapeHtml(epPlayer) + ' \u2014 enemy pool'
+                                : (opPlayer ? escapeHtml(opPlayer) + ' \u2014 our pool' : 'No pool data');
+                            html += '<div class="dr-open-hero-player-label">' + label + '</div>';
+                        }
+                        var hero = row.hero;
+                        var tags = [];
+                        if (row.unavailable) {
+                            if (row.isBanned) {
+                                tags.push('<span class="matchup-badge">Banned</span>');
+                            } else if (row.isProtected) {
+                                tags.push('<span class="matchup-badge matchup-badge-good">Protected</span>');
+                            }
+                        } else {
+                            if (row.enemyOpen && row.ourOpen) {
+                                tags.push('<span class="matchup-badge">Open for both</span>');
+                            } else if (row.enemyOpen) {
+                                tags.push('<span class="matchup-badge matchup-badge-warn">Open for enemy</span>');
+                            } else if (row.ourOpen) {
+                                tags.push('<span class="matchup-badge matchup-badge-good">Open for us</span>');
+                            }
+                            if (poolInfo.tier) {
+                                tags.push('<span class="matchup-badge matchup-badge-warn">Enemy: ' + escapeHtml(poolInfo.player || 'pool') + ' · ' + escapeHtml(poolInfo.tier) + ' x' + escapeHtml(drFormatPoolMultiplier(poolInfo.multiplier || 1)) + '</span>');
+                                if (poolInfo.maps) tags.push('<span class="matchup-badge">' + escapeHtml(Number(poolInfo.maps || 0).toFixed(0)) + ' maps</span>');
+                                if (poolInfo.win_rate) tags.push('<span class="matchup-badge">Enemy WR ' + escapeHtml(Number(poolInfo.win_rate || 0).toFixed(1)) + '%</span>');
+                            }
+                            if (ourPoolInfo.tier) {
+                                tags.push('<span class="matchup-badge matchup-badge-good">Us: ' + escapeHtml(ourPoolInfo.player || 'pool') + ' · ' + escapeHtml(ourPoolInfo.tier) + ' x' + escapeHtml(drFormatPoolMultiplier(ourPoolInfo.multiplier || 1)) + '</span>');
+                                if (ourPoolInfo.maps) tags.push('<span class="matchup-badge">' + escapeHtml(Number(ourPoolInfo.maps || 0).toFixed(0)) + ' maps</span>');
+                            }
+                            if (!row.enemyOpen && !row.ourOpen && !poolInfo.tier && !ourPoolInfo.tier) {
+                                tags.push('<span class="matchup-badge">Open</span>');
+                            }
+                        }
+                        var cardCls = 'dr-open-hero-card'
+                            + (!row.unavailable && poolInfo.tier ? ' dr-open-hero-ban-reason' : '')
+                            + (row.unavailable ? ' dr-open-hero-unavailable' : '');
+                        html += '<div class="' + cardCls + '">'
+                            + openHeroIconHtml(hero)
+                            + '<div class="dr-open-hero-body">'
+                            + '<div class="dr-open-hero-name">' + escapeHtml(hero) + '</div>'
+                            + '<div class="dr-open-hero-tags">' + tags.join('') + '</div>'
+                            + '</div>'
+                            + '</div>';
+                    });
+                    html += '</div>';
+                    return html;
+                })()
                 : '<p class="matchup-empty">All likely heroes are already banned or protected.</p>';
         }
 
         if (drOpenBanMeta && drOpenBanTargetsList) {
             const ourCompSet = new Set(drSuggest.a.comp || []);
-            const allTargetRows = drBuildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned)
-                .filter(function(row) {
-                    // Open Ban Targets should be bans we can take against the enemy
-                    // without sacrificing our current target comp.
-                    return !ourCompSet.has(row.hero);
+            const protectedSet = new Set(protectsA.concat(protectsB));
+            const allTargetRows = drBuildEnemyBanTargetRows(mB, protectsB, protectsA, hardBanned, 'b');
+            const existingTargetKeys = new Set(allTargetRows.map(function(row) { return drHeroPoolHeroKey(row.hero); }));
+            drGetTeamPoolThreatRows('b', {
+                minPriority: 2,
+                requireSeasonPlay: true,
+                excludedHeroes: new Set(Array.from(hardBanned).concat(Array.from(protectedSet))),
+            }).forEach(function(poolRow) {
+                const heroKey = drHeroPoolHeroKey(poolRow.hero);
+                if (existingTargetKeys.has(heroKey)) return;
+                existingTargetKeys.add(heroKey);
+                allTargetRows.push({
+                    hero: poolRow.hero,
+                    compsCrippled: 0,
+                    blockedStrength: 0,
+                    blockedRate: 0,
+                    comfort: 0,
+                    wr: poolRow.win_rate || 0,
+                    bestCompWinRate: 0,
+                    pool_tier: poolRow.tier,
+                    pool_multiplier: poolRow.multiplier,
+                    pool_player: poolRow.player,
+                    pool_maps: poolRow.maps,
+                    pool_only: true,
+                    affectedComps: [],
+                    contested: false,
+                    openingBanScore: 80 + (Number(poolRow.rating || 0) * 1.4) + (drTierPriority(poolRow.tier) * 18),
+                    strongHeroScore: 120 + (Number(poolRow.rating || 0) * 2.15) + (drTierPriority(poolRow.tier) * 28) + Math.min(60, Number(poolRow.maps || 0) * 8),
                 });
+            });
+            allTargetRows.forEach(function(row) {
+                row.in_our_comp = drSetHasHero(ourCompSet, row.hero);
+            });
             const duoRows = drBuildDuoBanTargetRows(allTargetRows).slice(0, 4);
-            const targetRows = allTargetRows.slice(0, 8);
+            const targetRows = drSortBanTargetRows(allTargetRows.slice());
 
             drOpenBanMeta.textContent = targetRows.length
                 ? (targetRows.length + ' useful ban targets for ' + nameA + '. Click one to see the comps it hurts.')
@@ -2932,6 +3944,14 @@ function openHeroIconHtml(hero) {
                         return '<details class="dr-reason-card dr-ban-target-card">'
                             + '<summary>'
                             + '<div class="dr-reason-title">' + row.heroes.map(function(hero) { return heroChipHtml(hero, 'ban'); }).join('') + '</div>'
+                            + (row.player_label ? '<div class="matchup-line-meta"><span class="matchup-badge matchup-badge-warn">Enemy player: ' + escapeHtml(row.player_label) + '</span></div>' : '')
+                            + ((row.hero_pool_rows || []).length ? '<div class="matchup-line-meta">' + row.hero_pool_rows.map(function(poolRow) {
+                                return '<span class="matchup-badge matchup-badge-warn">'
+                                    + escapeHtml(poolRow.hero) + ': ' + escapeHtml(poolRow.pool_player || 'pool')
+                                    + (poolRow.pool_tier ? ' · Pool ' + escapeHtml(poolRow.pool_tier) + ' x' + escapeHtml(drFormatPoolMultiplier(poolRow.pool_multiplier || 1)) : '')
+                                    + (poolRow.pool_maps ? ' · ' + escapeHtml(Number(poolRow.pool_maps || 0).toFixed(0)) + ' maps' : '')
+                                    + '</span>';
+                            }).join('') + '</div>' : '')
                             + '<div class="matchup-line-meta"><span class="matchup-badge">Breaks ' + escapeHtml(row.sharedCompCount) + ' shared comps</span><span class="matchup-badge">Total comps hit ' + escapeHtml(row.totalCompCount) + '</span><span class="matchup-badge">Strength ' + escapeHtml(row.sharedStrength.toFixed(1)) + '</span></div>'
                             + '<div class="matchup-line-meta"><span class="matchup-badge">Impact ' + escapeHtml(row.score.toFixed(1)) + '</span>' + (row.contested ? '<span class="matchup-badge matchup-badge-warn">Contested</span>' : '') + '</div>'
                             + '</summary>'
@@ -2944,7 +3964,11 @@ function openHeroIconHtml(hero) {
                 ? '<div class="dr-suggest-section-label">Single ban targets</div>'
                     + '<div class="dr-guide-details-grid">' + targetRows.map(function(row) {
                     const tags = [];
+                    if (row.pool_player) tags.push('<span class="matchup-badge matchup-badge-warn">Enemy player: ' + escapeHtml(row.pool_player) + '</span>');
                     if (row.contested) tags.push('<span class="matchup-badge matchup-badge-warn">Contested</span>');
+                    if (row.pool_only) tags.push('<span class="matchup-badge matchup-badge-warn">Pool threat</span>');
+                    if (row.in_our_comp) tags.push('<span class="matchup-badge matchup-badge-good">Also in our comp</span>');
+                    if (row.pool_tier) tags.push('<span class="matchup-badge matchup-badge-warn">Pool ' + escapeHtml(row.pool_tier) + ' x' + escapeHtml(drFormatPoolMultiplier(row.pool_multiplier || 1)) + (row.pool_player ? ' · ' + escapeHtml(row.pool_player) : '') + (row.pool_maps ? ' · ' + escapeHtml(Number(row.pool_maps || 0).toFixed(0)) + ' maps' : '') + '</span>');
                     const affectedComps = (row.affectedComps || []).slice(0, 4);
                     const hiddenCount = Math.max(0, (row.affectedComps || []).length - affectedComps.length);
                     const compHtml = affectedComps.length
@@ -2984,23 +4008,23 @@ function openHeroIconHtml(hero) {
             let body = '';
             if (slotType === 'ban') {
                 if (inCore) {
-                    body = '<strong>' + escapeHtml(hero) + '</strong> is one of <strong>' + escapeHtml(name) + '</strong>\'s comfort picks (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%). This ban hits their usual plan.';
+                    body = 'Removes <strong>' + escapeHtml(hero) + '</strong>, a core comfort pick for <strong>' + escapeHtml(name) + '</strong> — played ' + escapeHtml(inCore.comfort_rate) + '% of maps with ' + escapeHtml(inCore.adjusted_win_rate) + '% adj WR. Directly disrupts their preferred gameplan.';
                 } else if (inPool) {
-                    body = '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(name) + '\'s pool, but it is not a main comfort pick (adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%).';
+                    body = '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(name) + '\'s pool but is not a primary comfort pick (adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%). Reduces their flexibility without shutting down a core route.';
                 } else {
-                    body = '<strong>' + escapeHtml(hero) + '</strong> has little history for ' + escapeHtml(name) + '. Treat this as a meta read, not a data-backed target.';
+                    body = '<strong>' + escapeHtml(hero) + '</strong> has no recorded history for ' + escapeHtml(name) + '. This is a meta or scouting read — only worth it if you expect them to run it based on the current patch.';
                 }
             } else {
                 // protect
                 if (inCore) {
-                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong>, one of our comfort picks (' + escapeHtml(inCore.comfort_rate) + '% usage, adj WR ' + escapeHtml(inCore.adjusted_win_rate) + '%).';
+                    body = 'Locks in <strong>' + escapeHtml(hero) + '</strong>, a comfort pick played ' + escapeHtml(inCore.comfort_rate) + '% of maps with ' + escapeHtml(inCore.adjusted_win_rate) + '% adj WR. Keeps the target comp path alive and forces the enemy to play around it.';
                 } else {
-                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong>. It is not a recorded comfort pick, so this is probably a pocket pick or a deny.';
+                    body = 'Protecting <strong>' + escapeHtml(hero) + '</strong>, which has no recorded comfort data. Likely a pocket pick or a situational deny — treat it as a read, not a data point.';
                 }
             }
             if (vol) {
                 const sign = vol.delta >= 0 ? '+' : '';
-                body += ' Results move ' + sign + escapeHtml(vol.delta) + '% when this hero is active — ' + (Math.abs(vol.delta) > 5 ? '<strong>watch this pick.</strong>' : 'small swing.');
+                body += ' Results shift ' + sign + escapeHtml(vol.delta) + '% when this hero is active — ' + (Math.abs(vol.delta) > 5 ? '<strong>high-impact swing, pay attention.</strong>' : 'small shift, low risk.');
             }
             return body;
         }
@@ -3051,9 +4075,10 @@ function openHeroIconHtml(hero) {
         protectsB.forEach(hero => {
             let body = '<strong>' + escapeHtml(nameB) + '</strong> protects <strong>' + escapeHtml(hero) + '</strong>. ';
             const inBCore = (mB.comfort_core_rows||[]).find(r => r.hero === hero);
-            if (inBCore) body += 'Core pick for them (' + escapeHtml(inBCore.comfort_rate) + '% usage).';
+            if (inBCore) body += 'This is a core pick for them (' + escapeHtml(inBCore.comfort_rate) + '% play rate) — guarantees they have access to a reliable option.';
+            else body += 'No comfort data recorded for this hero — likely a pocket pick or a situational deny.';
             const inABans = (mA.ban_line_rows||[]).filter(l => (l.bans||[]).includes(hero));
-            if (inABans.length) body += ' We often ban this hero, so their protect directly blocks that plan.';
+            if (inABans.length) body += ' We commonly ban this hero, so their protect directly shuts down that plan.';
             cards.push({cls:'warn', title: nameB + ' protects ' + hero, body});
         });
 
@@ -3066,9 +4091,14 @@ function openHeroIconHtml(hero) {
                 if (blocked.length) {
                     cards.push({
                         cls: intact.length === 0 ? 'good' : '',
-                        title: nameB + ' comp path #' + (i+1) + ' (' + escapeHtml(line.top_path_share || 0) + '%) — ' + (intact.length ? 'partial' : 'fully') + ' disrupted',
-                        body: 'Blocked: <div class="dr-hero-row">' + blocked.map(h=>heroChipHtml(h,'ban')).join('') + '</div>'
-                            + (intact.length ? 'Still alive: <div class="dr-hero-row">' + intact.map(h=>heroChipHtml(h,'')).join('') + '</div>' : '<strong>Fully broken.</strong>')
+                        title: nameB + ' comp path ' + (i+1) + (line.top_path_share ? ' (' + escapeHtml(line.top_path_share) + '% play rate)' : '') + ' — ' + (intact.length ? 'partially disrupted' : 'fully blocked'),
+                        body: 'Banned out: <div class="dr-hero-row">' + blocked.map(h=>heroChipHtml(h,'ban')).join('') + '</div>'
+                            + (intact.length
+                                ? 'Still available (path not closed): <div class="dr-hero-row">' + intact.map(h=>heroChipHtml(h,'')).join('') + '</div>'
+                                    + (intact.length === 1
+                                        ? 'Banning <strong>' + escapeHtml(intact[0]) + '</strong> would fully close this path.'
+                                        : 'Consider targeting one of these heroes to fully close this route.')
+                                : '<strong>This path is fully blocked — no follow-up needed here.</strong>')
                     });
                 }
             });
@@ -3089,18 +4119,59 @@ function openHeroIconHtml(hero) {
             });
         }
 
-        // Volatile still free
-        (drModel.volatile_matchup_rows||[]).slice(0,3).forEach(vr => {
-            if (!allSet.has(vr.hero)) {
-                cards.push({
-                    cls: 'warn',
-                    title: 'Volatile hero still available: ' + vr.hero,
-                    body: heroChipHtml(vr.hero,'') + ' — '
-                        + escapeHtml(nameA) + ': ' + escapeHtml(vr.team_a_with_wr) + '% with / ' + escapeHtml(vr.team_a_without_wr) + '% without. '
-                        + (vr.team_b_with_maps>0 ? escapeHtml(nameB)+': '+escapeHtml(vr.team_b_with_wr)+'% with / '+escapeHtml(vr.team_b_without_wr)+'% without. ' : '')
-                        + 'Favors <strong>' + escapeHtml(vr.favored_side) + '</strong>.'
-                });
-            }
+        const volatilePoolThreats = drGetTeamPoolThreatRows('b', {
+            minPriority: 3,
+            requireSeasonPlay: true,
+            excludedHeroes: allSet,
+        }).map(function(row) {
+            const volatileRow = drFindVolatileHeroRow(row.hero, drModel.volatile_matchup_rows || [], mB.volatile_hero_rows || []);
+            if (!volatileRow) return null;
+            const volatility = Number(volatileRow.volatility || Math.abs(Number(volatileRow.delta || 0)) || 0);
+            if (volatility <= 0) return null;
+            return Object.assign({}, row, {volatile_row: volatileRow, volatility: volatility});
+        }).filter(Boolean);
+        if (volatilePoolThreats.length) {
+            cards.push({
+                cls: 'warn',
+                title: 'Volatile S+/S pool heroes still available',
+                body: '<div class="dr-hero-row">' + volatilePoolThreats.map(function(row) {
+                    return heroChipHtml(row.hero, 'ban', row.player);
+                }).join('') + '</div>'
+                    + '<div class="matchup-line-meta">' + volatilePoolThreats.map(function(row) {
+                        const volatileRow = row.volatile_row || {};
+                        const delta = Number(volatileRow.delta || 0);
+                        const sign = delta >= 0 ? '+' : '';
+                        return '<span class="matchup-badge matchup-badge-warn">'
+                            + escapeHtml(row.hero) + ': Pool ' + escapeHtml(row.tier)
+                            + ' x' + escapeHtml(drFormatPoolMultiplier(row.multiplier || 1))
+                            + ' for ' + escapeHtml(row.player)
+                            + ' · volatile ' + escapeHtml(sign + delta.toFixed(1)) + '%'
+                            + (row.maps ? ' - ' + escapeHtml(Number(row.maps || 0).toFixed(0)) + ' maps' : '')
+                            + '</span>';
+                    }).join('') + '</div>'
+                    + 'These are high-tier pool heroes with actual volatility data. If they stay open, they can swing the draft.'
+            });
+        }
+
+        // Volatile still free — only flag heroes that are S+/S pool for either team
+        (drModel.volatile_matchup_rows||[]).slice(0,10).forEach(vr => {
+            if (allSet.has(vr.hero)) return;
+            const enemyPoolInfo = drGetTeamHeroPoolInfo('b', vr.hero, {requireSeasonPlay: true});
+            const ourPoolInfo = drGetTeamHeroPoolInfo('a', vr.hero, {requireSeasonPlay: true});
+            const enemyTierPri = drTierPriority(enemyPoolInfo.tier || '');
+            const ourTierPri = drTierPriority(ourPoolInfo.tier || '');
+            if (enemyTierPri < 3 && ourTierPri < 3) return; // must be S or S+ for at least one team
+            const poolLabel = enemyTierPri >= 3
+                ? escapeHtml(enemyPoolInfo.player || 'enemy') + ' pool ' + escapeHtml(enemyPoolInfo.tier)
+                : escapeHtml(ourPoolInfo.player || 'us') + ' pool ' + escapeHtml(ourPoolInfo.tier);
+            cards.push({
+                cls: 'warn',
+                title: 'Volatile S+/S hero still available: ' + vr.hero,
+                body: heroChipHtml(vr.hero,'') + ' (' + poolLabel + ') — '
+                    + escapeHtml(nameA) + ': ' + escapeHtml(vr.team_a_with_wr) + '% with / ' + escapeHtml(vr.team_a_without_wr) + '% without. '
+                    + (vr.team_b_with_maps>0 ? escapeHtml(nameB)+': '+escapeHtml(vr.team_b_with_wr)+'% with / '+escapeHtml(vr.team_b_without_wr)+'% without. ' : '')
+                    + 'Favors <strong>' + escapeHtml(vr.favored_side) + '</strong>.'
+            });
         });
 
         if (!cards.length) {
@@ -3146,59 +4217,63 @@ function openHeroIconHtml(hero) {
             return;
         }
 
-        const ourActionCards = cards.filter(c =>
-            (c.title || '').startsWith(nameA + ' bans') || (c.title || '').startsWith(nameA + ' protects')
-        );
-        const enemyActionCards = cards.filter(c =>
-            (c.title || '').startsWith(nameB + ' bans') || (c.title || '').startsWith(nameB + ' protects')
-        );
-        const pathCards = cards.filter(c => {
-            const t = (c.title || '').toLowerCase();
-            return t.includes('path') || t.includes('disrupted') || t.includes('on track');
-        });
-        const riskCards = cards.filter(c => c.cls === 'warn' || (c.title || '').toLowerCase().includes('volatile'));
-
-        const stepNow = ourActionCards[ourActionCards.length - 1] || cards[0];
-        const stepNext = pathCards[0] || ourActionCards[0] || cards[0];
-        const stepEnemy = enemyActionCards[enemyActionCards.length - 1] || cards.find(c => (c.title || '').toLowerCase().includes('enemy')) || cards[1] || cards[0];
-        const stepRisk = riskCards[0] || cards[cards.length - 1] || cards[0];
-
-        function renderGuideStep(label, card) {
-            const cls = card && card.cls ? card.cls : '';
-            const title = card && card.title ? card.title : 'No clear read yet';
-            const body = card && card.body ? card.body : 'Keep filling slots to sharpen the recommendation.';
-            return '<section class="dr-guide-step ' + escapeHtml(cls) + '">'
-                + '<div class="dr-guide-label">' + escapeHtml(label) + '</div>'
-                + '<div class="dr-guide-title">' + escapeHtml(title) + '</div>'
-                + '<div class="dr-guide-body">' + body + '</div>'
-                + '</section>';
+        function renderCard(c) {
+            return '<div class="dr-reason-card ' + escapeHtml(c.cls || '') + '">'
+                + '<div class="dr-reason-title">' + escapeHtml(c.title || '') + '</div>'
+                + '<div class="dr-guide-body">' + (c.body || '') + '</div>'
+                + '</div>';
         }
 
-        const setupText = 'State: ' + escapeHtml(nameA) + ' vs ' + escapeHtml(nameB)
-            + ' | Our locked ' + bansA.length + '/4 bans and ' + protectsA.length + '/2 protects'
-            + ' | Enemy locked ' + bansB.length + '/4 bans and ' + protectsB.length + '/2 protects';
+        function renderNotesSection(heading, sectionCards) {
+            if (!sectionCards.length) return '';
+            return '<div class="dr-notes-section">'
+                + '<div class="dr-notes-heading">' + escapeHtml(heading) + '</div>'
+                + sectionCards.map(renderCard).join('')
+                + '</div>';
+        }
 
-        const detailCards = cards.filter(c => c !== stepNow && c !== stepNext && c !== stepEnemy && c !== stepRisk);
-        const detailsHtml = detailCards.length
-            ? detailCards.slice(0, 8).map(function(c) {
-                return '<div class="dr-reason-card ' + escapeHtml(c.cls || '') + '">'
-                    + '<div class="dr-reason-title">' + escapeHtml(c.title || '') + '</div>'
-                    + (c.body || '')
-                    + '</div>';
-            }).join('')
-            : '<p class="matchup-empty">No extra branches right now.</p>';
+        const yourActionCards = cards.filter(function(c) {
+            const t = c.title || '';
+            return t.startsWith(nameA + ' bans')
+                || t.startsWith(nameA + ' protects')
+                || t.startsWith('Recommended comp')
+                || t === 'Opening ban path'
+                || t.startsWith('Protects for')
+                || t.toLowerCase().includes('on track')
+                || t.toLowerCase().includes('pressure path');
+        });
+        const enemyActionCards = cards.filter(function(c) {
+            const t = c.title || '';
+            return t.startsWith(nameB + ' bans')
+                || t.startsWith(nameB + ' protects')
+                || t.startsWith('Enemy response');
+        });
+        const pathAnalysisCards = cards.filter(function(c) {
+            const t = (c.title || '').toLowerCase();
+            return (t.includes('path') || t.includes('disrupted'))
+                && !yourActionCards.includes(c) && !enemyActionCards.includes(c);
+        });
+        const watchCards = cards.filter(function(c) {
+            return !yourActionCards.includes(c)
+                && !enemyActionCards.includes(c)
+                && !pathAnalysisCards.includes(c);
+        });
 
-        stream.innerHTML = ''
-            + '<div class="dr-guide">'
-            + '<div class="dr-guide-meta">' + setupText + '</div>'
-            + renderGuideStep('Now', stepNow)
-            + renderGuideStep('Next Move', stepNext)
-            + renderGuideStep('Likely Enemy Response', stepEnemy)
-            + renderGuideStep('Risk Watch', stepRisk)
-            + '<details class="dr-guide-details">'
-            + '<summary>Show the rest of the read</summary>'
-            + '<div class="dr-guide-details-grid">' + detailsHtml + '</div>'
-            + '</details>'
+        const totalSlots = bansA.length + protectsA.length + bansB.length + protectsB.length;
+        const headerHtml = totalSlots
+            ? '<div class="dr-guide-meta">'
+                + escapeHtml(nameA) + ' vs ' + escapeHtml(nameB)
+                + ' — Our: ' + bansA.length + '/4 bans, ' + protectsA.length + '/2 protects'
+                + ' | Enemy: ' + bansB.length + '/4 bans, ' + protectsB.length + '/2 protects'
+                + '</div>'
+            : '<div class="dr-guide-meta">Fill ban and protect slots to get per-slot notes.</div>';
+
+        stream.innerHTML = '<div class="dr-guide">'
+            + headerHtml
+            + renderNotesSection('Your Draft Choices', yourActionCards)
+            + renderNotesSection('Enemy Draft Choices', enemyActionCards)
+            + renderNotesSection('Comp Path Analysis', pathAnalysisCards)
+            + renderNotesSection('Watch List', watchCards)
             + '</div>';
     }
 })();
