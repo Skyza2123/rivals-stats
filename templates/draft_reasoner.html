@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Draft Reasoner{% endblock %}
 
@@ -200,6 +200,100 @@
     border-color: rgba(74,222,128,0.2);
     color: #bbf7d0;
 }
+/* --- Tab bar for Draft Notes panel --- */
+.dr-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(148,163,184,0.15);
+    margin: 0 0 1rem 0;
+}
+.dr-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.4rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: rgba(148,163,184,0.6);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+.dr-tab-btn:hover { color: #e2e8f0; }
+.dr-tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+.dr-tab-pane { display: none; }
+.dr-tab-pane.active { display: block; }
+/* Scout tab styles */
+.dr-scout-section { margin-bottom: 1.5rem; }
+.dr-scout-section-title {
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #94a3b8;
+    margin: 0 0 0.6rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid rgba(148,163,184,0.1);
+}
+.dr-scout-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid rgba(148,163,184,0.07);
+    font-size: 0.86rem;
+}
+.dr-scout-row:last-child { border-bottom: none; }
+.dr-scout-rank {
+    font-size: 0.72rem;
+    color: rgba(148,163,184,0.45);
+    min-width: 1.4rem;
+    text-align: right;
+}
+.dr-scout-hero-img {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(30,41,59,0.8);
+    flex-shrink: 0;
+}
+.dr-scout-hero-name {
+    flex: 1;
+    color: #e2e8f0;
+    font-weight: 600;
+}
+.dr-scout-bar-wrap {
+    width: 80px;
+    height: 5px;
+    background: rgba(148,163,184,0.12);
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.dr-scout-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: #f87171;
+    transition: width 0.3s;
+}
+.dr-scout-bar-fill.green { background: #4ade80; }
+.dr-scout-bar-fill.blue { background: #60a5fa; }
+.dr-scout-pct {
+    font-size: 0.76rem;
+    color: #94a3b8;
+    min-width: 3rem;
+    text-align: right;
+}
+.dr-scout-no-data {
+    color: rgba(148,163,184,0.5);
+    font-style: italic;
+    font-size: 0.88rem;
+    padding: 1rem 0;
+    text-align: center;
+}
 .dr-setup-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -363,9 +457,22 @@
 
     <!-- Live reasoning -->
     <div class="dr-panel reasoner-full">
-        <h3 style="margin:0 0 1rem">Draft Notes</h3>
-        <div class="dr-reasoning-panel" id="dr-reasoning">
-            <p class="dr-empty">Build a plan, then fill slots to see the read.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+            <h3 style="margin:0">Draft Notes</h3>
+        </div>
+        <div class="dr-tabs">
+            <button type="button" class="dr-tab-btn active" data-tab="dr-tab-notes">Notes</button>
+            <button type="button" class="dr-tab-btn" data-tab="dr-tab-scout" id="dr-scout-tab-btn" style="display:none">Scout (Tournament)</button>
+        </div>
+        <div class="dr-tab-pane active" id="dr-tab-notes">
+            <div class="dr-reasoning-panel" id="dr-reasoning">
+                <p class="dr-empty">Build a plan, then fill slots to see the read.</p>
+            </div>
+        </div>
+        <div class="dr-tab-pane" id="dr-tab-scout">
+            <div id="dr-scout-content">
+                <p class="dr-scout-no-data">Load a matchup to see tournament scouting data.</p>
+            </div>
         </div>
     </div>
 
@@ -529,6 +636,23 @@
     }
 
     // --- Core reasoning engine ---
+    // True draft pick order:
+    // T1 Ban, T2 Ban, T2 Protect, T1 Ban, T1 Protect, T1 Ban, T2 Ban, T1 Protect, T2 Ban, T2 Ban, T2 Protect, T1 Ban
+    const DRAFT_ORDER = [
+        { team: 'a', slot: 'ban1',     type: 'ban'     },  //  1. T1 Ban
+        { team: 'b', slot: 'ban1',     type: 'ban'     },  //  2. T2 Ban
+        { team: 'b', slot: 'protect1', type: 'protect' },  //  3. T2 Protect
+        { team: 'a', slot: 'ban2',     type: 'ban'     },  //  4. T1 Ban
+        { team: 'a', slot: 'protect1', type: 'protect' },  //  5. T1 Protect
+        { team: 'a', slot: 'ban3',     type: 'ban'     },  //  6. T1 Ban
+        { team: 'b', slot: 'ban2',     type: 'ban'     },  //  7. T2 Ban
+        { team: 'a', slot: 'protect2', type: 'protect' },  //  8. T1 Protect
+        { team: 'b', slot: 'ban3',     type: 'ban'     },  //  9. T2 Ban
+        { team: 'b', slot: 'ban4',     type: 'ban'     },  // 10. T2 Ban
+        { team: 'b', slot: 'protect2', type: 'protect' },  // 11. T2 Protect
+        { team: 'a', slot: 'ban4',     type: 'ban'     },  // 12. T1 Ban
+    ];
+
     function renderReasoning() {
         const container = document.getElementById('dr-reasoning');
         if (!model) {
@@ -544,166 +668,164 @@
         const modelA = teamA.model || {};
         const modelB = teamB.model || {};
 
-        const bansA = ['ban1','ban2','ban3','ban4'].map(k => draft.a[k]).filter(Boolean);
-        const protectsA = ['protect1','protect2'].map(k => draft.a[k]).filter(Boolean);
-        const bansB = ['ban1','ban2','ban3','ban4'].map(k => draft.b[k]).filter(Boolean);
-        const protectsB = ['protect1','protect2'].map(k => draft.b[k]).filter(Boolean);
-        const allSet = new Set([...bansA, ...protectsA, ...bansB, ...protectsB]);
+        const allSet = new Set(
+            Object.values(draft.a).concat(Object.values(draft.b)).filter(Boolean)
+        );
 
         const reasons = [];
 
-        // --- 1. Summary of what has been set so far ---
         if (allSet.size === 0) {
             reasons.push({ cls: '', title: 'Draft is empty', body: 'Start filling in ban and protect slots to see reasoning.' });
         }
 
-        // --- 2. Analyse each ban Team A has placed ---
-        bansA.forEach(function(hero) {
-            const heroDataB = (modelB.comfort_core_rows || []).find(r => r.hero === hero);
-            const volatileB = (modelB.volatile_hero_rows || []).find(r => r.hero === hero);
-            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
-            let body = '';
-            if (heroDataB) {
-                body += '<strong>' + escapeHtml(hero) + '</strong> appears in ' + escapeHtml(nameB) + '\'s comfort core at '
-                    + escapeHtml(heroDataB.comfort_rate) + '% usage (' + escapeHtml(heroDataB.appearances) + ' maps), adj WR '
-                    + escapeHtml(heroDataB.adjusted_win_rate) + '%. This ban directly targets a hero they rely on.';
-            } else {
-                const inPool = (modelB.hero_pool_rows || []).find(r => r.hero === hero);
-                if (inPool) {
-                    body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(nameB) + '\'s general pool (not a comfort core hero). '
-                        + 'Usage ' + escapeHtml(inPool.appearances) + ' maps, adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%.';
+        // Cumulative bans tracked as we walk through picks (for pivot analysis)
+        const runningBans = new Set();
+
+        DRAFT_ORDER.forEach(function(pick) {
+            const hero = draft[pick.team][pick.slot];
+            if (!hero) return;
+
+            const isA = pick.team === 'a';
+            const actingName  = isA ? nameA : nameB;
+            const targetName  = isA ? nameB : nameA;
+            const actingModel = isA ? modelA : modelB;
+            const targetModel = isA ? modelB : modelA;
+
+            if (pick.type === 'ban') {
+                // Record this ban before pivot analysis so we include it
+                runningBans.add(hero);
+
+                const heroDataTarget = (targetModel.comfort_core_rows || []).find(function(r) { return r.hero === hero; });
+                const volatileTarget = (targetModel.volatile_hero_rows || []).find(function(r) { return r.hero === hero; });
+                const inContested    = (model.contested_heroes || []).find(function(r) { return r.hero === hero; });
+                const heroInActing   = (actingModel.comfort_core_rows || []).find(function(r) { return r.hero === hero; });
+
+                let body = '';
+
+                // Impact on target comfort core / pool
+                if (heroDataTarget) {
+                    body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(targetName) + '\'s comfort core — '
+                        + escapeHtml(heroDataTarget.comfort_rate) + '% usage (' + escapeHtml(heroDataTarget.appearances) + ' maps), adj WR '
+                        + escapeHtml(heroDataTarget.adjusted_win_rate) + '%. This directly targets a hero they rely on.';
                 } else {
-                    body += '<strong>' + escapeHtml(hero) + '</strong> has little or no recorded history for ' + escapeHtml(nameB) + '. This ban may be speculative or aimed at preventing a pocket pick.';
+                    const inPool = (targetModel.hero_pool_rows || []).find(function(r) { return r.hero === hero; });
+                    if (inPool) {
+                        body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(targetName) + '\'s pool (not comfort core) — '
+                            + escapeHtml(inPool.appearances) + ' maps, adj WR ' + escapeHtml(inPool.adjusted_win_rate) + '%.';
+                    } else {
+                        body += '<strong>' + escapeHtml(hero) + '</strong> has little recorded history for ' + escapeHtml(targetName)
+                            + ' — speculative ban or pocket-pick denial.';
+                    }
                 }
-            }
-            if (volatileB) {
-                const sign = volatileB.delta >= 0 ? '+' : '';
-                body += ' When ' + escapeHtml(nameB) + ' plays this hero their WR shifts '
-                    + sign + escapeHtml(volatileB.delta) + '% vs without (volatile hero).';
-            }
-            if (inContested) {
-                body += ' This is also a <strong>contested hero</strong> — both teams have history with it (scores: '
-                    + escapeHtml(nameA) + ' ' + escapeHtml(inContested.team_a_score) + ' / '
-                    + escapeHtml(nameB) + ' ' + escapeHtml(inContested.team_b_score) + ').';
-            }
-            // Check if this breaks ban lines for Team B
-            (modelB.ban_line_rows || []).slice(0, 6).forEach(function(line) {
-                if ((line.bans || []).includes(hero) || (line.heroes || []).includes(hero)) {
-                    const bansHtml = (line.bans || []).map(h => heroChipHtml(h, 'ban')).join('');
-                    const protsHtml = (line.protects || []).map(h => heroChipHtml(h, 'protect')).join('');
-                    body += '<br>Disrupts ' + escapeHtml(nameB) + ' ban line (' + escapeHtml(line.rate) + '% of drafts):'
-                        + '<div class="dr-hero-row">' + bansHtml + protsHtml + '</div>';
+
+                if (volatileTarget) {
+                    const sign = volatileTarget.delta >= 0 ? '+' : '';
+                    body += ' Their WR shifts ' + sign + escapeHtml(volatileTarget.delta) + '% with this hero (volatile).';
                 }
-            });
-            reasons.push({ cls: heroDataB ? 'good' : '', title: nameA + ' bans ' + hero, body: body });
-        });
 
-        // --- 3. Analyse Team A protects ---
-        protectsA.forEach(function(hero) {
-            const heroDataA = (modelA.comfort_core_rows || []).find(r => r.hero === hero);
-            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
-            let body = '';
-            if (heroDataA) {
-                body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(nameA) + '\'s comfort core at '
-                    + escapeHtml(heroDataA.comfort_rate) + '% usage, adj WR ' + escapeHtml(heroDataA.adjusted_win_rate) + '%.';
-            } else {
-                body += '<strong>' + escapeHtml(hero) + '</strong> is not in ' + escapeHtml(nameA) + '\'s recorded comfort core — this protect may be a pocket pick or pre-emptive block.';
-            }
-            // Is Team B likely to ban it?
-            const inBBans = (modelB.ban_line_rows || []).slice(0, 5).filter(function(line) {
-                return (line.bans || []).includes(hero);
-            });
-            if (inBBans.length) {
-                body += ' <strong>' + escapeHtml(nameB) + '</strong> has this hero in their ban lines '
-                    + inBBans.length + ' time(s) across top recorded drafts — this protect looks well-timed.';
-            }
-            if (inContested) {
-                body += ' Contested hero (both teams have history with it).';
-            }
-            reasons.push({ cls: 'good', title: nameA + ' protects ' + hero, body: body });
-        });
+                if (inContested) {
+                    body += ' Contested by both teams (scores: ' + escapeHtml(nameA) + ' ' + escapeHtml(inContested.team_a_score)
+                        + ' / ' + escapeHtml(nameB) + ' ' + escapeHtml(inContested.team_b_score) + ').';
+                }
 
-        // --- 4. Analyse Team B bans ---
-        bansB.forEach(function(hero) {
-            const heroDataA = (modelA.comfort_core_rows || []).find(r => r.hero === hero);
-            const volatileA = (modelA.volatile_hero_rows || []).find(r => r.hero === hero);
-            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
-            let body = '';
-            if (heroDataA) {
-                body += '<strong>' + escapeHtml(nameB) + '</strong> bans <strong>' + escapeHtml(hero) + '</strong>, which is in '
-                    + escapeHtml(nameA) + '\'s comfort core (' + escapeHtml(heroDataA.comfort_rate) + '% usage, adj WR '
-                    + escapeHtml(heroDataA.adjusted_win_rate) + '%).';
-            } else {
-                const inPool = (modelA.hero_pool_rows || []).find(r => r.hero === hero);
-                if (inPool) {
-                    body += escapeHtml(nameB) + ' bans <strong>' + escapeHtml(hero) + '</strong> — '
-                        + ' in ' + escapeHtml(nameA) + '\'s pool but not comfort core.';
+                // Comp path disruption + pivot analysis
+                const disruptedComps = (targetModel.comp_path_rows || []).filter(function(comp) {
+                    return (comp.heroes || []).includes(hero);
+                });
+                if (disruptedComps.length) {
+                    disruptedComps.slice(0, 3).forEach(function(comp) {
+                        const compsHtml = (comp.heroes || []).map(function(h) {
+                            return heroChipHtml(h, runningBans.has(h) ? 'ban' : '');
+                        }).join('');
+                        body += '<br><strong>Disrupts comp (' + escapeHtml(comp.top_path_share) + '% of their maps):</strong>'
+                            + '<div class="dr-hero-row">' + compsHtml + '</div>';
+
+                        const pivot = (comp.heroes || []).filter(function(h) { return h !== hero && !runningBans.has(h); });
+                        if (pivot.length) {
+                            body += 'Pivot — still available from this comp: <div class="dr-hero-row">'
+                                + pivot.map(function(h) { return heroChipHtml(h, ''); }).join('')
+                                + '</div>';
+                        } else {
+                            body += '<span style="color:#4ade80;font-weight:600">This comp path is fully denied.</span>';
+                        }
+                    });
+                } else if (heroDataTarget) {
+                    // Hero is in comfort core but no explicit comp path — show remaining comfort core as pivot
+                    const pivotPool = (targetModel.comfort_core_rows || [])
+                        .filter(function(r) { return r.hero !== hero && !runningBans.has(r.hero); })
+                        .slice(0, 5);
+                    if (pivotPool.length) {
+                        body += '<br>Likely pivot from comfort core: <div class="dr-hero-row">'
+                            + pivotPool.map(function(r) { return heroChipHtml(r.hero, ''); }).join('')
+                            + '</div>';
+                    }
+                }
+
+                // Ban line disruption
+                (targetModel.ban_line_rows || []).slice(0, 4).forEach(function(line) {
+                    if ((line.bans || []).includes(hero) || (line.heroes || []).includes(hero)) {
+                        const bansHtml  = (line.bans     || []).map(function(h) { return heroChipHtml(h, 'ban');     }).join('');
+                        const protsHtml = (line.protects || []).map(function(h) { return heroChipHtml(h, 'protect'); }).join('');
+                        body += '<br>Disrupts ban line (' + escapeHtml(line.rate) + '% of drafts):'
+                            + '<div class="dr-hero-row">' + bansHtml + protsHtml + '</div>';
+                    }
+                });
+
+                // Self-ban warning
+                if (heroInActing) {
+                    body += '<br><span style="color:#fbbf24">&#9888; This hero is also in ' + escapeHtml(actingName) + '\'s comfort core ('
+                        + escapeHtml(heroInActing.comfort_rate) + '% usage) — verify this is intentional.</span>';
+                }
+
+                const cls = heroDataTarget ? (isA ? 'good' : 'bad') : '';
+                reasons.push({ cls: cls, title: actingName + ' bans ' + hero, body: body });
+
+            } else if (pick.type === 'protect') {
+                const heroDataActing = (actingModel.comfort_core_rows || []).find(function(r) { return r.hero === hero; });
+                const inContested    = (model.contested_heroes || []).find(function(r) { return r.hero === hero; });
+                const targetBanLines = (targetModel.ban_line_rows || []).slice(0, 5).filter(function(line) {
+                    return (line.bans || []).includes(hero);
+                });
+
+                let body = '';
+                if (heroDataActing) {
+                    body += '<strong>' + escapeHtml(hero) + '</strong> is in ' + escapeHtml(actingName) + '\'s comfort core — '
+                        + escapeHtml(heroDataActing.comfort_rate) + '% usage, adj WR ' + escapeHtml(heroDataActing.adjusted_win_rate) + '%.';
                 } else {
-                    body += escapeHtml(nameB) + ' bans <strong>' + escapeHtml(hero) + '</strong> — not in ' + escapeHtml(nameA) + '\'s recorded comfort core. Possibly draft-denial or meta pressure.';
+                    body += '<strong>' + escapeHtml(hero) + '</strong> is not in ' + escapeHtml(actingName) + '\'s comfort core — pocket pick or signal-block.';
                 }
-            }
-            if (volatileA) {
-                const sign = volatileA.delta >= 0 ? '+' : '';
-                body += ' ' + escapeHtml(nameA) + ' WR swings ' + sign + escapeHtml(volatileA.delta) + '% when this hero appears — '
-                    + (volatileA.delta > 0 ? 'this is a meaningful ban.' : 'this hero hurts their WR anyway.');
-            }
-            if (inContested) {
-                body += ' This is a contested hero — both teams have significant history with it.';
-            }
-            // Does this break a comp or ban line for Team A?
-            (modelA.comp_path_rows || []).slice(0, 5).forEach(function(comp) {
-                if ((comp.heroes || []).includes(hero)) {
-                    const compsHtml = (comp.heroes || []).map(h => heroChipHtml(h, '')).join('');
-                    body += '<br>Disrupts ' + escapeHtml(nameA) + ' comp (' + escapeHtml(comp.top_path_share) + '% dominant path):'
-                        + '<div class="dr-hero-row">' + compsHtml + '</div>'
-                        + (comp.deviation_budget > 0 ? ' Deviation budget is ' + escapeHtml(comp.deviation_budget) + ' — they may pivot.' : '');
+                if (targetBanLines.length) {
+                    body += ' ' + escapeHtml(targetName) + ' has this hero in their ban lines '
+                        + targetBanLines.length + ' time(s) — this protect looks well-timed.';
                 }
-            });
-            const cls = heroDataA ? 'bad' : '';
-            reasons.push({ cls: cls, title: nameB + ' bans ' + hero, body: body });
+                if (inContested) {
+                    body += ' Contested hero between both teams.';
+                }
+
+                const cls = isA ? 'good' : 'warn';
+                reasons.push({ cls: cls, title: actingName + ' protects ' + hero, body: body });
+            }
         });
 
-        // --- 5. Analyse Team B protects ---
-        protectsB.forEach(function(hero) {
-            const heroDataB = (modelB.comfort_core_rows || []).find(r => r.hero === hero);
-            const inContested = (model.contested_heroes || []).find(r => r.hero === hero);
-            const inABans = (modelA.ban_line_rows || []).slice(0, 5).filter(function(line) {
-                return (line.bans || []).includes(hero);
-            });
-            let body = '';
-            if (heroDataB) {
-                body += escapeHtml(nameB) + ' protects <strong>' + escapeHtml(hero) + '</strong> from their comfort core ('
-                    + escapeHtml(heroDataB.comfort_rate) + '% usage, adj WR ' + escapeHtml(heroDataB.adjusted_win_rate) + '%).';
-            } else {
-                body += escapeHtml(nameB) + ' protects <strong>' + escapeHtml(hero) + '</strong> — not in their comfort core. Pocket pick or draft signal-block.';
-            }
-            if (inABans.length) {
-                body += ' Our models show we ban this hero in ' + inABans.length + ' of our top ban lines — this protect counters our likely draft tendency.';
-            }
-            if (inContested) {
-                body += ' Contested hero between both teams.';
-            }
-            reasons.push({ cls: 'warn', title: nameB + ' protects ' + hero, body: body });
-        });
-
-        // --- 6. Overall state assessment ---
+        // --- Overall state assessment ---
         if (allSet.size > 0) {
-            // Match current bans against Team B's recorded ban lines
+            const bansA = ['ban1','ban2','ban3','ban4'].map(function(k) { return draft.a[k]; }).filter(Boolean);
             const bSetA = new Set(bansA);
+
+            // Ban line disruption summary for Team B
             (modelB.ban_line_rows || []).slice(0, 4).forEach(function(line, idx) {
                 const lineHeroesBans = line.bans || [];
-                const lineHeroesAll = line.heroes || [];
-                const blocked = lineHeroesBans.filter(h => bSetA.has(h));
-                const intact = lineHeroesBans.filter(h => !bSetA.has(h));
+                const blocked = lineHeroesBans.filter(function(h) { return bSetA.has(h); });
+                const intact  = lineHeroesBans.filter(function(h) { return !bSetA.has(h); });
                 if (blocked.length > 0) {
-                    const bansHtml = lineHeroesBans.map(h => heroChipHtml(h, 'ban')).join('');
-                    const protsHtml = (line.protects || []).map(h => heroChipHtml(h, 'protect')).join('');
-                    const intactHtml = intact.map(h => heroChipHtml(h, '')).join('');
+                    const bansHtml   = lineHeroesBans.map(function(h) { return heroChipHtml(h, 'ban');     }).join('');
+                    const protsHtml  = (line.protects || []).map(function(h) { return heroChipHtml(h, 'protect'); }).join('');
+                    const intactHtml = intact.map(function(h) { return heroChipHtml(h, ''); }).join('');
                     reasons.push({
                         cls: 'good',
-                        title: 'Ban line disruption — ' + nameB + ' draft line #' + (idx+1) + ' (' + escapeHtml(line.rate) + '%)',
+                        title: 'Ban line disruption — ' + nameB + ' draft line #' + (idx + 1) + ' (' + escapeHtml(line.rate) + '%)',
                         body: 'Line: <div class="dr-hero-row">' + bansHtml + protsHtml + '</div>'
-                            + (blocked.length ? 'Blocked by our bans: <div class="dr-hero-row">' + blocked.map(h => heroChipHtml(h,'ban')).join('') + '</div>' : '')
+                            + (blocked.length ? 'Blocked: <div class="dr-hero-row">' + blocked.map(function(h) { return heroChipHtml(h, 'ban'); }).join('') + '</div>' : '')
                             + (intact.length ? 'Still available: <div class="dr-hero-row">' + intactHtml + '</div>' : '<strong>Fully blocked.</strong>')
                     });
                 }
@@ -712,11 +834,10 @@
             // Force matchup hint
             const force = (model.force_matchup_rows || [])[0];
             if (force) {
-                const ourComp = (force.our_comp || []).map(h => heroChipHtml(h,'')).join('');
-                const enemyComp = (force.enemy_comp || []).map(h => heroChipHtml(h,'')).join('');
-                const ourBans = (force.our_bans || []).map(h => heroChipHtml(h,'ban')).join('');
-                // Check if our current bans already overlap
-                const banOverlap = (force.our_bans || []).filter(h => bSetA.has(h));
+                const ourComp   = (force.our_comp   || []).map(function(h) { return heroChipHtml(h, '');    }).join('');
+                const enemyComp = (force.enemy_comp || []).map(function(h) { return heroChipHtml(h, '');    }).join('');
+                const ourBans   = (force.our_bans   || []).map(function(h) { return heroChipHtml(h, 'ban'); }).join('');
+                const banOverlap = (force.our_bans || []).filter(function(h) { return bSetA.has(h); });
                 const onTrack = banOverlap.length >= 2;
                 reasons.push({
                     cls: onTrack ? 'good' : '',
@@ -724,12 +845,12 @@
                     body: 'Target comp: <div class="dr-hero-row">' + ourComp + '</div>'
                         + 'Bans to reach it: <div class="dr-hero-row">' + ourBans + '</div>'
                         + 'Expected enemy response: <div class="dr-hero-row">' + enemyComp + '</div>'
-                        + '<span style="color:#94a3b8;font-size:0.82rem">Path share: ' + escapeHtml(force.our_path_share) + '% — enemy blocked: '
-                        + escapeHtml(force.enemy_blocked_count) + ' heroes</span>'
+                        + '<span style="color:#94a3b8;font-size:0.82rem">Path share: ' + escapeHtml(force.our_path_share)
+                        + '% — enemy blocked: ' + escapeHtml(force.enemy_blocked_count) + ' heroes</span>'
                 });
             }
 
-            // Volatile: warn if a volatile hero is still available
+            // Volatile heroes still on the board
             (model.volatile_matchup_rows || []).slice(0, 3).forEach(function(vr) {
                 if (!allSet.has(vr.hero)) {
                     reasons.push({
@@ -738,9 +859,9 @@
                         body: heroChipHtml(vr.hero, '') + ' is still unpicked/unbanned. '
                             + escapeHtml(nameA) + ': ' + escapeHtml(vr.team_a_with_wr) + '% with / '
                             + escapeHtml(vr.team_a_without_wr) + '% without.'
-                            + (vr.team_b_with_maps > 0 ? ' ' + escapeHtml(nameB) + ': '
-                                + escapeHtml(vr.team_b_with_wr) + '% with / '
-                                + escapeHtml(vr.team_b_without_wr) + '% without.' : '')
+                            + (vr.team_b_with_maps > 0
+                                ? ' ' + escapeHtml(nameB) + ': ' + escapeHtml(vr.team_b_with_wr) + '% with / '
+                                    + escapeHtml(vr.team_b_without_wr) + '% without.' : '')
                             + ' Favors: <strong>' + escapeHtml(vr.favored_side) + '</strong>.'
                     });
                 }

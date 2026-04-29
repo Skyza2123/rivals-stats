@@ -7240,10 +7240,12 @@ def build_opponent_tree_model(team_scrims: list[dict], hero_pool_scrims: list[di
     }
 
     overall_wr = (hero_pool_weighted_total_wins / hero_pool_weighted_total_maps) if hero_pool_weighted_total_maps else 0.0
-    total_hero_weight = sum(hero_weighted_apps.values())
     hero_lookup: dict[str, dict] = {}
     for hero_name, appearances in hero_weighted_apps.items():
-        comfort = (appearances / total_hero_weight) if total_hero_weight else 0.0
+        # comfort = play rate: fraction of maps where this hero was played (0.0–1.0).
+        # Using hero_pool_weighted_total_maps (not sum of all hero picks) so that a hero
+        # played every map gets comfort=1.0 rather than ~1/6.
+        comfort = (appearances / hero_pool_weighted_total_maps) if hero_pool_weighted_total_maps else 0.0
         raw_wr = (hero_weighted_wins[hero_name] / appearances) if appearances else 0.0
         confidence = min(1.0, appearances / 20.0) if appearances else 0.0
         adjusted_wr = (confidence * raw_wr) + ((1.0 - confidence) * overall_wr)
@@ -9600,6 +9602,20 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
     if tournament_team is None:
         abort(404)
 
+    # Sync roster from DB (same pattern as tournament_detail) so players added to
+    # the DB after the tournament was created are reflected here.
+    _, db_players = _resolve_team_from_db(tournament_team.get("name", ""))
+    if db_players:
+        existing = set(tournament_team.get("players", []))
+        changed = False
+        for p in db_players:
+            if p and p not in existing:
+                tournament_team.setdefault("players", []).append(p)
+                existing.add(p)
+                changed = True
+        if changed:
+            save_app_state()
+
     team_scrims = build_tournament_team_scrims(tournament_record, tournament_team)
     team_analytics = build_scrim_analytics(team_scrims)
     hero_graph_rows = [
@@ -11051,14 +11067,21 @@ def _team_name_match_keys(raw_value: str | None) -> set[str]:
     if len(compact) >= 5:
         keys.add(compact[:3])
 
-    # Initials of word tokens: "Liquid Citadel" → "lc", "Swamp Gaming" → "sg"
-    word_tokens = re.findall(r"[a-z]+", normalized)
-    if len(word_tokens) >= 2:
-        initials = "".join(t[0] for t in word_tokens)
-        if len(initials) >= 2:
-            keys.add(initials)
-            # "Team Liquid Citadel" style tags: prepend "t" → "tlc"
-            keys.add("t" + initials)
+    # Initials from meaningful (non-generic) tokens only.
+    # Use filtered_tokens so "Spacestation Gaming" → ["spacestation"] → only 1 token → no initials.
+    # This prevents "Swamp Gaming" and "Spacestation Gaming" both generating "sg".
+    if len(filtered_tokens) >= 2:
+        meaningful_initials = "".join(t[0] for t in filtered_tokens if t[:1].isalpha())
+        if len(meaningful_initials) >= 2:
+            keys.add(meaningful_initials)
+            keys.add("t" + meaningful_initials)
+
+    # Extract explicit abbreviation from parenthetical hint: "Spacestation Gaming (SSG)" → "ssg"
+    paren_match = re.search(r"\(([^)]+)\)", normalized)
+    if paren_match:
+        paren_abbrev = _compact_text(paren_match.group(1))
+        if paren_abbrev:
+            keys.add(paren_abbrev)
 
     return {key for key in keys if key}
 
@@ -14723,6 +14746,145 @@ def machine():
         has_unseasoned=has_unseasoned,
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
     )
+
+
+@app.route("/api/draft-reasoner/enemy-scouting")
+def api_draft_reasoner_enemy_scouting():
+    """Return tournament loss analysis for the enemy team.
+
+    For each map where team_b lost to another team, aggregate:
+    - bans the winning team used against team_b
+    - heroes the winning team played on those maps
+    - heroes team_b themselves played on those losing maps (shows what didn't work)
+    Only includes season-filtered data when season is specified.
+    """
+    db = get_db()
+    team_b_id = request.args.get("team_b", type=int)
+    season_value = (request.args.get("season", "") or "").strip()
+    if not team_b_id:
+        return jsonify({"error": "team_b is required"}), 400
+
+    team_b_row = db.execute("SELECT * FROM teams WHERE id = ?", (team_b_id,)).fetchone()
+    if team_b_row is None:
+        abort(404)
+
+    team_id = int(team_b_row["id"])
+    team_name = (team_b_row["name"] or "").strip().lower()
+
+    # Counts indexed by hero name
+    ban_counts: defaultdict[str, int] = defaultdict(int)   # bans by winning teams vs team_b
+    winner_hero_counts: defaultdict[str, int] = defaultdict(int)  # heroes winning teams played
+    loser_hero_counts: defaultdict[str, int] = defaultdict(int)   # heroes team_b played when losing
+    loss_map_total = 0
+    match_summaries: list[dict] = []
+
+    for tournament_record in TOURNAMENT_MATCHES:
+        # Season filter
+        rec_season = normalize_season_value(tournament_record.get("season", ""))
+        if season_value and season_value.lower() not in ("all", "") and rec_season:
+            if season_value != rec_season:
+                continue
+
+        # Find team_b's entry in this tournament
+        team_b_entry: dict | None = None
+        for t_team in tournament_record.get("tournament_teams", []):
+            if not isinstance(t_team, dict):
+                continue
+            src_id = t_team.get("source_team_id")
+            t_name = (t_team.get("name") or "").strip().lower()
+            if (isinstance(src_id, int) and src_id == team_id) or (not src_id and t_name and t_name == team_name):
+                team_b_entry = t_team
+                break
+
+        if team_b_entry is None:
+            continue
+
+        b_t_id = team_b_entry.get("id")
+
+        for match in tournament_record.get("matches", []):
+            if not isinstance(match, dict):
+                continue
+
+            # Determine which slot team_b occupies
+            if match.get("team1_tournament_team_id") == b_t_id:
+                b_slot, w_slot = "team1", "team2"
+                opponent_name = (match.get("team2_name") or "").strip() or "Opponent"
+            elif match.get("team2_tournament_team_id") == b_t_id:
+                b_slot, w_slot = "team2", "team1"
+                opponent_name = (match.get("team1_name") or "").strip() or "Opponent"
+            else:
+                continue
+
+            map_losses: list[str] = []
+            for map_entry in match.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+
+                outcome = get_map_outcome_for_slot(map_entry, b_slot)
+                if outcome != "Loss":
+                    continue
+
+                loss_map_total += 1
+                map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip()
+                if map_name:
+                    map_losses.append(map_name)
+
+                # Winning team's bans
+                draft_data = map_entry.get("draft", {})
+                if isinstance(draft_data, dict):
+                    w_draft = draft_data.get(w_slot, {})
+                    if isinstance(w_draft, dict):
+                        for slot_key, hero_val in w_draft.items():
+                            if slot_key.startswith("ban") and hero_val:
+                                h = _canonical_draft_hero(hero_val)
+                                if h:
+                                    ban_counts[h] += 1
+
+                # Winning team's heroes played
+                for section in map_entry.get("comp", []):
+                    if not isinstance(section, dict):
+                        continue
+                    for slot in section.get(w_slot, []):
+                        if isinstance(slot, dict):
+                            h = _canonical_draft_hero(slot.get("hero", ""))
+                            if h:
+                                winner_hero_counts[h] += 1
+                    # Team_b heroes on losing maps
+                    for slot in section.get(b_slot, []):
+                        if isinstance(slot, dict):
+                            h = _canonical_draft_hero(slot.get("hero", ""))
+                            if h:
+                                loser_hero_counts[h] += 1
+
+            if map_losses:
+                match_summaries.append({
+                    "opponent": opponent_name,
+                    "maps_lost": map_losses,
+                    "count": len(map_losses),
+                })
+
+    match_summaries.sort(key=lambda r: r["count"], reverse=True)
+
+    def _to_rows(counts: dict[str, int], total_maps: int) -> list[dict]:
+        rows = [
+            {
+                "hero": h,
+                "count": c,
+                "rate": round((c / total_maps) * 100, 1) if total_maps else 0.0,
+            }
+            for h, c in counts.items()
+        ]
+        rows.sort(key=lambda r: r["count"], reverse=True)
+        return rows[:15]
+
+    return jsonify({
+        "team_b_name": (team_b_row["name"] or "").strip(),
+        "loss_maps_total": loss_map_total,
+        "winning_team_bans": _to_rows(ban_counts, loss_map_total),
+        "winning_team_heroes": _to_rows(winner_hero_counts, loss_map_total),
+        "enemy_heroes_when_losing": _to_rows(loser_hero_counts, loss_map_total),
+        "match_summaries": match_summaries[:10],
+    })
 
 
 @app.route("/api/draft-reasoner/model")

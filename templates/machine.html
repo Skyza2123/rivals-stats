@@ -3204,6 +3204,32 @@ function openHeroIconHtml(hero) {
             drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, cleanOurProtects);
         }
 
+        // Fallback: no clean comp survived ban filtering — adapt the top-ranked comp by
+        // substituting banned heroes with the best available heroes from the comfort pool.
+        if (!bestCandidate && rankedCompRows.length > 0) {
+            const topCompHeroes = (rankedCompRows[0].row.heroes || []).filter(Boolean);
+            const bannedKeySet = new Set(Array.from(hardBannedHeroes).map(drHeroPoolHeroKey));
+            const enemyProtKeySet = heroKeySet(enemyLockedProtects);
+            const poolCandidates = uniqueHeroes(
+                (mA.comfort_core_rows || []).map(function(r) { return r.hero; })
+                    .concat((mA.hero_pool_rows || []).map(function(r) { return r.hero; }))
+            ).filter(function(h) {
+                return h && !bannedKeySet.has(drHeroPoolHeroKey(h)) && !enemyProtKeySet.has(drHeroPoolHeroKey(h));
+            });
+            const adapted = topCompHeroes.filter(function(h) { return !bannedKeySet.has(drHeroPoolHeroKey(h)); });
+            const adaptedKeySet = heroKeySet(adapted);
+            for (let ci = 0; ci < poolCandidates.length && adapted.length < 6; ci++) {
+                const sub = poolCandidates[ci];
+                if (!adaptedKeySet.has(drHeroPoolHeroKey(sub))) {
+                    adapted.push(sub);
+                    adaptedKeySet.add(drHeroPoolHeroKey(sub));
+                }
+            }
+            if (adapted.length > 0) {
+                drSuggest.a.comp = adapted.slice(0, 6);
+            }
+        }
+
         // Initialize default suggestions if no best candidate
         if (drSuggest.a.bans.length === 0) {
             const defaultBanPool = uniqueHeroes(
