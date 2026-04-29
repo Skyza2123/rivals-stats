@@ -559,6 +559,12 @@
         <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
     </div>
     <p class="dr-model-status" id="dr-status">Choose two teams to start.</p>
+    <div id="dr-lineup-section" style="display:none;margin-top:0.75rem">
+        <div class="field">
+            <label>Our Lineup <span style="color:#94a3b8;font-size:0.72rem;font-weight:400">— who's playing this map?</span></label>
+            <div id="dr-lineup-checkboxes" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem"></div>
+        </div>
+    </div>
 </section>
 
 <div class="dr-workspace" id="dr-workspace" style="display:none">
@@ -1084,6 +1090,7 @@ function openHeroIconHtml(hero) {
     let drContext = null;
     let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
     let drPlayMode = false;    // true when auto-play is active
+    let drActiveLineup = null; // null = all players; Set of player-pool-keys who are 'in'
     const drDraft = {a:{}, b:{}};
     let drSuggest = {a:{bans:[],protects:[],ml:{},banPath:[]}, b:{bans:[],protects:[],ml:{},banPath:[]}};
     const drTeamNames = {a: '', b: ''};
@@ -1330,9 +1337,11 @@ function openHeroIconHtml(hero) {
         const teamTiers = drGetTeamPoolTiers(teamKey);
         const activeTiers = {};
         Object.keys(teamTiers).forEach(function(playerName) {
-            if (drIsPlayerOnDraftTeam(teamKey, playerName)) {
-                activeTiers[playerName] = teamTiers[playerName];
-            }
+            if (!drIsPlayerOnDraftTeam(teamKey, playerName)) return;
+            // For our team, also require the player to be in the active lineup
+            if (teamKey === 'a' && drActiveLineup && drActiveLineup.size
+                    && !drActiveLineup.has(drHeroPoolPlayerKey(playerName))) return;
+            activeTiers[playerName] = teamTiers[playerName];
         });
         // If roster-name matching fails (alias drift, missing roster payload, etc.),
         // keep machine tiers available so ranked heroes don't collapse into "Unranked".
@@ -1397,6 +1406,16 @@ function openHeroIconHtml(hero) {
         return false;
     }
 
+    // Returns the active roster for a team — for 'a', filtered by drActiveLineup if set.
+    function drGetActiveRoster(teamKey) {
+        const allRows = (drRosterLookup[teamKey] || {rows: []}).rows || [];
+        if (teamKey !== 'a' || !drActiveLineup || !drActiveLineup.size) return allRows;
+        const filtered = allRows.filter(function(row) {
+            return drActiveLineup.has(drHeroPoolPlayerKey(row.name));
+        });
+        return filtered.length ? filtered : allRows;
+    }
+
     function drBuildHeroHints(teamKey, teamPayload) {
         const model = (teamPayload || {}).model || {};
         const hints = new Map();
@@ -1441,6 +1460,45 @@ function openHeroIconHtml(hero) {
         drHeroPlayerHints[teamKey] = hints;
         drPlayerHeroHints[teamKey] = playerHints;
         drBuildRosterLookup(teamKey, (teamPayload || {}).roster_players || []);
+    }
+
+    function drBuildLineupUI(rosterRows) {
+        const section = document.getElementById('dr-lineup-section');
+        const box = document.getElementById('dr-lineup-checkboxes');
+        if (!section || !box) return;
+        box.innerHTML = '';
+        // Default: all non-subs in, subs out
+        const rows = (rosterRows || []).filter(function(r) { return (r && r.name); });
+        drActiveLineup = new Set(rows.filter(function(r) { return !r.is_sub; }).map(function(r) { return drHeroPoolPlayerKey(r.name); }));
+        rows.forEach(function(row) {
+            const key = drHeroPoolPlayerKey(row.name);
+            const isIn = drActiveLineup.has(key);
+            const label = document.createElement('label');
+            label.style.cssText = 'display:inline-flex;align-items:center;gap:0.35rem;cursor:pointer;'
+                + 'background:rgba(15,23,42,0.55);border:1px solid rgba(148,163,184,0.2);'
+                + 'border-radius:999px;padding:0.2rem 0.65rem;font-size:0.78rem;color:#dbeafe;user-select:none';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = isIn;
+            cb.dataset.playerKey = key;
+            cb.addEventListener('change', function() {
+                if (this.checked) drActiveLineup.add(key);
+                else drActiveLineup.delete(key);
+                if (drContext) {
+                    const teams = (drModel || {}).teams || [];
+                    const mA = ((teams[0] || {}).model) || {};
+                    const mB = ((teams[1] || {}).model) || {};
+                    drComputeSuggestions(mA, mB, drTeamNames.a, drTeamNames.b, drContext.mapFilter || '');
+                    drRender();
+                }
+            });
+            label.appendChild(cb);
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = row.name + (row.is_sub ? ' ↗' : '');
+            label.appendChild(nameSpan);
+            box.appendChild(label);
+        });
+        section.style.display = rows.length ? '' : 'none';
     }
 
     function drDecoratePlayerName(teamKey, playerName) {
@@ -2026,7 +2084,7 @@ function openHeroIconHtml(hero) {
     }
 
     function drBuildCompAssignments(teamKey, heroes) {
-        const roster = (drRosterLookup[teamKey] || {rows: []}).rows || [];
+        const roster = drGetActiveRoster(teamKey);
         const uniqueHeroes = Array.from(new Set((heroes || []).filter(Boolean)));
         if (!uniqueHeroes.length || !roster.length) return [];
 
@@ -2478,6 +2536,7 @@ function openHeroIconHtml(hero) {
             document.getElementById('dr-col-b-label').textContent = nameB;
             drBuildHeroHints('a', teams[0] || {});
             drBuildHeroHints('b', teams[1] || {});
+            drBuildLineupUI((teams[0] || {}).roster_players || []);
 
             const mA = (teams[0]||{}).model || {};
             const mB = (teams[1]||{}).model || {};
