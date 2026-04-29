@@ -502,6 +502,105 @@
     let activeSlot = null;
     const draft = { a: {}, b: {} };
 
+    // --- Tab switching ---
+    document.querySelectorAll('.dr-tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.dr-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.dr-tab-pane').forEach(function(p) { p.classList.remove('active'); });
+            btn.classList.add('active');
+            const pane = document.getElementById(btn.dataset.tab);
+            if (pane) pane.classList.add('active');
+        });
+    });
+
+    // --- Scout tab fetch & render ---
+    async function loadScoutingData(teamBId, season) {
+        const scoutBtn = document.getElementById('dr-scout-tab-btn');
+        const scoutContent = document.getElementById('dr-scout-content');
+        scoutContent.innerHTML = '<p class="dr-scout-no-data">Loading scouting data…</p>';
+        try {
+            const p = new URLSearchParams({ team_b: teamBId });
+            if (season) p.set('season', season);
+            const resp = await fetch('/api/draft-reasoner/enemy-scouting?' + p.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            if (!data.loss_maps_total) {
+                scoutBtn.style.display = 'none';
+                scoutContent.innerHTML = '<p class="dr-scout-no-data">No tournament loss data found for this team.</p>';
+                return;
+            }
+            scoutBtn.style.display = '';
+            scoutContent.innerHTML = renderScoutContent(data);
+        } catch(e) {
+            scoutContent.innerHTML = '<p class="dr-scout-no-data">Could not load scouting data.</p>';
+            console.error(e);
+        }
+    }
+
+    function renderScoutSection(title, rows, barColor, countLabel) {
+        if (!rows || !rows.length) return '';
+        const maxCount = rows[0].count || 1;
+        let html = '<div class="dr-scout-section">';
+        html += '<div class="dr-scout-section-title">' + escapeHtml(title) + '</div>';
+        rows.forEach(function(row, i) {
+            const pct = Math.round((row.count / maxCount) * 100);
+            html += '<div class="dr-scout-row">';
+            html += '<span class="dr-scout-rank">' + (i + 1) + '</span>';
+            html += '<img class="dr-scout-hero-img" src="' + heroImageUrl(row.hero) + '" alt="" onerror="this.style.display=\'none\'">';
+            html += '<span class="dr-scout-hero-name">' + escapeHtml(row.hero) + '</span>';
+            html += '<div class="dr-scout-bar-wrap"><div class="dr-scout-bar-fill ' + escapeHtml(barColor) + '" style="width:' + pct + '%"></div></div>';
+            html += '<span class="dr-scout-pct">' + escapeHtml(row.count) + ' ' + escapeHtml(countLabel) + '</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function renderScoutContent(data) {
+        const teamName = data.team_b_name || 'Enemy';
+        let html = '<div style="font-size:0.82rem;color:#94a3b8;margin-bottom:1rem">Based on <strong style="color:#e2e8f0">'
+            + escapeHtml(data.loss_maps_total)
+            + ' map' + (data.loss_maps_total !== 1 ? 's' : '')
+            + '</strong> where <strong style="color:#f87171">' + escapeHtml(teamName)
+            + '</strong> lost in tournament play.</div>';
+
+        html += renderScoutSection(
+            'What winning teams banned vs ' + teamName,
+            data.winning_team_bans || [],
+            '',   // red (default)
+            'maps'
+        );
+        html += renderScoutSection(
+            'Heroes winning teams played against ' + teamName,
+            data.winning_team_heroes || [],
+            'blue',
+            'maps'
+        );
+        html += renderScoutSection(
+            teamName + "'s heroes on losing maps (possible weaknesses)",
+            data.enemy_heroes_when_losing || [],
+            'green',
+            'maps'
+        );
+
+        if ((data.match_summaries || []).length) {
+            html += '<div class="dr-scout-section">';
+            html += '<div class="dr-scout-section-title">Loss breakdown by opponent</div>';
+            data.match_summaries.forEach(function(m) {
+                html += '<div class="dr-scout-row"><span style="flex:1;color:#e2e8f0;font-size:0.84rem">'
+                    + escapeHtml(m.opponent) + '</span>'
+                    + '<span style="font-size:0.78rem;color:#94a3b8">' + escapeHtml(m.maps_lost.join(', ')) + '</span>'
+                    + '<span class="dr-scout-pct">' + escapeHtml(m.count) + ' loss' + (m.count !== 1 ? 'es' : '') + '</span>'
+                    + '</div>';
+            });
+            html += '</div>';
+        }
+
+        return html;
+    }
+
     // --- Load model ---
     document.getElementById('dr-load-btn').addEventListener('click', async function() {
         const teamA = document.getElementById('dr-team-a').value;
@@ -531,6 +630,8 @@
             document.getElementById('dr-main').style.display = '';
             buildHeroGrid();
             renderReasoning();
+            // Load tournament scouting data for enemy team
+            loadScoutingData(teamB, season);
         } catch(e) {
             document.getElementById('dr-model-status').textContent = 'Could not build draft plan.';
             console.error(e);
