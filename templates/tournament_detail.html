@@ -65,7 +65,7 @@
         <section class="stat-card"><strong>Unique Maps</strong><span>{{ overview_analytics.summary.unique_maps }}</span></section>
     </div>
 
-    <div class="form-grid top-gap">
+    <div class="two-col-grid top-gap">
         <div class="panel panel-soft-red">
             <div class="section-kicker">Draft</div>
             <h3>Most Banned Heroes</h3>
@@ -139,31 +139,20 @@
         <div class="section-kicker">Maps</div>
         <h3>Most Played Maps</h3>
         {% if overview_analytics.map_rows %}
-            <div class="scrim-box-grid">
+            <div class="map-card-grid">
                 {% for row in overview_analytics.map_rows %}
-                    <article class="scrim-box-card">
-                        <div class="scrim-box-head">
-                            <div class="list-title">{{ row.map_name }}</div>
-                            <span class="scrim-box-maps">{{ row.count }} plays</span>
-                        </div>
-                        <div class="list-subtitle">
-                            {{ row.mode }} • {{ row.play_rate }}% of tournament maps
-                            {% if row.win_rate is not none %} • {{ row.win_rate }}% overall WR{% endif %}
-                        </div>
-                        <div class="summary-box top-gap">
-                            Mirrored WR:
-                            {% if row.mirrored_win_rate is not none %}
-                                {{ row.mirrored_win_rate }}% ({{ row.mirrored_completed }} maps)
-                            {% else %}
-                                --
-                            {% endif %}
-                            <br>
-                            Unmirrored WR:
-                            {% if row.unmirrored_win_rate is not none %}
-                                {{ row.unmirrored_win_rate }}% ({{ row.unmirrored_completed }} maps)
-                            {% else %}
-                                --
-                            {% endif %}
+                    <article class="map-card"
+                        {% if map_images.get(row.map_name) %}
+                        style="background-image: url('{{ map_images[row.map_name] }}');"
+                        {% endif %}>
+                        <div class="map-card-overlay">
+                            <div class="map-card-top">
+                                <div class="pill pill-neutral">{{ row.count }} plays</div>
+                            </div>
+                            <div class="map-card-bottom">
+                                <div class="map-card-title">{{ row.map_name }}</div>
+                                <div class="map-card-sub">{{ row.mode }} &bull; {{ row.play_rate }}% of maps</div>
+                            </div>
                         </div>
                     </article>
                 {% endfor %}

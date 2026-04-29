@@ -2979,7 +2979,30 @@ def find_tournament_team_by_name(tournament_teams: list[dict], team_name: str) -
     for team in tournament_teams:
         if isinstance(team, dict) and str(team.get("name", "")).strip().lower() == candidate:
             return team
+    # Fuzzy fallback using the same match-key logic as the importer
+    for team in tournament_teams:
+        if isinstance(team, dict) and _team_names_match(team_name, team.get("name", "")):
+            return team
     return None
+
+
+def _resolve_team_from_db(raw_name: str) -> tuple[str, list[str]]:
+    """Return (canonical_name, player_list) from the DB for raw_name.
+    Falls back to (raw_name, []) if no match is found."""
+    db = get_db()
+    all_teams = db.execute("SELECT id, name FROM teams ORDER BY id").fetchall()
+    for row in all_teams:
+        if _team_names_match(raw_name, row["name"]):
+            canonical = row["name"]
+            players = [
+                p["name"]
+                for p in db.execute(
+                    "SELECT name FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                    (row["id"],),
+                ).fetchall()
+            ]
+            return canonical, players
+    return (raw_name or "").strip(), []
 
 
 def get_tournament_team_by_id(tournament_match: dict, tournament_team_id: int | None) -> dict | None:
@@ -3278,19 +3301,27 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
 
 
 def find_or_add_tournament_team_from_import(tournament_record: dict, team_name: str, players: list[str] | None = None) -> dict:
-    normalized_name = (team_name or "").strip()
-    existing_team = find_tournament_team_by_name(tournament_record.get("tournament_teams", []), normalized_name)
+    # Resolve canonical name + roster from the DB first
+    db_canonical, db_players = _resolve_team_from_db(team_name)
+    # Merge imported players with any DB roster entries
+    merged_players = list(db_players)
+    for p in (players or []):
+        if p and p not in merged_players:
+            merged_players.append(p)
+
+    # Match against an existing tournament team using the canonical name
+    existing_team = find_tournament_team_by_name(tournament_record.get("tournament_teams", []), db_canonical)
     if existing_team is not None:
         existing_players = existing_team.setdefault("players", [])
-        for player_name in players or []:
+        for player_name in merged_players:
             if player_name and player_name not in existing_players:
                 existing_players.append(player_name)
         return existing_team
 
     new_team = {
         "id": next_tournament_team_id(tournament_record),
-        "name": normalized_name or "Unknown Team",
-        "players": [player_name for player_name in (players or []) if player_name],
+        "name": db_canonical or "Unknown Team",
+        "players": [p for p in merged_players if p],
     }
     tournament_record.setdefault("tournament_teams", []).append(new_team)
     return new_team
@@ -12515,6 +12546,7 @@ def tournament_detail(tournament_id: int):
         tournament_ban_analytics=tournament_ban_analytics,
         selected_perspective=selected_perspective,
         total_maps=total_maps,
+        map_images=MAP_IMAGES,
         completed_maps=completed_maps,
     )
 
