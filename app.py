@@ -9081,45 +9081,22 @@ def teams():
 
         # Calculate hero pool (top 5 heroes)
         pick_counter: Counter = Counter()
-        win_counter: Counter = Counter()
-
         for scrim in team_scrims:
             for map_entry in scrim.get("maps", []):
                 if not isinstance(map_entry, dict):
                     continue
-
                 our_slot = map_entry.get("our_team_slot", "team1")
-                won_map = map_entry.get("winner") == our_slot
-
-                heroes_this_map = set()
-
                 for section in map_entry.get("comp", []):
                     if not isinstance(section, dict):
                         continue
-
                     for slot in section.get(our_slot, []):
                         if not isinstance(slot, dict):
                             continue
-
                         hero = canonicalize_hero_name(slot.get("hero", ""))
                         if hero:
-                            heroes_this_map.add(hero)
+                            pick_counter[hero] += 1
 
-                # each hero gets 1 full map if they appeared at all
-                for hero in heroes_this_map:
-                    pick_counter[hero] += 1
-
-                    if won_map:
-                        win_counter[hero] += 1
-
-        hero_pool = [
-            {
-                "hero": h,
-                "count": c,
-                "win_rate": round((win_counter[h] / c) * 100, 1) if c else 0,
-            }
-            for h, c in pick_counter.most_common(5)
-        ]
+        hero_pool = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
 
         teams_with_scrim_stats.append(
             {
