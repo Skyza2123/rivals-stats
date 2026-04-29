@@ -2526,7 +2526,7 @@ def is_ringer_player_name(raw_name: str | None) -> bool:
         return False
 
     lowered = name.lower()
-    if re.match(r"^(?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)\s*[:\-]", lowered):
+    if re.match(r"^(?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)\s*(?::|\s*-\s+)", lowered):
         return True
     if re.search(r"[\[(](?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)[\])]\s*$", lowered):
         return True
@@ -2542,7 +2542,7 @@ def normalize_player_name(raw_name: str | None) -> str:
 
     name = re.sub(r"\s+", " ", name)
     name = name.strip("`\"'")
-    name = re.sub(r"^(?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)\s*[:\-]\s*", "", name, flags=re.IGNORECASE)
+    name = re.sub(r"^(?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)\s*(?::\s*|\s*-\s+)", "", name, flags=re.IGNORECASE)
     name = re.sub(r"\s*[\[(](?:r|ringer|sub|substitute|stand[\s-]?in|merc(?:enary)?)[\])]\s*$", "", name, flags=re.IGNORECASE)
     name = name.strip()
 
@@ -12531,6 +12531,21 @@ def tournament_detail(tournament_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
     selected_perspective = normalize_match_team_slot(tournament_record.get("team_slot", "team1"))
+
+    # Sync each tournament team's roster from the DB on every page load
+    roster_changed = False
+    for t_team in tournament_record.get("tournament_teams", []):
+        _, db_players = _resolve_team_from_db(t_team.get("name", ""))
+        if db_players:
+            existing = set(t_team.get("players", []))
+            for p in db_players:
+                if p and p not in existing:
+                    t_team.setdefault("players", []).append(p)
+                    existing.add(p)
+                    roster_changed = True
+    if roster_changed:
+        save_app_state()
+
     match_summaries = build_tournament_match_summaries(tournament_record)
     overview_analytics = build_tournament_overview_analytics(tournament_record)
     tournament_ban_analytics = build_scrim_analytics(build_tournament_match_scrims(tournament_record, selected_perspective))
@@ -12548,6 +12563,7 @@ def tournament_detail(tournament_id: int):
         total_maps=total_maps,
         map_images=MAP_IMAGES,
         completed_maps=completed_maps,
+        today=date.today().isoformat(),
     )
 
 
