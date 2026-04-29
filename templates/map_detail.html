@@ -111,7 +111,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Team Comp</h3>
-        {% if session.get('access_level') == 'edit' and map_entry.comp|length < 4 and not map_submaps.get(map_entry.map_name) %}
+        {% if session.get('access_level') == 'edit' and map_entry.comp|length < 4 and not map_submaps.get(map_entry.map_name) and map_mode not in ['Escort', 'Hybrid'] %}
         <form method="post" action="{{ url_for(add_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" style="display:inline;">
             <button type="submit" class="button-small">+ Add Round</button>
         </form>
@@ -120,10 +120,11 @@
     {% for sec in map_entry.comp %}
     {% set s = loop.index0 %}
     {% set sec_score_parts = split_score_pair(sec.score or '') %}
+    {% set comp_section_label = sec.submap or ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1))) %}
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
-            <span class="comp-submap-name">{{ sec.submap or ('Round ' ~ (s + 1)) }}{% if sec.side %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
-            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ sec.submap or ('Round ' ~ (s + 1)) }}</button>{% endif %}
+            <span class="comp-submap-name">{{ comp_section_label }}{% if sec.side %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
+            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ comp_section_label }}</button>{% endif %}
         </div>
         <div class="comp-grid">
             <div class="comp-team">
@@ -262,7 +263,7 @@
                 {% if map_mode in ['Escort', 'Hybrid'] %}
                 <div class="field" style="grid-column: 1 / -1;">
                     <p class="panel-intro" style="margin:0;">
-                        For Escort and Hybrid maps, the score fields below are stored by <strong>side</strong>, not by scrim team order: <strong>Side 1 / left side first</strong>, then <strong>Side 2 / right side second</strong>. Side 1 starts on defense in Round 1 and Side 2 starts on attack. Example: <strong>3-2</strong> means Side 2 opened on attack and reached 2, then Side 1 answered with 3.
+                        For Escort and Hybrid maps, the score fields below are stored by <strong>side</strong>, not by scrim team order: <strong>Side 1 / left side first</strong>, then <strong>Side 2 / right side second</strong>. Example: <strong>3-2</strong> means the right side reached 2, then the left side answered with 3.
                     </p>
                 </div>
                 {% endif %}
@@ -335,10 +336,11 @@
 {% set s = loop.index0 %}
 {% set sec_score_parts = split_score_pair(sec.score or '') %}
 {% set uses_map_level_round_score = map_mode in ['Escort', 'Hybrid'] and not sec.submap %}
+{% set comp_section_label = sec.submap or ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1))) %}
 <div class="modal-backdrop" id="editCompSectionModal{{ s }}">
     <div class="modal modal-wide">
         <div class="modal-header">
-            <h2>Edit Team Comp - {{ sec.submap or ('Round ' ~ (s + 1)) }}</h2>
+            <h2>Edit Team Comp - {{ comp_section_label }}</h2>
             <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
         </div>
         <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, section_index=s) }}" method="post">
@@ -347,7 +349,7 @@
                 {% if uses_map_level_round_score %}
                 <div class="field" style="grid-column: 1 / -1;">
                     <p class="panel-intro" style="margin:0;">
-                        Round score is handled in <strong>Edit Map Info</strong> for Escort and Hybrid maps. Use this section to edit the comps played on this round only.
+                        Score is handled in <strong>Edit Map Info</strong> for Escort and Hybrid maps. Use this section to edit the comps played on this map.
                     </p>
                 </div>
                 {% else %}

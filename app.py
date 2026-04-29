@@ -3043,6 +3043,16 @@ def _map_import_team_label(label: str, alias_map: dict[str, str]) -> str:
     return alias_map.get(cleaned) or alias_map.get(cleaned.lower()) or cleaned
 
 
+def _resolve_import_map_team_labels(left_label: str, right_label: str, team1_name: str, team2_name: str) -> tuple[str, str]:
+    left_clean = (left_label or "").strip()
+    right_clean = (right_label or "").strip()
+    if _team_names_match(left_clean, team1_name) and _team_names_match(right_clean, team2_name):
+        return team1_name, team2_name
+    if _team_names_match(left_clean, team2_name) and _team_names_match(right_clean, team1_name):
+        return team2_name, team1_name
+    return team1_name, team2_name
+
+
 def _assign_import_draft_row(draft: dict, side: str, headers: list[str], values: list[str]) -> None:
     if side not in TEAM_SLOTS:
         return
@@ -3063,19 +3073,27 @@ def _assign_import_draft_row(draft: dict, side: str, headers: list[str], values:
             protect_index += 1
 
 
+def _split_import_table_row(line: str) -> list[str]:
+    if "\t" in (line or ""):
+        return [cell.strip() for cell in line.split("\t")]
+    return [cell.strip() for cell in re.split(r"\s{2,}", (line or "").strip()) if cell.strip()]
+
+
 def _parse_import_draft(block_lines: list[str], side_by_label: dict[str, str]) -> dict:
     draft = _blank_import_draft()
     for index, line in enumerate(block_lines):
-        cells = [cell.strip() for cell in line.split("\t")]
+        cells = _split_import_table_row(line)
         if not cells or cells[0].lower() != "ban":
             continue
 
         headers = cells
-        for row in block_lines[index + 1:index + 3]:
-            row_cells = [cell.strip() for cell in row.split("\t")]
+        for row_offset, row in enumerate(block_lines[index + 1:index + 3]):
+            row_cells = _split_import_table_row(row)
             if len(row_cells) < 2:
                 continue
             side = side_by_label.get(row_cells[0]) or side_by_label.get(row_cells[0].lower())
+            if side not in TEAM_SLOTS:
+                side = "team1" if row_offset == 0 else "team2"
             _assign_import_draft_row(draft, side, headers, row_cells[1:])
         break
     return draft
@@ -3084,22 +3102,26 @@ def _parse_import_draft(block_lines: list[str], side_by_label: dict[str, str]) -
 def _parse_import_comp(block_lines: list[str], side_by_label: dict[str, str]) -> dict:
     section = _blank_import_comp_section()
     for index, line in enumerate(block_lines):
-        cells = [cell.strip() for cell in line.split("\t")]
-        if len(cells) < 9 or cells[1].lower() != "hero" or cells[-2].lower() != "hero":
+        cells = _split_import_table_row(line)
+        hero_columns = [cell_index for cell_index, cell in enumerate(cells) if cell.lower() == "hero"]
+        if len(cells) < 4 or len(hero_columns) < 2 or hero_columns[0] != 1:
             continue
 
+        right_hero_index = hero_columns[-1]
         left_side = side_by_label.get(cells[0]) or side_by_label.get(cells[0].lower())
         right_side = side_by_label.get(cells[-1]) or side_by_label.get(cells[-1].lower())
-        if left_side not in TEAM_SLOTS or right_side not in TEAM_SLOTS:
-            continue
+        if left_side not in TEAM_SLOTS:
+            left_side = "team1"
+        if right_side not in TEAM_SLOTS:
+            right_side = "team2"
 
         for row in block_lines[index + 1:index + 7]:
-            row_cells = [cell.strip() for cell in row.split("\t")]
-            if len(row_cells) < 4:
+            row_cells = _split_import_table_row(row)
+            if len(row_cells) <= right_hero_index or len(row_cells) < 4:
                 continue
 
             left_slot = {"player": row_cells[0], "hero": _normalize_import_hero(row_cells[1])}
-            right_slot = {"player": row_cells[-1], "hero": _normalize_import_hero(row_cells[-2])}
+            right_slot = {"player": row_cells[-1], "hero": _normalize_import_hero(row_cells[right_hero_index])}
 
             if len(section[left_side]) < 6:
                 section[left_side].append(left_slot)
@@ -3152,10 +3174,11 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
     if first_score_match:
         first_left = first_score_match.group(1).strip()
         first_right = first_score_match.group(4).strip()
-        alias_map[first_left] = team1_name
-        alias_map[first_left.lower()] = team1_name
-        alias_map[first_right] = team2_name
-        alias_map[first_right.lower()] = team2_name
+        first_left_team, first_right_team = _resolve_import_map_team_labels(first_left, first_right, team1_name, team2_name)
+        alias_map[first_left] = first_left_team
+        alias_map[first_left.lower()] = first_left_team
+        alias_map[first_right] = first_right_team
+        alias_map[first_right.lower()] = first_right_team
 
     maps: list[dict] = []
     players_by_team: dict[str, set[str]] = {team1_name: set(), team2_name: set()}
@@ -3178,6 +3201,10 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
             left_score = ""
             right_score = ""
 
+        replay_line = next(
+            (line.strip() for line in block_lines if re.match(r"^\s*Replay\s+ID\s*:", line, re.IGNORECASE)),
+            "",
+        )
         left_team_name = _map_import_team_label(left_label, alias_map)
         right_team_name = _map_import_team_label(right_label, alias_map)
         side_by_label = {
@@ -3213,7 +3240,7 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
             "team2_name": right_team_name,
             "draft": draft,
             "comp": [comp_section],
-            "notes": "",
+            "notes": replay_line,
             "vod_url": "",
             "events": [],
         })
@@ -3245,6 +3272,28 @@ def find_or_add_tournament_team_from_import(tournament_record: dict, team_name: 
     }
     tournament_record.setdefault("tournament_teams", []).append(new_team)
     return new_team
+
+
+def get_tournament_map_loser_team_id(map_entry: dict) -> int | None:
+    left_score, right_score = split_score_pair(map_entry.get("score", ""))
+    if left_score.isdigit() and right_score.isdigit():
+        left_value = int(left_score)
+        right_value = int(right_score)
+        if left_value > right_value:
+            return map_entry.get("team2_tournament_team_id")
+        if right_value > left_value:
+            return map_entry.get("team1_tournament_team_id")
+
+    result = str(map_entry.get("result", "")).strip()
+    our_team_slot = map_entry.get("our_team_slot", "team1")
+    if our_team_slot not in TEAM_SLOTS:
+        our_team_slot = "team1"
+    other_slot = "team2" if our_team_slot == "team1" else "team1"
+    if result == "Win":
+        return map_entry.get(f"{other_slot}_tournament_team_id")
+    if result == "Loss":
+        return map_entry.get(f"{our_team_slot}_tournament_team_id")
+    return None
 
 
 def get_result_for_slot(map_entry: dict, slot: str) -> str:
@@ -12514,11 +12563,22 @@ def import_tournament_match_file(tournament_id: int):
         map_entry["team2_name"] = map_team2["name"]
         map_entry["our_team_slot"] = "team1" if map_team1["id"] == team1["id"] else "team2"
         map_entry["result"] = infer_result_from_score_text(map_entry.get("score", ""), slot=map_entry["our_team_slot"])
+        map_entry["picked_by_tournament_team_id"] = None
+        map_entry["picked_by_name"] = ""
         maps.append(map_entry)
 
     if not maps:
         flash("The uploaded file did not contain any map data.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    for index, map_entry in enumerate(maps):
+        if index == 0:
+            continue
+        picker_id = get_tournament_map_loser_team_id(maps[index - 1])
+        picker = find_tournament_team_by_id(tournament_record.get("tournament_teams", []), picker_id)
+        if picker is not None:
+            map_entry["picked_by_tournament_team_id"] = picker["id"]
+            map_entry["picked_by_name"] = picker.get("name", "")
 
     match_date = request.form.get("scrim_date", "").strip() or tournament_record.get("scrim_date", "")
     notes = parsed_match.get("notes", "")
@@ -12986,6 +13046,7 @@ def tournament_match_map_detail(tournament_id: int, match_id: int, map_id: int):
         update_map_info_endpoint="update_tournament_match_map_info",
         update_comp_endpoint="update_tournament_match_comp",
         update_comp_section_endpoint="update_tournament_match_comp_section",
+        add_comp_section_endpoint="add_tournament_match_comp_section",
         delete_event_endpoint="delete_tournament_match_event",
         add_event_endpoint="add_tournament_match_event_to_map",
         detail_parent_id=tournament_id,
@@ -13870,6 +13931,7 @@ def tournament_map_detail(tournament_id: int, map_id: int):
         update_map_info_endpoint="update_tournament_map_info",
         update_comp_endpoint="update_tournament_comp",
         update_comp_section_endpoint="update_tournament_comp_section",
+        add_comp_section_endpoint="add_tournament_comp_section",
         delete_event_endpoint="delete_tournament_event",
         add_event_endpoint="add_tournament_event_to_map",
         detail_parent_id=tournament_id,
