@@ -17,6 +17,7 @@
         {% if session.get('access_level') == 'edit' %}
         <button type="button" class="button-secondary" onclick="openModal('editTournamentModal')">Edit</button>
         <button type="button" class="button-secondary" onclick="openModal('addTeamModal')">Add Team</button>
+        <button type="button" class="button-secondary" onclick="openModal('importMatchFileModal')">Import Match File</button>
         <button type="button" class="button-link" onclick="openModal('addMatchModal')">+ Add Match</button>
         <button type="button" class="btn-danger-sm" onclick="confirmDeleteTournament()">Delete Tournament</button>
         {% endif %}
@@ -575,7 +576,12 @@
             <h3>Matches</h3>
             <p class="panel-intro">Matches work like scrims. Open one to add maps, comps, notes, and who picked each map.</p>
         </div>
-        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addMatchModal')" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Add Match</button>{% endif %}
+        {% if session.get('access_level') == 'edit' %}
+        <div class="inline-actions">
+            <button type="button" class="button-secondary button-small" onclick="openModal('importMatchFileModal')">Import File</button>
+            <button type="button" class="button-small" onclick="openModal('addMatchModal')" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Add Match</button>
+        </div>
+        {% endif %}
     </div>
 
     {% if match_summaries %}
@@ -718,6 +724,34 @@
             <div class="modal-actions">
                 <button type="button" class="button-secondary" onclick="closeModal('addMatchModal')">Cancel</button>
                 <button type="submit" class="button-small" {% if tournament.tournament_teams|length < 2 %}disabled{% endif %}>Create Match</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="importMatchFileModal" class="modal-overlay" onclick="closeModalFromOverlay(event, 'importMatchFileModal')">
+    <div class="modal-card modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Import Match File</h3>
+                <p>Upload a match text export to create teams, maps, scores, drafts, and comps.</p>
+            </div>
+            <button type="button" class="modal-close" onclick="closeModal('importMatchFileModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('import_tournament_match_file', tournament_id=tournament.id) }}" method="post" enctype="multipart/form-data">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="import_match_date">Date</label>
+                    <input type="date" id="import_match_date" name="scrim_date" value="{{ tournament.scrim_date }}">
+                </div>
+                <div class="field field-full">
+                    <label for="match_file">Match File</label>
+                    <input type="file" id="match_file" name="match_file" accept=".txt,text/plain" required>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="button-secondary" onclick="closeModal('importMatchFileModal')">Cancel</button>
+                <button type="submit" class="button-small">Import Match</button>
             </div>
         </form>
     </div>

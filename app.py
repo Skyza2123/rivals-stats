@@ -2999,6 +2999,254 @@ def next_tournament_match_id(tournament_record: dict) -> int:
     return max_id + 1
 
 
+def _blank_import_draft() -> dict:
+    return {
+        "team1": {"ban1": "", "protect1": "", "ban2": "", "ban3": "", "ban4": "", "protect2": ""},
+        "team2": {"ban1": "", "protect1": "", "ban2": "", "ban3": "", "ban4": "", "protect2": ""},
+    }
+
+
+def _blank_import_comp_section() -> dict:
+    return {
+        "submap": "",
+        "side": "",
+        "score": "",
+        "team1": [{"hero": "", "player": ""} for _ in range(6)],
+        "team2": [{"hero": "", "player": ""} for _ in range(6)],
+    }
+
+
+def _normalize_import_hero(raw_hero: str | None) -> str:
+    hero_text = (raw_hero or "").strip()
+    if not hero_text or hero_text.lower() == "skipped":
+        return ""
+
+    # Imported comp cells can include swaps. The match page stores one hero per
+    # player slot, so keep the opening pick as the displayed comp hero.
+    hero_text = hero_text.split("/")[0].strip()
+    compact = _compact_text(hero_text)
+    if compact in {"deadpoolvan", "deadpoolv", "deadpoolvanguard"}:
+        return "Tankpool"
+    if compact in {"deadpooldps", "deadpoolduelist"}:
+        return "DpsPool"
+    if compact in {"deadpoolsup", "deadpoolsupp", "deadpoolsupport", "deadpoolstrategist"}:
+        return "SupportPool"
+    return normalize_hero_slot_value(hero_text)
+
+
+def _tournament_import_score_match(line: str) -> re.Match | None:
+    return re.match(r"^(.+?)\s+(\d+)\s*-\s*(\d+)\s+(.+)$", (line or "").strip())
+
+
+def _map_import_team_label(label: str, alias_map: dict[str, str]) -> str:
+    cleaned = (label or "").strip()
+    return alias_map.get(cleaned) or alias_map.get(cleaned.lower()) or cleaned
+
+
+def _assign_import_draft_row(draft: dict, side: str, headers: list[str], values: list[str]) -> None:
+    if side not in TEAM_SLOTS:
+        return
+
+    ban_index = 1
+    protect_index = 1
+    for header, raw_value in zip(headers, values):
+        hero_name = _normalize_import_hero(raw_value)
+        if not hero_name:
+            continue
+
+        header_value = (header or "").strip().lower()
+        if header_value.startswith("ban") and ban_index <= 4:
+            draft[side][f"ban{ban_index}"] = hero_name
+            ban_index += 1
+        elif header_value.startswith("protect") and protect_index <= 2:
+            draft[side][f"protect{protect_index}"] = hero_name
+            protect_index += 1
+
+
+def _parse_import_draft(block_lines: list[str], side_by_label: dict[str, str]) -> dict:
+    draft = _blank_import_draft()
+    for index, line in enumerate(block_lines):
+        cells = [cell.strip() for cell in line.split("\t")]
+        if not cells or cells[0].lower() != "ban":
+            continue
+
+        headers = cells
+        for row in block_lines[index + 1:index + 3]:
+            row_cells = [cell.strip() for cell in row.split("\t")]
+            if len(row_cells) < 2:
+                continue
+            side = side_by_label.get(row_cells[0]) or side_by_label.get(row_cells[0].lower())
+            _assign_import_draft_row(draft, side, headers, row_cells[1:])
+        break
+    return draft
+
+
+def _parse_import_comp(block_lines: list[str], side_by_label: dict[str, str]) -> dict:
+    section = _blank_import_comp_section()
+    for index, line in enumerate(block_lines):
+        cells = [cell.strip() for cell in line.split("\t")]
+        if len(cells) < 9 or cells[1].lower() != "hero" or cells[-2].lower() != "hero":
+            continue
+
+        left_side = side_by_label.get(cells[0]) or side_by_label.get(cells[0].lower())
+        right_side = side_by_label.get(cells[-1]) or side_by_label.get(cells[-1].lower())
+        if left_side not in TEAM_SLOTS or right_side not in TEAM_SLOTS:
+            continue
+
+        for row in block_lines[index + 1:index + 7]:
+            row_cells = [cell.strip() for cell in row.split("\t")]
+            if len(row_cells) < 4:
+                continue
+
+            left_slot = {"player": row_cells[0], "hero": _normalize_import_hero(row_cells[1])}
+            right_slot = {"player": row_cells[-1], "hero": _normalize_import_hero(row_cells[-2])}
+
+            if len(section[left_side]) < 6:
+                section[left_side].append(left_slot)
+            else:
+                empty_index = next((i for i, slot in enumerate(section[left_side]) if not slot.get("hero") and not slot.get("player")), None)
+                if empty_index is not None:
+                    section[left_side][empty_index] = left_slot
+
+            if len(section[right_side]) < 6:
+                section[right_side].append(right_slot)
+            else:
+                empty_index = next((i for i, slot in enumerate(section[right_side]) if not slot.get("hero") and not slot.get("player")), None)
+                if empty_index is not None:
+                    section[right_side][empty_index] = right_slot
+        break
+
+    return section
+
+
+def parse_tournament_match_text_import(raw_text: str) -> dict:
+    lines = [(line or "").rstrip("\r") for line in (raw_text or "").splitlines()]
+    non_empty_lines = [line.strip() for line in lines if line.strip()]
+    match_line = ""
+    match = None
+    for line in non_empty_lines:
+        candidate = _tournament_import_score_match(line)
+        if candidate:
+            match_line = line
+            match = candidate
+            break
+
+    if match is None:
+        raise ValueError("Could not find a match score line like Team A 3-2 Team B.")
+
+    team1_name = match.group(1).strip()
+    team2_name = match.group(4).strip()
+    match_score = f"{match.group(2)} - {match.group(3)}"
+    notes = non_empty_lines[0] if non_empty_lines and non_empty_lines[0] != match_line else ""
+
+    map_start_indices = [index for index, line in enumerate(lines) if re.match(r"^\s*MAP\s+\d+\s+-", line, re.IGNORECASE)]
+    if not map_start_indices:
+        raise ValueError("Could not find any MAP sections in the uploaded file.")
+
+    first_score_match = None
+    for line in lines[map_start_indices[0] + 1:]:
+        first_score_match = _tournament_import_score_match(line)
+        if first_score_match:
+            break
+    alias_map: dict[str, str] = {}
+    if first_score_match:
+        first_left = first_score_match.group(1).strip()
+        first_right = first_score_match.group(4).strip()
+        alias_map[first_left] = team1_name
+        alias_map[first_left.lower()] = team1_name
+        alias_map[first_right] = team2_name
+        alias_map[first_right.lower()] = team2_name
+
+    maps: list[dict] = []
+    players_by_team: dict[str, set[str]] = {team1_name: set(), team2_name: set()}
+    for position, start_index in enumerate(map_start_indices):
+        end_index = map_start_indices[position + 1] if position + 1 < len(map_start_indices) else len(lines)
+        block_lines = lines[start_index:end_index]
+        header = block_lines[0].strip()
+        header_match = re.match(r"^MAP\s+\d+\s+-\s*([^:]+):\s*(.+)$", header, re.IGNORECASE)
+        map_name = _match_map_name(header_match.group(2).strip() if header_match else header)
+
+        score_match = next((_tournament_import_score_match(line) for line in block_lines[1:] if _tournament_import_score_match(line)), None)
+        if score_match:
+            left_label = score_match.group(1).strip()
+            right_label = score_match.group(4).strip()
+            left_score = score_match.group(2)
+            right_score = score_match.group(3)
+        else:
+            left_label = team1_name
+            right_label = team2_name
+            left_score = ""
+            right_score = ""
+
+        left_team_name = _map_import_team_label(left_label, alias_map)
+        right_team_name = _map_import_team_label(right_label, alias_map)
+        side_by_label = {
+            left_label: "team1",
+            left_label.lower(): "team1",
+            left_team_name: "team1",
+            left_team_name.lower(): "team1",
+            right_label: "team2",
+            right_label.lower(): "team2",
+            right_team_name: "team2",
+            right_team_name.lower(): "team2",
+        }
+
+        draft = _parse_import_draft(block_lines, side_by_label)
+        comp_section = _parse_import_comp(block_lines, side_by_label)
+        for side, team_name in (("team1", left_team_name), ("team2", right_team_name)):
+            players_by_team.setdefault(team_name, set())
+            for slot in comp_section.get(side, []):
+                player_name = (slot.get("player") or "").strip()
+                if player_name:
+                    players_by_team[team_name].add(player_name)
+
+        score = f"{left_score} - {right_score}" if left_score and right_score else ""
+        our_team_slot = "team1" if _team_names_match(left_team_name, team1_name) else "team2"
+        maps.append({
+            "map_name": map_name,
+            "map_type": DEFAULT_MAP_TYPE,
+            "side": "",
+            "our_team_slot": our_team_slot,
+            "result": infer_result_from_score_text(score, slot=our_team_slot) if score else "",
+            "score": score,
+            "team1_name": left_team_name,
+            "team2_name": right_team_name,
+            "draft": draft,
+            "comp": [comp_section],
+            "notes": "",
+            "vod_url": "",
+            "events": [],
+        })
+
+    return {
+        "team1_name": team1_name,
+        "team2_name": team2_name,
+        "match_score": match_score,
+        "notes": notes,
+        "maps": maps,
+        "players_by_team": {team_name: sorted(players) for team_name, players in players_by_team.items()},
+    }
+
+
+def find_or_add_tournament_team_from_import(tournament_record: dict, team_name: str, players: list[str] | None = None) -> dict:
+    normalized_name = (team_name or "").strip()
+    existing_team = find_tournament_team_by_name(tournament_record.get("tournament_teams", []), normalized_name)
+    if existing_team is not None:
+        existing_players = existing_team.setdefault("players", [])
+        for player_name in players or []:
+            if player_name and player_name not in existing_players:
+                existing_players.append(player_name)
+        return existing_team
+
+    new_team = {
+        "id": next_tournament_team_id(tournament_record),
+        "name": normalized_name or "Unknown Team",
+        "players": [player_name for player_name in (players or []) if player_name],
+    }
+    tournament_record.setdefault("tournament_teams", []).append(new_team)
+    return new_team
+
+
 def get_result_for_slot(map_entry: dict, slot: str) -> str:
     result = str(map_entry.get("result", "")).strip()
     if result not in {"Win", "Loss"}:
@@ -12207,6 +12455,90 @@ def add_tournament_match(tournament_id: int):
     }
     tournament_record.setdefault("matches", []).append(tournament_match)
     save_app_state()
+    return redirect(url_for("tournament_match_detail", tournament_id=tournament_id, match_id=tournament_match["id"]))
+
+
+@app.route("/tournaments/<int:tournament_id>/matches/import-file", methods=["POST"])
+def import_tournament_match_file(tournament_id: int):
+    global NEXT_MAP_ID
+
+    tournament_record = get_tournament_or_404(tournament_id)
+    uploaded_file = request.files.get("match_file")
+    if uploaded_file is None or not uploaded_file.filename:
+        flash("Choose a tournament match text file to import.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    try:
+        file_bytes = uploaded_file.read()
+        try:
+            file_text = file_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            file_text = file_bytes.decode("latin-1")
+        parsed_match = parse_tournament_match_text_import(file_text)
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+    except Exception:
+        flash("Could not import that match file. Check the text format and try again.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    team1 = find_or_add_tournament_team_from_import(
+        tournament_record,
+        parsed_match["team1_name"],
+        parsed_match.get("players_by_team", {}).get(parsed_match["team1_name"], []),
+    )
+    team2 = find_or_add_tournament_team_from_import(
+        tournament_record,
+        parsed_match["team2_name"],
+        parsed_match.get("players_by_team", {}).get(parsed_match["team2_name"], []),
+    )
+
+    maps = []
+    for parsed_map in parsed_match.get("maps", []):
+        map_entry = copy.deepcopy(parsed_map)
+        map_team1 = find_or_add_tournament_team_from_import(
+            tournament_record,
+            map_entry.get("team1_name", ""),
+            parsed_match.get("players_by_team", {}).get(map_entry.get("team1_name", ""), []),
+        )
+        map_team2 = find_or_add_tournament_team_from_import(
+            tournament_record,
+            map_entry.get("team2_name", ""),
+            parsed_match.get("players_by_team", {}).get(map_entry.get("team2_name", ""), []),
+        )
+        map_entry["id"] = NEXT_MAP_ID
+        NEXT_MAP_ID += 1
+        map_entry["team1_tournament_team_id"] = map_team1["id"]
+        map_entry["team2_tournament_team_id"] = map_team2["id"]
+        map_entry["team1_name"] = map_team1["name"]
+        map_entry["team2_name"] = map_team2["name"]
+        map_entry["our_team_slot"] = "team1" if map_team1["id"] == team1["id"] else "team2"
+        map_entry["result"] = infer_result_from_score_text(map_entry.get("score", ""), slot=map_entry["our_team_slot"])
+        maps.append(map_entry)
+
+    if not maps:
+        flash("The uploaded file did not contain any map data.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    match_date = request.form.get("scrim_date", "").strip() or tournament_record.get("scrim_date", "")
+    notes = parsed_match.get("notes", "")
+    if parsed_match.get("match_score"):
+        notes = f"{notes}\nMatch score: {parsed_match['match_score']}".strip()
+    tournament_match = {
+        "id": next_tournament_match_id(tournament_record),
+        "scrim_date": match_date,
+        "notes": notes,
+        "team1_tournament_team_id": team1["id"],
+        "team2_tournament_team_id": team2["id"],
+        "team1_name": team1["name"],
+        "team2_name": team2["name"],
+        "maps": maps,
+    }
+    normalize_tournament_match_record(tournament_match, tournament_record.get("tournament_teams", []))
+    tournament_record.setdefault("matches", []).append(tournament_match)
+    normalize_tournament_record(tournament_record)
+    save_app_state()
+    flash(f"Imported {team1['name']} vs {team2['name']} with {len(maps)} maps.", "success")
     return redirect(url_for("tournament_match_detail", tournament_id=tournament_id, match_id=tournament_match["id"]))
 
 
