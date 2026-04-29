@@ -9081,6 +9081,7 @@ def teams():
 
         # Calculate hero pool (top 5 heroes)
         pick_counter: Counter = Counter()
+        win_counter: Counter = Counter()
 
         for scrim in team_scrims:
             for map_entry in scrim.get("maps", []):
@@ -9088,8 +9089,8 @@ def teams():
                     continue
 
                 our_slot = map_entry.get("our_team_slot", "team1")
+                won_map = map_entry.get("winner") == our_slot
 
-                # prevents same hero being counted multiple times in one map
                 heroes_this_map = set()
 
                 for section in map_entry.get("comp", []):
@@ -9104,11 +9105,21 @@ def teams():
                         if hero:
                             heroes_this_map.add(hero)
 
-                # count each hero once per map
+                # each hero gets 1 full map if they appeared at all
                 for hero in heroes_this_map:
                     pick_counter[hero] += 1
 
-        hero_pool = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
+                    if won_map:
+                        win_counter[hero] += 1
+
+        hero_pool = [
+            {
+                "hero": h,
+                "count": c,
+                "win_rate": round((win_counter[h] / c) * 100, 1) if c else 0,
+            }
+            for h, c in pick_counter.most_common(5)
+        ]
 
         teams_with_scrim_stats.append(
             {
