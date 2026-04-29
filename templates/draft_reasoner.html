@@ -737,21 +737,22 @@
     }
 
     // --- Core reasoning engine ---
-    // True draft pick order:
-    // T1 Ban, T2 Ban, T2 Protect, T1 Ban, T1 Protect, T1 Ban, T2 Ban, T1 Protect, T2 Ban, T2 Ban, T2 Protect, T1 Ban
+    // Draft pick order (8 phases):
+    // P1: T1 Ban, T2 Ban | P2: T2 Protect | P3: T1 Ban, T1 Protect | P4: T2 Ban
+    // P5: T1 Ban, T2 Ban | P6: T1 Protect | P7: T2 Ban, T2 Protect | P8: T1 Ban
     const DRAFT_ORDER = [
-        { team: 'a', slot: 'ban1',     type: 'ban'     },  //  1. T1 Ban
-        { team: 'b', slot: 'ban1',     type: 'ban'     },  //  2. T2 Ban
-        { team: 'b', slot: 'protect1', type: 'protect' },  //  3. T2 Protect
-        { team: 'a', slot: 'ban2',     type: 'ban'     },  //  4. T1 Ban
-        { team: 'a', slot: 'protect1', type: 'protect' },  //  5. T1 Protect
-        { team: 'a', slot: 'ban3',     type: 'ban'     },  //  6. T1 Ban
-        { team: 'b', slot: 'ban2',     type: 'ban'     },  //  7. T2 Ban
-        { team: 'a', slot: 'protect2', type: 'protect' },  //  8. T1 Protect
-        { team: 'b', slot: 'ban3',     type: 'ban'     },  //  9. T2 Ban
-        { team: 'b', slot: 'ban4',     type: 'ban'     },  // 10. T2 Ban
-        { team: 'b', slot: 'protect2', type: 'protect' },  // 11. T2 Protect
-        { team: 'a', slot: 'ban4',     type: 'ban'     },  // 12. T1 Ban
+        { team: 'a', slot: 'ban1',     type: 'ban'     },  //  1. T1 Ban    (Phase 1)
+        { team: 'b', slot: 'ban1',     type: 'ban'     },  //  2. T2 Ban    (Phase 1)
+        { team: 'b', slot: 'protect1', type: 'protect' },  //  3. T2 Protect (Phase 2)
+        { team: 'a', slot: 'ban2',     type: 'ban'     },  //  4. T1 Ban    (Phase 3)
+        { team: 'a', slot: 'protect1', type: 'protect' },  //  5. T1 Protect (Phase 3)
+        { team: 'b', slot: 'ban2',     type: 'ban'     },  //  6. T2 Ban    (Phase 4)
+        { team: 'a', slot: 'ban3',     type: 'ban'     },  //  7. T1 Ban    (Phase 5)
+        { team: 'b', slot: 'ban3',     type: 'ban'     },  //  8. T2 Ban    (Phase 5)
+        { team: 'a', slot: 'protect2', type: 'protect' },  //  9. T1 Protect (Phase 6)
+        { team: 'b', slot: 'ban4',     type: 'ban'     },  // 10. T2 Ban    (Phase 7)
+        { team: 'b', slot: 'protect2', type: 'protect' },  // 11. T2 Protect (Phase 7)
+        { team: 'a', slot: 'ban4',     type: 'ban'     },  // 12. T1 Ban    (Phase 8)
     ];
 
     function renderReasoning() {

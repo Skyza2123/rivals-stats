@@ -1194,29 +1194,39 @@ function openHeroIconHtml(hero) {
     const drOpenBanMeta = document.getElementById('dr-open-ban-meta');
     const drOpenBanTargetsList = document.getElementById('dr-open-ban-targets-list');
     const DR_TURN_PHASES = [
+        // Phase 1
         [
             {team: 'a', slot: 'ban1', type: 'ban'},
             {team: 'b', slot: 'ban1', type: 'ban'},
         ],
+        // Phase 2
         [
             {team: 'b', slot: 'protect1', type: 'protect'},
         ],
+        // Phase 3
         [
             {team: 'a', slot: 'ban2', type: 'ban'},
             {team: 'a', slot: 'protect1', type: 'protect'},
         ],
+        // Phase 4
         [
-            {team: 'a', slot: 'ban3', type: 'ban'},
             {team: 'b', slot: 'ban2', type: 'ban'},
         ],
+        // Phase 5
+        [
+            {team: 'a', slot: 'ban3', type: 'ban'},
+            {team: 'b', slot: 'ban3', type: 'ban'},
+        ],
+        // Phase 6
         [
             {team: 'a', slot: 'protect2', type: 'protect'},
         ],
+        // Phase 7
         [
-            {team: 'b', slot: 'ban3', type: 'ban'},
             {team: 'b', slot: 'ban4', type: 'ban'},
             {team: 'b', slot: 'protect2', type: 'protect'},
         ],
+        // Phase 8
         [
             {team: 'a', slot: 'ban4', type: 'ban'},
         ],
