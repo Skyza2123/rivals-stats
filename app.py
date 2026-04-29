@@ -11014,6 +11014,19 @@ def _team_name_match_keys(raw_value: str | None) -> set[str]:
     if filtered_tokens:
         keys.add("".join(filtered_tokens))
 
+    # 3-char prefix abbreviation: "Sentinels" → "sen", "Liquid" → "liq"
+    if len(compact) >= 5:
+        keys.add(compact[:3])
+
+    # Initials of word tokens: "Liquid Citadel" → "lc", "Swamp Gaming" → "sg"
+    word_tokens = re.findall(r"[a-z]+", normalized)
+    if len(word_tokens) >= 2:
+        initials = "".join(t[0] for t in word_tokens)
+        if len(initials) >= 2:
+            keys.add(initials)
+            # "Team Liquid Citadel" style tags: prepend "t" → "tlc"
+            keys.add("t" + initials)
+
     return {key for key in keys if key}
 
 
