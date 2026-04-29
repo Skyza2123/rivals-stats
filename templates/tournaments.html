@@ -31,7 +31,8 @@
         </form>
         {% if session.get('access_level') == 'edit' %}
         <div class="page-toolbar-group">
-            <button id="openTournamentModal" class="button-link" type="button">Open / New Tournament</button>
+            <button id="openTournamentModal" class="button-secondary" type="button">Open Tournament</button>
+            <button id="createTournamentButton" class="button-link" type="button">+ Create Tournament</button>
         </div>
         {% endif %}
     </div>
@@ -128,14 +129,6 @@
                     </div>
 
                     <div class="field">
-                        <label for="create_tournament_team_slot">Default Analysis Side</label>
-                        <select id="create_tournament_team_slot" name="team_slot">
-                            <option value="team1" selected>Team 1</option>
-                            <option value="team2">Team 2</option>
-                        </select>
-                    </div>
-
-                    <div class="field">
                         <label for="create_tournament_date">Date</label>
                         <input type="date" id="create_tournament_date" name="scrim_date" value="{{ today }}" required>
                     </div>
@@ -166,6 +159,7 @@
 (() => {
     const modal = document.getElementById('tournamentModal');
     const openModalButton = document.getElementById('openTournamentModal');
+    const createTournamentButton = document.getElementById('createTournamentButton');
     const closeModalButton = document.getElementById('closeTournamentModal');
     const openTabButton = document.getElementById('tabOpenTournament');
     const createTabButton = document.getElementById('tabCreateTournament');
@@ -174,6 +168,8 @@
 
     function setTournamentTab(tabName) {
         const showCreate = tabName === 'create';
+        openPanel.classList.toggle('tab-hidden', showCreate);
+        createPanel.classList.toggle('tab-hidden', !showCreate);
         openPanel.style.display = showCreate ? 'none' : '';
         createPanel.style.display = showCreate ? '' : 'none';
         openTabButton.classList.toggle('tab-active', !showCreate);
@@ -192,6 +188,7 @@
     }
 
     openModalButton?.addEventListener('click', () => openTournamentModal('open'));
+    createTournamentButton?.addEventListener('click', () => openTournamentModal('create'));
     closeModalButton?.addEventListener('click', closeTournamentModal);
     modal?.addEventListener('click', (event) => {
         if (event.target === modal) {

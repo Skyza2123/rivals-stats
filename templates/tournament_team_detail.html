@@ -34,68 +34,144 @@
 </div>
 
 <div class="tab-content" id="tab-overview">
-    <section class="panel">
-        <div class="summary-grid">
-            <section class="stat-card"><strong>Matches</strong><span>{{ match_rows|length }}</span></section>
-            <section class="stat-card"><strong>Maps</strong><span>{{ team_analytics.summary.total_maps }}</span></section>
-            <section class="stat-card"><strong>Wins</strong><span>{{ team_analytics.summary.total_wins }}</span></section>
-            <section class="stat-card"><strong>Losses</strong><span>{{ team_analytics.summary.total_losses }}</span></section>
-            <section class="stat-card"><strong>Win Rate</strong><span>{{ team_analytics.summary.overall_win_rate }}%</span></section>
-            <section class="stat-card"><strong>Players</strong><span>{{ players|length }}</span></section>
+    <section class="panel overview-quick-panel">
+        <div class="section-kicker">Tournament Team</div>
+        <h3>Overview</h3>
+        <div class="overview-quick-grid top-gap">
+            <article class="overview-quick-item">
+                <span>Matches</span>
+                <strong>{{ match_rows|length }}</strong>
+                <small>{{ team_analytics.summary.total_maps }} maps logged</small>
+            </article>
+            <article class="overview-quick-item">
+                <span>Record</span>
+                <strong>{{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L</strong>
+                <small>{{ team_analytics.summary.overall_win_rate }}% map win rate</small>
+            </article>
+            <article class="overview-quick-item">
+                <span>Best Mode</span>
+                <strong>{{ best_mode.mode if best_mode else 'N/A' }}</strong>
+                <small>{% if best_mode %}{{ best_mode.win_rate }}% over {{ best_mode.maps }} maps{% else %}No mode data{% endif %}</small>
+            </article>
+            <article class="overview-quick-item">
+                <span>Roster</span>
+                <strong>{{ players|length }}</strong>
+                <small>{{ tournament_team.players|length }} registered players</small>
+            </article>
         </div>
     </section>
 
-    <section class="panel panel-soft-green top-gap">
-        <div class="panel-header-row">
-            <div>
-                <div class="section-kicker">Overview</div>
-                <h3>Most Picked Maps</h3>
+    <div class="overview-main-grid top-gap">
+        <section class="panel panel-soft-green">
+            <div class="panel-header-row">
+                <div>
+                    <div class="section-kicker">Maps</div>
+                    <h3>Map Picks</h3>
+                </div>
             </div>
-        </div>
-        {% if picked_map_rows %}
-            <div class="scrim-box-grid">
-                {% for row in picked_map_rows[:6] %}
-                    <article class="scrim-box-card">
-                        <div class="scrim-box-head">
-                            <div class="list-title">{{ row.map_name }}</div>
-                            <span class="scrim-box-maps">{{ row.maps }} picks</span>
+            {% if picked_map_rows %}
+                <div class="overview-list">
+                    {% for row in picked_map_rows[:5] %}
+                        <div class="overview-list-item">
+                            <div class="overview-list-head">
+                                <span>{{ row.map_name }}</span>
+                                <strong>{{ row.win_rate }}%</strong>
+                            </div>
+                            <small>{{ row.mode }} • {{ row.maps }} picks • {{ row.wins }}W - {{ row.losses }}L</small>
                         </div>
-                        <div class="list-subtitle">{{ row.mode }} • {{ row.wins }}W - {{ row.losses }}L • {{ row.win_rate }}% win rate</div>
-                    </article>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty-text">No map pick data yet.</p>
-        {% endif %}
-    </section>
+                    {% endfor %}
+                </div>
+            {% elif team_map_cards %}
+                <div class="overview-list">
+                    {% for row in team_map_cards[:5] %}
+                        <div class="overview-list-item">
+                            <div class="overview-list-head">
+                                <span>{{ row.map_name }}</span>
+                                <strong>{{ row.win_rate }}%</strong>
+                            </div>
+                            <small>{{ row.mode }} • {{ row.maps }} maps • {{ row.wins }}W - {{ row.losses }}L</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No map data yet.</p>
+            {% endif %}
+        </section>
 
-    <section class="panel panel-soft-blue top-gap">
-        <div class="panel-header-row">
-            <div>
-                <div class="section-kicker">Overview</div>
-                <h3>Top Heroes</h3>
+        <section class="panel panel-soft-blue">
+            <div class="panel-header-row">
+                <div>
+                    <div class="section-kicker">Heroes</div>
+                    <h3>Top Heroes</h3>
+                </div>
             </div>
-        </div>
-        {% if hero_graph_rows %}
-            {% call stats_table(['Hero', 'Instances', 'Usage Share', 'Win Rate']) %}
-                {% for row in hero_graph_rows[:10] %}
-                    <tr>
-                        <td>
-                            <span class="hero-inline-cell">
-                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                <span>{{ hero_display_name(row.hero) }}</span>
-                            </span>
-                        </td>
-                        <td>{{ row.appearances }}</td>
-                        <td>{{ row.usage_rate }}%</td>
-                        <td>{{ row.win_rate }}%</td>
-                    </tr>
-                {% endfor %}
-            {% endcall %}
-        {% else %}
-            <p class="empty-text">No hero data yet.</p>
-        {% endif %}
-    </section>
+            {% if hero_graph_rows %}
+                <div class="overview-list">
+                    {% for row in hero_graph_rows[:6] %}
+                        <div class="overview-list-item">
+                            <div class="overview-list-head">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                                <strong>{{ row.usage_rate }}%</strong>
+                            </div>
+                            <small>{{ row.appearances }} instances • {{ row.win_rate }}% win rate</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No hero data yet.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <div class="overview-bottom-grid top-gap">
+        <section class="panel panel-soft-violet">
+            <div class="panel-header-row">
+                <div>
+                    <div class="section-kicker">Matches</div>
+                    <h3>Recent Matches</h3>
+                </div>
+            </div>
+            {% if match_rows %}
+                <div class="list-stack">
+                    {% for row in match_rows[:4] %}
+                        <a class="list-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=row.id) }}">
+                            <div>
+                                <div class="list-title">vs {{ row.opponent_name }}</div>
+                                <div class="list-subtitle">{{ row.scrim_date or 'No date set' }} • {{ row.maps }} maps • {{ row.wins }}W - {{ row.losses }}L</div>
+                            </div>
+                            <div class="list-meta">{{ row.win_rate }}%</div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No matches for this team yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel panel-soft-teal">
+            <div class="panel-header-row">
+                <div>
+                    <div class="section-kicker">Roster</div>
+                    <h3>Player Snapshot</h3>
+                </div>
+            </div>
+            {% if players %}
+                <div class="overview-roster-bubbles">
+                    {% for player in players[:8] %}
+                        <div class="overview-player-bubble-card">
+                            <strong>{{ player.name }}</strong>
+                            <small>{{ player.stats.maps_played }} maps • {{ player.stats.win_rate }}% WR</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No players added yet.</p>
+            {% endif %}
+        </section>
+    </div>
 </div>
 
 <div class="tab-content tab-hidden" id="tab-maps">

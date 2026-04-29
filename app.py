@@ -269,13 +269,13 @@ PREDICTOR_INPUT_ORDER = (
 SIMULATOR_SLOT_ORDER = (
     "team1_ban1",
     "team2_ban1",
-    "team1_ban2",
     "team2_protect1",
-    "team2_ban2",
+    "team1_ban2",
     "team1_protect1",
     "team1_ban3",
-    "team2_ban3",
+    "team2_ban2",
     "team1_protect2",
+    "team2_ban3",
     "team2_ban4",
     "team2_protect2",
     "team1_ban4",   
@@ -1508,6 +1508,30 @@ def get_team_history_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
     scrims = get_scrims_for_team(team_id, team_name)
     tournament_scrims = build_team_tournament_scrims(team_row)
     return scrims + tournament_scrims
+
+
+def get_team_history_for_sources(
+    team_row: sqlite3.Row | dict,
+    *,
+    include_scrims: bool = True,
+    include_tournaments: bool = True,
+) -> list[dict]:
+    """Return team history filtered by the machine source toggles."""
+    team_id = int(team_row["id"])
+    team_name = (team_row["name"] or "").strip()
+    history: list[dict] = []
+    if include_scrims:
+        history.extend(get_scrims_for_team(team_id, team_name))
+    if include_tournaments:
+        history.extend(build_team_tournament_scrims(team_row))
+    return history
+
+
+def _bool_arg(name: str, default: bool = True) -> bool:
+    raw_value = request.args.get(name)
+    if raw_value is None:
+        return default
+    return str(raw_value).strip().lower() not in {"0", "false", "off", "no"}
 
 
 def normalize_scrim_record(scrim: dict) -> dict:
@@ -9232,9 +9256,14 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
         {
             "hero": row["hero"],
             "maps": row["maps"],
+            "appearances": row["maps"],
             "pick_rate": round((row["maps"] / team_analytics["summary"]["total_maps"]) * 100, 1)
             if team_analytics["summary"]["total_maps"]
             else 0,
+            "usage_rate": round((row["maps"] / team_analytics["summary"]["total_maps"]) * 100, 1)
+            if team_analytics["summary"]["total_maps"]
+            else 0,
+            "win_rate": row.get("win_rate", row.get("unmirrored_win_rate", 0)),
             "unmirrored_win_rate": row["unmirrored_win_rate"],
         }
         for row in team_analytics.get("hero_rows", [])
@@ -9293,8 +9322,11 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
                 "maps": len(tournament_match.get("maps", [])),
                 "wins": wins,
                 "losses": losses,
+                "win_rate": round((wins / (wins + losses)) * 100, 1) if (wins + losses) else 0,
             }
         )
+
+    match_rows.sort(key=lambda row: (row.get("scrim_date") or "", row.get("id") or 0), reverse=True)
 
     team_map_cards = []
     for map_name, stats in map_records.items():
@@ -9488,9 +9520,15 @@ def team_matchup_tree():
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     season_value = request.args.get("season", "")
     selected_map_name = (request.args.get("map", "") or "").strip()
+    include_scrims = _bool_arg("include_scrims", True)
+    include_tournaments = _bool_arg("include_tournaments", True)
 
     def filtered_scrims_for(team_row) -> tuple[list[dict], list[dict]]:
-        all_team_scrims = get_team_history_scrims(team_row)
+        all_team_scrims = get_team_history_for_sources(
+            team_row,
+            include_scrims=include_scrims,
+            include_tournaments=include_tournaments,
+        )
         season_options = get_scrim_season_options(all_team_scrims)
         default_season = get_current_season_from_recent_scrim(all_team_scrims)
         has_unseasoned_scrims = any(
@@ -11844,6 +11882,9 @@ def create_tournament():
     team_id = parse_team_id(request.form.get("team_id", ""))
     team_name = get_team_name_by_id(team_id)
     team_slot = normalize_match_team_slot(request.form.get("team_slot", "team1"))
+    if team_id is not None and not team_name:
+        flash("Selected affiliated team could not be found.", "error")
+        return redirect(f"{url_for('tournaments')}#create-tournament")
 
     tournament_name = request.form.get("tournament_name", "").strip()
     if not tournament_name:
@@ -11877,6 +11918,7 @@ def create_tournament():
         "matches": [],
     }
 
+    normalize_tournament_record(tournament_match)
     TOURNAMENT_MATCHES.append(tournament_match)
     NEXT_TOURNAMENT_ID += 1
     save_app_state()
@@ -11929,6 +11971,91 @@ def create_scrim():
     save_app_state()
 
     return redirect(url_for("scrim_detail", scrim_id=scrim["id"]))
+
+
+@app.route("/debug/scrims/<int:scrim_id>/move-to-tournament", methods=["POST"])
+def debug_move_scrim_to_tournament(scrim_id: int):
+    scrim = get_scrim_or_404(scrim_id)
+    tournament_id = parse_team_id(request.form.get("tournament_id", ""))
+    if tournament_id is None:
+        flash("Choose an existing tournament to move this scrim into.", "error")
+        return redirect(url_for("scrim_detail", scrim_id=scrim_id))
+
+    tournament_record = get_tournament_or_404(tournament_id)
+    participant_one, participant_two = get_scrim_participants(scrim)
+    participant_one_label, participant_two_label = get_scrim_participant_labels(scrim)
+
+    def _team_players(team_id: int | None) -> list[str]:
+        if team_id is None:
+            return []
+        rows = get_db().execute(
+            "SELECT name FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+            (team_id,),
+        ).fetchall()
+        return [row["name"] for row in rows if (row["name"] or "").strip()]
+
+    def _find_or_add_tournament_team(team_id: int | None, team_name: str, fallback_players: list[str]) -> dict:
+        normalized_name = (team_name or "").strip()
+        for tournament_team in tournament_record.get("tournament_teams", []):
+            if team_id is not None and tournament_team.get("source_team_id") == team_id:
+                return tournament_team
+            if normalized_name and str(tournament_team.get("name", "")).strip().lower() == normalized_name.lower():
+                if team_id is not None and not tournament_team.get("source_team_id"):
+                    tournament_team["source_team_id"] = team_id
+                return tournament_team
+
+        new_team = {
+            "id": next_tournament_team_id(tournament_record),
+            "name": normalized_name or "Unknown Team",
+            "players": _team_players(team_id) or fallback_players,
+        }
+        if team_id is not None:
+            new_team["source_team_id"] = team_id
+        tournament_record.setdefault("tournament_teams", []).append(new_team)
+        return new_team
+
+    team1 = _find_or_add_tournament_team(
+        participant_one.get("id"),
+        participant_one_label or "Team 1",
+        scrim.get("team1_players", []),
+    )
+    team2 = _find_or_add_tournament_team(
+        participant_two.get("id"),
+        participant_two_label or "Team 2",
+        scrim.get("team2_players", []),
+    )
+
+    moved_maps = copy.deepcopy(scrim.get("maps", []))
+    for map_entry in moved_maps:
+        original_team1_id = map_entry.get("team1_id")
+        original_team2_id = map_entry.get("team2_id")
+        map_team1 = team1
+        map_team2 = team2
+        if original_team1_id == participant_two.get("id") or original_team2_id == participant_one.get("id"):
+            map_team1 = team2
+            map_team2 = team1
+        map_entry["team1_tournament_team_id"] = map_team1["id"]
+        map_entry["team2_tournament_team_id"] = map_team2["id"]
+        map_entry["team1_name"] = map_team1["name"]
+        map_entry["team2_name"] = map_team2["name"]
+        map_entry["our_team_slot"] = "team1" if map_team1["id"] == team1["id"] else "team2"
+
+    tournament_match = {
+        "id": next_tournament_match_id(tournament_record),
+        "scrim_date": scrim.get("scrim_date", ""),
+        "notes": scrim.get("notes", ""),
+        "team1_tournament_team_id": team1["id"],
+        "team2_tournament_team_id": team2["id"],
+        "team1_name": team1["name"],
+        "team2_name": team2["name"],
+        "maps": moved_maps,
+    }
+    tournament_record.setdefault("matches", []).append(tournament_match)
+    normalize_tournament_record(tournament_record)
+    SCRIMS.remove(scrim)
+    save_app_state(allow_scrim_removal=True)
+    flash("Moved scrim into the selected tournament.", "success")
+    return redirect(url_for("tournament_match_detail", tournament_id=tournament_record["id"], match_id=tournament_match["id"]))
 
 
 @app.route("/scrims/<int:scrim_id>")
@@ -12006,6 +12133,7 @@ def scrim_detail(scrim_id: int):
         hero_roles=HERO_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
         teams=teams,
+        tournaments=TOURNAMENT_MATCHES,
         team1_score=team1_score,
         team2_score=team2_score,
         winner_label=winner_label,
@@ -14096,9 +14224,10 @@ def draft_reasoner():
 @app.route("/machine")
 def machine():
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
-    season_options = get_scrim_season_options(SCRIMS)
-    default_season = get_current_season_from_recent_scrim(SCRIMS)
-    has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in SCRIMS)
+    machine_history = SCRIMS + TOURNAMENT_MATCHES
+    season_options = get_scrim_season_options(machine_history)
+    default_season = get_current_season_from_recent_scrim(machine_history)
+    has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in machine_history)
     return render_template(
         "machine.html",
         hero_roles=HERO_ROLES,
@@ -14133,9 +14262,15 @@ def api_draft_reasoner_model():
     season_value = request.args.get("season", "")
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
     selected_map_name = (request.args.get("map", "") or "").strip()
+    include_scrims = _bool_arg("include_scrims", True)
+    include_tournaments = _bool_arg("include_tournaments", True)
 
     def _get_filtered_scrims(team_row) -> tuple[list[dict], list[dict]]:
-        all_scrims = get_team_history_scrims(team_row)
+        all_scrims = get_team_history_for_sources(
+            team_row,
+            include_scrims=include_scrims,
+            include_tournaments=include_tournaments,
+        )
         season_options = get_scrim_season_options(all_scrims)
         default_season = get_current_season_from_recent_scrim(all_scrims)
         has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in all_scrims)

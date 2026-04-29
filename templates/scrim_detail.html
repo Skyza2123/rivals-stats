@@ -26,6 +26,19 @@
         {% if not show_team_selector %}
         <button type="button" class="button-secondary" onclick="openManageTeamsModal()">Manage Teams</button>
         {% endif %}
+        {% if show_team_selector and tournaments %}
+        <form method="post" action="{{ url_for('debug_move_scrim_to_tournament', scrim_id=scrim.id) }}" class="form-contents" onsubmit="return confirm('Move this scrim into the selected tournament? This removes it from the scrim list.');">
+            <select name="tournament_id" class="team-range-select" required aria-label="Tournament">
+                <option value="">Move to tournament...</option>
+                {% for tournament in tournaments %}
+                    <option value="{{ tournament.id }}">{{ tournament.tournament_name or 'Untitled Tournament' }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="button-secondary">Move</button>
+        </form>
+        {% elif show_team_selector %}
+        <a href="{{ url_for('tournaments') }}#create-tournament" class="button-secondary">Create Tournament</a>
+        {% endif %}
         <button type="button" class="button-link" onclick="openMapModal()">+ Add Map</button>
         <button type="button" class="btn-danger-sm" onclick="confirmDeleteScrim()">Delete {{ match_label }}</button>
         {% endif %}

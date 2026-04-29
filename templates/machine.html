@@ -56,6 +56,16 @@
 .hero-inline-cell { display:inline-flex; align-items:center; gap:0.3rem; }
 .hero-inline-thumb { width:26px; height:26px; border-radius:50%; object-fit:cover; vertical-align:middle; }
 .matchup-slot-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.2rem; }
+.matchup-slot-row .matchup-hero-row,
+.dr-suggest-section .matchup-hero-row,
+.dr-hero-row {
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:0.1rem;
+}
+.matchup-slot-row .hero-inline-cell,
+.dr-hero-row .dr-hero-chip,
+.dr-suggest-section .dr-hero-chip { flex:0 0 auto; }
 .matchup-slot-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#f87171; min-width:3.5rem; flex-shrink:0; }
 .matchup-slot-label.protect-label { color:#4ade80; }
 .equiv-path-route { background:rgba(15,23,42,0.4); border:1px solid rgba(148,163,184,0.1); border-radius:0.4rem; padding:0.45rem 0.6rem; margin:0.3rem 0; display:flex; flex-direction:column; gap:0.15rem; }
@@ -463,6 +473,17 @@
                 {% for map_name in maps %}<option value="{{ map_name }}">{{ map_name }}</option>{% endfor %}
             </select>
         </div>
+        <div class="field">
+            <label>Data Source</label>
+            <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;margin-right:0.4rem">
+                <input type="checkbox" id="m-include-scrims" checked>
+                Scrims
+            </label>
+            <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+                <input type="checkbox" id="m-include-tournaments" checked>
+                Tournaments
+            </label>
+        </div>
     </div>
     <div class="matchup-toolbar top-gap">
         <button type="button" id="m-load-tree">Build Matchup</button>
@@ -519,6 +540,17 @@
             <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;align-self:start">
                 <input type="checkbox" id="dr-use-pool-weights" checked>
                 Use tiers
+            </label>
+        </div>
+        <div class="field">
+            <label>Data Source</label>
+            <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;margin-right:0.4rem">
+                <input type="checkbox" id="dr-include-scrims" checked>
+                Scrims
+            </label>
+            <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+                <input type="checkbox" id="dr-include-tournaments" checked>
+                Tournaments
             </label>
         </div>
     </div>
@@ -603,14 +635,14 @@
                             <span class="slot-hero-sub"></span>
                             <input type="hidden" value="">
                         </div>
-                        <div class="draft-slot" data-team="b" data-slot="protect1" data-type="protect" onclick="drActivateSlot(this)">
-                            <span class="slot-label protect-label">Protect 1</span>
+                        <div class="draft-slot" data-team="b" data-slot="ban2" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 2</span>
                             <span class="slot-hero"></span>
                             <span class="slot-hero-sub"></span>
                             <input type="hidden" value="">
                         </div>
-                        <div class="draft-slot" data-team="b" data-slot="ban2" data-type="ban" onclick="drActivateSlot(this)">
-                            <span class="slot-label ban-label">Ban 2</span>
+                        <div class="draft-slot" data-team="b" data-slot="protect1" data-type="protect" onclick="drActivateSlot(this)">
+                            <span class="slot-label protect-label">Protect 1</span>
                             <span class="slot-hero"></span>
                             <span class="slot-hero-sub"></span>
                             <input type="hidden" value="">
@@ -804,6 +836,8 @@ function openHeroIconHtml(hero) {
     const teamSelB = document.getElementById('m-tree-team-b');
     const seasonSel = document.getElementById('m-tree-season');
     const mapSel = document.getElementById('m-tree-map');
+    const includeScrimsSel = document.getElementById('m-include-scrims');
+    const includeTournamentsSel = document.getElementById('m-include-tournaments');
     const loadBtn = document.getElementById('m-load-tree');
     const swapBtn = document.getElementById('m-swap-tree');
     const results = document.getElementById('m-tree-results');
@@ -1013,6 +1047,8 @@ function openHeroIconHtml(hero) {
         const p = new URLSearchParams({team_a: a, team_b: b});
         if (seasonSel.value) p.set('season', seasonSel.value);
         if (mapSel.value && mapSel.value !== 'all') p.set('map', mapSel.value);
+        p.set('include_scrims', includeScrimsSel && includeScrimsSel.checked ? '1' : '0');
+        p.set('include_tournaments', includeTournamentsSel && includeTournamentsSel.checked ? '1' : '0');
         const resp = await fetch('/teams/matchup-tree?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
         if (resp.redirected && /\/login(\?|$)/i.test(resp.url || '')) {
             window.location.href = resp.url;
@@ -1167,24 +1203,18 @@ function openHeroIconHtml(hero) {
         ],
         [
             {team: 'a', slot: 'ban2', type: 'ban'},
-        ],
-        [
             {team: 'a', slot: 'protect1', type: 'protect'},
         ],
         [
-            {team: 'b', slot: 'ban2', type: 'ban'},
-        ],
-        [
             {team: 'a', slot: 'ban3', type: 'ban'},
-            {team: 'b', slot: 'ban3', type: 'ban'},
+            {team: 'b', slot: 'ban2', type: 'ban'},
         ],
         [
             {team: 'a', slot: 'protect2', type: 'protect'},
         ],
         [
+            {team: 'b', slot: 'ban3', type: 'ban'},
             {team: 'b', slot: 'ban4', type: 'ban'},
-        ],
-        [
             {team: 'b', slot: 'protect2', type: 'protect'},
         ],
         [
@@ -2410,6 +2440,8 @@ function openHeroIconHtml(hero) {
         const p = new URLSearchParams({team_a: teamA, team_b: teamB});
         if (season) p.set('season', season);
         if (map) p.set('map', map);
+        p.set('include_scrims', document.getElementById('dr-include-scrims')?.checked ? '1' : '0');
+        p.set('include_tournaments', document.getElementById('dr-include-tournaments')?.checked ? '1' : '0');
         try {
             const resp = await fetch('/api/draft-reasoner/model?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -2451,12 +2483,21 @@ function openHeroIconHtml(hero) {
         const protectedByEnemy = new Set((enemyProtects || []).filter(Boolean));
         const protectedByUs = new Set((ourProtects || []).filter(Boolean));
         const bannedSet = hardBannedSet instanceof Set ? hardBannedSet : new Set((hardBannedSet || []).filter(Boolean));
+        const protectedByEnemyKeys = new Set(Array.from(protectedByEnemy).map(drHeroPoolHeroKey));
+        const protectedByUsKeys = new Set(Array.from(protectedByUs).map(drHeroPoolHeroKey));
+        const bannedKeys = new Set(Array.from(bannedSet).map(drHeroPoolHeroKey));
+        function hasHeroKey(heroSet, hero) {
+            return heroSet.has(drHeroPoolHeroKey(hero));
+        }
         const openEnemyCompRows = (enemyModel.comp_rows || []).filter(function(row) {
             const heroes = (row.heroes || []).filter(Boolean);
             if (!heroes.length) return false;
-            if (heroes.some(function(hero) { return bannedSet.has(hero); })) return false;
-            if ((enemyProtects || []).some(function(hero) { return heroes.includes(hero); })) return false;
-            if ((ourProtects || []).some(function(hero) { return !heroes.includes(hero); })) return false;
+            if (heroes.some(function(hero) { return hasHeroKey(bannedKeys, hero); })) return false;
+            if (heroes.some(function(hero) { return hasHeroKey(protectedByEnemyKeys, hero); })) return false;
+            if ((ourProtects || []).some(function(hero) {
+                const protectKey = drHeroPoolHeroKey(hero);
+                return !heroes.some(function(compHero) { return drHeroPoolHeroKey(compHero) === protectKey; });
+            })) return false;
             return true;
         });
         const heroImpact = new Map();
@@ -2467,7 +2508,7 @@ function openHeroIconHtml(hero) {
             const compRate = Number(row.rate || 0);
             const compWinRate = Number(row.comp_win_rate || 0);
             heroes.forEach(function(hero) {
-                if (bannedSet.has(hero) || protectedByEnemy.has(hero) || protectedByUs.has(hero)) return;
+                if (hasHeroKey(bannedKeys, hero) || hasHeroKey(protectedByEnemyKeys, hero) || hasHeroKey(protectedByUsKeys, hero)) return;
                 if (!heroImpact.has(hero)) {
                     heroImpact.set(hero, {
                         hero: hero,
@@ -2660,10 +2701,10 @@ function openHeroIconHtml(hero) {
         }
 
         return duoRows.sort(function(a, b) {
-            return String(a.player_label || 'zzzzzz').toLowerCase().localeCompare(String(b.player_label || 'zzzzzz').toLowerCase())
-                || (b.score - a.score)
+            return (b.score - a.score)
                 || (b.sharedCompCount - a.sharedCompCount)
-                || (b.sharedStrength - a.sharedStrength);
+                || (b.sharedStrength - a.sharedStrength)
+                || String(a.player_label || 'zzzzzz').toLowerCase().localeCompare(String(b.player_label || 'zzzzzz').toLowerCase());
         });
     }
 
@@ -2780,8 +2821,9 @@ function openHeroIconHtml(hero) {
 
         function isLegalCompCandidate(compHeroes, ownProtects, enemyProtects, hardBannedSet) {
             const heroes = (compHeroes || []).filter(Boolean);
+            const heroKeys = new Set(heroes.map(drHeroPoolHeroKey));
             if (heroes.length !== 6) return false;
-            if (new Set(heroes).size !== heroes.length) return false;
+            if (heroKeys.size !== heroes.length) return false;
             if (hasPoolPlaceholderHero(heroes)) return false;
 
             const roleCounts = compRoleCounts(heroes);
@@ -2789,15 +2831,19 @@ function openHeroIconHtml(hero) {
             if ((roleCounts.vanguard || 0) < 1 || (roleCounts.duelist || 0) < 1 || (roleCounts.strategist || 0) < 1) return false;
             if ((roleCounts.vanguard || 0) > 3 || (roleCounts.duelist || 0) > 3 || (roleCounts.strategist || 0) > 3) return false;
 
-            if (heroes.some(function(hero) { return hardBannedSet.has(hero); })) return false;
-            if ((enemyProtects || []).some(function(hero) { return heroes.includes(hero); })) return false;
-            if ((ownProtects || []).some(function(hero) { return !heroes.includes(hero); })) return false;
+            const bannedKeys = new Set(Array.from(hardBannedSet || []).map(drHeroPoolHeroKey));
+            if (heroes.some(function(hero) { return bannedKeys.has(drHeroPoolHeroKey(hero)); })) return false;
+            if ((enemyProtects || []).some(function(hero) { return heroKeys.has(drHeroPoolHeroKey(hero)); })) return false;
+            if ((ownProtects || []).some(function(hero) { return !heroKeys.has(drHeroPoolHeroKey(hero)); })) return false;
             return true;
         }
 
         function buildEnemyBanTargetRows(enemyModel, enemyProtects, ourProtects, hardBannedSet) {
             const protectedByEnemy = new Set((enemyProtects || []).filter(Boolean));
             const protectedByUs = new Set((ourProtects || []).filter(Boolean));
+            const protectedByEnemyKeys = new Set(Array.from(protectedByEnemy).map(drHeroPoolHeroKey));
+            const protectedByUsKeys = new Set(Array.from(protectedByUs).map(drHeroPoolHeroKey));
+            const hardBannedKeys = new Set(Array.from(hardBannedSet || []).map(drHeroPoolHeroKey));
             const openEnemyCompRows = (enemyModel.comp_rows || []).filter(function(row) {
                 return isLegalCompCandidate(row.heroes || [], enemyProtects, ourProtects, hardBannedSet);
             });
@@ -2809,7 +2855,8 @@ function openHeroIconHtml(hero) {
                 const compRate = Number(row.rate || 0);
                 const compWinRate = Number(row.comp_win_rate || 0);
                 heroes.forEach(function(hero) {
-                    if (hardBannedSet.has(hero) || protectedByEnemy.has(hero) || protectedByUs.has(hero)) return;
+                    const heroKey = drHeroPoolHeroKey(hero);
+                    if (hardBannedKeys.has(heroKey) || protectedByEnemyKeys.has(heroKey) || protectedByUsKeys.has(heroKey)) return;
                     if (!heroImpact.has(hero)) {
                         heroImpact.set(hero, {
                             hero: hero,
