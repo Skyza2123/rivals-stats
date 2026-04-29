@@ -669,6 +669,10 @@
                 </div>
             </div>
             <p class="draft-hint">Click a slot, then pick a hero below. Right-click a slot to clear it.</p>
+            <div class="button-row" style="margin-top:0.5rem" id="dr-play-row">
+                <button type="button" id="dr-play-btn" style="display:none">&#9654; Play Draft</button>
+                <button type="button" class="button-secondary" id="dr-stop-btn" style="display:none">&#9646;&#9646; Stop</button>
+            </div>
         </section>
 
         <!-- Hero picker -->
@@ -1079,6 +1083,7 @@ function openHeroIconHtml(hero) {
     let drModel = null;
     let drContext = null;
     let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
+    let drPlayMode = false;    // true when auto-play is active
     const drDraft = {a:{}, b:{}};
     let drSuggest = {a:{bans:[],protects:[],ml:{},banPath:[]}, b:{bans:[],protects:[],ml:{},banPath:[]}};
     const drTeamNames = {a: '', b: ''};
@@ -2374,6 +2379,8 @@ function openHeroIconHtml(hero) {
     }
 
     function drCanActivateSlot(team, slot) {
+        // In play mode, enemy slots are filled by AI — never manually activatable
+        if (drPlayMode && team === 'b') return false;
         if ((drDraft[team] || {})[slot]) {
             return true;
         }
@@ -2410,12 +2417,14 @@ function openHeroIconHtml(hero) {
             const team = slotEl.dataset.team;
             const slot = slotEl.dataset.slot;
             const filled = Boolean((drDraft[team] || {})[slot]);
-            const allowed = !activePhase.length || filled || activePhase.some(function(step) {
+            // In play mode, enemy slots are always locked from manual interaction
+            const enemyLocked = drPlayMode && team === 'b' && !filled;
+            const allowed = !enemyLocked && (!activePhase.length || filled || activePhase.some(function(step) {
                 return step.team === team && step.slot === slot;
-            });
+            }));
             slotEl.classList.toggle('turn-locked', !allowed);
             if (!allowed) {
-                slotEl.title = 'Next required: ' + drDescribePhase(activePhase);
+                slotEl.title = enemyLocked ? 'Enemy — auto-piloted in Play mode' : 'Next required: ' + drDescribePhase(activePhase);
             } else {
                 slotEl.removeAttribute('title');
             }
@@ -2430,9 +2439,12 @@ function openHeroIconHtml(hero) {
             drUpdateHeroAvailability();
             return;
         }
-        const nextStep = activePhase.find(function(step) {
-            return !((drDraft[step.team] || {})[step.slot]);
-        }) || activePhase[0];
+        // In play mode, skip auto-focusing enemy slots — those will be handled by drAutoPlayEnemyTurns
+        const candidateSteps = drPlayMode
+            ? activePhase.filter(function(step) { return step.team === 'a' && !((drDraft.a || {})[step.slot]); })
+            : activePhase.filter(function(step) { return !((drDraft[step.team] || {})[step.slot]); });
+        const nextStep = candidateSteps[0] || (drPlayMode ? null : activePhase[0]);
+        if (!nextStep) return; // enemy turn — drAutoPlayEnemyTurns will handle it
         const nextEl = drGetSlotElement(nextStep.team, nextStep.slot);
         if (nextEl) {
             drActivateSlot(nextEl);
@@ -2478,6 +2490,10 @@ function openHeroIconHtml(hero) {
 
             workspaceSec.style.display = '';
             pickerSec.style.display = '';
+            // Show Play Draft button now that model is loaded
+            drPlayMode = false;
+            if (drPlayBtn) drPlayBtn.style.display = '';
+            if (drStopBtn) drStopBtn.style.display = 'none';
             drRender();
             drRefreshSlotSubLabels();
             drAutoFocusNextStep();
@@ -3215,28 +3231,43 @@ function openHeroIconHtml(hero) {
         }
 
         // Fallback: no clean comp survived ban filtering — adapt the top-ranked comp by
-        // substituting banned heroes with the best available heroes from the comfort pool.
+        // substituting each banned hero with the best comfort-pool candidate of the same role.
         if (!bestCandidate && rankedCompRows.length > 0) {
-            const topCompHeroes = (rankedCompRows[0].row.heroes || []).filter(Boolean);
+            const topRow = rankedCompRows[0].row;
+            const topCompHeroes = (topRow.heroes || []).filter(Boolean);
             const bannedKeySet = new Set(Array.from(hardBannedHeroes).map(drHeroPoolHeroKey));
             const enemyProtKeySet = heroKeySet(enemyLockedProtects);
-            const poolCandidates = uniqueHeroes(
+            // Pool ordered by comfort (comfort_core_rows already sorted by comfort_rate desc)
+            const poolHeroes = uniqueHeroes(
                 (mA.comfort_core_rows || []).map(function(r) { return r.hero; })
                     .concat((mA.hero_pool_rows || []).map(function(r) { return r.hero; }))
             ).filter(function(h) {
                 return h && !bannedKeySet.has(drHeroPoolHeroKey(h)) && !enemyProtKeySet.has(drHeroPoolHeroKey(h));
             });
+            // Keep unbanned heroes from the original comp
             const adapted = topCompHeroes.filter(function(h) { return !bannedKeySet.has(drHeroPoolHeroKey(h)); });
             const adaptedKeySet = heroKeySet(adapted);
-            for (let ci = 0; ci < poolCandidates.length && adapted.length < 6; ci++) {
-                const sub = poolCandidates[ci];
-                if (!adaptedKeySet.has(drHeroPoolHeroKey(sub))) {
+            // For each banned hero, prefer a same-role substitute from the pool
+            topCompHeroes.filter(function(h) { return bannedKeySet.has(drHeroPoolHeroKey(h)); }).forEach(function(banned) {
+                const role = drGetReasonerPlayerRole(banned);
+                const sameRoleSub = role
+                    ? poolHeroes.find(function(h) { return !adaptedKeySet.has(drHeroPoolHeroKey(h)) && drGetReasonerPlayerRole(h) === role; })
+                    : null;
+                const anySub = poolHeroes.find(function(h) { return !adaptedKeySet.has(drHeroPoolHeroKey(h)); });
+                const sub = sameRoleSub || anySub || null;
+                if (sub) {
                     adapted.push(sub);
                     adaptedKeySet.add(drHeroPoolHeroKey(sub));
                 }
-            }
+            });
             if (adapted.length > 0) {
                 drSuggest.a.comp = adapted.slice(0, 6);
+                // Carry ML values from the source comp row so confidence doesn't drop to zero
+                drSuggest.a.ml = {
+                    win_prob: Number(topRow.ml_win_prob || 0),
+                    confidence: Number(topRow.ml_confidence || 0) || 80,
+                    comp_score: Number(topRow.ml_comp_score || 0),
+                };
             }
         }
 
@@ -3677,14 +3708,76 @@ function openHeroIconHtml(hero) {
         if (!drActiveSlot) return;
         if (btn.disabled) return;
         const hero = btn.dataset.hero;
+        // In play mode, only allow picking our team's slots
+        if (drPlayMode && drActiveSlot.team !== 'a') return;
         drSetSlot(drActiveSlot.team, drActiveSlot.slot, hero);
         drActiveSlot.el.classList.remove('slot-active');
         drActiveSlot = null;
         drRenderUsed();
         drRender();
-        drAutoFocusNextStep();
+        if (drPlayMode) {
+            drAutoPlayEnemyTurns().then(function() { drAutoFocusNextStep(); });
+        } else {
+            drAutoFocusNextStep();
+        }
     }
     window.drPickHero = drPickHero;
+
+    // --- Play mode ---
+    const drPlayBtn = document.getElementById('dr-play-btn');
+    const drStopBtn = document.getElementById('dr-stop-btn');
+
+    function drStartPlayMode() {
+        drPlayMode = true;
+        if (drPlayBtn) drPlayBtn.style.display = 'none';
+        if (drStopBtn) drStopBtn.style.display = '';
+        drUpdateTurnLocking();
+        drAutoPlayEnemyTurns().then(function() { drAutoFocusNextStep(); });
+    }
+
+    function drStopPlayMode() {
+        drPlayMode = false;
+        if (drPlayBtn) drPlayBtn.style.display = '';
+        if (drStopBtn) drStopBtn.style.display = 'none';
+        drUpdateTurnLocking();
+        drRender();
+    }
+
+    // AI auto-fills enemy turns in sequence
+    async function drAutoPlayEnemyTurns() {
+        if (!drPlayMode) return;
+        const activePhase = drGetActiveTurnPhase();
+        if (!activePhase.length) { drStopPlayMode(); return; }
+        const openEnemySteps = activePhase.filter(function(step) {
+            return step.team === 'b' && !((drDraft.b || {})[step.slot]);
+        });
+        if (!openEnemySteps.length) return; // our turn, nothing for AI to do yet
+        const hasOurTurn = activePhase.some(function(step) {
+            return step.team === 'a' && !((drDraft.a || {})[step.slot]);
+        });
+        if (hasOurTurn) return; // mixed phase, wait for user to pick first
+        await new Promise(function(r) { setTimeout(r, 420); });
+        openEnemySteps.forEach(function(step) {
+            if ((drDraft.b || {})[step.slot]) return;
+            const pool = step.type === 'protect' ? (drSuggest.b.protects || []) : (drSuggest.b.bans || []);
+            const alreadyUsed = new Set(['ban1','ban2','ban3','ban4','protect1','protect2']
+                .map(function(k) { return (drDraft.b || {})[k]; }).filter(Boolean));
+            const pick = pool.find(function(h) { return h && !alreadyUsed.has(h); });
+            if (pick) drSetSlot('b', step.slot, pick);
+        });
+        drRenderUsed();
+        drRender();
+        // Recurse — the next phase might also be all-enemy
+        await new Promise(function(r) { setTimeout(r, 300); });
+        return drAutoPlayEnemyTurns();
+    }
+
+    if (drPlayBtn) {
+        drPlayBtn.addEventListener('click', function() { drStartPlayMode(); });
+    }
+    if (drStopBtn) {
+        drStopBtn.addEventListener('click', function() { drStopPlayMode(); });
+    }
 
     // hero search filter
     const drSearchInput = document.getElementById('dr-hero-search');
@@ -3759,6 +3852,9 @@ function openHeroIconHtml(hero) {
         Object.keys(drDraft.a).forEach(k => delete drDraft.a[k]);
         Object.keys(drDraft.b).forEach(k => delete drDraft.b[k]);
         drActiveSlot = null;
+        drPlayMode = false;
+        if (drPlayBtn && drModel) drPlayBtn.style.display = '';
+        if (drStopBtn) drStopBtn.style.display = 'none';
         document.querySelectorAll('.draft-slot[data-team]').forEach(sl => {
             const heroLabel = sl.querySelector('.slot-hero');
             if (heroLabel) heroLabel.textContent = '';
@@ -3857,6 +3953,37 @@ function openHeroIconHtml(hero) {
             slot.appendChild(ghostWrap);
         }
         drRenderGhostBans();
+
+        // Render ghost protect hints on our empty protect slots
+        (function drRenderGhostProtects() {
+            document.querySelectorAll('.draft-slot[data-team="a"][data-type="protect"]').forEach(function(slot) {
+                const eg = slot.querySelector('.slot-ghost-wrap');
+                if (eg) eg.remove();
+            });
+            const suggestedProtects = drSuggest.a.protects || [];
+            if (!suggestedProtects.length) return;
+            ['protect1', 'protect2'].forEach(function(slotKey, idx) {
+                if ((drDraft.a || {})[slotKey]) return;
+                const ghostHero = suggestedProtects[idx] || '';
+                if (!ghostHero) return;
+                const slot = document.querySelector('[data-team="a"][data-slot="' + slotKey + '"]');
+                if (!slot) return;
+                if (getComputedStyle(slot).position === 'static') slot.style.position = 'relative';
+                const ghostWrap = document.createElement('div');
+                ghostWrap.className = 'slot-ghost-wrap';
+                const ghostImg = document.createElement('img');
+                ghostImg.className = 'slot-ghost-img';
+                ghostImg.src = heroThumbUrl(ghostHero);
+                ghostImg.alt = ghostHero;
+                ghostImg.onerror = function() { this.style.display = 'none'; };
+                const ghostLabel = document.createElement('div');
+                ghostLabel.className = 'slot-ghost-label';
+                ghostLabel.textContent = 'Protect?';
+                ghostWrap.appendChild(ghostImg);
+                ghostWrap.appendChild(ghostLabel);
+                slot.appendChild(ghostWrap);
+            });
+        })();
 
         const bansA     = ['ban1','ban2','ban3','ban4'].map(k => drDraft.a[k]).filter(Boolean);
         const protectsA = ['protect1','protect2'].map(k => drDraft.a[k]).filter(Boolean);

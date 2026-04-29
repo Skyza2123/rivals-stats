@@ -12587,6 +12587,7 @@ def tournament_detail(tournament_id: int):
         map_images=MAP_IMAGES,
         completed_maps=completed_maps,
         today=date.today().isoformat(),
+        hero_roles=HERO_ROLES,
     )
 
 

@@ -42,7 +42,7 @@
 
 <div class="tab-bar">
     <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
-    <button class="tab-btn" data-tab="bans" type="button">Bans</button>
+    <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
     <button class="tab-btn" data-tab="teams" type="button">Teams</button>
     <button class="tab-btn" data-tab="matches" type="button">Matches</button>
 </div>
@@ -164,346 +164,152 @@
 </section>
 </div>
 
-<div class="tab-content tab-hidden" id="tab-bans">
+<div class="tab-content tab-hidden" id="tab-simulator">
+
 <section class="panel">
-    <div class="section-kicker">Draft Overview</div>
-    <h3>Tournament Ban & Protect Stats</h3>
-    <p class="panel-intro">This view uses each match's Team 1 slot as the reference side and compares it against Match Team 2, so the tournament draft flow reads the same way as the scrim team pages.</p>
-    <p class="panel-intro">Phase order: 1st Phase (each team bans once and protects once), 2nd Phase (each team takes two uninterrupted bans), 3rd Phase (each team protects, then takes one final ban).</p>
-    <div class="summary-grid">
-        <section class="stat-card"><strong>Total Maps</strong><span>{{ tournament_ban_analytics.summary.total_maps }}</span></section>
-        <section class="stat-card"><strong>Overall Win Rate</strong><span>{{ tournament_ban_analytics.summary.overall_win_rate }}%</span></section>
-        <section class="stat-card"><strong>Unique Team 1 Bans</strong><span>{{ tournament_ban_analytics.summary.unique_bans }}</span></section>
-        <section class="stat-card"><strong>Unique Team 2 Bans</strong><span>{{ tournament_ban_analytics.summary.unique_enemy_bans }}</span></section>
-        <section class="stat-card"><strong>Unique Team 1 Protects</strong><span>{{ tournament_ban_analytics.summary.unique_protects }}</span></section>
-        <section class="stat-card"><strong>Unique Maps</strong><span>{{ tournament_ban_analytics.summary.unique_maps }}</span></section>
+    <div class="section-kicker">Draft Tool</div>
+    <h3>Draft Simulator</h3>
+    <p class="panel-intro">Pick two teams from your database and simulate a draft from either side. Suggestions are powered by each team's historical draft data.</p>
+    <div class="form-grid">
+        <div class="field">
+            <label for="tsim-team1">Team 1</label>
+            <select id="tsim-team1">
+                <option value="">Select team…</option>
+                {% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="tsim-team2">Team 2</label>
+            <select id="tsim-team2">
+                <option value="">Select team…</option>
+                {% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="tsim-season">Season</label>
+            <input type="text" id="tsim-season" value="{{ tournament.season or '' }}" placeholder="Leave blank for all seasons">
+        </div>
     </div>
-
-    {% if tournament_ban_analytics.summary.total_maps > 0 %}
-        <div class="form-grid top-gap">
-            <div class="panel panel-soft-red">
-                <div class="section-kicker">Draft</div>
-                <h3>Match Team 1 Ban Tendencies</h3>
-                {% if tournament_ban_analytics.ban_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Bans</th>
-                                    <th>Ban Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in tournament_ban_analytics.ban_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.ban_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No Team 1 ban data yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="panel panel-soft-gold">
-                <div class="section-kicker">Draft</div>
-                <h3>Match Team 2 Ban Tendencies</h3>
-                {% if tournament_ban_analytics.enemy_ban_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Bans</th>
-                                    <th>Ban Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in tournament_ban_analytics.enemy_ban_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.ban_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No Team 2 ban data yet.</p>
-                {% endif %}
-            </div>
+    <div class="form-grid top-gap">
+        <div class="field">
+            <label for="tsim-side">You are playing as</label>
+            <select id="tsim-side">
+                <option value="team1">Team 1</option>
+                <option value="team2">Team 2</option>
+            </select>
         </div>
-
-        <div class="form-grid top-gap">
-            <div class="panel panel-soft-green">
-                <div class="section-kicker">Draft</div>
-                <h3>Match Team 1 Protect Tendencies</h3>
-                {% if tournament_ban_analytics.protect_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Protects</th>
-                                    <th>Protect Rate</th>
-                                    <th>Win Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in tournament_ban_analytics.protect_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.count }}</td>
-                                        <td>{{ row.protect_rate }}%</td>
-                                        <td>{{ row.win_rate }}%</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No Team 1 protect data yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="panel panel-soft-blue">
-                <div class="section-kicker">Draft Flow</div>
-                <h3>When Match Team 1 Bans, Match Team 2 Is Likely To Ban</h3>
-                {% if tournament_ban_analytics.ban_next_rows %}
-                    <div class="draft-flow-stack">
-                        {% for row in tournament_ban_analytics.ban_next_rows %}
-                            <div class="draft-flow-card">
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
-                                </span>
-                                <span class="prep-flow-arrow">→</span>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
-                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span></span>
-                                </span>
-                                <span class="prep-chip-meta">{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-text">No ban response sequence data yet.</p>
-                {% endif %}
-            </div>
+        <div class="field">
+            <label for="tsim-mode">Mode</label>
+            <select id="tsim-mode">
+                <option value="one-sided">One-sided (auto-fill enemy)</option>
+                <option value="both">Both teams</option>
+            </select>
         </div>
-
-        <div class="form-grid top-gap">
-            <div class="panel panel-soft-violet">
-                <div class="section-kicker">Draft Flow</div>
-                <h3>Which Bans Reach Into Protects</h3>
-                {% if tournament_ban_analytics.ban_to_protect_rows %}
-                    <div class="draft-flow-stack">
-                        {% for row in tournament_ban_analytics.ban_to_protect_rows %}
-                            <div class="draft-flow-card">
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
-                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
-                                </span>
-                                <span class="prep-flow-arrow">→</span>
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
-                                    <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span></span>
-                                </span>
-                                <span class="prep-chip-meta">{{ row.top_rate }}% ({{ row.top_count }}/{{ row.total }})</span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-text">No ban-to-protect link data yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="panel panel-soft-blue">
-                <div class="section-kicker">Comparison</div>
-                <h3>Ban Difference</h3>
-                <p class="panel-intro">Quickly spot which heroes Match Team 1 targets more often versus which ones Match Team 2 removes first.</p>
-                {% if tournament_ban_analytics.ban_diff_rows %}
-                    <div class="table-wrap">
-                        <table class="stats-table stats-table-compare">
-                            <thead>
-                                <tr>
-                                    <th>Hero</th>
-                                    <th>Match Team 1 Ban</th>
-                                    <th>Match Team 2 Ban</th>
-                                    <th>Diff</th>
-                                    <th>Edge</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in tournament_ban_analytics.ban_diff_rows %}
-                                    <tr>
-                                        <td>
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ row.our_rate }}%</td>
-                                        <td>{{ row.enemy_rate }}%</td>
-                                        <td>{% if row.rate_diff > 0 %}+{% endif %}{{ row.rate_diff }}%</td>
-                                        <td>
-                                            {% if row.rate_diff > 0 %}
-                                                <span class="compare-tag compare-tag-positive">Team 1 bans more</span>
-                                            {% elif row.rate_diff < 0 %}
-                                                <span class="compare-tag compare-tag-negative">Team 2 bans more</span>
-                                            {% else %}
-                                                <span class="compare-tag compare-tag-neutral">Even</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No ban comparison data yet.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="form-grid top-gap">
-            <div class="panel panel-soft-red">
-                <div class="section-kicker">Ban Phase</div>
-                <h3>Match Team 1 Ban Positions</h3>
-                <p class="panel-intro">{{ tournament_ban_analytics.ban_phase_variation.main.message }}</p>
-                <div class="ban-position-grid">
-                    {% for slot in tournament_ban_analytics.ban_position_rows %}
-                        <article class="ban-position-card">
-                            <div class="ban-position-head">
-                                <div>
-                                    <h4>{{ slot.slot_label }}</h4>
-                                    <div class="ban-position-total">{{ slot.total }} total picks</div>
-                                </div>
-                            </div>
-                            <div class="ban-position-top">
-                                <strong class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
-                                    <span>{{ slot.top_hero }}</span>
-                                </strong>
-                                <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
-                            </div>
-                            <div class="ban-position-list">
-                                {% if slot.hero_rows %}
-                                    {% for row in slot.hero_rows %}
-                                        <div class="ban-position-row">
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                            <span>{{ row.count }} • {{ row.rate }}%</span>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="empty-text">No data for this slot yet.</p>
-                                {% endif %}
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="panel panel-soft-gold">
-                <div class="section-kicker">Ban Phase</div>
-                <h3>Match Team 2 Ban Positions</h3>
-                <p class="panel-intro">{{ tournament_ban_analytics.ban_phase_variation.enemy.message }}</p>
-                <div class="ban-position-grid">
-                    {% for slot in tournament_ban_analytics.enemy_ban_position_rows %}
-                        <article class="ban-position-card">
-                            <div class="ban-position-head">
-                                <div>
-                                    <h4>{{ slot.slot_label }}</h4>
-                                    <div class="ban-position-total">{{ slot.total }} total picks</div>
-                                </div>
-                            </div>
-                            <div class="ban-position-top">
-                                <strong class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
-                                    <span>{{ slot.top_hero }}</span>
-                                </strong>
-                                <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
-                            </div>
-                            <div class="ban-position-list">
-                                {% if slot.hero_rows %}
-                                    {% for row in slot.hero_rows %}
-                                        <div class="ban-position-row">
-                                            <span class="hero-inline-cell">
-                                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                                <span>{{ hero_display_name(row.hero) }}</span>
-                                            </span>
-                                            <span>{{ row.count }} • {{ row.rate }}%</span>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="empty-text">No data for this slot yet.</p>
-                                {% endif %}
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <section class="panel top-gap">
-            <div class="section-kicker">Mirror Rates</div>
-            <h3>Mirror Drafts and Comps</h3>
-            <p class="panel-intro">Mirror = 4 or more shared heroes between both teams.</p>
-            <div class="table-wrap top-gap">
-                <table class="stats-table stats-table-compare">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Samples</th>
-                            <th>Mirror Count</th>
-                            <th>Mirror Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Draft (6 picks)</td>
-                            <td>{{ tournament_ban_analytics.mirror_rates.draft.samples }}</td>
-                            <td>{{ tournament_ban_analytics.mirror_rates.draft.mirror_count }}</td>
-                            <td>{{ tournament_ban_analytics.mirror_rates.draft.mirror_rate }}%</td>
-                        </tr>
-                        <tr>
-                            <td>Comp (6 heroes)</td>
-                            <td>{{ tournament_ban_analytics.mirror_rates.comp.samples }}</td>
-                            <td>{{ tournament_ban_analytics.mirror_rates.comp.mirror_count }}</td>
-                            <td>{{ tournament_ban_analytics.mirror_rates.comp.mirror_rate }}%</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    {% else %}
-        <p class="empty-text top-gap">No tournament maps recorded yet.</p>
-    {% endif %}
+    </div>
+    <div class="button-row top-gap">
+        <button type="button" id="tsim-begin-btn">Begin Simulation</button>
+        <button type="button" class="button-secondary" id="tsim-clear-btn">Clear</button>
+    </div>
+    <p id="tsim-status" class="panel-intro" style="display:none"></p>
 </section>
+
+<section class="panel">
+    <div class="draft-grid">
+        <div class="draft-column">
+            <h4 id="tsim-col1-label">Team 1</h4>
+            <div class="draft-slots">
+                <div class="draft-slot" data-field="t1_ban1">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t1_ban2">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t1_protect1">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t1_ban3">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t1_protect2">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t1_ban4">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+            </div>
+        </div>
+        <div class="draft-column">
+            <h4 id="tsim-col2-label">Team 2</h4>
+            <div class="draft-slots">
+                <div class="draft-slot" data-field="t2_ban1">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t2_protect1">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t2_ban2">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t2_ban3">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t2_ban4">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+                <div class="draft-slot" data-field="t2_protect2">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" value="">
+                </div>
+            </div>
+        </div>
+    </div>
+    <p class="panel-intro" style="margin-top:.75rem">Click a slot to select it, then pick a hero below. Right-click to clear a slot.</p>
+</section>
+
+<section class="panel">
+    <h4>Hero Picker</h4>
+    <div id="tsim-hero-picker">
+        {% for role_name, role_heroes in hero_roles.items() %}
+        <div class="hero-role-section">
+            <h5 class="role-heading role-{{ role_name|lower }}">{{ role_name }}</h5>
+            <div class="hero-icon-grid">
+                {% for hero in role_heroes %}
+                <button type="button" class="tsim-hero-btn hero-pick-btn" data-hero="{{ hero }}" data-image="{{ hero_image_url(hero) }}" title="{{ hero }}">
+                    <div class="hero-img-wrap"><img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy"></div>
+                    <span class="hero-pick-name">{{ hero }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<div id="tsim-results"></div>
+
 </div>
 
 <div class="tab-content tab-hidden" id="tab-teams">
@@ -777,7 +583,7 @@ document.addEventListener('keydown', function(event) {
 (() => {
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabPanels = document.querySelectorAll('.tab-content');
-    const validTabs = new Set(['overview', 'bans', 'teams', 'matches']);
+    const validTabs = new Set(['overview', 'simulator', 'teams', 'matches']);
 
     const switchTournamentTab = (tabName) => {
         const nextTab = validTabs.has(tabName) ? tabName : 'overview';
@@ -799,5 +605,300 @@ document.addEventListener('keydown', function(event) {
         switchTournamentTab(hashTab);
     }
 })();
+
+(function () {
+    const simTab = document.getElementById('tab-simulator');
+    if (!simTab) return;
+
+    const team1Sel = document.getElementById('tsim-team1');
+    const team2Sel = document.getElementById('tsim-team2');
+    const seasonInput = document.getElementById('tsim-season');
+    const sideSel = document.getElementById('tsim-side');
+    const modeSel = document.getElementById('tsim-mode');
+    const beginBtn = document.getElementById('tsim-begin-btn');
+    const clearBtn = document.getElementById('tsim-clear-btn');
+    const statusEl = document.getElementById('tsim-status');
+    const resultsEl = document.getElementById('tsim-results');
+    const col1Label = document.getElementById('tsim-col1-label');
+    const col2Label = document.getElementById('tsim-col2-label');
+
+    const allSlots = Array.from(simTab.querySelectorAll('.draft-slot'));
+    const heroButtons = Array.from(simTab.querySelectorAll('.tsim-hero-btn'));
+
+    const heroImageMap = {};
+    heroButtons.forEach(function (btn) { heroImageMap[btn.dataset.hero] = btn.dataset.image; });
+
+    const groups = [
+        ['t1_ban1', 't2_ban1'],
+        ['t2_protect1'],
+        ['t1_ban2', 't1_protect1'],
+        ['t2_ban2'],
+        ['t1_ban3', 't2_ban3'],
+        ['t1_protect2'],
+        ['t2_ban4', 't2_protect2'],
+        ['t1_ban4'],
+    ];
+
+    let activeField = null;
+    let simStarted = false;
+    let simSide = 'team1';
+    let simMode = 'one-sided';
+
+    function getTeam1Id() { return team1Sel ? team1Sel.value : ''; }
+    function getTeam2Id() { return team2Sel ? team2Sel.value : ''; }
+    function getSeason() { return seasonInput ? seasonInput.value.trim() : ''; }
+    function getEndpointUrl() {
+        const id = simSide === 'team1' ? getTeam1Id() : getTeam2Id();
+        return id ? '/teams/' + id + '/draft-predict' : '';
+    }
+    function fieldTeam(field) { return field.startsWith('t1_') ? 'team1' : 'team2'; }
+    function isUserField(field) { return fieldTeam(field) === simSide; }
+    function isOneSided() { return simMode === 'one-sided'; }
+    function canEdit(field) { return !isOneSided() || isUserField(field); }
+
+    function updateHeadings() {
+        const t1 = (team1Sel && team1Sel.selectedIndex > 0) ? team1Sel.options[team1Sel.selectedIndex].text : 'Team 1';
+        const t2 = (team2Sel && team2Sel.selectedIndex > 0) ? team2Sel.options[team2Sel.selectedIndex].text : 'Team 2';
+        if (col1Label) col1Label.textContent = t1 + (simSide === 'team1' ? ' (You)' : '');
+        if (col2Label) col2Label.textContent = t2 + (simSide === 'team2' ? ' (You)' : '');
+    }
+
+    function getSlot(field) { return simTab.querySelector('.draft-slot[data-field="' + field + '"]'); }
+
+    function renderSlot(slot) {
+        const input = slot.querySelector('input[type="hidden"]');
+        const heroName = (input.value || '').trim();
+        const existing = slot.querySelector('.slot-img-wrap');
+        if (existing) existing.remove();
+        slot.classList.remove('slot-filled');
+        if (!heroName) return;
+        const imgWrap = document.createElement('span');
+        imgWrap.className = 'slot-img-wrap';
+        const img = document.createElement('img');
+        img.className = 'slot-img';
+        img.alt = heroName;
+        img.src = heroImageMap[heroName] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName));
+        img.onerror = function () { this.src = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(heroName); };
+        imgWrap.appendChild(img);
+        slot.appendChild(imgWrap);
+        slot.classList.add('slot-filled');
+    }
+
+    function refreshAllSlots() { allSlots.forEach(renderSlot); }
+
+    function updateInteractivity() {
+        allSlots.forEach(function (slot) {
+            const locked = !canEdit(slot.dataset.field);
+            slot.classList.toggle('slot-locked', locked);
+            slot.title = locked ? 'Locked in one-sided mode' : '';
+        });
+    }
+
+    function setActive(field) {
+        activeField = field;
+        allSlots.forEach(function (s) { s.classList.toggle('slot-active', s.dataset.field === field); });
+    }
+
+    function getNextTargets() {
+        for (let i = 0; i < groups.length; i++) {
+            const missing = groups[i].filter(function (f) {
+                const s = getSlot(f);
+                return s && !(s.querySelector('input[type="hidden"]').value || '').trim();
+            });
+            if (missing.length) return missing;
+        }
+        return [];
+    }
+
+    function setPreferredTarget() {
+        const targets = getNextTargets();
+        if (!targets.length) { setActive(null); return; }
+        const preferred = targets.find(function (f) { return isUserField(f); });
+        if (isOneSided()) { setActive(preferred || null); return; }
+        setActive(preferred || targets[0]);
+    }
+
+    function setSlotValue(field, hero) {
+        const slot = getSlot(field);
+        if (!slot) return;
+        slot.querySelector('input[type="hidden"]').value = hero;
+        renderSlot(slot);
+    }
+
+    function collectInputs() {
+        const p = {};
+        allSlots.forEach(function (s) { p[s.dataset.field] = (s.querySelector('input[type="hidden"]').value || '').trim(); });
+        return p;
+    }
+
+    function heroImg(hero) {
+        return '<img src="' + (heroImageMap[hero] || '') + '" alt="' + hero + '" class="hero-inline-thumb">';
+    }
+
+    function renderSuggestionTable(target) {
+        if (!target.options || !target.options.length) return '<p class="empty-text">No data for this slot.</p>';
+        const rows = target.options.map(function (o) {
+            return '<tr><td><span class="hero-inline-cell">' + heroImg(o.hero) + '<span>' + o.hero + '</span></span></td>'
+                + '<td>' + o.rate + '%' + (o.count ? ' (' + o.count + ')' : '') + '</td></tr>';
+        }).join('');
+        return '<div class="table-wrap"><table class="stats-table stats-table-compare"><thead><tr><th>Likely Next</th><th>%</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
+
+    function renderResults(data) {
+        if (!resultsEl) return;
+        if (data.status === 'complete') {
+            resultsEl.innerHTML = '<section class="panel"><p class="empty-text">All slots filled. Right-click a slot to clear it.</p></section>';
+            return;
+        }
+        if (data.status === 'empty' || !data.training_maps) {
+            resultsEl.innerHTML = '<section class="panel"><p class="empty-text">No matching drafts found. Try a different state or season.</p></section>';
+            return;
+        }
+        let html = '<section class="panel">';
+        if (data.exact_matching_maps) {
+            html += '<p class="panel-intro">Exact draft matches: <strong>' + data.exact_matching_maps + '</strong></p>';
+        } else {
+            html += '<p class="panel-intro">No exact match. Model trained on <strong>' + data.training_maps + '</strong> maps.</p>';
+        }
+        if (Array.isArray(data.targets) && data.targets.length) {
+            html += '<h4 class="top-gap">Upcoming Picks</h4>';
+            data.targets.forEach(function (target) {
+                const teamKey = fieldTeam(target.field_key || '');
+                const sideLabel = teamKey === simSide ? 'You' : 'Enemy';
+                html += '<p class="panel-intro top-gap"><strong>' + sideLabel + ' — ' + (target.slot_label || target.field_key) + '</strong></p>';
+                html += renderSuggestionTable(target);
+            });
+        }
+        if (Array.isArray(data.likely_comps) && data.likely_comps.length) {
+            html += '<h4 class="top-gap">Most Likely Comp</h4>';
+            const compRows = data.likely_comps.map(function (comp) {
+                const heroes = (comp.heroes || []).map(function (h) {
+                    return '<span class="hero-inline-cell">' + heroImg(h) + '<span>' + h + '</span></span>';
+                }).join(' ');
+                return '<tr><td>' + (comp.team_label || '') + '</td><td>' + (heroes || '—') + '</td><td>' + comp.rate + '%' + (comp.count ? ' (' + comp.count + ')' : '') + '</td></tr>';
+            }).join('');
+            html += '<div class="table-wrap"><table class="stats-table stats-table-compare"><thead><tr><th>Side</th><th>Comp</th><th>%</th></tr></thead><tbody>' + compRows + '</tbody></table></div>';
+        }
+        html += '</section>';
+        resultsEl.innerHTML = html;
+    }
+
+    async function fetchPrediction() {
+        const url = getEndpointUrl();
+        if (!url) return;
+        const params = new URLSearchParams();
+        const season = getSeason();
+        if (season) params.set('season', season);
+        const inputs = collectInputs();
+        Object.keys(inputs).forEach(function (k) { if (inputs[k]) params.set(k, inputs[k]); });
+        try {
+            const resp = await fetch(url + '?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            renderResults(data);
+            if (isOneSided() && Array.isArray(data.targets)) {
+                const enemyTarget = data.targets.find(function (t) {
+                    return t && t.field_key && t.options && t.options.length && fieldTeam(t.field_key) !== simSide;
+                });
+                if (enemyTarget) {
+                    const slot = getSlot(enemyTarget.field_key);
+                    if (slot && !(slot.querySelector('input[type="hidden"]').value || '').trim()) {
+                        setSlotValue(enemyTarget.field_key, enemyTarget.options[0].hero);
+                        setPreferredTarget();
+                        await fetchPrediction();
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('tsim fetch error', err);
+        }
+    }
+
+    allSlots.forEach(function (slot) {
+        slot.addEventListener('click', function () {
+            if (!canEdit(slot.dataset.field)) return;
+            setActive(slot.dataset.field);
+        });
+        slot.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+            if (!canEdit(slot.dataset.field)) return;
+            slot.querySelector('input[type="hidden"]').value = '';
+            renderSlot(slot);
+            setPreferredTarget();
+            if (simStarted) fetchPrediction();
+        });
+    });
+
+    heroButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const hero = btn.dataset.hero;
+            const targets = getNextTargets();
+            const preferred = targets.find(function (f) { return isUserField(f); });
+            let field;
+            if (isOneSided()) {
+                field = (activeField && targets.includes(activeField) && isUserField(activeField)) ? activeField : preferred;
+            } else {
+                field = (activeField && targets.includes(activeField)) ? activeField : (preferred || targets[0]);
+            }
+            if (!field) return;
+            setSlotValue(field, hero);
+            setPreferredTarget();
+            if (simStarted) fetchPrediction();
+        });
+    });
+
+    beginBtn.addEventListener('click', function () {
+        if (!getTeam1Id() || !getTeam2Id()) {
+            if (statusEl) { statusEl.textContent = 'Select both teams before starting.'; statusEl.style.display = ''; }
+            return;
+        }
+        if (statusEl) statusEl.style.display = 'none';
+        simStarted = true;
+        beginBtn.textContent = 'Running…';
+        beginBtn.disabled = true;
+        updateHeadings();
+        fetchPrediction();
+    });
+
+    clearBtn.addEventListener('click', function () {
+        allSlots.forEach(function (s) { s.querySelector('input[type="hidden"]').value = ''; renderSlot(s); });
+        simStarted = false;
+        beginBtn.textContent = 'Begin Simulation';
+        beginBtn.disabled = false;
+        if (resultsEl) resultsEl.innerHTML = '';
+        setPreferredTarget();
+    });
+
+    sideSel.addEventListener('change', function () {
+        simSide = sideSel.value;
+        updateHeadings();
+        updateInteractivity();
+        setPreferredTarget();
+        if (simStarted) fetchPrediction();
+    });
+
+    modeSel.addEventListener('change', function () {
+        simMode = modeSel.value;
+        updateInteractivity();
+        setPreferredTarget();
+        if (simStarted) fetchPrediction();
+    });
+
+    [team1Sel, team2Sel].forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            updateHeadings();
+            if (simStarted) {
+                simStarted = false;
+                beginBtn.textContent = 'Begin Simulation';
+                beginBtn.disabled = false;
+                allSlots.forEach(function (s) { s.querySelector('input[type="hidden"]').value = ''; renderSlot(s); });
+                if (resultsEl) resultsEl.innerHTML = '';
+            }
+        });
+    });
+
+    updateInteractivity();
+    setPreferredTarget();
+}());
 </script>
 {% endblock %}
