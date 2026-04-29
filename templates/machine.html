@@ -635,14 +635,14 @@
                             <span class="slot-hero-sub"></span>
                             <input type="hidden" value="">
                         </div>
-                        <div class="draft-slot" data-team="b" data-slot="ban2" data-type="ban" onclick="drActivateSlot(this)">
-                            <span class="slot-label ban-label">Ban 2</span>
+                        <div class="draft-slot" data-team="b" data-slot="protect1" data-type="protect" onclick="drActivateSlot(this)">
+                            <span class="slot-label protect-label">Protect 1</span>
                             <span class="slot-hero"></span>
                             <span class="slot-hero-sub"></span>
                             <input type="hidden" value="">
                         </div>
-                        <div class="draft-slot" data-team="b" data-slot="protect1" data-type="protect" onclick="drActivateSlot(this)">
-                            <span class="slot-label protect-label">Protect 1</span>
+                        <div class="draft-slot" data-team="b" data-slot="ban2" data-type="ban" onclick="drActivateSlot(this)">
+                            <span class="slot-label ban-label">Ban 2</span>
                             <span class="slot-hero"></span>
                             <span class="slot-hero-sub"></span>
                             <input type="hidden" value="">
@@ -2745,25 +2745,35 @@ function openHeroIconHtml(hero) {
         }
 
         function heroesKey(heroes) {
-            return (heroes || []).filter(Boolean).slice().sort().join('||');
+            return (heroes || []).filter(Boolean).map(drHeroPoolHeroKey).sort().join('||');
         }
 
         function orderedLineKey(heroes) {
-            return (heroes || []).filter(Boolean).join('||');
+            return (heroes || []).filter(Boolean).map(drHeroPoolHeroKey).join('||');
+        }
+
+        function heroKeySet(list) {
+            return new Set((list || []).filter(Boolean).map(drHeroPoolHeroKey));
+        }
+
+        function hasHeroByKey(list, hero) {
+            const key = drHeroPoolHeroKey(hero);
+            if (!key) return false;
+            return heroKeySet(list).has(key);
         }
 
         function overlapCount(left, right) {
-            const rightSet = new Set((right || []).filter(Boolean));
-            return (left || []).filter(function(item) { return rightSet.has(item); }).length;
+            const rightSet = heroKeySet(right || []);
+            return (left || []).filter(function(item) { return rightSet.has(drHeroPoolHeroKey(item)); }).length;
         }
 
         function mergeSlotLocks(slotKeys, lockedDraftSide, suggestedHeroes) {
             const lockedValues = slotKeys.map(function(slotKey) {
                 return (lockedDraftSide && lockedDraftSide[slotKey]) ? lockedDraftSide[slotKey] : '';
             });
-            const used = new Set(lockedValues.filter(Boolean));
+            const used = heroKeySet(lockedValues);
             const queue = (suggestedHeroes || []).filter(function(hero) {
-                return hero && !used.has(hero);
+                return hero && !used.has(drHeroPoolHeroKey(hero));
             });
             return slotKeys.map(function(slotKey, idx) {
                 if (lockedValues[idx]) return lockedValues[idx];
@@ -2773,19 +2783,20 @@ function openHeroIconHtml(hero) {
 
         function lineCompatibilityScore(pathRow, lockedBans, lockedProtects) {
             if (!pathRow) return -999;
-            const pathBans = new Set(pathRow.bans || []);
-            const pathProtects = new Set(pathRow.protects || []);
+            const pathBans = heroKeySet(pathRow.bans || []);
+            const pathProtects = heroKeySet(pathRow.protects || []);
             let score = 0;
-            lockedBans.forEach(function(hero) { score += pathBans.has(hero) ? 18 : -55; });
-            lockedProtects.forEach(function(hero) { score += pathProtects.has(hero) ? 18 : -55; });
+            lockedBans.forEach(function(hero) { score += pathBans.has(drHeroPoolHeroKey(hero)) ? 18 : -55; });
+            lockedProtects.forEach(function(hero) { score += pathProtects.has(drHeroPoolHeroKey(hero)) ? 18 : -55; });
             return score;
         }
 
         function uniqueHeroes(list) {
             const seen = new Set();
             return (list || []).filter(function(hero) {
-                if (!hero || seen.has(hero)) return false;
-                seen.add(hero);
+                const heroKey = drHeroPoolHeroKey(hero);
+                if (!hero || !heroKey || seen.has(heroKey)) return false;
+                seen.add(heroKey);
                 return true;
             });
         }
@@ -3097,8 +3108,9 @@ function openHeroIconHtml(hero) {
                     score -= hasStrongData ? 120 : 25;
                 }
 
-                const protectedCount = compHeroes.filter(function(hero) { return ourLockedProtects.includes(hero); }).length;
-                const missingProtectedCount = ourLockedProtects.filter(function(hero) { return !compHeroes.includes(hero); }).length;
+                const compHeroKeys = heroKeySet(compHeroes);
+                const protectedCount = ourLockedProtects.filter(function(hero) { return compHeroKeys.has(drHeroPoolHeroKey(hero)); }).length;
+                const missingProtectedCount = ourLockedProtects.filter(function(hero) { return !compHeroKeys.has(drHeroPoolHeroKey(hero)); }).length;
                 score += protectedCount * 14;
                 score -= missingProtectedCount * 120;
                 score += (pathRate * 1.35);
@@ -3151,23 +3163,23 @@ function openHeroIconHtml(hero) {
             };
             drSuggest.a.path_metrics = bestCandidate.pathMetrics || {};
 
-            const ourCompSet = new Set(drSuggest.a.comp || []);
+            const ourCompSet = heroKeySet(drSuggest.a.comp || []);
             const ourLockedBanSet = new Set(ourLockedBans);
             const ourLockedProtectSet = new Set(ourLockedProtects);
-            const enemyLockedProtectSet = new Set(enemyLockedProtects);
-            const enemyLockedBanSet = new Set(enemyLockedBans);
+            const enemyLockedProtectSet = heroKeySet(enemyLockedProtects);
+            const enemyLockedBanSet = heroKeySet(enemyLockedBans);
 
             function validOurBan(hero) {
                 return hero
-                    && !ourCompSet.has(hero)
-                    && !ourLockedProtectSet.has(hero)
-                    && !enemyLockedProtectSet.has(hero);
+                    && !ourCompSet.has(drHeroPoolHeroKey(hero))
+                    && !heroKeySet(Array.from(ourLockedProtectSet)).has(drHeroPoolHeroKey(hero))
+                    && !enemyLockedProtectSet.has(drHeroPoolHeroKey(hero));
             }
 
             function validOurProtect(hero) {
                 return hero
-                    && !ourLockedBanSet.has(hero)
-                    && !enemyLockedBanSet.has(hero);
+                    && !heroKeySet(Array.from(ourLockedBanSet)).has(drHeroPoolHeroKey(hero))
+                    && !enemyLockedBanSet.has(drHeroPoolHeroKey(hero));
             }
 
             const ourBanFallbackPool = uniqueHeroes(
@@ -3185,7 +3197,7 @@ function openHeroIconHtml(hero) {
 
             const cleanOurBans = rawOurBans.filter(validOurBan);
             const cleanOurProtects = rawOurProtects.filter(function(hero) {
-                return validOurProtect(hero) && !cleanOurBans.includes(hero);
+                return validOurProtect(hero) && !hasHeroByKey(cleanOurBans, hero);
             });
 
             drSuggest.a.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.a, cleanOurBans);
@@ -3199,7 +3211,7 @@ function openHeroIconHtml(hero) {
                     .concat((mB.hero_pool_rows || []).map(function(r) { return r.hero; }))
                     .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
             ).filter(function(hero) {
-                return hero && !hardBannedHeroes.has(hero) && !new Set(enemyLockedProtects).has(hero);
+                return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !heroKeySet(enemyLockedProtects).has(drHeroPoolHeroKey(hero));
             });
             drSuggest.a.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.a, defaultBanPool);
         }
@@ -3207,7 +3219,7 @@ function openHeroIconHtml(hero) {
             const defaultProtectPool = uniqueHeroes(
                 (mA.comfort_core_rows || []).map(function(r) { return r.hero; })
             ).filter(function(hero) {
-                return hero && !hardBannedHeroes.has(hero) && !drSuggest.a.bans.includes(hero);
+                return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !hasHeroByKey(drSuggest.a.bans, hero);
             });
             drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, defaultProtectPool);
         }
@@ -3220,7 +3232,7 @@ function openHeroIconHtml(hero) {
             const lineProtects = (line.protects || []).filter(Boolean);
             let score = Number(line.rate || 0) + Number(line.line_strength || 0) * 0.4;
             if (drSuggest.a.comp && drSuggest.a.comp.length) {
-                const overlap = lineBans.filter(function(hero) { return drSuggest.a.comp.includes(hero); }).length;
+                const overlap = overlapCount(lineBans, drSuggest.a.comp);
                 score += overlap * 28;
             }
             score += lineCompatibilityScore({bans: lineBans, protects: lineProtects}, enemyLockedBans, enemyLockedProtects);
@@ -3232,7 +3244,7 @@ function openHeroIconHtml(hero) {
 
         // Now compute ideal ban path using our finalized protects and the best line's ban structure
         function drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, ourProtects) {
-            const used = new Set(ourLockedBans.concat(enemyLockedBans).concat(ourProtects || []));
+            const used = heroKeySet(ourLockedBans.concat(enemyLockedBans).concat(ourProtects || []));
             const rankedTargets = buildEnemyBanTargetRows(mB, enemyLockedProtects, ourProtects || [], hardBannedHeroes);
             const path = [];
 
@@ -3243,21 +3255,22 @@ function openHeroIconHtml(hero) {
                     || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
             })[0];
 
-            if (openingTarget && !used.has(openingTarget.hero)) {
+            if (openingTarget && !used.has(drHeroPoolHeroKey(openingTarget.hero))) {
                 path.push(openingTarget.hero);
             }
 
             if (bestEnemyLine && bestEnemyLine.bans) {
                 (bestEnemyLine.bans || []).forEach(function(hero) {
-                    if (!hero || used.has(hero) || path.includes(hero)) return;
-                    const matchingTarget = rankedTargets.find(function(row) { return row.hero === hero; });
+                    if (!hero || used.has(drHeroPoolHeroKey(hero)) || hasHeroByKey(path, hero)) return;
+                    const heroKey = drHeroPoolHeroKey(hero);
+                    const matchingTarget = rankedTargets.find(function(row) { return drHeroPoolHeroKey(row.hero) === heroKey; });
                     if (matchingTarget) path.push(hero);
                 });
             }
 
             rankedTargets.forEach(function(row) {
                 if (path.length >= 4) return;
-                if (used.has(row.hero) || path.includes(row.hero)) return;
+                if (used.has(drHeroPoolHeroKey(row.hero)) || hasHeroByKey(path, row.hero)) return;
                 path.push(row.hero);
             });
 
@@ -3308,7 +3321,7 @@ function openHeroIconHtml(hero) {
                     score -= 35;
                 }
 
-                const protectedBySelf = compHeroes.filter(function(h) { return enemyLockedProtects.includes(h); }).length;
+                const protectedBySelf = enemyLockedProtects.filter(function(h) { return hasHeroByKey(compHeroes, h); }).length;
                 score += protectedBySelf * 6;
 
                 if (!bestEnemyComp || score > bestEnemyComp.score) {
@@ -3329,23 +3342,23 @@ function openHeroIconHtml(hero) {
         drSuggest.b.comp = (bestEnemyComp && bestEnemyComp.comp) ? bestEnemyComp.comp : [];
 
         if (bestEnemyLine) {
-            const enemyCompSet = new Set(drSuggest.b.comp || []);
-            const ourProtectSet = new Set(drSuggest.a.protects || []);
-            const enemyLockedProtectSet = new Set(enemyLockedProtects);
+            const enemyCompSet = heroKeySet(drSuggest.b.comp || []);
+            const ourProtectSet = heroKeySet(drSuggest.a.protects || []);
+            const enemyLockedProtectSet = heroKeySet(enemyLockedProtects);
             const enemyLockedBanSet = new Set(enemyLockedBans);
             const ourLockedBanSet = new Set(ourLockedBans);
 
             function validEnemyBan(hero) {
                 return hero
-                    && !enemyCompSet.has(hero)
-                    && !enemyLockedProtectSet.has(hero)
-                    && !ourProtectSet.has(hero);
+                    && !enemyCompSet.has(drHeroPoolHeroKey(hero))
+                    && !enemyLockedProtectSet.has(drHeroPoolHeroKey(hero))
+                    && !ourProtectSet.has(drHeroPoolHeroKey(hero));
             }
 
             function validEnemyProtect(hero) {
                 return hero
-                    && !enemyLockedBanSet.has(hero)
-                    && !ourLockedBanSet.has(hero);
+                    && !heroKeySet(Array.from(enemyLockedBanSet)).has(drHeroPoolHeroKey(hero))
+                    && !heroKeySet(Array.from(ourLockedBanSet)).has(drHeroPoolHeroKey(hero));
             }
 
             const enemyBanFallbackPool = uniqueHeroes(
@@ -3363,7 +3376,7 @@ function openHeroIconHtml(hero) {
 
             const cleanEnemyBans = rawEnemyBans.filter(validEnemyBan);
             const cleanEnemyProtects = rawEnemyProtects.filter(function(hero) {
-                return validEnemyProtect(hero) && !cleanEnemyBans.includes(hero);
+                return validEnemyProtect(hero) && !hasHeroByKey(cleanEnemyBans, hero);
             });
 
             drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, cleanEnemyBans);
@@ -3377,7 +3390,7 @@ function openHeroIconHtml(hero) {
                     .concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
                     .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
             ).filter(function(hero) {
-                return hero && !hardBannedHeroes.has(hero) && !new Set(ourLockedProtects).has(hero);
+                return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !heroKeySet(ourLockedProtects).has(drHeroPoolHeroKey(hero));
             });
             drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, defaultEnemyBanPool);
         }
@@ -3385,7 +3398,7 @@ function openHeroIconHtml(hero) {
             const defaultEnemyProtectPool = uniqueHeroes(
                 (drSuggest.b.comp || []).concat((mB.comfort_core_rows || []).map(function(r) { return r.hero; }))
             ).filter(function(hero) {
-                return hero && !hardBannedHeroes.has(hero) && !drSuggest.b.bans.includes(hero);
+                return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !hasHeroByKey(drSuggest.b.bans, hero);
             });
             drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, defaultEnemyProtectPool);
         }
@@ -3634,18 +3647,22 @@ function openHeroIconHtml(hero) {
         const slotTeam = drActiveSlot.team;
         const slotType = drActiveSlot.type;
         const otherTeam = slotTeam === 'a' ? 'b' : 'a';
-        const otherProtects = drGetTeamHeroes(otherTeam, 'protect');
-        const teamBans = drGetTeamHeroes(slotTeam, 'ban');
-        const otherBans = drGetTeamHeroes(otherTeam, 'ban');
+        function toHeroKeySet(list) {
+            return new Set((list || []).filter(Boolean).map(drHeroPoolHeroKey));
+        }
+        const otherProtects = toHeroKeySet(drGetTeamHeroes(otherTeam, 'protect'));
+        const teamBans = toHeroKeySet(drGetTeamHeroes(slotTeam, 'ban'));
+        const otherBans = toHeroKeySet(drGetTeamHeroes(otherTeam, 'ban'));
 
         buttons.forEach(function(button) {
             const hero = button.dataset.hero;
+            const heroKey = drHeroPoolHeroKey(hero);
             let blocked = false;
             if (slotType === 'ban') {
-                if (otherProtects.includes(hero)) blocked = true;
-                if (teamBans.includes(hero)) blocked = true;
+                if (otherProtects.has(heroKey)) blocked = true;
+                if (teamBans.has(heroKey)) blocked = true;
             } else if (slotType === 'protect') {
-                if (otherBans.includes(hero)) blocked = true;
+                if (otherBans.has(heroKey)) blocked = true;
             }
             button.disabled = blocked;
             button.classList.toggle('hero-disabled', blocked);

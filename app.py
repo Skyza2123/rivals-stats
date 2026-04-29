@@ -170,6 +170,8 @@ HERO_NAME_ALIASES = {
     "cloakdagger": "Cloak & Dagger",
     "deadpools": "SupportPool",
     "deadpoolsupport": "SupportPool",
+    "deadpoolstrat": "SupportPool",
+    "suppool": "SupportPool",
     "deadpoolt": "Tankpool",
     "deadpooltank": "Tankpool",
     "deadpoolvanguard": "Tankpool",
@@ -177,6 +179,7 @@ HERO_NAME_ALIASES = {
     "dpd": "DpsPool",
     "dps": "SupportPool",
     "dpspool": "DpsPool",
+    "deadpoolduel": "DpsPool",
     "dpt": "Tankpool",
     "dpss": "SupportPool",
     "daredevil": "Daredevil",
@@ -3027,9 +3030,9 @@ def _normalize_import_hero(raw_hero: str | None) -> str:
     compact = _compact_text(hero_text)
     if compact in {"deadpoolvan", "deadpoolv", "deadpoolvanguard"}:
         return "Tankpool"
-    if compact in {"deadpooldps", "deadpoolduelist"}:
+    if compact in {"deadpooldps", "deadpoolduelist", "deadpoolduel"}:
         return "DpsPool"
-    if compact in {"deadpoolsup", "deadpoolsupp", "deadpoolsupport", "deadpoolstrategist"}:
+    if compact in {"deadpoolsup", "deadpoolsupp", "deadpoolsupport", "deadpoolstrategist", "deadpoolstrat"} or compact == "suppool":
         return "SupportPool"
     return normalize_hero_slot_value(hero_text)
 
@@ -3040,7 +3043,23 @@ def _tournament_import_score_match(line: str) -> re.Match | None:
 
 def _map_import_team_label(label: str, alias_map: dict[str, str]) -> str:
     cleaned = (label or "").strip()
-    return alias_map.get(cleaned) or alias_map.get(cleaned.lower()) or cleaned
+    return alias_map.get(cleaned) or alias_map.get(cleaned.lower()) or alias_map.get(_compact_text(cleaned)) or cleaned
+
+
+def _set_import_alias(alias_map: dict[str, str], label: str, value: str) -> None:
+    cleaned = (label or "").strip()
+    if not cleaned:
+        return
+    alias_map[cleaned] = value
+    alias_map[cleaned.lower()] = value
+    compact = _compact_text(cleaned)
+    if compact:
+        alias_map[compact] = value
+
+
+def _lookup_import_label(mapping: dict[str, str], label: str) -> str:
+    cleaned = (label or "").strip()
+    return mapping.get(cleaned) or mapping.get(cleaned.lower()) or mapping.get(_compact_text(cleaned)) or ""
 
 
 def _resolve_import_map_team_labels(left_label: str, right_label: str, team1_name: str, team2_name: str) -> tuple[str, str]:
@@ -3049,6 +3068,16 @@ def _resolve_import_map_team_labels(left_label: str, right_label: str, team1_nam
     if _team_names_match(left_clean, team1_name) and _team_names_match(right_clean, team2_name):
         return team1_name, team2_name
     if _team_names_match(left_clean, team2_name) and _team_names_match(right_clean, team1_name):
+        return team2_name, team1_name
+    # Partial match: if only one label is recognisable (e.g. short abbreviation),
+    # infer the other team rather than defaulting to left=team1.
+    if _team_names_match(left_clean, team1_name):
+        return team1_name, team2_name
+    if _team_names_match(left_clean, team2_name):
+        return team2_name, team1_name
+    if _team_names_match(right_clean, team2_name):
+        return team1_name, team2_name
+    if _team_names_match(right_clean, team1_name):
         return team2_name, team1_name
     return team1_name, team2_name
 
@@ -3091,7 +3120,7 @@ def _parse_import_draft(block_lines: list[str], side_by_label: dict[str, str]) -
             row_cells = _split_import_table_row(row)
             if len(row_cells) < 2:
                 continue
-            side = side_by_label.get(row_cells[0]) or side_by_label.get(row_cells[0].lower())
+            side = _lookup_import_label(side_by_label, row_cells[0])
             if side not in TEAM_SLOTS:
                 side = "team1" if row_offset == 0 else "team2"
             _assign_import_draft_row(draft, side, headers, row_cells[1:])
@@ -3108,8 +3137,8 @@ def _parse_import_comp(block_lines: list[str], side_by_label: dict[str, str]) ->
             continue
 
         right_hero_index = hero_columns[-1]
-        left_side = side_by_label.get(cells[0]) or side_by_label.get(cells[0].lower())
-        right_side = side_by_label.get(cells[-1]) or side_by_label.get(cells[-1].lower())
+        left_side = _lookup_import_label(side_by_label, cells[0])
+        right_side = _lookup_import_label(side_by_label, cells[-1])
         if left_side not in TEAM_SLOTS:
             left_side = "team1"
         if right_side not in TEAM_SLOTS:
@@ -3175,10 +3204,8 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
         first_left = first_score_match.group(1).strip()
         first_right = first_score_match.group(4).strip()
         first_left_team, first_right_team = _resolve_import_map_team_labels(first_left, first_right, team1_name, team2_name)
-        alias_map[first_left] = first_left_team
-        alias_map[first_left.lower()] = first_left_team
-        alias_map[first_right] = first_right_team
-        alias_map[first_right.lower()] = first_right_team
+        _set_import_alias(alias_map, first_left, first_left_team)
+        _set_import_alias(alias_map, first_right, first_right_team)
 
     maps: list[dict] = []
     players_by_team: dict[str, set[str]] = {team1_name: set(), team2_name: set()}
@@ -3207,16 +3234,11 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
         )
         left_team_name = _map_import_team_label(left_label, alias_map)
         right_team_name = _map_import_team_label(right_label, alias_map)
-        side_by_label = {
-            left_label: "team1",
-            left_label.lower(): "team1",
-            left_team_name: "team1",
-            left_team_name.lower(): "team1",
-            right_label: "team2",
-            right_label.lower(): "team2",
-            right_team_name: "team2",
-            right_team_name.lower(): "team2",
-        }
+        side_by_label: dict[str, str] = {}
+        for label in (left_label, left_team_name):
+            _set_import_alias(side_by_label, label, "team1")
+        for label in (right_label, right_team_name):
+            _set_import_alias(side_by_label, label, "team2")
 
         draft = _parse_import_draft(block_lines, side_by_label)
         comp_section = _parse_import_comp(block_lines, side_by_label)
@@ -11089,12 +11111,14 @@ def _resolve_hero_transform_key(hero_name: str) -> str | None:
     if mapped:
         return mapped
 
+    if compact == "suppool":
+        return "SupportPool"
     if compact.startswith("deadpool"):
         if any(token in compact for token in ("tank", "vanguard")):
             return "Tankpool"
-        if any(token in compact for token in ("support", "strategist", "supp")):
+        if any(token in compact for token in ("support", "strategist", "supp", "strat")):
             return "SupportPool"
-        if "dps" in compact or "duelist" in compact:
+        if any(token in compact for token in ("dps", "duelist", "duel")):
             return "DpsPool"
 
     compact_map = { _compact_text(k): k for k in HERO_TRANSFORMATIONS.keys() }

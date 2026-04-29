@@ -4,7 +4,7 @@
 
 {% block content %}
 {% set team1_draft_slots = [('ban1','Ban 1'),('ban2','Ban 2'),('protect1','Protect 1'),('ban3','Ban 3'),('protect2','Protect 2'),('ban4','Ban 4')] %}
-{% set team2_draft_slots = [('ban1','Ban 1'),('ban2','Ban 2'),('protect1','Protect 1'),('ban3','Ban 3'),('ban4','Ban 4'),('protect2','Protect 2')] %}
+{% set team2_draft_slots = [('ban1','Ban 1'),('protect1','Protect 1'),('ban2','Ban 2'),('ban3','Ban 3'),('ban4','Ban 4'),('protect2','Protect 2')] %}
 {% set section_scores = [] %}
 {% for sec in map_entry.comp %}
     {% if sec.score %}
@@ -82,9 +82,9 @@
                 <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
                     <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
                     {% if hero and hero in hero_transformations %}
-                    <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
+                    <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero_display_name(hero) }}"></div>
                     {% endif %}
-                    <span class="slot-hero-name">{{ hero or '---' }}</span>
+                    <span class="slot-hero-name">{{ hero_display_name(hero) if hero else '---' }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -97,9 +97,9 @@
                 <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
                     <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
                     {% if hero and hero in hero_transformations %}
-                    <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
+                    <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero_display_name(hero) }}"></div>
                     {% endif %}
-                    <span class="slot-hero-name">{{ hero or '---' }}</span>
+                    <span class="slot-hero-name">{{ hero_display_name(hero) if hero else '---' }}</span>
                 </div>
                 {% endfor %}
             </div>
