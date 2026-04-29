@@ -2236,7 +2236,8 @@ def build_player_hero_map_breakdown(player_name: str, scrims: list[dict]) -> dic
     hero_rows = []
     for hero_name, stats in hero_stats.items():
         maps_played = round(stats["maps"], 2)
-        decided_maps = round(stats["decided"], 2)
+        raw_decided_maps = stats["decided"]
+        decided_maps = round(raw_decided_maps, 2)
         hero_rows.append(
             {
                 "hero": hero_name,
@@ -2245,7 +2246,7 @@ def build_player_hero_map_breakdown(player_name: str, scrims: list[dict]) -> dic
                 "unresolved_maps": stats["unresolved"],
                 "wins": stats["wins"],
                 "losses": stats["losses"],
-                "win_rate": round((stats["wins"] / decided_maps) * 100, 1) if decided_maps else 0,
+                "win_rate": round((stats["wins"] / raw_decided_maps) * 100, 1) if raw_decided_maps else 0,
             }
         )
     hero_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
