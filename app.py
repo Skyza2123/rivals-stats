@@ -10634,9 +10634,11 @@ def scrims():
         except (ValueError, TypeError):
             selected_team_id = ""
 
+    filtered.sort(key=lambda s: s.get("scrim_date") or "", reverse=True)
+
     return render_template(
         "scrims.html",
-        scrims=list(reversed(filtered)),
+        scrims=filtered,
         teams=teams,
         map_modes=MAP_MODES,
         today=date.today().isoformat(),
@@ -12188,11 +12190,14 @@ def tournaments():
     filtered_matches = filter_scrims_by_season(TOURNAMENT_MATCHES, selected_season)
     if selected_team_id:
         filtered_matches = [match for match in filtered_matches if str(match.get("team_id") or "") == selected_team_id]
+    filtered_matches.sort(key=lambda m: m.get("scrim_date") or "", reverse=True)
+
+    all_tournaments_sorted = sorted(TOURNAMENT_MATCHES, key=lambda m: m.get("scrim_date") or "", reverse=True)
 
     return render_template(
         "tournaments.html",
         tournaments=filtered_matches,
-        all_tournaments=list(reversed(TOURNAMENT_MATCHES)),
+        all_tournaments=all_tournaments_sorted,
         teams=teams,
         today=date.today().isoformat(),
         season_options=season_options,
