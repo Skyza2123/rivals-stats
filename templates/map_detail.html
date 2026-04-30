@@ -380,6 +380,7 @@
                         <option value="">Not Set</option>
                         <option value="Win" {% if sec.get('result') == 'Win' %}selected{% endif %}>{{ team1_label }} Won</option>
                         <option value="Loss" {% if sec.get('result') == 'Loss' %}selected{% endif %}>{{ team2_label }} Won</option>
+                        <option value="Draw" {% if sec.get('result') == 'Draw' %}selected{% endif %}>Tie</option>
                     </select>
                 </div>
                 {% endif %}
