@@ -162,17 +162,51 @@ def dashboard():
     )
 
 
+def _ensure_team_sort_order_column(db: sqlite3.Connection) -> None:
+    team_columns = {row[1] for row in db.execute("PRAGMA table_info(teams)").fetchall()}
+    if "sort_order" not in team_columns:
+        db.execute("ALTER TABLE teams ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+        db.commit()
+
+
 @app.route("/teams")
 def teams():
     db = get_db()
     migrate_enemy_teams_to_team_database(db)
+    _ensure_team_sort_order_column(db)
+    personal_rows = db.execute(
+        "SELECT id, name FROM teams WHERE is_personal = 1 ORDER BY COALESCE(sort_order, 0), name COLLATE NOCASE"
+    ).fetchall()
+    if len(personal_rows) > 1:
+        keep_personal_id = int(personal_rows[0]["id"])
+        db.execute("UPDATE teams SET is_personal = 0 WHERE id != ?", (keep_personal_id,))
+        db.commit()
+        personal_rows = [personal_rows[0]]
+    personal_team = personal_rows[0] if personal_rows else None
+
+    selected_sort = (request.args.get("sort") or "quality").strip().lower()
+    if selected_sort == "custom":
+        selected_sort = "quality"
+    if selected_sort not in {"quality", "win_rate", "last_played", "name"}:
+        selected_sort = "quality"
+    selected_view = (request.args.get("view") or "rows").strip().lower()
+    if selected_view not in {"rows", "boxes"}:
+        selected_view = "rows"
     team_rows = db.execute(
         """
-        SELECT t.id, t.name, t.notes, t.quality_tag, t.logo_path, t.is_personal, COUNT(p.id) AS player_count
+        SELECT
+            t.id,
+            t.name,
+            t.notes,
+            t.quality_tag,
+            COALESCE(t.sort_order, 0) AS sort_order,
+            t.logo_path,
+            t.is_personal,
+            COUNT(p.id) AS player_count
         FROM teams t
         LEFT JOIN players p ON p.team_id = t.id
         GROUP BY t.id
-        ORDER BY t.name COLLATE NOCASE
+        ORDER BY COALESCE(t.sort_order, 0), t.name COLLATE NOCASE
         """
     ).fetchall()
 
@@ -187,21 +221,83 @@ def teams():
     )
 
     teams_with_scrim_stats = []
+    staff_roles = {"Coach", "AC", "Analyst"}
+    quality_rank = {"Preferred": 0, "Semi Preferred": 1, "Good": 2, "Avoid": 3}
     for row in team_rows:
         all_team_scrims = get_scrims_for_team(row["id"], row["name"])
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
-        team_maps = sum(len(scrim.get("maps", [])) for scrim in team_scrims)
+        stats_scrims = team_scrims
+        if personal_team is not None and int(row["id"]) != int(personal_team["id"]):
+            stats_scrims = [
+                scrim for scrim in team_scrims
+                if scrim_involves_team(scrim, int(personal_team["id"]), personal_team["name"])
+            ]
+        team_maps = sum(len(scrim.get("maps", [])) for scrim in stats_scrims)
         team_wins = sum(
             1
-            for scrim in team_scrims
+            for scrim in stats_scrims
             for map_entry in scrim.get("maps", [])
             if get_map_outcome_for_slot(map_entry, map_entry.get("our_team_slot", "team1")) == "Win"
         )
         team_win_rate = round((team_wins / team_maps) * 100, 1) if team_maps else 0
+        if team_maps <= 0:
+            win_rate_class = "wr-empty"
+        elif team_win_rate >= 60:
+            win_rate_class = "wr-good"
+        elif team_win_rate >= 45:
+            win_rate_class = "wr-ok"
+        else:
+            win_rate_class = "wr-bad"
+
+        dated_scrims = []
+        for scrim in stats_scrims:
+            parsed_date = _parse_scrim_date(scrim.get("scrim_date", ""))
+            if parsed_date is not None:
+                dated_scrims.append((parsed_date, scrim.get("scrim_date", "")))
+        last_played = ""
+        last_played_sort = ""
+        if dated_scrims:
+            latest_date, latest_raw = max(dated_scrims, key=lambda item: item[0])
+            last_played = latest_date.strftime("%m/%d/%Y")
+            last_played_sort = latest_date.isoformat()
+
+        roster_rows = db.execute(
+            """
+            SELECT name, role, COALESCE(is_sub, 0) AS is_sub
+            FROM players
+            WHERE team_id = ?
+            ORDER BY
+                CASE
+                    WHEN role = 'Coach' THEN 10
+                    WHEN role = 'AC' THEN 11
+                    WHEN role = 'Analyst' THEN 12
+                    WHEN COALESCE(is_sub, 0) = 0 THEN 0
+                    ELSE 1
+                END,
+                name COLLATE NOCASE
+            """,
+            (row["id"],),
+        ).fetchall()
+        active_roster = [
+            {"name": (player["name"] or "").strip(), "role": (player["role"] or "").strip(), "is_sub": bool(player["is_sub"])}
+            for player in roster_rows
+            if (player["name"] or "").strip() and (player["role"] or "").strip() not in staff_roles
+        ]
+        roster_by_role = {
+            "Vanguard": [player for player in active_roster if player["role"] == "Vanguard"],
+            "Duelist": [player for player in active_roster if player["role"] == "Duelist"],
+            "Strategist": [player for player in active_roster if player["role"] == "Strategist"],
+            "Flex / Other": [player for player in active_roster if player["role"] not in {"Vanguard", "Duelist", "Strategist"}],
+        }
+        staff = [
+            {"name": (player["name"] or "").strip(), "role": (player["role"] or "").strip()}
+            for player in roster_rows
+            if (player["name"] or "").strip() and (player["role"] or "").strip() in staff_roles
+        ]
 
         # Calculate hero pool (top 5 heroes)
         pick_counter: Counter = Counter()
-        for scrim in team_scrims:
+        for scrim in stats_scrims:
             for map_entry in scrim.get("maps", []):
                 if not isinstance(map_entry, dict):
                     continue
@@ -224,15 +320,34 @@ def teams():
                 "name": row["name"],
                 "notes": row["notes"],
                 "quality_tag": row["quality_tag"],
+                "quality_rank": quality_rank.get(row["quality_tag"], 99),
+                "sort_order": int(row["sort_order"] or 0),
                 "logo_path": row["logo_path"],
                 "is_personal": bool(row["is_personal"]),
                 "player_count": row["player_count"],
+                "active_roster": active_roster,
+                "roster_by_role": roster_by_role,
+                "active_roster_count": len(active_roster),
+                "staff": staff,
                 "scrim_count": len(team_scrims),
+                "stats_context": f"vs {personal_team['name']}" if personal_team is not None and int(row["id"]) != int(personal_team["id"]) else "Overall",
                 "map_count": team_maps,
                 "map_win_rate": team_win_rate,
+                "win_rate_class": win_rate_class,
+                "last_played": last_played,
+                "last_played_sort": last_played_sort,
                 "hero_pool": hero_pool,
             }
         )
+
+    if selected_sort == "win_rate":
+        teams_with_scrim_stats.sort(key=lambda team: (team["map_count"] > 0, team["map_win_rate"], team["map_count"], team["name"].lower()), reverse=True)
+    elif selected_sort == "last_played":
+        teams_with_scrim_stats.sort(key=lambda team: (team["last_played_sort"], team["name"].lower()), reverse=True)
+    elif selected_sort == "name":
+        teams_with_scrim_stats.sort(key=lambda team: team["name"].lower())
+    else:
+        teams_with_scrim_stats.sort(key=lambda team: (team["quality_rank"], team["sort_order"], team["name"].lower()))
 
     personal_teams = [team for team in teams_with_scrim_stats if team["is_personal"]]
 
@@ -242,6 +357,8 @@ def teams():
         personal_teams=personal_teams,
         season_options=season_options,
         selected_season=selected_season,
+        selected_sort=selected_sort,
+        selected_view=selected_view,
         has_unseasoned_scrims=has_unseasoned_scrims,
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
     )
@@ -387,11 +504,16 @@ def teams_compare():
 @app.route("/teams/create", methods=["POST"])
 def create_team():
     db = get_db()
+    _ensure_team_sort_order_column(db)
     raw_name = request.form.get("name", "")
     name = normalize_player_name(raw_name)
     notes = request.form.get("notes", "").strip()
     quality_tag_raw = " ".join(request.form.get("quality_tag", "").strip().split())[:32]
     quality_tag = quality_tag_raw if quality_tag_raw in TEAM_QUALITY_TAG_OPTIONS else ""
+    try:
+        sort_order = int(request.form.get("sort_order", "0") or 0)
+    except ValueError:
+        sort_order = 0
     logo_path = save_team_logo(request.files.get("logo"), name)
     is_personal = 1 if request.form.get("is_personal", "").strip() == "1" else 0
 
@@ -400,9 +522,11 @@ def create_team():
         return redirect(url_for("teams"))
 
     try:
+        if is_personal:
+            db.execute("UPDATE teams SET is_personal = 0")
         db.execute(
-            "INSERT INTO teams (name, notes, quality_tag, logo_path, is_personal) VALUES (?, ?, ?, ?, ?)",
-            (name, notes, quality_tag, logo_path, is_personal),
+            "INSERT INTO teams (name, notes, quality_tag, sort_order, logo_path, is_personal) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, notes, quality_tag, sort_order, logo_path, is_personal),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -416,6 +540,7 @@ def create_team():
 @app.route("/teams/<int:team_id>/edit", methods=["POST"])
 def edit_team(team_id: int):
     db = get_db()
+    _ensure_team_sort_order_column(db)
     current = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
     if current is None:
         abort(404)
@@ -425,6 +550,11 @@ def edit_team(team_id: int):
     notes = request.form.get("notes", "").strip()
     quality_tag_raw = " ".join(request.form.get("quality_tag", "").strip().split())[:32]
     quality_tag = quality_tag_raw if quality_tag_raw in TEAM_QUALITY_TAG_OPTIONS else ""
+    current_sort_order = current["sort_order"] if "sort_order" in current.keys() else 0
+    try:
+        sort_order = int(request.form.get("sort_order", "0") or current_sort_order or 0)
+    except ValueError:
+        sort_order = 0
     remove_logo = request.form.get("remove_logo", "").strip() == "1"
     new_logo_path = save_team_logo(request.files.get("logo"), name)
     raw_personal = request.form.get("is_personal")
@@ -446,9 +576,11 @@ def edit_team(team_id: int):
         elif remove_logo and current_logo_path:
             logo_path = ""
             delete_team_logo_file(current_logo_path)
+        if is_personal:
+            db.execute("UPDATE teams SET is_personal = 0 WHERE id != ?", (team_id,))
         db.execute(
-            "UPDATE teams SET name = ?, notes = ?, quality_tag = ?, logo_path = ?, is_personal = ? WHERE id = ?",
-            (name, notes, quality_tag, logo_path, is_personal, team_id),
+            "UPDATE teams SET name = ?, notes = ?, quality_tag = ?, sort_order = ?, logo_path = ?, is_personal = ? WHERE id = ?",
+            (name, notes, quality_tag, sort_order, logo_path, is_personal, team_id),
         )
         db.commit()
     except sqlite3.IntegrityError:
@@ -462,6 +594,7 @@ def edit_team(team_id: int):
 @app.route("/teams/<int:team_id>/quick-access", methods=["POST"])
 def toggle_team_quick_access(team_id: int):
     db = get_db()
+    _ensure_team_sort_order_column(db)
     team = db.execute("SELECT id, is_personal FROM teams WHERE id = ?", (team_id,)).fetchone()
     if team is None:
         abort(404)
@@ -475,6 +608,8 @@ def toggle_team_quick_access(team_id: int):
     else:
         next_value = 0 if current_value else 1
 
+    if next_value:
+        db.execute("UPDATE teams SET is_personal = 0 WHERE id != ?", (team_id,))
     db.execute("UPDATE teams SET is_personal = ? WHERE id = ?", (next_value, team_id))
     db.commit()
 

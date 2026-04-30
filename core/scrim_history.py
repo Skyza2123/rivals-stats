@@ -412,6 +412,7 @@ def scrim_involves_team(scrim: dict, team_id: int | None, team_name: str = "") -
         scrim.get("team1_id") == team_id
         or scrim.get("team2_id") == team_id
         or scrim.get("team_id") == team_id
+        or scrim.get("enemy_team_id") == team_id
     ):
         return True
 
@@ -423,6 +424,8 @@ def scrim_involves_team(scrim: dict, team_id: int | None, team_name: str = "") -
         (scrim.get("team_name", "") or "").strip().lower(),
         (scrim.get("team1_name", "") or "").strip().lower(),
         (scrim.get("team2_name", "") or "").strip().lower(),
+        (scrim.get("enemy_team", "") or "").strip().lower(),
+        (scrim.get("opponent", "") or "").strip().lower(),
     ]
     return any(name == team_name_lower for name in participant_names if name)
 
@@ -474,12 +477,23 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
                 return "team1"
             if record.get("team2_id") == team_id:
                 return "team2"
+            if record.get("team_id") == team_id:
+                return normalize_match_team_slot(record.get("team_slot", "team1"))
+            if record.get("enemy_team_id") == team_id:
+                return opposite_team_slot(normalize_match_team_slot(record.get("team_slot", "team1")))
 
         if team_name_lower:
             if str(record.get("team1_name", "")).strip().lower() == team_name_lower:
                 return "team1"
             if str(record.get("team2_name", "")).strip().lower() == team_name_lower:
                 return "team2"
+            if str(record.get("team_name", "")).strip().lower() == team_name_lower:
+                return normalize_match_team_slot(record.get("team_slot", "team1"))
+            if (
+                str(record.get("enemy_team", "")).strip().lower() == team_name_lower
+                or str(record.get("opponent", "")).strip().lower() == team_name_lower
+            ):
+                return opposite_team_slot(normalize_match_team_slot(record.get("team_slot", "team1")))
 
         return normalize_match_team_slot(fallback_slot or record.get("team_slot", "team1"))
 

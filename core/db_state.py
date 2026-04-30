@@ -75,6 +75,7 @@ def init_db() -> None:
                 name TEXT NOT NULL UNIQUE,
                 notes TEXT NOT NULL DEFAULT '',
                 quality_tag TEXT NOT NULL DEFAULT '',
+                sort_order INTEGER NOT NULL DEFAULT 0,
                 logo_path TEXT NOT NULL DEFAULT '',
                 is_personal INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -158,6 +159,8 @@ def init_db() -> None:
         team_columns = {row[1] for row in conn.execute("PRAGMA table_info(teams)").fetchall()}
         if "quality_tag" not in team_columns:
             conn.execute("ALTER TABLE teams ADD COLUMN quality_tag TEXT NOT NULL DEFAULT ''")
+        if "sort_order" not in team_columns:
+            conn.execute("ALTER TABLE teams ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
         if "logo_path" not in team_columns:
             conn.execute("ALTER TABLE teams ADD COLUMN logo_path TEXT NOT NULL DEFAULT ''")
         if "is_personal" not in team_columns:

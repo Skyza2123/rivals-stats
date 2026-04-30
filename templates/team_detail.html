@@ -2335,8 +2335,12 @@
             <div class="field field-full">
                 <label>
                     <input type="checkbox" name="is_personal" value="1" {% if team.is_personal %}checked{% endif %}>
-                    Show this team in Personal quick access
+                    Set as the Personal team
                 </label>
+            </div>
+            <div class="field">
+                <label for="team_sort_order">Custom Sort</label>
+                <input id="team_sort_order" name="sort_order" type="number" min="0" step="1" value="{{ team.sort_order or 0 }}">
             </div>
             <div class="field field-full">
                 <label for="team_logo">Team Logo</label>
@@ -3034,8 +3038,8 @@
     <div class="modal-card player-modal-card">
         <div class="modal-header">
             <div>
-                <h3>Player Management</h3>
-                <p>Add a new player or edit an existing player.</p>
+                <h3>Team Management</h3>
+                <p>Add or edit roster, coaches, ACs, and analysts.</p>
             </div>
             <button id="closePlayerModal" class="modal-close" type="button" aria-label="Close">&times;</button>
         </div>

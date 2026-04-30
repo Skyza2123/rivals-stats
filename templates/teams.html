@@ -35,6 +35,12 @@
                     <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
                 {% endfor %}
             </select>
+            <select name="sort" aria-label="Team sort" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
+                <option value="quality" {% if selected_sort == 'quality' %}selected{% endif %}>Sort: Quality</option>
+                <option value="win_rate" {% if selected_sort == 'win_rate' %}selected{% endif %}>Sort: Win Rate</option>
+                <option value="last_played" {% if selected_sort == 'last_played' %}selected{% endif %}>Sort: Last Played</option>
+                <option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Sort: Name</option>
+            </select>
         </form>
         <div class="page-toolbar-group">
             {% if session.get('access_level') == 'edit' %}
@@ -46,6 +52,162 @@
 </section>
 
 <div class="section-divider"></div>
+
+{% macro team_card(team, selected_season) %}
+<article class="team-dash-card">
+    <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
+        <img
+            class="team-dash-logo"
+            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+            alt="{{ team.name }} logo"
+        >
+        <div class="team-dash-title">{{ team.name }}</div>
+        <div class="team-dash-badges">
+            {% if team.quality_tag %}
+                {% set qt = team.quality_tag %}
+                {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
+                <span class="quality-tag-badge {{ qt_class }}">{{ qt }}</span>
+            {% endif %}
+            {% if team.sort_order %}
+                <span class="team-sort-badge">#{{ team.sort_order }}</span>
+            {% endif %}
+        </div>
+        <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
+        <div class="team-dash-stats">
+            <span>{{ team.scrim_count }} scrims</span>
+            <span>{{ team.map_count }} maps</span>
+            <span class="team-wr-pill {{ team.win_rate_class }}">{{ team.map_win_rate }}% WR</span>
+            <span>{{ team.stats_context }}</span>
+            <span>{{ team.last_played or 'Never played' }}</span>
+        </div>
+        <div class="team-card-section">
+            <div class="team-card-section-title">Roster</div>
+            {% if team.active_roster %}
+                <div class="team-roster-role-grid">
+                    {% for role_name, players in team.roster_by_role.items() %}
+                        {% if players or role_name != 'Flex / Other' %}
+                        <div class="team-roster-role-row">
+                            <span class="team-roster-role-label">{{ role_name }}</span>
+                            <div class="team-roster-chips">
+                                {% for player in players[:4] %}
+                                    <span class="team-roster-chip {% if player.is_sub %}team-roster-chip-sub{% endif %}" title="{{ player.role or 'Role not set' }}">
+                                        {{ player.name }}{% if player.is_sub %} (Sub){% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="team-empty-mini">—</span>
+                                {% endfor %}
+                                {% if players|length > 4 %}
+                                    <span class="team-roster-chip team-roster-chip-more">+{{ players|length - 4 }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="team-empty-mini">No roster</div>
+            {% endif %}
+        </div>
+        <div class="team-card-section">
+            <div class="team-card-section-title">Staff</div>
+            {% if team.staff %}
+                <div class="team-staff-list">
+                    {% for staffer in team.staff %}
+                        <span><strong>{{ staffer.role }}</strong> {{ staffer.name }}</span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="team-empty-mini">No coach / AC / analyst set</div>
+            {% endif %}
+        </div>
+    </a>
+    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats -&gt;</a>
+    <div class="team-dash-players">{{ team.active_roster_count }} roster{% if team.staff %} / {{ team.staff|length }} staff{% endif %}</div>
+    {% if session.get('access_level') == 'edit' %}
+    <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
+        <input type="hidden" name="season" value="{{ selected_season }}">
+        {% if team.is_personal %}
+            <input type="hidden" name="action" value="remove">
+            <button type="submit" class="button-secondary button-small">Remove From Personal</button>
+        {% else %}
+            <input type="hidden" name="action" value="add">
+            <button type="submit" class="button-secondary button-small">Add To Personal</button>
+        {% endif %}
+    </form>
+    {% endif %}
+</article>
+{% endmacro %}
+
+{% macro team_row(team, selected_season) %}
+<article class="team-row-card">
+    <a class="team-row-main" href="{{ url_for('team_detail', team_id=team.id) }}">
+        <img
+            class="team-row-logo"
+            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+            alt="{{ team.name }} logo"
+        >
+        <div class="team-row-identity">
+            <div class="team-row-title-line">
+                <span class="team-row-title">{{ team.name }}</span>
+                {% if team.quality_tag %}
+                    {% set qt = team.quality_tag %}
+                    {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
+                    <span class="quality-tag-badge {{ qt_class }}">{{ qt }}</span>
+                {% endif %}
+                {% if team.sort_order %}<span class="team-sort-badge">#{{ team.sort_order }}</span>{% endif %}
+            </div>
+            <div class="team-row-note">{{ team.notes or 'No notes yet.' }}</div>
+        </div>
+        <div class="team-row-stats">
+            <span class="team-wr-pill {{ team.win_rate_class }}">{{ team.map_win_rate }}% WR</span>
+            <span>{{ team.stats_context }}</span>
+            <span>{{ team.map_count }} maps</span>
+            <span>{{ team.last_played or 'Never played' }}</span>
+        </div>
+        <div class="team-row-roster">
+            {% for role_name, players in team.roster_by_role.items() %}
+                {% if players or role_name != 'Flex / Other' %}
+                <div class="team-row-role">
+                    <span class="team-row-role-label">{{ role_name }}</span>
+                    <span class="team-row-role-names">
+                        {% for player in players[:5] %}
+                            {{ player.name }}{% if player.is_sub %} (Sub){% endif %}{% if not loop.last %}, {% endif %}
+                        {% else %}
+                            —
+                        {% endfor %}
+                        {% if players|length > 5 %}, +{{ players|length - 5 }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div class="team-row-staff">
+            {% if team.staff %}
+                {% for staffer in team.staff %}
+                    <span><strong>{{ staffer.role }}</strong> {{ staffer.name }}</span>
+                {% endfor %}
+            {% else %}
+                <span class="team-empty-mini">No staff set</span>
+            {% endif %}
+        </div>
+    </a>
+    <div class="team-row-actions">
+        <a class="button-secondary button-small" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">Stats</a>
+        {% if session.get('access_level') == 'edit' %}
+        <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}">
+            <input type="hidden" name="season" value="{{ selected_season }}">
+            {% if team.is_personal %}
+                <input type="hidden" name="action" value="remove">
+                <button type="submit" class="button-secondary button-small">Unset Personal</button>
+            {% else %}
+                <input type="hidden" name="action" value="add">
+                <button type="submit" class="button-secondary button-small">Set Personal</button>
+            {% endif %}
+        </form>
+        {% endif %}
+    </div>
+</article>
+{% endmacro %}
 
 {% if personal_teams %}
 <section class="panel gap-md">
@@ -65,6 +227,31 @@
 {% endif %}
 
 <section class="panel">
+    <div class="teams-panel-tools">
+        <div></div>
+        <div class="team-view-toggle" aria-label="Team view">
+            <a
+                class="team-view-btn {% if selected_view == 'rows' %}team-view-active{% endif %}"
+                href="{{ url_for('teams', season=selected_season, sort=selected_sort, view='rows') }}"
+                aria-label="Rows view"
+                title="Rows view"
+            >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6.5h16M4 12h16M4 17.5h16"></path>
+                </svg>
+            </a>
+            <a
+                class="team-view-btn {% if selected_view == 'boxes' %}team-view-active{% endif %}"
+                href="{{ url_for('teams', season=selected_season, sort=selected_sort, view='boxes') }}"
+                aria-label="Boxes view"
+                title="Boxes view"
+            >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"></path>
+                </svg>
+            </a>
+        </div>
+    </div>
     <div class="tab-bar">
         <button class="tab-btn tab-active" data-tab="all" type="button">All Teams ({{ teams|length }})</button>
         <button class="tab-btn" data-tab="personal" type="button">Personal Quick Access ({{ personal_teams|length }})</button>
@@ -79,45 +266,19 @@
                 <canvas id="teamsWrChart"></canvas>
             </div>
             {% endif %}
-            <div class="teams-card-grid">
-                {% for team in teams %}
-                    <article class="team-dash-card">
-                        <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
-                            <img
-                                class="team-dash-logo"
-                                src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
-                                alt="{{ team.name }} logo"
-                            >
-                            <div class="team-dash-title">{{ team.name }}</div>
-                            {% if team.quality_tag %}
-                                {% set qt = team.quality_tag %}
-                                {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
-                                <span class="quality-tag-badge {{ qt_class }}">{{ qt }}</span>
-                            {% endif %}
-                            <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
-                            <div class="team-dash-stats">
-                                <span>{{ team.scrim_count }} scrims</span>
-                                <span>{{ team.map_count }} maps</span>
-                                <span>{{ team.map_win_rate }}% WR</span>
-                            </div>
-                        </a>
-                        <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
-                        <div class="team-dash-players">{{ team.player_count }} players</div>
-                        {% if session.get('access_level') == 'edit' %}
-                        <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
-                            <input type="hidden" name="season" value="{{ selected_season }}">
-                            {% if team.is_personal %}
-                                <input type="hidden" name="action" value="remove">
-                                <button type="submit" class="button-secondary button-small">Remove From Personal</button>
-                            {% else %}
-                                <input type="hidden" name="action" value="add">
-                                <button type="submit" class="button-secondary button-small">Add To Personal</button>
-                            {% endif %}
-                        </form>
-                        {% endif %}
-                    </article>
-                {% endfor %}
-            </div>
+            {% if selected_view == 'boxes' %}
+                <div class="teams-card-grid">
+                    {% for team in teams %}
+                        {{ team_card(team, selected_season) }}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="teams-row-list">
+                    {% for team in teams %}
+                        {{ team_row(team, selected_season) }}
+                    {% endfor %}
+                </div>
+            {% endif %}
         {% else %}
             <p class="empty-text">No teams yet. Create your first team above.</p>
         {% endif %}
@@ -125,40 +286,19 @@
 
     <div class="tab-content tab-hidden" id="tab-personal">
         {% if personal_teams %}
-            <div class="teams-card-grid">
-                {% for team in personal_teams %}
-                    <article class="team-dash-card">
-                        <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
-                            <img
-                                class="team-dash-logo"
-                                src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
-                                alt="{{ team.name }} logo"
-                            >
-                            <div class="team-dash-title">{{ team.name }}</div>
-                            {% if team.quality_tag %}
-                                {% set qt = team.quality_tag %}
-                                {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
-                                <span class="quality-tag-badge {{ qt_class }}">{{ qt }}</span>
-                            {% endif %}
-                            <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
-                            <div class="team-dash-stats">
-                                <span>{{ team.scrim_count }} scrims</span>
-                                <span>{{ team.map_count }} maps</span>
-                                <span>{{ team.map_win_rate }}% WR</span>
-                            </div>
-                        </a>
-                        <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats →</a>
-                        <div class="team-dash-players">{{ team.player_count }} players</div>
-                        {% if session.get('access_level') == 'edit' %}
-                        <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
-                            <input type="hidden" name="season" value="{{ selected_season }}">
-                            <input type="hidden" name="action" value="remove">
-                            <button type="submit" class="button-secondary button-small">Remove From Personal</button>
-                        </form>
-                        {% endif %}
-                    </article>
-                {% endfor %}
-            </div>
+            {% if selected_view == 'boxes' %}
+                <div class="teams-card-grid">
+                    {% for team in personal_teams %}
+                        {{ team_card(team, selected_season) }}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="teams-row-list">
+                    {% for team in personal_teams %}
+                        {{ team_row(team, selected_season) }}
+                    {% endfor %}
+                </div>
+            {% endif %}
         {% else %}
             <p class="empty-text">No teams in Personal yet. Add any team from the All Teams tab.</p>
         {% endif %}
@@ -194,10 +334,14 @@
                     <option value="Avoid">Avoid</option>
                 </select>
             </div>
+            <div class="field">
+                <label for="modal_team_sort_order">Custom Sort</label>
+                <input id="modal_team_sort_order" name="sort_order" type="number" min="0" step="1" value="0">
+            </div>
             <div class="field field-full">
                 <label>
                     <input type="checkbox" name="is_personal" value="1">
-                    Add this team to Personal quick access
+                    Set as the Personal team
                 </label>
             </div>
             <div class="field field-full">

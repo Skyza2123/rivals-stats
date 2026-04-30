@@ -165,7 +165,7 @@ TEAM_LOGO_DIR = _default_logo_dir()
 _LOGOS_ON_DISK = os.path.normcase(str(TEAM_LOGO_DIR.resolve())) != os.path.normcase(
     str((Path(app.static_folder) / "uploads" / "team_logos").resolve())
 )
-PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex"]
+PLAYER_ROLES = ["Vanguard", "Duelist", "Strategist", "Flex", "Coach", "AC", "Analyst"]
 TEAM_SLOTS = ["team1", "team2"]
 TEAM_QUALITY_TAG_OPTIONS = ("Preferred", "Semi Preferred", "Good", "Avoid")
 DEFAULT_MAP_TYPE = "Standard"
