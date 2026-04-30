@@ -19,6 +19,7 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
     wins = 0
     losses = 0
     unresolved_maps = 0
+    unresolved_map_refs: list[dict] = []
     events_mentioned = 0
     target_lower = target.lower()
     exact_name_pattern = re.compile(r"(?<!\\w)" + re.escape(target_lower) + r"(?!\\w)")
@@ -48,6 +49,7 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
                     losses += 1
                 else:
                     unresolved_maps += 1
+                    unresolved_map_refs.append({"scrim_id": scrim.get("id"), "map_id": map_entry.get("id")})
 
             for event in map_entry.get("events", []):
                 description = event.get("description", "").strip().lower()
@@ -61,6 +63,7 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
         "maps_played": maps_played,
         "decided_maps": decided_maps,
         "unresolved_maps": unresolved_maps,
+        "unresolved_map_refs": unresolved_map_refs,
         "wins": wins,
         "losses": losses,
         "events_mentioned": events_mentioned,

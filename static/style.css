@@ -5923,10 +5923,16 @@ th {
     font-size: 0.78rem;
 }
 
+.team-staff-list > span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
 .team-staff-list strong {
     color: var(--muted);
     display: inline-block;
-    min-width: 48px;
+    min-width: 58px;
 }
 
 .team-empty-mini {

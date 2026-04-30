@@ -228,9 +228,13 @@ def teams():
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
         stats_scrims = team_scrims
         if personal_team is not None and int(row["id"]) != int(personal_team["id"]):
+            personal_scrims = filter_scrims_by_season(
+                get_scrims_for_team(int(personal_team["id"]), personal_team["name"]),
+                selected_season,
+            )
             stats_scrims = [
-                scrim for scrim in team_scrims
-                if scrim_involves_team(scrim, int(personal_team["id"]), personal_team["name"])
+                scrim for scrim in personal_scrims
+                if scrim_involves_team(scrim, int(row["id"]), row["name"])
             ]
         team_maps = sum(len(scrim.get("maps", [])) for scrim in stats_scrims)
         team_wins = sum(
@@ -330,7 +334,7 @@ def teams():
                 "active_roster_count": len(active_roster),
                 "staff": staff,
                 "scrim_count": len(team_scrims),
-                "stats_context": f"vs {personal_team['name']}" if personal_team is not None and int(row["id"]) != int(personal_team["id"]) else "Overall",
+                "stats_context": f"Our WR vs {row['name']}" if personal_team is not None and int(row["id"]) != int(personal_team["id"]) else "Overall",
                 "map_count": team_maps,
                 "map_win_rate": team_win_rate,
                 "win_rate_class": win_rate_class,
@@ -347,7 +351,10 @@ def teams():
     elif selected_sort == "name":
         teams_with_scrim_stats.sort(key=lambda team: team["name"].lower())
     else:
-        teams_with_scrim_stats.sort(key=lambda team: (team["quality_rank"], team["sort_order"], team["name"].lower()))
+        teams_with_scrim_stats.sort(key=lambda team: (team["quality_rank"], team["map_count"] <= 0, team["map_win_rate"], team["sort_order"], team["name"].lower()))
+
+    # Personal team always floats to the top regardless of sort
+    teams_with_scrim_stats.sort(key=lambda t: not t["is_personal"])
 
     personal_teams = [team for team in teams_with_scrim_stats if team["is_personal"]]
 
@@ -706,12 +713,18 @@ def team_detail(team_id: int):
     draft_predictor = build_draft_predictor(team_scrims, predictor_inputs)
     team_tournament_rows = build_team_tournament_rows(team)
 
+    staff_roles = {"Coach", "AC", "Analyst"}
+    staff_role_options = ["Coach", "AC", "Analyst"]
+    all_player_rows = db.execute(
+        "SELECT * FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
+        (team_id,),
+    ).fetchall()
+    player_rows = [row for row in all_player_rows if (row["role"] or "").strip() not in staff_roles]
+    staff_rows = [row for row in all_player_rows if (row["role"] or "").strip() in staff_roles]
+
     team_analytics = build_scrim_analytics(
         team_scrims,
-        roster_player_names=[row["name"] for row in db.execute(
-            "SELECT name FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
-            (team_id,),
-        ).fetchall()],
+        roster_player_names=[row["name"] for row in player_rows],
     )
 
     map_overview = build_team_map_overview(
@@ -729,11 +742,6 @@ def team_detail(team_id: int):
     map_type_visual_rows = map_overview["map_type_visual_rows"]
     opponent_visual_rows = map_overview["opponent_visual_rows"]
     recent_map_visual_rows = map_overview["recent_map_visual_rows"]
-
-    player_rows = db.execute(
-        "SELECT * FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
-        (team_id,),
-    ).fetchall()
 
     players = []
     for row in player_rows:
@@ -759,6 +767,18 @@ def team_detail(team_id: int):
             "stats": stats,
             "hero_rows": player_breakdown.get("hero_rows", []),
         })
+
+    staff_members = [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "role": row["role"],
+            "is_sub": bool(row["is_sub"]) if "is_sub" in row.keys() else False,
+            "main_hero": row["main_hero"],
+            "notes": row["notes"],
+        }
+        for row in staff_rows
+    ]
 
     team_hero_profile = build_team_hero_profile(
         team_scrims,
@@ -845,6 +865,8 @@ def team_detail(team_id: int):
         "team_detail.html",
         team=team,
         players=players,
+        staff_members=staff_members,
+        staff_roles=staff_role_options,
         enemy_teams=enemy_teams,
         team_tournament_rows=team_tournament_rows,
         player_roles=PLAYER_ROLES,

@@ -113,7 +113,7 @@
             {% if team.staff %}
                 <div class="team-staff-list">
                     {% for staffer in team.staff %}
-                        <span><strong>{{ staffer.role }}</strong> {{ staffer.name }}</span>
+                        <span><strong>{{ staffer.role }}:</strong><span>{{ staffer.name }}</span></span>
                     {% endfor %}
                 </div>
             {% else %}
@@ -184,7 +184,7 @@
         <div class="team-row-staff">
             {% if team.staff %}
                 {% for staffer in team.staff %}
-                    <span><strong>{{ staffer.role }}</strong> {{ staffer.name }}</span>
+                    <span><strong>{{ staffer.role }}:</strong><span>{{ staffer.name }}</span></span>
                 {% endfor %}
             {% else %}
                 <span class="team-empty-mini">No staff set</span>

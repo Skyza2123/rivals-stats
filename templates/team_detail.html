@@ -2413,6 +2413,7 @@
                                     data-player-name="{{ player.name }}"
                                     data-player-role="{{ player.role }}"
                                     data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
+                                    data-player-hero="{{ player.main_hero }}"
                                     data-player-notes="{{ player.notes }}"
                                 >
                                     Edit
@@ -2434,13 +2435,91 @@
                     {% endif %}
                     {% if player.stats.unresolved_maps %}
                         <tr class="notes-row">
-                            <td colspan="11"><strong>Pending:</strong> {{ player.stats.unresolved_maps }} map{% if player.stats.unresolved_maps != 1 %}s{% endif %} without final result.</td>
+                            <td colspan="11"><strong>Pending:</strong>
+                                {% if player.stats.unresolved_maps == 1 and player.stats.unresolved_map_refs %}
+                                    {% set ref = player.stats.unresolved_map_refs[0] %}
+                                    <a href="{{ url_for('map_detail', scrim_id=ref.scrim_id, map_id=ref.map_id) }}">1 map without final result</a>
+                                {% else %}
+                                    {{ player.stats.unresolved_maps }} maps without final result.
+                                {% endif %}
+                            </td>
                         </tr>
                     {% endif %}
                 {% endfor %}
             {% endcall %}
         {% else %}
             <p class="empty-text">No players on this team yet.</p>
+        {% endif %}
+        {% if session.get('access_level') == 'edit' %}
+        <details class="rename-tool-details top-gap">
+            <summary class="muted-label">Rename player in all scrims</summary>
+            <form method="post" action="{{ url_for('rename_player_in_scrims', team_id=team.id) }}" class="form-grid top-gap">
+                <div class="field">
+                    <label for="rename_from">Old name</label>
+                    <input type="text" id="rename_from" name="from_name" placeholder="Current name in scrims" required>
+                </div>
+                <div class="field">
+                    <label for="rename_to">New name</label>
+                    <input type="text" id="rename_to" name="to_name" placeholder="Canonical name" required>
+                </div>
+                <button type="submit" class="button-small" onclick="return confirm('Rename all occurrences in scrim comp data?')">Rename All</button>
+            </form>
+        </details>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <div class="panel-header-row">
+            <h3>Staff</h3>
+            {% if session.get('access_level') == 'edit' %}<button id="openStaffModal" type="button" class="button-small">Add / Edit Staff</button>{% endif %}
+        </div>
+        {% if staff_members %}
+            {% call stats_table(['Staff', 'Hero PFP', 'Role', 'Notes', 'Actions']) %}
+                {% for staffer in staff_members %}
+                    <tr>
+                        <td>
+                            <span class="player-inline-hero">
+                                <img src="{{ hero_image_url(staffer.main_hero) if staffer.main_hero else 'https://avatar.vercel.sh/' ~ (staffer.name | urlencode) ~ '.png?size=64' }}" alt="{{ staffer.name }}" onerror="this.src='https://avatar.vercel.sh/{{ staffer.name | urlencode }}.png?size=64'">
+                                <span>{{ staffer.name }}</span>
+                            </span>
+                        </td>
+                        <td>
+                            {% if staffer.main_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(staffer.main_hero) }}" alt="{{ staffer.main_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ staffer.main_hero | urlencode }}'">
+                                    <span>{{ hero_display_name(staffer.main_hero) }}</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ staffer.role or '-' }}</td>
+                        <td>{{ staffer.notes or '-' }}</td>
+                        <td>
+                            <div class="inline-actions">
+                                {% if session.get('access_level') == 'edit' %}
+                                <button
+                                    type="button"
+                                    class="button-secondary button-small open-edit-staff"
+                                    data-staff-id="{{ staffer.id }}"
+                                    data-staff-name="{{ staffer.name }}"
+                                    data-staff-role="{{ staffer.role }}"
+                                    data-staff-hero="{{ staffer.main_hero }}"
+                                    data-staff-notes="{{ staffer.notes }}"
+                                >
+                                    Edit
+                                </button>
+                                <form method="post" action="{{ url_for('delete_player', player_id=staffer.id) }}" onsubmit="return confirm('Remove this staff member?');">
+                                    <button type="submit" class="button-secondary button-small">Remove</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
+        {% else %}
+            <p class="empty-text">No coach, AC, or analyst set yet.</p>
         {% endif %}
     </section>
 
@@ -3047,6 +3126,8 @@
         <div class="tab-row">
             <button id="tabAdd" type="button" class="button-secondary button-small tab-button tab-active">Add Player</button>
             <button id="tabEdit" type="button" class="button-secondary button-small tab-button">Edit Player</button>
+            <button id="tabAddStaff" type="button" class="button-secondary button-small tab-button">Add Staff</button>
+            <button id="tabEditStaff" type="button" class="button-secondary button-small tab-button">Edit Staff</button>
         </div>
 
         <div id="tabAddPanel" class="tab-panel tab-panel-active top-gap">
@@ -3065,8 +3146,17 @@
                     <label for="add_player_role">Role</label>
                     <select id="add_player_role" name="role">
                         <option value="">Select role</option>
-                        {% for role in player_roles %}
+                        {% for role in ["Vanguard", "Duelist", "Strategist", "Flex"] %}
                             <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="add_player_main_hero">Hero PFP</label>
+                    <select id="add_player_main_hero" name="main_hero">
+                        <option value="">Select hero</option>
+                        {% for hero in heroes %}
+                            <option value="{{ hero }}">{{ hero }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -3094,6 +3184,7 @@
                                         data-player-name="{{ player.name }}"
                                         data-player-role="{{ player.role }}"
                                         data-player-is-sub="{{ 1 if player.is_sub else 0 }}"
+                                        data-player-hero="{{ player.main_hero }}"
                                         data-player-notes="{{ player.notes }}"
                                     >
                                         {{ player.name }}
@@ -3118,8 +3209,17 @@
                             <label for="edit_player_role">Role</label>
                             <select id="edit_player_role" name="role">
                                 <option value="">Select role</option>
-                                {% for role in player_roles %}
+                                {% for role in ["Vanguard", "Duelist", "Strategist", "Flex"] %}
                                     <option value="{{ role }}">{{ role }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="edit_player_main_hero">Hero PFP</label>
+                            <select id="edit_player_main_hero" name="main_hero">
+                                <option value="">Select hero</option>
+                                {% for hero in heroes %}
+                                    <option value="{{ hero }}">{{ hero }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -3131,6 +3231,96 @@
                 </div>
                 <div class="button-row field-full">
                     <button type="submit" class="button-small">Save Player</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tabAddStaffPanel" class="tab-panel top-gap">
+            <form method="post" action="{{ url_for('create_player', team_id=team.id) }}" class="form-grid player-form-grid">
+                <div class="field">
+                    <label for="add_staff_name">Staff Name</label>
+                    <input id="add_staff_name" name="name" type="text" placeholder="Staff name" required>
+                </div>
+                <div class="field">
+                    <label for="add_staff_role">Role</label>
+                    <select id="add_staff_role" name="role" required>
+                        {% for role in staff_roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="add_staff_main_hero">Hero PFP</label>
+                    <select id="add_staff_main_hero" name="main_hero">
+                        <option value="">Select hero</option>
+                        {% for hero in heroes %}
+                            <option value="{{ hero }}">{{ hero }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="add_staff_notes">Notes</label>
+                    <input id="add_staff_notes" name="notes" type="text" placeholder="Optional notes">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Add Staff</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tabEditStaffPanel" class="tab-panel top-gap">
+            <form id="editStaffForm" method="post" action="{{ url_for('edit_player', player_id=0) }}" class="form-grid player-form-grid is-empty">
+                <div class="field field-full player-edit-shell">
+                    <div class="player-edit-top">
+                        <div class="field field-full">
+                            <label for="edit_staff_select">Select Staff</label>
+                            <select id="edit_staff_select">
+                                <option value="">Choose staff</option>
+                                {% for staffer in staff_members %}
+                                    <option
+                                        value="{{ staffer.id }}"
+                                        data-staff-name="{{ staffer.name }}"
+                                        data-staff-role="{{ staffer.role }}"
+                                        data-staff-hero="{{ staffer.main_hero }}"
+                                        data-staff-notes="{{ staffer.notes }}"
+                                    >
+                                        {{ staffer.role }}: {{ staffer.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="player-edit-current" id="editStaffCurrent">No staff selected</div>
+                    </div>
+                    <div class="player-edit-fields">
+                        <div class="field">
+                            <label for="edit_staff_name">Staff Name</label>
+                            <input id="edit_staff_name" name="name" type="text" required>
+                        </div>
+                        <div class="field">
+                            <label for="edit_staff_role">Role</label>
+                            <select id="edit_staff_role" name="role" required>
+                                {% for role in staff_roles %}
+                                    <option value="{{ role }}">{{ role }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="edit_staff_main_hero">Hero PFP</label>
+                            <select id="edit_staff_main_hero" name="main_hero">
+                                <option value="">Select hero</option>
+                                {% for hero in heroes %}
+                                    <option value="{{ hero }}">{{ hero }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field field-full">
+                            <label for="edit_staff_notes">Notes</label>
+                            <input id="edit_staff_notes" name="notes" type="text">
+                        </div>
+                    </div>
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit" class="button-small">Save Staff</button>
                 </div>
             </form>
         </div>
@@ -3268,16 +3458,30 @@
     const closeBtn = document.getElementById("closePlayerModal");
     const tabAdd = document.getElementById("tabAdd");
     const tabEdit = document.getElementById("tabEdit");
+    const tabAddStaff = document.getElementById("tabAddStaff");
+    const tabEditStaff = document.getElementById("tabEditStaff");
     const panelAdd = document.getElementById("tabAddPanel");
     const panelEdit = document.getElementById("tabEditPanel");
+    const panelAddStaff = document.getElementById("tabAddStaffPanel");
+    const panelEditStaff = document.getElementById("tabEditStaffPanel");
     const editSelect = document.getElementById("edit_player_select");
     const editForm = document.getElementById("editPlayerForm");
     const editName = document.getElementById("edit_player_name");
     const editRole = document.getElementById("edit_player_role");
+    const editHero = document.getElementById("edit_player_main_hero");
     const editIsSub = document.getElementById("edit_player_is_sub");
     const editNotes = document.getElementById("edit_player_notes");
     const editCurrent = document.getElementById("editPlayerCurrent");
     const quickEditButtons = document.querySelectorAll(".open-edit-player");
+    const openStaffBtn = document.getElementById("openStaffModal");
+    const editStaffSelect = document.getElementById("edit_staff_select");
+    const editStaffForm = document.getElementById("editStaffForm");
+    const editStaffName = document.getElementById("edit_staff_name");
+    const editStaffRole = document.getElementById("edit_staff_role");
+    const editStaffHero = document.getElementById("edit_staff_main_hero");
+    const editStaffNotes = document.getElementById("edit_staff_notes");
+    const editStaffCurrent = document.getElementById("editStaffCurrent");
+    const quickEditStaffButtons = document.querySelectorAll(".open-edit-staff");
     const teamLogoInput = document.getElementById("team_logo");
     const teamLogoPreview = document.getElementById("teamLogoPreview");
     const chooseTeamLogoBtn = document.getElementById("chooseTeamLogoBtn");
@@ -3286,35 +3490,44 @@
 
     const setTab = (tabName) => {
         const isAdd = tabName === "add";
-        tabAdd.classList.toggle("tab-active", isAdd);
-        tabEdit.classList.toggle("tab-active", !isAdd);
-        panelAdd.classList.toggle("tab-panel-active", isAdd);
-        panelEdit.classList.toggle("tab-panel-active", !isAdd);
+        const isEdit = tabName === "edit";
+        const isAddStaff = tabName === "addStaff";
+        const isEditStaff = tabName === "editStaff";
+        tabAdd?.classList.toggle("tab-active", isAdd);
+        tabEdit?.classList.toggle("tab-active", isEdit);
+        tabAddStaff?.classList.toggle("tab-active", isAddStaff);
+        tabEditStaff?.classList.toggle("tab-active", isEditStaff);
+        panelAdd?.classList.toggle("tab-panel-active", isAdd);
+        panelEdit?.classList.toggle("tab-panel-active", isEdit);
+        panelAddStaff?.classList.toggle("tab-panel-active", isAddStaff);
+        panelEditStaff?.classList.toggle("tab-panel-active", isEditStaff);
     };
 
     const openModal = () => {
         switchTeamTab("roster");
-        modal.classList.add("show");
-        modal.setAttribute("aria-hidden", "false");
+        modal?.classList.add("show");
+        modal?.setAttribute("aria-hidden", "false");
     };
 
     const closeModal = () => {
-        modal.classList.remove("show");
-        modal.setAttribute("aria-hidden", "true");
+        modal?.classList.remove("show");
+        modal?.setAttribute("aria-hidden", "true");
     };
 
     const setEditFormState = (hasSelection, summaryText) => {
-        editForm.classList.toggle("is-empty", !hasSelection);
+        editForm?.classList.toggle("is-empty", !hasSelection);
         if (editCurrent) {
             editCurrent.textContent = summaryText || (hasSelection ? "Editing player" : "No player selected");
         }
     };
 
     const loadPlayerIntoEditForm = (player) => {
+        if (!editForm) return;
         if (!player || !player.id) {
             editForm.action = "{{ url_for('edit_player', player_id=0) }}";
             editName.value = "";
             editRole.value = "";
+            editHero.value = "";
             editIsSub.checked = false;
             editNotes.value = "";
             setEditFormState(false, "No player selected");
@@ -3323,6 +3536,7 @@
         editForm.action = "{{ url_for('edit_player', player_id=0) }}".replace("/0/edit", `/${player.id}/edit`);
         editName.value = player.name || "";
         editRole.value = player.role || "";
+        editHero.value = player.hero || "";
         editIsSub.checked = Boolean(Number(player.isSub || 0));
         editNotes.value = player.notes || "";
         editSelect.value = String(player.id);
@@ -3330,23 +3544,30 @@
         setEditFormState(true, `${player.name || "Selected"} • ${statusLabel}`);
     };
 
-    openBtn.addEventListener("click", () => {
+    openBtn?.addEventListener("click", () => {
         setTab("add");
         openModal();
     });
 
-    closeBtn.addEventListener("click", closeModal);
+    openStaffBtn?.addEventListener("click", () => {
+        setTab("addStaff");
+        openModal();
+    });
 
-    modal.addEventListener("click", (event) => {
+    closeBtn?.addEventListener("click", closeModal);
+
+    modal?.addEventListener("click", (event) => {
         if (event.target === modal) {
             closeModal();
         }
     });
 
-    tabAdd.addEventListener("click", () => setTab("add"));
-    tabEdit.addEventListener("click", () => setTab("edit"));
+    tabAdd?.addEventListener("click", () => setTab("add"));
+    tabEdit?.addEventListener("click", () => setTab("edit"));
+    tabAddStaff?.addEventListener("click", () => setTab("addStaff"));
+    tabEditStaff?.addEventListener("click", () => setTab("editStaff"));
 
-    editSelect.addEventListener("change", () => {
+    editSelect?.addEventListener("change", () => {
         const option = editSelect.selectedOptions[0];
         if (!option || !option.value) {
             loadPlayerIntoEditForm(null);
@@ -3359,6 +3580,48 @@
             isSub: option.dataset.playerIsSub,
             hero: option.dataset.playerHero,
             notes: option.dataset.playerNotes,
+        });
+    });
+
+    const setEditStaffFormState = (hasSelection, summaryText) => {
+        editStaffForm?.classList.toggle("is-empty", !hasSelection);
+        if (editStaffCurrent) {
+            editStaffCurrent.textContent = summaryText || (hasSelection ? "Editing staff" : "No staff selected");
+        }
+    };
+
+    const loadStaffIntoEditForm = (staffer) => {
+        if (!editStaffForm) return;
+        if (!staffer || !staffer.id) {
+            editStaffForm.action = "{{ url_for('edit_player', player_id=0) }}";
+            editStaffName.value = "";
+            editStaffRole.value = "";
+            editStaffHero.value = "";
+            editStaffNotes.value = "";
+            setEditStaffFormState(false, "No staff selected");
+            return;
+        }
+        editStaffForm.action = "{{ url_for('edit_player', player_id=0) }}".replace("/0/edit", `/${staffer.id}/edit`);
+        editStaffName.value = staffer.name || "";
+        editStaffRole.value = staffer.role || "";
+        editStaffHero.value = staffer.hero || "";
+        editStaffNotes.value = staffer.notes || "";
+        editStaffSelect.value = String(staffer.id);
+        setEditStaffFormState(true, `${staffer.role || "Staff"} • ${staffer.name || "Selected"}`);
+    };
+
+    editStaffSelect?.addEventListener("change", () => {
+        const option = editStaffSelect.selectedOptions[0];
+        if (!option || !option.value) {
+            loadStaffIntoEditForm(null);
+            return;
+        }
+        loadStaffIntoEditForm({
+            id: option.value,
+            name: option.dataset.staffName,
+            role: option.dataset.staffRole,
+            hero: option.dataset.staffHero,
+            notes: option.dataset.staffNotes,
         });
     });
 
@@ -3377,13 +3640,29 @@
         });
     });
 
+    quickEditStaffButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            setTab("editStaff");
+            loadStaffIntoEditForm({
+                id: button.dataset.staffId,
+                name: button.dataset.staffName,
+                role: button.dataset.staffRole,
+                hero: button.dataset.staffHero,
+                notes: button.dataset.staffNotes,
+            });
+            openModal();
+        });
+    });
+
     editIsSub?.addEventListener("change", () => {
         const selectedName = (editName.value || "Selected").trim() || "Selected";
         const statusLabel = editIsSub.checked ? "Sub" : "Main";
         setEditFormState(Boolean(editSelect.value), `${selectedName} • ${statusLabel}`);
     });
 
-    loadPlayerIntoEditForm(null);
+    if (editForm) {
+        loadPlayerIntoEditForm(null);
+    }
 
     if (teamLogoInput && teamLogoPreview && removeTeamLogoInput) {
         const fallbackLogo = teamLogoPreview.dataset.fallback || teamLogoPreview.src;
