@@ -1,7 +1,83 @@
 import csv
 import io
+import re
 import zipfile
 from collections import defaultdict
+
+
+def _parse_attack_score(raw_score) -> float | None:
+    value = str(raw_score or "").strip()
+    if not value:
+        return None
+    match = re.search(r"\d+(?:\.\d+)?", value)
+    if not match:
+        return None
+    try:
+        return float(match.group(0))
+    except ValueError:
+        return None
+
+
+def _split_score_pair(raw_score: str) -> tuple[float | None, float | None]:
+    matches = re.findall(r"\d+(?:\.\d+)?", (raw_score or "").strip())
+    if len(matches) < 2:
+        return None, None
+    return _parse_attack_score(matches[0]), _parse_attack_score(matches[1])
+
+
+def _attack_scores_for_map(map_entry: dict) -> tuple[float | None, float | None]:
+    """Return attack scores from explicit fields, falling back to saved score text."""
+    our_atk = _parse_attack_score(map_entry.get("our_attack_score"))
+    enemy_atk = _parse_attack_score(map_entry.get("enemy_attack_score"))
+    if our_atk is not None and enemy_atk is not None:
+        return our_atk, enemy_atk
+
+    our_team_slot = map_entry.get("our_team_slot", "team1")
+    if our_team_slot not in ("team1", "team2"):
+        our_team_slot = "team1"
+
+    left_score, right_score = _split_score_pair(map_entry.get("score", ""))
+    if left_score is not None and right_score is not None:
+        if our_team_slot == "team2":
+            return right_score, left_score
+        return left_score, right_score
+
+    enemy_team_slot = "team2" if our_team_slot == "team1" else "team1"
+    section_atk = None
+    section_enemy_atk = None
+    for section in map_entry.get("comp", []):
+        section_side = (section.get("side") or "").strip()
+        if section_side not in {"Attack", "Defense"}:
+            continue
+        section_left, section_right = _split_score_pair(section.get("score", ""))
+        if section_left is None or section_right is None:
+            continue
+        side_scores = {"team1": section_left, "team2": section_right}
+        if section_side == "Attack":
+            section_atk = side_scores.get(our_team_slot)
+        elif section_side == "Defense":
+            section_enemy_atk = side_scores.get(enemy_team_slot)
+    if section_atk is not None and section_enemy_atk is not None:
+        return section_atk, section_enemy_atk
+
+    return None, None
+
+
+def _looks_like_attack_defense_map(map_entry: dict, attack_defense_maps: set[str] | tuple[str, ...] | list[str]) -> bool:
+    map_name = (map_entry.get("map_name") or "").strip()
+    if map_name in attack_defense_maps:
+        return True
+    if (
+        _parse_attack_score(map_entry.get("our_attack_score")) is not None
+        and _parse_attack_score(map_entry.get("enemy_attack_score")) is not None
+    ):
+        return True
+    section_sides = {
+        (section.get("side") or "").strip()
+        for section in map_entry.get("comp", [])
+        if isinstance(section, dict)
+    }
+    return {"Attack", "Defense"}.issubset(section_sides)
 
 
 def build_pivot_wr(team_scrims: list[dict], *, attack_defense_maps: set[str] | tuple[str, ...] | list[str]) -> dict:
@@ -18,17 +94,11 @@ def build_pivot_wr(team_scrims: list[dict], *, attack_defense_maps: set[str] | t
     for scrim in team_scrims:
         for map_entry in scrim.get("maps", []):
             map_name = (map_entry.get("map_name") or "").strip()
-            if map_name not in attack_defense_maps:
+            if not _looks_like_attack_defense_map(map_entry, attack_defense_maps):
                 continue
 
-            our_atk_raw = map_entry.get("our_attack_score", "")
-            enemy_atk_raw = map_entry.get("enemy_attack_score", "")
-            if our_atk_raw in ("", None) or enemy_atk_raw in ("", None):
-                continue
-            try:
-                our_atk = int(our_atk_raw)
-                enemy_atk = int(enemy_atk_raw)
-            except (ValueError, TypeError):
+            our_atk, enemy_atk = _attack_scores_for_map(map_entry)
+            if our_atk is None or enemy_atk is None:
                 continue
 
             atk_won = our_atk > enemy_atk
@@ -119,18 +189,12 @@ def build_atk_def_wr(team_scrims: list[dict], *, attack_defense_maps: set[str] |
     for scrim in team_scrims:
         for map_entry in scrim.get("maps", []):
             map_name = (map_entry.get("map_name") or "").strip()
-            if map_name not in attack_defense_maps:
+            if not _looks_like_attack_defense_map(map_entry, attack_defense_maps):
                 continue
             eligible_maps += 1
 
-            our_atk_raw = map_entry.get("our_attack_score", "")
-            enemy_atk_raw = map_entry.get("enemy_attack_score", "")
-            if our_atk_raw == "" or our_atk_raw is None or enemy_atk_raw == "" or enemy_atk_raw is None:
-                continue
-            try:
-                our_atk = int(our_atk_raw)
-                enemy_atk = int(enemy_atk_raw)
-            except (ValueError, TypeError):
+            our_atk, enemy_atk = _attack_scores_for_map(map_entry)
+            if our_atk is None or enemy_atk is None:
                 continue
 
             scored_maps += 1

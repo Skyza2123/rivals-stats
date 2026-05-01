@@ -87,11 +87,15 @@ def normalize_tournament_record(match: dict) -> dict:
         team_id = raw_id if isinstance(raw_id, int) and raw_id > 0 else next_team_id
         next_team_id = max(next_team_id, team_id + 1)
         players = parse_name_list("\n".join(str(player) for player in team.get("players", [])))
-        normalized_teams.append({
+        normalized_team = {
             "id": team_id,
             "name": name,
             "players": players,
-        })
+        }
+        source_team_id = team.get("source_team_id")
+        if isinstance(source_team_id, int):
+            normalized_team["source_team_id"] = source_team_id
+        normalized_teams.append(normalized_team)
 
     if not normalized_teams:
         if match.get("team1_name"):

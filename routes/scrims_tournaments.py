@@ -340,15 +340,10 @@ def tournament_detail(tournament_id: int):
     # Sync each tournament team's roster from the DB on every page load
     roster_changed = False
     for t_team in tournament_record.get("tournament_teams", []):
-        _, db_players = _resolve_team_from_db(t_team.get("name", ""))
-        if db_players:
-            existing = set(t_team.get("players", []))
-            for p in db_players:
-                if p and p not in existing:
-                    t_team.setdefault("players", []).append(p)
-                    existing.add(p)
-                    roster_changed = True
+        if sync_tournament_team_with_db(t_team):
+            roster_changed = True
     if roster_changed:
+        normalize_tournament_record(tournament_record)
         save_app_state()
 
     match_summaries = build_tournament_match_summaries(tournament_record)

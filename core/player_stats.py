@@ -470,7 +470,7 @@ def build_team_ban_impact(scrims: list[dict]) -> list[dict]:
 
 def build_team_tournament_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
     team_id = int(team_row["id"])
-    team_name = (team_row["name"] or "").strip().lower()
+    team_name = (team_row["name"] or "").strip()
     tournament_scrims: list[dict] = []
 
     for tournament_record in TOURNAMENT_MATCHES:
@@ -479,10 +479,17 @@ def build_team_tournament_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
                 continue
 
             source_team_id = tournament_team.get("source_team_id")
-            tournament_team_name = (tournament_team.get("name") or "").strip().lower()
+            tournament_team_name = (tournament_team.get("name") or "").strip()
             matches_team = (
                 (isinstance(source_team_id, int) and source_team_id == team_id)
-                or (not source_team_id and tournament_team_name and tournament_team_name == team_name)
+                or (
+                    not source_team_id
+                    and tournament_team_name
+                    and (
+                        tournament_team_name.lower() == team_name.lower()
+                        or _team_names_match(tournament_team_name, team_name)
+                    )
+                )
             )
             if not matches_team:
                 continue
@@ -494,7 +501,7 @@ def build_team_tournament_scrims(team_row: sqlite3.Row | dict) -> list[dict]:
 
 def build_team_tournament_rows(team_row: sqlite3.Row | dict) -> list[dict]:
     team_id = int(team_row["id"])
-    team_name = (team_row["name"] or "").strip().lower()
+    team_name = (team_row["name"] or "").strip()
     rows: list[dict] = []
 
     for tournament_record in TOURNAMENT_MATCHES:
@@ -504,10 +511,17 @@ def build_team_tournament_rows(team_row: sqlite3.Row | dict) -> list[dict]:
                 continue
 
             source_team_id = tournament_team.get("source_team_id")
-            tournament_team_name = (tournament_team.get("name") or "").strip().lower()
+            tournament_team_name = (tournament_team.get("name") or "").strip()
             matches_team = (
                 (isinstance(source_team_id, int) and source_team_id == team_id)
-                or (not source_team_id and tournament_team_name and tournament_team_name == team_name)
+                or (
+                    not source_team_id
+                    and tournament_team_name
+                    and (
+                        tournament_team_name.lower() == team_name.lower()
+                        or _team_names_match(tournament_team_name, team_name)
+                    )
+                )
             )
             if matches_team:
                 selected_tournament_team = tournament_team

@@ -505,11 +505,18 @@ def find_tournament_team_by_name(tournament_teams: list[dict], team_name: str) -
 def _resolve_team_from_db(raw_name: str) -> tuple[str, list[str]]:
     """Return (canonical_name, player_list) from the DB for raw_name.
     Falls back to (raw_name, []) if no match is found."""
+    resolved = _resolve_team_record_from_db(raw_name)
+    if resolved is None:
+        return (raw_name or "").strip(), []
+    return resolved["name"], resolved["players"]
+
+
+def _resolve_team_record_from_db(raw_name: str) -> dict | None:
+    """Return canonical team metadata from the DB for raw_name when names/aliases match."""
     db = get_db()
     all_teams = db.execute("SELECT id, name FROM teams ORDER BY id").fetchall()
     for row in all_teams:
         if _team_names_match(raw_name, row["name"]):
-            canonical = row["name"]
             players = [
                 p["name"]
                 for p in db.execute(
@@ -517,8 +524,49 @@ def _resolve_team_from_db(raw_name: str) -> tuple[str, list[str]]:
                     (row["id"],),
                 ).fetchall()
             ]
-            return canonical, players
-    return (raw_name or "").strip(), []
+            return {"id": int(row["id"]), "name": row["name"], "players": players}
+    return None
+
+
+def sync_tournament_team_with_db(tournament_team: dict) -> bool:
+    """Canonicalize a tournament roster from the main teams table when possible."""
+    if not isinstance(tournament_team, dict):
+        return False
+
+    resolved = None
+    source_team_id = tournament_team.get("source_team_id")
+    db = get_db()
+    if isinstance(source_team_id, int):
+        row = db.execute("SELECT id, name FROM teams WHERE id = ?", (source_team_id,)).fetchone()
+        if row is not None:
+            players = [
+                p["name"]
+                for p in db.execute(
+                    "SELECT name FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                    (row["id"],),
+                ).fetchall()
+            ]
+            resolved = {"id": int(row["id"]), "name": row["name"], "players": players}
+    if resolved is None:
+        resolved = _resolve_team_record_from_db(tournament_team.get("name", ""))
+    if resolved is None:
+        return False
+
+    changed = False
+    if tournament_team.get("source_team_id") != resolved["id"]:
+        tournament_team["source_team_id"] = resolved["id"]
+        changed = True
+    if (tournament_team.get("name") or "").strip() != resolved["name"]:
+        tournament_team["name"] = resolved["name"]
+        changed = True
+
+    existing = set(tournament_team.get("players", []))
+    for player_name in resolved["players"]:
+        if player_name and player_name not in existing:
+            tournament_team.setdefault("players", []).append(player_name)
+            existing.add(player_name)
+            changed = True
+    return changed
 
 
 def get_tournament_team_by_id(tournament_match: dict, tournament_team_id: int | None) -> dict | None:
@@ -818,7 +866,10 @@ def parse_tournament_match_text_import(raw_text: str) -> dict:
 
 def find_or_add_tournament_team_from_import(tournament_record: dict, team_name: str, players: list[str] | None = None) -> dict:
     # Resolve canonical name + roster from the DB first
-    db_canonical, db_players = _resolve_team_from_db(team_name)
+    resolved_team = _resolve_team_record_from_db(team_name)
+    source_team_id = resolved_team["id"] if resolved_team else None
+    db_canonical = resolved_team["name"] if resolved_team else (team_name or "").strip()
+    db_players = resolved_team["players"] if resolved_team else []
     # Merge imported players with any DB roster entries
     merged_players = list(db_players)
     for p in (players or []):
@@ -828,6 +879,10 @@ def find_or_add_tournament_team_from_import(tournament_record: dict, team_name: 
     # Match against an existing tournament team using the canonical name
     existing_team = find_tournament_team_by_name(tournament_record.get("tournament_teams", []), db_canonical)
     if existing_team is not None:
+        if source_team_id is not None and existing_team.get("source_team_id") != source_team_id:
+            existing_team["source_team_id"] = source_team_id
+        if db_canonical and (existing_team.get("name") or "").strip() != db_canonical:
+            existing_team["name"] = db_canonical
         existing_players = existing_team.setdefault("players", [])
         for player_name in merged_players:
             if player_name and player_name not in existing_players:
@@ -839,6 +894,8 @@ def find_or_add_tournament_team_from_import(tournament_record: dict, team_name: 
         "name": db_canonical or "Unknown Team",
         "players": [p for p in merged_players if p],
     }
+    if source_team_id is not None:
+        new_team["source_team_id"] = source_team_id
     tournament_record.setdefault("tournament_teams", []).append(new_team)
     return new_team
 

@@ -115,7 +115,7 @@ def delete_team(team_id: int):
 
 @app.route("/teams/<int:team_id>/players/rename-in-scrims", methods=["POST"])
 def rename_player_in_scrims(team_id: int):
-    if not is_edit_session():
+    if not _is_edit_session():
         abort(403)
     db = get_db()
     team = db.execute("SELECT id, name FROM teams WHERE id = ?", (team_id,)).fetchone()
@@ -134,28 +134,63 @@ def rename_player_in_scrims(team_id: int):
     from_lower = from_name.lower()
     renamed_slots = 0
     team_scrims = get_scrims_for_team(team["id"], team["name"])
-    scrim_ids_to_update = {scrim["id"] for scrim in team_scrims}
+    scrim_ids_to_update = {scrim.get("id") for scrim in team_scrims if scrim.get("id") is not None}
+    team_name_lower = (team["name"] or "").strip().lower()
+
+    def _side_for_team(map_entry: dict, fallback_slot: str) -> str:
+        if map_entry.get("team1_id") == team_id:
+            return "team1"
+        if map_entry.get("team2_id") == team_id:
+            return "team2"
+        if (map_entry.get("team1_name") or "").strip().lower() == team_name_lower:
+            return "team1"
+        if (map_entry.get("team2_name") or "").strip().lower() == team_name_lower:
+            return "team2"
+        return fallback_slot if fallback_slot in TEAM_SLOTS else "team1"
 
     for scrim in SCRIMS:
         if scrim.get("id") not in scrim_ids_to_update:
             continue
+        fallback_slot = "team1"
+        if scrim.get("team2_id") == team_id or (scrim.get("team2_name") or "").strip().lower() == team_name_lower:
+            fallback_slot = "team2"
+        elif scrim.get("enemy_team_id") == team_id or (scrim.get("enemy_team") or "").strip().lower() == team_name_lower:
+            fallback_slot = opposite_team_slot(normalize_match_team_slot(scrim.get("team_slot", "team1")))
+        elif scrim.get("team_id") == team_id or (scrim.get("team_name") or "").strip().lower() == team_name_lower:
+            fallback_slot = normalize_match_team_slot(scrim.get("team_slot", "team1"))
+
         for map_entry in scrim.get("maps", []):
-            our_slot = map_entry.get("our_team_slot", "team1")
+            our_slot = _side_for_team(map_entry, fallback_slot)
             for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
                 for slot in section.get(our_slot, []):
+                    if not isinstance(slot, dict):
+                        continue
                     if (slot.get("player") or "").strip().lower() == from_lower:
                         slot["player"] = to_name
                         renamed_slots += 1
 
     if renamed_slots:
         save_app_state()
-        # Also update the player DB record if the name matches
-        db.execute(
-            "UPDATE players SET name = ? WHERE team_id = ? AND lower(name) = lower(?)",
-            (to_name, team_id, from_name),
-        )
+        # Also merge/update the player DB record if the old name exists.
+        existing_from = db.execute(
+            "SELECT id FROM players WHERE team_id = ? AND lower(name) = lower(?)",
+            (team_id, from_name),
+        ).fetchone()
+        existing_to = db.execute(
+            "SELECT id FROM players WHERE team_id = ? AND lower(name) = lower(?)",
+            (team_id, to_name),
+        ).fetchone()
+        if existing_from is not None and existing_to is not None and existing_from["id"] != existing_to["id"]:
+            db.execute("DELETE FROM players WHERE id = ?", (existing_from["id"],))
+        elif existing_from is not None:
+            db.execute(
+                "UPDATE players SET name = ? WHERE id = ?",
+                (to_name, existing_from["id"]),
+            )
         db.commit()
-        flash(f"Renamed \"{from_name}\" → \"{to_name}\" in {renamed_slots} comp slot(s).", "success")
+        flash(f"Renamed \"{from_name}\" to \"{to_name}\" in {renamed_slots} comp slot(s).", "success")
     else:
         flash(f"No comp slots found with player name \"{from_name}\" for this team.", "error")
 

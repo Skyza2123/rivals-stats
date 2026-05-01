@@ -914,19 +914,12 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
     if tournament_team is None:
         abort(404)
 
-    # Sync roster from DB (same pattern as tournament_detail) so players added to
-    # the DB after the tournament was created are reflected here.
-    _, db_players = _resolve_team_from_db(tournament_team.get("name", ""))
-    if db_players:
-        existing = set(tournament_team.get("players", []))
-        changed = False
-        for p in db_players:
-            if p and p not in existing:
-                tournament_team.setdefault("players", []).append(p)
-                existing.add(p)
-                changed = True
-        if changed:
-            save_app_state()
+    # Sync roster from DB (same pattern as tournament_detail) so imported
+    # tournament teams use the canonical database team when names match.
+    if sync_tournament_team_with_db(tournament_team):
+        normalize_tournament_record(tournament_record)
+        tournament_team = get_tournament_team_by_id(tournament_record, tournament_team_id) or tournament_team
+        save_app_state()
 
     team_scrims = build_tournament_team_scrims(tournament_record, tournament_team)
     team_analytics = build_scrim_analytics(team_scrims)

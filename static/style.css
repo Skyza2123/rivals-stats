@@ -5750,8 +5750,20 @@ th {
     font-size: 0.76rem;
 }
 
+.team-row-staff > span {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
+}
+
 .team-row-staff strong {
     color: var(--muted);
+}
+
+.team-row-staff span span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .team-row-actions {
