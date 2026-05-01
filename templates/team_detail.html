@@ -2590,6 +2590,10 @@
         <button type="button" class="btn-secondary" id="slClearFilters">Clear ×</button>
         <button type="button" class="btn-secondary" id="slOpenAll">Open All</button>
         <button type="button" class="btn-secondary" id="slCloseAll">Close All</button>
+        <div class="scrim-view-toggle" aria-label="Scrim view mode">
+            <button type="button" class="btn-secondary scrim-view-btn scrim-view-btn-active" id="slDetailView" title="Detailed map view" aria-label="Detailed map view">▤</button>
+            <button type="button" class="btn-secondary scrim-view-btn" id="slHeroView" title="Heroes view" aria-label="Heroes view">▦</button>
+        </div>
         <a
             id="slExportCsv"
             class="btn-secondary"
@@ -2624,7 +2628,7 @@
                 {% if first_row.season %}<span class="scrim-acc-season">S{{ first_row.season }}</span>{% endif %}
             </summary>
             <div class="table-wrap">
-                <table class="stats-table scrim-log-table">
+                <table class="stats-table scrim-log-table scrim-detail-table">
                     <thead>
                         <tr>
                             <th>Map</th>
@@ -2661,34 +2665,32 @@
                         <td colspan="3" class="scrim-sections-cell">
                             <div class="scrim-sections-panel">
                                 <div class="scrim-sections-header-row">
-                                    <div class="scrim-sections-team-header">
+                                    <div class="scrim-sections-team-draft">
                                         <span class="scrim-sections-team-label">{{ team.name if team and team.name else 'Us' }}</span>
-                                        <div class="scrim-section-draft-row">
+                                        <div class="scrim-section-draft-inline">
                                             <span>Bans</span>
                                             <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ team.name if team and team.name else 'Us' }} Bans">
-                                                {% for hero in row.our_bans %}
-                                                    {% if hero in hero_transformations %}
-                                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
-                                                    {% else %}
-                                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                                    {% endif %}
+                                            {% for hero in row.our_bans %}
+                                                {% if hero in hero_transformations %}
+                                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
                                                 {% else %}
-                                                <span class="dimmed-text">—</span>
-                                                {% endfor %}
+                                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="dimmed-text">—</span>
+                                            {% endfor %}
                                             </div>
-                                        </div>
-                                        <div class="scrim-section-draft-row">
                                             <span>Protects</span>
                                             <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ team.name if team and team.name else 'Us' }} Protects">
-                                                {% for hero in row.our_protects %}
-                                                    {% if hero in hero_transformations %}
-                                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
-                                                    {% else %}
-                                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                                    {% endif %}
+                                            {% for hero in row.our_protects %}
+                                                {% if hero in hero_transformations %}
+                                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
                                                 {% else %}
-                                                <span class="dimmed-text">—</span>
-                                                {% endfor %}
+                                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="dimmed-text">—</span>
+                                            {% endfor %}
                                             </div>
                                         </div>
                                     </div>
@@ -2701,7 +2703,35 @@
                                             {{ row.score or '—' }}
                                         </strong>
                                     </div>
-                                    <span class="scrim-sections-team-label scrim-sections-team-label-right">{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }}</span>
+                                    <div class="scrim-sections-team-draft scrim-sections-team-draft-right">
+                                        <span class="scrim-sections-team-label scrim-sections-team-label-right">{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }}</span>
+                                        <div class="scrim-section-draft-inline">
+                                            <span>Bans</span>
+                                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Bans">
+                                            {% for hero in row.enemy_bans %}
+                                                {% if hero in hero_transformations %}
+                                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                                {% else %}
+                                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="dimmed-text">—</span>
+                                            {% endfor %}
+                                            </div>
+                                            <span>Protects</span>
+                                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Protects">
+                                            {% for hero in row.enemy_protects %}
+                                                {% if hero in hero_transformations %}
+                                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                                {% else %}
+                                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="dimmed-text">—</span>
+                                            {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 {% for sec in row.sections %}
                                 <div class="scrim-section-entry {% if sec.result == 'Win' %}sec-win{% elif sec.result == 'Loss' %}sec-loss{% endif %}">
@@ -2758,6 +2788,65 @@
                     {% endfor %}
                     </tbody>
                 </table>
+                <table class="stats-table scrim-log-table scrim-heroes-table" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Vs. Team</th>
+                            <th>Map</th>
+                            <th>Result</th>
+                            <th>Our Heroes</th>
+                            <th>Enemy Heroes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in scrim_maps %}
+                    <tr
+                        class="scrim-hero-row"
+                        data-opponent="{{ row.opponent_name }}"
+                        data-map="{{ row.map_name }}"
+                        data-bans="{{ (row.our_bans + row.enemy_bans) | join('|') }}"
+                        data-duelists="{{ row.our_duelists | join('|') }}"
+                        data-season="{{ row.season }}"
+                    >
+                        <td class="nowrap">{{ row.scrim_date or '—' }}</td>
+                        <td>{{ row.opponent_name }}</td>
+                        <td>{{ row.map_name }}</td>
+                        <td>
+                            {% if row.result == 'Win' %}<span class="team-result-pill team-result-win">Win</span>
+                            {% elif row.result == 'Loss' %}<span class="team-result-pill team-result-loss">Loss</span>
+                            {% else %}<span class="team-result-pill team-result-neutral">—</span>{% endif %}
+                        </td>
+                        <td>
+                            <div class="matchup-hero-strip scrim-heroes-strip">
+                            {% for hero in row.our_heroes %}
+                                {% if hero in hero_transformations %}
+                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                {% else %}
+                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="dimmed-text">—</span>
+                            {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="matchup-hero-strip scrim-heroes-strip">
+                            {% for hero in row.enemy_heroes %}
+                                {% if hero in hero_transformations %}
+                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                {% else %}
+                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="dimmed-text">—</span>
+                            {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </details>
     {% endfor %}
@@ -2778,13 +2867,30 @@
     var clearBtn = document.getElementById('slClearFilters');
     var openAllBtn = document.getElementById('slOpenAll');
     var closeAllBtn = document.getElementById('slCloseAll');
+    var detailViewBtn = document.getElementById('slDetailView');
+    var heroViewBtn = document.getElementById('slHeroView');
     var exportCsvBtn = document.getElementById('slExportCsv');
     var countEl = document.getElementById('slRowCount');
     var noResults = document.getElementById('slNoResults');
     var accordion = document.getElementById('scrimAccordion');
     if (!accordion) return;
     var rows = Array.from(accordion.querySelectorAll('tbody tr.scrim-map-row'));
+    var heroRows = Array.from(accordion.querySelectorAll('tbody tr.scrim-hero-row'));
     var items = Array.from(accordion.querySelectorAll('.scrim-accordion-item'));
+    var detailTables = Array.from(accordion.querySelectorAll('.scrim-detail-table'));
+    var heroTables = Array.from(accordion.querySelectorAll('.scrim-heroes-table'));
+    var currentView = localStorage.getItem('teamScrimViewMode') || 'detail';
+
+    function setScrimView(mode) {
+        currentView = mode === 'heroes' ? 'heroes' : 'detail';
+        localStorage.setItem('teamScrimViewMode', currentView);
+        detailTables.forEach(function (table) { table.style.display = currentView === 'detail' ? '' : 'none'; });
+        heroTables.forEach(function (table) { table.style.display = currentView === 'heroes' ? '' : 'none'; });
+        if (detailViewBtn) detailViewBtn.classList.toggle('scrim-view-btn-active', currentView === 'detail');
+        if (heroViewBtn) heroViewBtn.classList.toggle('scrim-view-btn-active', currentView === 'heroes');
+        if (openAllBtn) openAllBtn.style.display = currentView === 'detail' ? '' : 'none';
+        if (closeAllBtn) closeAllBtn.style.display = currentView === 'detail' ? '' : 'none';
+    }
 
     function updateCsvHref() {
         if (!exportCsvBtn) return;
@@ -2867,6 +2973,14 @@
                 }
                 if (show) visible++;
             });
+            heroRows.forEach(function (tr) {
+                var show = true;
+                if (opp && tr.dataset.opponent !== opp) show = false;
+                if (map && tr.dataset.map !== map) show = false;
+                if (ban && tr.dataset.bans.split('|').indexOf(ban) === -1) show = false;
+                if (duelist && tr.dataset.duelists.split('|').indexOf(duelist) === -1) show = false;
+                tr.style.display = show ? '' : 'none';
+            });
             // Show/hide accordion items based on whether they have any visible rows
             var anyFilter = opp || map || ban || duelist;
             items.forEach(function (details) {
@@ -2899,6 +3013,10 @@
         });
     }
 
+    if (detailViewBtn) detailViewBtn.addEventListener('click', function () { setScrimView('detail'); });
+    if (heroViewBtn) heroViewBtn.addEventListener('click', function () { setScrimView('heroes'); });
+
+    setScrimView(currentView);
     updateCsvHref();
     applyFilters();
 })();
