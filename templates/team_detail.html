@@ -166,18 +166,39 @@
                     </article>
                 </div>
                 {% if recent_map_visual_rows %}
-                    <div class="overview-activity-list top-gap">
-                        {% for row in recent_map_visual_rows[:8] %}
-                            <article class="overview-activity-map">
-                                <span class="overview-activity-outcome {% if row.outcome == 'Win' %}wr-good{% elif row.outcome == 'Loss' %}wr-bad{% else %}wr-na{% endif %}">
-                                    {% if row.outcome == 'Win' %}W{% elif row.outcome == 'Loss' %}L{% else %}-{% endif %}
-                                </span>
-                                <div>
-                                    <strong>{{ row.map_name }}</strong>
-                                    <small>{{ row.scrim_date or 'No date' }} vs {{ row.opponent }} • {{ row.mode }}{% if row.map_type and row.map_type != 'Standard' %} • {{ row.map_type }}{% endif %}</small>
-                                </div>
-                            </article>
-                        {% endfor %}
+                    <div class="overview-activity-frame top-gap">
+                        <div class="overview-activity-months" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
+                            {% for month in activity_heatmap.month_labels %}
+                            <span style="grid-column: {{ month.column }};">{{ month.label }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="overview-activity-grid-wrap">
+                            <div class="overview-activity-days">
+                                <span>Mon</span>
+                                <span>Wed</span>
+                                <span>Fri</span>
+                            </div>
+                            <div class="overview-activity-dots" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
+                                {% for week in activity_heatmap.weeks %}
+                                    {% for day in week %}
+                                        <span
+                                            class="overview-activity-dot overview-activity-dot-{{ day.outcome }}"
+                                            style="--activity-level: {{ day.intensity }};"
+                                            title="{{ day.label }}: {{ day.count }} map{{ 's' if day.count != 1 else '' }}{% if day.count %} ({{ day.wins }}W {{ day.losses }}L){% endif %}"
+                                        ></span>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="overview-activity-legend">
+                            <span>Less</span>
+                            <span class="overview-activity-dot"></span>
+                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 1;"></span>
+                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 2;"></span>
+                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 3;"></span>
+                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 4;"></span>
+                            <span>More</span>
+                        </div>
                     </div>
                 {% else %}
                     <p class="empty-text">No recent activity data yet.</p>
@@ -2548,8 +2569,14 @@
         <div>
             <div class="section-kicker">Quick Scan</div>
             <h3>All Maps Played</h3>
-            <p class="panel-intro">Every map from every scrim in one table. Filter by opponent, map, hero banned, DPS line, or patch to quickly find match-ups.</p>
+            <p class="panel-intro">Every map from every scrim in one table. Filter by opponent, map, hero banned, DPS player, or patch to quickly find match-ups.</p>
         </div>
+        {% if scrim_log.rows %}
+        <div class="scrim-view-toggle" aria-label="Scrim view mode">
+            <button type="button" class="btn-secondary scrim-view-btn scrim-view-btn-active" id="slDetailView" title="Detailed map view" aria-label="Detailed map view">▤</button>
+            <button type="button" class="btn-secondary scrim-view-btn" id="slHeroView" title="Heroes view" aria-label="Heroes view">▦</button>
+        </div>
+        {% endif %}
     </div>
 
     {% if scrim_log.rows %}
@@ -2573,9 +2600,9 @@
             {% endfor %}
         </select>
         <select id="slFilterDuelist" class="team-range-select">
-            <option value="">Any DPS</option>
-            {% for h in scrim_log.filter_options.duelists %}
-            <option value="{{ h }}">{{ hero_display_name(h) }}</option>
+            <option value="">DPS Player</option>
+            {% for player_name in scrim_log.filter_options.duelist_players %}
+            <option value="{{ player_name }}">{{ player_name }}</option>
             {% endfor %}
         </select>
         <select id="slFilterSeason" class="team-range-select" aria-label="Season filter">
@@ -2590,10 +2617,6 @@
         <button type="button" class="btn-secondary" id="slClearFilters">Clear ×</button>
         <button type="button" class="btn-secondary" id="slOpenAll">Open All</button>
         <button type="button" class="btn-secondary" id="slCloseAll">Close All</button>
-        <div class="scrim-view-toggle" aria-label="Scrim view mode">
-            <button type="button" class="btn-secondary scrim-view-btn scrim-view-btn-active" id="slDetailView" title="Detailed map view" aria-label="Detailed map view">▤</button>
-            <button type="button" class="btn-secondary scrim-view-btn" id="slHeroView" title="Heroes view" aria-label="Heroes view">▦</button>
-        </div>
         <a
             id="slExportCsv"
             class="btn-secondary"
@@ -2644,7 +2667,7 @@
                         data-opponent="{{ row.opponent_name }}"
                         data-map="{{ row.map_name }}"
                         data-bans="{{ (row.our_bans + row.enemy_bans) | join('|') }}"
-                        data-duelists="{{ row.our_duelists | join('|') }}"
+                        data-duelists="{{ row.our_duelist_players | join('|') }}"
                         data-season="{{ row.season }}"
                         data-has-sections="{{ '1' if row.sections else '0' }}"
                     >
@@ -2806,7 +2829,7 @@
                         data-opponent="{{ row.opponent_name }}"
                         data-map="{{ row.map_name }}"
                         data-bans="{{ (row.our_bans + row.enemy_bans) | join('|') }}"
-                        data-duelists="{{ row.our_duelists | join('|') }}"
+                        data-duelists="{{ row.our_duelist_players | join('|') }}"
                         data-season="{{ row.season }}"
                     >
                         <td class="nowrap">{{ row.scrim_date or '—' }}</td>
@@ -2818,26 +2841,84 @@
                             {% else %}<span class="team-result-pill team-result-neutral">—</span>{% endif %}
                         </td>
                         <td>
-                            <div class="matchup-hero-strip scrim-heroes-strip">
-                            {% for hero in row.our_heroes %}
-                                {% if hero in hero_transformations %}
-                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                            <div class="scrim-heroes-draft-line">
+                                <span>B</span>
+                                <div class="matchup-hero-strip">
+                                {% for hero in row.our_bans %}
+                                    {% if hero in hero_transformations %}
+                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                    {% else %}
+                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                    {% endif %}
                                 {% else %}
-                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                {% endif %}
+                                <span class="dimmed-text">—</span>
+                                {% endfor %}
+                                </div>
+                                <span>P</span>
+                                <div class="matchup-hero-strip">
+                                {% for hero in row.our_protects %}
+                                    {% if hero in hero_transformations %}
+                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                    {% else %}
+                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="dimmed-text">—</span>
+                                {% endfor %}
+                                </div>
+                            </div>
+                            <div class="matchup-hero-strip scrim-heroes-strip">
+                            {% for slot in row.our_hero_slots %}
+                                <div class="scrim-heroes-slot" title="{{ hero_display_name(slot.hero) }}{% if slot.player %} - {{ slot.player }}{% endif %}">
+                                    {% if slot.hero in hero_transformations %}
+                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(slot.hero) }}" alt="{{ slot.hero }}">
+                                    {% else %}
+                                    <span class="hero-name-inline">{{ hero_display_name(slot.hero) }}</span>
+                                    {% endif %}
+                                    {% if slot.player %}<span class="scrim-heroes-player">{{ slot.player }}</span>{% endif %}
+                                </div>
                             {% else %}
                             <span class="dimmed-text">—</span>
                             {% endfor %}
                             </div>
                         </td>
                         <td>
-                            <div class="matchup-hero-strip scrim-heroes-strip">
-                            {% for hero in row.enemy_heroes %}
-                                {% if hero in hero_transformations %}
-                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                            <div class="scrim-heroes-draft-line">
+                                <span>B</span>
+                                <div class="matchup-hero-strip">
+                                {% for hero in row.enemy_bans %}
+                                    {% if hero in hero_transformations %}
+                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                    {% else %}
+                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                    {% endif %}
                                 {% else %}
-                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                {% endif %}
+                                <span class="dimmed-text">—</span>
+                                {% endfor %}
+                                </div>
+                                <span>P</span>
+                                <div class="matchup-hero-strip">
+                                {% for hero in row.enemy_protects %}
+                                    {% if hero in hero_transformations %}
+                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                    {% else %}
+                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="dimmed-text">—</span>
+                                {% endfor %}
+                                </div>
+                            </div>
+                            <div class="matchup-hero-strip scrim-heroes-strip">
+                            {% for slot in row.enemy_hero_slots %}
+                                <div class="scrim-heroes-slot" title="{{ hero_display_name(slot.hero) }}{% if slot.player %} - {{ slot.player }}{% endif %}">
+                                    {% if slot.hero in hero_transformations %}
+                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(slot.hero) }}" alt="{{ slot.hero }}">
+                                    {% else %}
+                                    <span class="hero-name-inline">{{ hero_display_name(slot.hero) }}</span>
+                                    {% endif %}
+                                    {% if slot.player %}<span class="scrim-heroes-player">{{ slot.player }}</span>{% endif %}
+                                </div>
                             {% else %}
                             <span class="dimmed-text">—</span>
                             {% endfor %}

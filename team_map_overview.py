@@ -1,4 +1,89 @@
 from collections import defaultdict
+from datetime import date, datetime, timedelta
+
+
+def _parse_activity_date(raw_value: str) -> date | None:
+    raw_text = (raw_value or "").strip()
+    if not raw_text:
+        return None
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(raw_text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _build_activity_heatmap(map_rows: list[dict], *, days: int = 182) -> dict:
+    dated_rows: list[tuple[date, dict]] = []
+    for row in map_rows:
+        parsed = _parse_activity_date(row.get("scrim_date", ""))
+        if parsed is not None:
+            dated_rows.append((parsed, row))
+    if not dated_rows:
+        return {"month_labels": [], "weeks": [], "max_count": 0}
+
+    latest_day = max(parsed for parsed, _row in dated_rows)
+    start_day = latest_day - timedelta(days=days - 1)
+    start_day -= timedelta(days=start_day.weekday())
+    end_day = latest_day + timedelta(days=6 - latest_day.weekday())
+
+    by_day: dict[date, dict] = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0, "unresolved": 0})
+    for parsed, row in dated_rows:
+        if parsed < start_day or parsed > end_day:
+            continue
+        bucket = by_day[parsed]
+        bucket["count"] += 1
+        if row.get("outcome") == "Win":
+            bucket["wins"] += 1
+        elif row.get("outcome") == "Loss":
+            bucket["losses"] += 1
+        else:
+            bucket["unresolved"] += 1
+
+    max_count = max((bucket["count"] for bucket in by_day.values()), default=0)
+    weeks = []
+    cursor = start_day
+    while cursor <= end_day:
+        week_days = []
+        for offset in range(7):
+            day = cursor + timedelta(days=offset)
+            bucket = by_day.get(day, {"count": 0, "wins": 0, "losses": 0, "unresolved": 0})
+            count = bucket["count"]
+            intensity = 0 if not count or not max_count else max(1, min(4, round((count / max_count) * 4)))
+            if bucket["wins"] > bucket["losses"]:
+                outcome = "win"
+            elif bucket["losses"] > bucket["wins"]:
+                outcome = "loss"
+            elif count:
+                outcome = "neutral"
+            else:
+                outcome = "empty"
+            week_days.append(
+                {
+                    "date": day.isoformat(),
+                    "label": f"{day.strftime('%b')} {day.day}",
+                    "count": count,
+                    "wins": bucket["wins"],
+                    "losses": bucket["losses"],
+                    "unresolved": bucket["unresolved"],
+                    "intensity": intensity,
+                    "outcome": outcome,
+                }
+            )
+        weeks.append(week_days)
+        cursor += timedelta(days=7)
+
+    month_labels = []
+    previous_month = None
+    for index, week in enumerate(weeks, start=1):
+        month_name = week[0]["date"][5:7]
+        if month_name != previous_month:
+            label_day = datetime.strptime(week[0]["date"], "%Y-%m-%d").date()
+            month_labels.append({"label": label_day.strftime("%b"), "column": index})
+            previous_month = month_name
+
+    return {"month_labels": month_labels, "weeks": weeks, "max_count": max_count}
 
 
 def build_team_map_overview(
@@ -157,6 +242,7 @@ def build_team_map_overview(
     opponent_visual_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
     opponent_visual_rows = opponent_visual_rows[:8]
 
+    activity_heatmap = _build_activity_heatmap(recent_map_visual_rows)
     recent_map_visual_rows = list(reversed(recent_map_visual_rows[-24:]))
 
     return {
@@ -167,4 +253,5 @@ def build_team_map_overview(
         "map_type_visual_rows": map_type_visual_rows,
         "opponent_visual_rows": opponent_visual_rows,
         "recent_map_visual_rows": recent_map_visual_rows,
+        "activity_heatmap": activity_heatmap,
     }

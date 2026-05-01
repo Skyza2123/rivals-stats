@@ -318,6 +318,7 @@ def build_scrim_log_rows(
     all_maps: set[str] = set()
     all_bans: set[str] = set()
     all_duelists: set[str] = set()
+    all_duelist_players: set[str] = set()
     all_seasons: set[str] = set()
 
     for scrim in team_scrims:
@@ -353,14 +354,36 @@ def build_scrim_log_rows(
 
             our_raw: list[str] = []
             enemy_raw: list[str] = []
+            our_hero_slots: list[dict] = []
+            enemy_hero_slots: list[dict] = []
+            seen_our_hero_slots: set[tuple[str, str]] = set()
+            seen_enemy_hero_slots: set[tuple[str, str]] = set()
+            our_duelist_players: set[str] = set()
             for section in map_entry.get("comp", []):
                 our_raw.extend((slot.get("hero", "") or "").strip() for slot in section.get(our_team_slot, []) if (slot.get("hero", "") or "").strip())
                 enemy_raw.extend((slot.get("hero", "") or "").strip() for slot in section.get(enemy_team_slot, []) if (slot.get("hero", "") or "").strip())
+                for slot in section.get(our_team_slot, []):
+                    hero_name = (slot.get("hero", "") or "").strip()
+                    player_name = (slot.get("player", "") or "").strip()
+                    slot_key = (hero_name, player_name)
+                    if hero_name and slot_key not in seen_our_hero_slots:
+                        seen_our_hero_slots.add(slot_key)
+                        our_hero_slots.append({"hero": hero_name, "player": player_name})
+                    if hero_name and player_name and hero_role(hero_name) == "Duelist":
+                        our_duelist_players.add(player_name)
+                for slot in section.get(enemy_team_slot, []):
+                    hero_name = (slot.get("hero", "") or "").strip()
+                    player_name = (slot.get("player", "") or "").strip()
+                    slot_key = (hero_name, player_name)
+                    if hero_name and slot_key not in seen_enemy_hero_slots:
+                        seen_enemy_hero_slots.add(slot_key)
+                        enemy_hero_slots.append({"hero": hero_name, "player": player_name})
 
             our_heroes = sort_heroes(our_raw)
             enemy_heroes = sort_heroes(enemy_raw)
             our_duelists = [hero for hero in our_heroes if hero_role(hero) == "Duelist"]
             all_duelists.update(our_duelists)
+            all_duelist_players.update(our_duelist_players)
             all_maps.add(map_name)
 
             sections_data = []
@@ -408,7 +431,10 @@ def build_scrim_log_rows(
                 "enemy_protects": enemy_protects,
                 "our_heroes": our_heroes,
                 "enemy_heroes": enemy_heroes,
+                "our_hero_slots": our_hero_slots,
+                "enemy_hero_slots": enemy_hero_slots,
                 "our_duelists": our_duelists,
+                "our_duelist_players": sorted(our_duelist_players),
                 "sections": sections_data,
             })
 
@@ -420,6 +446,7 @@ def build_scrim_log_rows(
             "maps": sorted(all_maps),
             "bans": sorted(all_bans),
             "duelists": sorted(all_duelists),
+            "duelist_players": sorted(all_duelist_players),
             "seasons": sorted(all_seasons),
         },
     }
@@ -439,7 +466,7 @@ def filter_scrim_log_rows(rows: list[dict], *, opponent: str = "", map_name: str
             continue
         if selected_ban and selected_ban not in row.get("our_bans", []) + row.get("enemy_bans", []):
             continue
-        if selected_duelist and selected_duelist not in row.get("our_duelists", []):
+        if selected_duelist and selected_duelist not in row.get("our_duelist_players", []):
             continue
         filtered_rows.append(row)
     return filtered_rows

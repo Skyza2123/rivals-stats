@@ -742,6 +742,7 @@ def team_detail(team_id: int):
     map_type_visual_rows = map_overview["map_type_visual_rows"]
     opponent_visual_rows = map_overview["opponent_visual_rows"]
     recent_map_visual_rows = map_overview["recent_map_visual_rows"]
+    activity_heatmap = map_overview["activity_heatmap"]
 
     players = []
     for row in player_rows:
@@ -888,6 +889,7 @@ def team_detail(team_id: int):
         map_type_visual_rows=map_type_visual_rows,
         opponent_visual_rows=opponent_visual_rows,
         recent_map_visual_rows=recent_map_visual_rows,
+        activity_heatmap=activity_heatmap,
         map_modes=MAP_MODES,
         map_images=MAP_IMAGES,
         draft_predictor=draft_predictor,
