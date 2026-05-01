@@ -38,6 +38,7 @@ def build_team_map_overview(
 
             recent_map_visual_rows.append(
                 {
+                    "scrim_id": scrim.get("id"),
                     "scrim_date": scrim.get("scrim_date", ""),
                     "map_name": map_name,
                     "mode": mode_name,

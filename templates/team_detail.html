@@ -143,11 +143,18 @@
             </section>
 
             <section class="panel overview-activity-panel">
+                {% set recent_activity = namespace(scrim_ids=[]) %}
+                {% for row in recent_map_visual_rows %}
+                    {% if row.scrim_id and row.scrim_id not in recent_activity.scrim_ids %}
+                        {% set recent_activity.scrim_ids = recent_activity.scrim_ids + [row.scrim_id] %}
+                    {% endif %}
+                {% endfor %}
                 <h3>Recent Activity</h3>
+                <p class="panel-intro">Most recent {{ recent_map_visual_rows|length }} map{{ 's' if recent_map_visual_rows|length != 1 else '' }} in the current filters.</p>
                 <div class="overview-activity-metrics top-gap">
                     <article>
-                        <strong>{{ team_scrim_count }}</strong>
-                        <span>Total Scrims</span>
+                        <strong>{{ recent_activity.scrim_ids|length }}</strong>
+                        <span>Recent Scrims</span>
                     </article>
                     <article>
                         <strong>{{ activity.active_days|length }}</strong>
@@ -159,36 +166,18 @@
                     </article>
                 </div>
                 {% if recent_map_visual_rows %}
-                    <div class="overview-activity-frame top-gap">
-                        <div class="overview-activity-months">
-                            <span>Oct</span>
-                            <span>Nov</span>
-                            <span>Dec</span>
-                            <span>Jan</span>
-                            <span>Feb</span>
-                            <span>Mar</span>
-                            <span>Apr</span>
-                        </div>
-                        <div class="overview-activity-grid-wrap">
-                            <div class="overview-activity-days">
-                                <span>Mon</span>
-                                <span>Wed</span>
-                                <span>Fri</span>
-                            </div>
-                            <div class="overview-activity-dots">
-                                {% for row in recent_map_visual_rows[:56] %}
-                                    <span class="overview-activity-dot {% if row.outcome == 'Win' %}overview-activity-dot-win{% elif row.outcome == 'Loss' %}overview-activity-dot-loss{% else %}overview-activity-dot-neutral{% endif %}" title="{{ row.scrim_date }} • {{ row.map_name }} • {{ row.outcome }}"></span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="overview-activity-legend">
-                            <span>Less</span>
-                            <i class="overview-activity-dot overview-activity-dot-neutral"></i>
-                            <i class="overview-activity-dot"></i>
-                            <i class="overview-activity-dot overview-activity-dot-win"></i>
-                            <i class="overview-activity-dot overview-activity-dot-win"></i>
-                            <span>More</span>
-                        </div>
+                    <div class="overview-activity-list top-gap">
+                        {% for row in recent_map_visual_rows[:8] %}
+                            <article class="overview-activity-map">
+                                <span class="overview-activity-outcome {% if row.outcome == 'Win' %}wr-good{% elif row.outcome == 'Loss' %}wr-bad{% else %}wr-na{% endif %}">
+                                    {% if row.outcome == 'Win' %}W{% elif row.outcome == 'Loss' %}L{% else %}-{% endif %}
+                                </span>
+                                <div>
+                                    <strong>{{ row.map_name }}</strong>
+                                    <small>{{ row.scrim_date or 'No date' }} vs {{ row.opponent }} • {{ row.mode }}{% if row.map_type and row.map_type != 'Standard' %} • {{ row.map_type }}{% endif %}</small>
+                                </div>
+                            </article>
+                        {% endfor %}
                     </div>
                 {% else %}
                     <p class="empty-text">No recent activity data yet.</p>
@@ -2639,12 +2628,8 @@
                     <thead>
                         <tr>
                             <th>Map</th>
-                            <th>Result</th>
-                            <th>Score</th>
-                            <th>Our Bans</th>
-                            <th>Our Protects</th>
-                            <th>Enemy Bans</th>
-                            <th>Enemy Protects</th>
+                            <th class="scrim-log-center-col">Result / Score</th>
+                            <th>Opponent</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2663,72 +2648,59 @@
                             {% if row.sections %}<span class="scrim-row-expand-icon"></span>{% endif %}
                             {{ row.map_name }}
                         </td>
-                        <td>
+                        <td class="scrim-map-result-cell">
                             {% if row.result == 'Win' %}<span class="wr-good">W</span>
                             {% elif row.result == 'Loss' %}<span class="wr-bad">L</span>
                             {% else %}<span class="wr-na">—</span>{% endif %}
+                            <span class="scrim-map-score">{{ row.score or '—' }}</span>
                         </td>
-                        <td class="nowrap">{{ row.score or '—' }}</td>
-                        <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ team.name if team and team.name else 'Us' }} Bans">
-                            {% for hero in row.our_bans %}
-                                {% if hero in hero_transformations %}
-                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
-                                {% else %}
-                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="dimmed-text">—</span>
-                            {% endfor %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ team.name if team and team.name else 'Us' }} Protects">
-                            {% for hero in row.our_protects %}
-                                {% if hero in hero_transformations %}
-                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
-                                {% else %}
-                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="dimmed-text">—</span>
-                            {% endfor %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Bans">
-                            {% for hero in row.enemy_bans %}
-                                {% if hero in hero_transformations %}
-                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
-                                {% else %}
-                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="dimmed-text">—</span>
-                            {% endfor %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Protects">
-                            {% for hero in row.enemy_protects %}
-                                {% if hero in hero_transformations %}
-                                <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
-                                {% else %}
-                                <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="dimmed-text">—</span>
-                            {% endfor %}
-                            </div>
-                        </td>
+                        <td>{{ row.opponent_name }}</td>
                     </tr>
                     {% if row.sections %}
                     <tr class="scrim-sections-row" style="display:none;">
-                        <td colspan="7" class="scrim-sections-cell">
+                        <td colspan="3" class="scrim-sections-cell">
                             <div class="scrim-sections-panel">
                                 <div class="scrim-sections-header-row">
-                                    <span class="scrim-sections-team-label">{{ team.name if team and team.name else 'Us' }}</span>
-                                    <span class="scrim-sections-round-label"></span>
+                                    <div class="scrim-sections-team-header">
+                                        <span class="scrim-sections-team-label">{{ team.name if team and team.name else 'Us' }}</span>
+                                        <div class="scrim-section-draft-row">
+                                            <span>Bans</span>
+                                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ team.name if team and team.name else 'Us' }} Bans">
+                                                {% for hero in row.our_bans %}
+                                                    {% if hero in hero_transformations %}
+                                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                                    {% else %}
+                                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                <span class="dimmed-text">—</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div class="scrim-section-draft-row">
+                                            <span>Protects</span>
+                                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ team.name if team and team.name else 'Us' }} Protects">
+                                                {% for hero in row.our_protects %}
+                                                    {% if hero in hero_transformations %}
+                                                    <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
+                                                    {% else %}
+                                                    <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                <span class="dimmed-text">—</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="scrim-sections-map-result">
+                                        <span>{{ row.map_name }}</span>
+                                        <strong>
+                                            {% if row.result == 'Win' %}<span class="wr-good">W</span>
+                                            {% elif row.result == 'Loss' %}<span class="wr-bad">L</span>
+                                            {% else %}<span class="wr-na">—</span>{% endif %}
+                                            {{ row.score or '—' }}
+                                        </strong>
+                                    </div>
                                     <span class="scrim-sections-team-label scrim-sections-team-label-right">{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }}</span>
                                 </div>
                                 {% for sec in row.sections %}

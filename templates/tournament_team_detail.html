@@ -6,7 +6,7 @@
 {% block content %}
 <div class="team-hero">
     <div class="team-hero-left">
-        <img class="team-avatar" src="https://avatar.vercel.sh/{{ tournament_team.name | urlencode }}.png?size=140" alt="{{ tournament_team.name }}">
+        <img class="team-avatar" src="{{ team_logo_url(source_team.logo_path) if source_team and source_team.logo_path else 'https://avatar.vercel.sh/' ~ (tournament_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ tournament_team.name }}">
         <div>
             <h2>{{ tournament_team.name }}</h2>
             <p class="team-record-line">
@@ -17,6 +17,9 @@
                 {{ tournament.tournament_name or 'Tournament' }}
                 &bull; {{ match_rows|length }} matches
                 &bull; {{ team_analytics.summary.total_maps }} maps
+                {% if source_team %}
+                    &bull; linked to {{ source_team.name }}
+                {% endif %}
             </p>
         </div>
     </div>
@@ -298,18 +301,86 @@
             </div>
         </div>
         {% if players %}
-            <div class="list-stack">
+            {% call stats_table(['Player', 'Top Hero', 'Status', 'Role', 'Maps', 'W', 'L', 'ND', 'Win %']) %}
                 {% for player in players %}
-                    <div class="list-card static-card">
-                        <div>
-                            <div class="list-title">{{ player.name }}</div>
-                            <div class="list-subtitle">{{ player.stats.maps_played }} maps • {{ player.stats.wins }}W - {{ player.stats.losses }}L • {{ player.stats.win_rate }}% win rate</div>
-                        </div>
-                    </div>
+                    <tr>
+                        <td>
+                            {% if source_team and player.id %}
+                                <a href="{{ url_for('player_detail', team_id=source_team.id, player_id=player.id) }}" class="player-inline-hero">
+                                    <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://avatar.vercel.sh/' ~ (player.name | urlencode) ~ '.png?size=64' }}" alt="{{ player.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=64'">
+                                    <span>{{ player.name }}</span>
+                                </a>
+                            {% else %}
+                                <span class="player-inline-hero">
+                                    <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://avatar.vercel.sh/' ~ (player.name | urlencode) ~ '.png?size=64' }}" alt="{{ player.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=64'">
+                                    <span>{{ player.name }}</span>
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if player.top_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(player.top_hero) }}" alt="{{ player.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ player.top_hero | urlencode }}'">
+                                    <span>{{ hero_display_name(player.top_hero) }}</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ 'Sub' if player.is_sub else 'Main' }}</td>
+                        <td>{{ player.role or '-' }}</td>
+                        <td>{{ player.stats.maps_played }}</td>
+                        <td>{{ player.stats.wins }}</td>
+                        <td>{{ player.stats.losses }}</td>
+                        <td>{{ player.stats.unresolved_maps }}</td>
+                        <td>{{ player.stats.win_rate }}%</td>
+                    </tr>
+                    {% if player.notes %}
+                        <tr class="notes-row">
+                            <td colspan="9"><strong>Notes:</strong> {{ player.notes }}</td>
+                        </tr>
+                    {% endif %}
                 {% endfor %}
-            </div>
+            {% endcall %}
         {% else %}
             <p class="empty-text">No players added yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Roster</div>
+                <h3>Staff</h3>
+            </div>
+        </div>
+        {% if staff_members %}
+            {% call stats_table(['Staff', 'Hero PFP', 'Role', 'Notes']) %}
+                {% for staffer in staff_members %}
+                    <tr>
+                        <td>
+                            <span class="player-inline-hero">
+                                <img src="{{ hero_image_url(staffer.main_hero) if staffer.main_hero else 'https://avatar.vercel.sh/' ~ (staffer.name | urlencode) ~ '.png?size=64' }}" alt="{{ staffer.name }}" onerror="this.src='https://avatar.vercel.sh/{{ staffer.name | urlencode }}.png?size=64'">
+                                <span>{{ staffer.name }}</span>
+                            </span>
+                        </td>
+                        <td>
+                            {% if staffer.main_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(staffer.main_hero) }}" alt="{{ staffer.main_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ staffer.main_hero | urlencode }}'">
+                                    <span>{{ hero_display_name(staffer.main_hero) }}</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ staffer.role or '-' }}</td>
+                        <td>{{ staffer.notes or '-' }}</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
+        {% else %}
+            <p class="empty-text">No staff set for the linked team.</p>
         {% endif %}
     </section>
 </div>

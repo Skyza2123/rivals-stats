@@ -349,6 +349,15 @@ def build_team_ban_impact(scrims: list[dict]) -> list[dict]:
     Each row contains:
       hero, hero_maps, hero_wr, times_banned, wr_when_banned, wr_delta, all_pivots, top_pivot
     """
+    def _ban_impact_hero_role(hero_name: str) -> str:
+        hero_key = _compact_text(_canonical_draft_hero(hero_name) or hero_name)
+        if not hero_key:
+            return ""
+        for role_name, role_heroes in HERO_ROLES.items():
+            if any(_compact_text(role_hero) == hero_key for role_hero in role_heroes):
+                return role_name
+        return ""
+
     # First pass: count how many maps each hero was played by this team.
     hero_total_maps: dict[str, int] = defaultdict(int)
     for scrim in scrims:
@@ -382,6 +391,7 @@ def build_team_ban_impact(scrims: list[dict]) -> list[dict]:
     ban_wins: dict[str, int] = defaultdict(int)
     ban_losses: dict[str, int] = defaultdict(int)
     pivot_stats: dict[str, dict] = {h: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}) for h in all_heroes}
+    hero_roles_by_hero = {hero: _ban_impact_hero_role(hero) for hero in all_heroes}
 
     for scrim in scrims:
         for map_entry in scrim.get("maps", []):
@@ -414,13 +424,14 @@ def build_team_ban_impact(scrims: list[dict]) -> list[dict]:
 
             for hero_h in all_heroes:
                 if hero_h in enemy_bans:
+                    banned_hero_role = hero_roles_by_hero.get(hero_h, "")
                     times_banned[hero_h] += 1
                     if result == "Win":
                         ban_wins[hero_h] += 1
                     elif result == "Loss":
                         ban_losses[hero_h] += 1
                     for h in team_heroes:
-                        if h != hero_h:
+                        if h != hero_h and _ban_impact_hero_role(h) == banned_hero_role:
                             pivot_stats[hero_h][h]["count"] += 1
                             if result == "Win":
                                 pivot_stats[hero_h][h]["wins"] += 1

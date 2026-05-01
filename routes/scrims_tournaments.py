@@ -351,11 +351,59 @@ def tournament_detail(tournament_id: int):
     tournament_ban_analytics = build_scrim_analytics(build_tournament_match_scrims(tournament_record, selected_perspective))
     total_maps = sum(summary["maps"] for summary in match_summaries)
     completed_maps = sum(summary["completed_maps"] for summary in match_summaries)
+    staff_roles = {"Coach", "AC", "Analyst"}
+    tournament_team_cards = []
+    for tournament_team in tournament_record.get("tournament_teams", []):
+        if not isinstance(tournament_team, dict):
+            continue
+        source_team = None
+        source_team_id = tournament_team.get("source_team_id")
+        if isinstance(source_team_id, int):
+            source_team = get_db().execute("SELECT * FROM teams WHERE id = ?", (source_team_id,)).fetchone()
+        if source_team is None:
+            source_team = get_db().execute(
+                "SELECT * FROM teams WHERE lower(name) = lower(?)",
+                ((tournament_team.get("name") or "").strip(),),
+            ).fetchone()
+
+        if source_team is not None:
+            roster_rows = get_db().execute(
+                "SELECT name, role, is_sub FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
+                (source_team["id"],),
+            ).fetchall()
+            players = [
+                {"name": row["name"], "role": row["role"], "is_sub": bool(row["is_sub"])}
+                for row in roster_rows
+                if (row["role"] or "").strip() not in staff_roles
+            ]
+            staff = [
+                {"name": row["name"], "role": row["role"]}
+                for row in roster_rows
+                if (row["role"] or "").strip() in staff_roles
+            ]
+        else:
+            players = [
+                {"name": player_name, "role": "", "is_sub": False}
+                for player_name in tournament_team.get("players", [])
+                if (player_name or "").strip()
+            ]
+            staff = []
+
+        tournament_team_cards.append(
+            {
+                "team": tournament_team,
+                "source_team": source_team,
+                "players": players,
+                "staff": staff,
+                "is_linked": source_team is not None,
+            }
+        )
 
     return render_template(
         "tournament_detail.html",
         tournament=tournament_record,
         teams=teams,
+        tournament_team_cards=tournament_team_cards,
         match_summaries=match_summaries,
         overview_analytics=overview_analytics,
         tournament_ban_analytics=tournament_ban_analytics,

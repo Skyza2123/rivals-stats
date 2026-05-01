@@ -921,6 +921,16 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
         tournament_team = get_tournament_team_by_id(tournament_record, tournament_team_id) or tournament_team
         save_app_state()
 
+    source_team = None
+    source_team_id = tournament_team.get("source_team_id")
+    if isinstance(source_team_id, int):
+        source_team = get_db().execute("SELECT * FROM teams WHERE id = ?", (source_team_id,)).fetchone()
+    if source_team is None:
+        source_team = get_db().execute(
+            "SELECT * FROM teams WHERE lower(name) = lower(?)",
+            ((tournament_team.get("name") or "").strip(),),
+        ).fetchone()
+
     team_scrims = build_tournament_team_scrims(tournament_record, tournament_team)
     team_analytics = build_scrim_analytics(team_scrims)
     hero_graph_rows = [
@@ -1038,18 +1048,60 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
     team_map_mode_rows.sort(key=lambda row: (row["win_rate"], row["maps"]), reverse=True)
 
     picked_map_rows = build_tournament_team_pick_rows(tournament_record, tournament_team)
-    players = [
-        {
-            "name": player_name,
-            "stats": compute_player_stats(player_name, team_scrims),
-        }
-        for player_name in tournament_team.get("players", [])
-    ]
+    staff_roles = {"Coach", "AC", "Analyst"}
+    players = []
+    staff_members = []
+    if source_team is not None:
+        source_player_rows = get_db().execute(
+            "SELECT * FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
+            (source_team["id"],),
+        ).fetchall()
+        for player_row in source_player_rows:
+            if (player_row["role"] or "").strip() in staff_roles:
+                staff_members.append(
+                    {
+                        "id": player_row["id"],
+                        "name": player_row["name"],
+                        "role": player_row["role"],
+                        "is_sub": bool(player_row["is_sub"]) if "is_sub" in player_row.keys() else False,
+                        "main_hero": player_row["main_hero"],
+                        "notes": player_row["notes"],
+                    }
+                )
+                continue
+            stats = compute_player_stats(player_row["name"], team_scrims)
+            players.append(
+                {
+                    "id": player_row["id"],
+                    "name": player_row["name"],
+                    "role": player_row["role"],
+                    "is_sub": bool(player_row["is_sub"]) if "is_sub" in player_row.keys() else False,
+                    "main_hero": player_row["main_hero"],
+                    "top_hero": stats.get("top_hero"),
+                    "notes": player_row["notes"],
+                    "stats": stats,
+                }
+            )
+    else:
+        players = [
+            {
+                "id": None,
+                "name": player_name,
+                "role": "",
+                "is_sub": False,
+                "main_hero": "",
+                "top_hero": "",
+                "notes": "",
+                "stats": compute_player_stats(player_name, team_scrims),
+            }
+            for player_name in tournament_team.get("players", [])
+        ]
 
     return render_template(
         "tournament_team_detail.html",
         tournament=tournament_record,
         tournament_team=tournament_team,
+        source_team=source_team,
         team_analytics=team_analytics,
         hero_graph_rows=hero_graph_rows,
         hero_usage_timeline=hero_usage_timeline,
@@ -1060,6 +1112,7 @@ def tournament_team_detail(tournament_id: int, tournament_team_id: int):
         picked_map_rows=picked_map_rows,
         match_rows=match_rows,
         players=players,
+        staff_members=staff_members,
         hero_transformations=HERO_TRANSFORMATIONS,
         heroes=HEROES,
         hero_roles=HERO_ROLES,

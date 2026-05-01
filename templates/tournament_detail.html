@@ -322,9 +322,12 @@
         {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addTeamModal')">Add Team</button>{% endif %}
     </div>
 
-    {% if tournament.tournament_teams %}
+    {% if tournament_team_cards %}
         <div class="form-grid">
-            {% for tournament_team in tournament.tournament_teams %}
+            {% for team_card in tournament_team_cards %}
+                {% set tournament_team = team_card.team %}
+                {% set display_players = team_card.players %}
+                {% set display_staff = team_card.staff %}
                 <article class="panel {% if loop.index0 % 2 == 0 %}panel-soft-blue{% else %}panel-soft-green{% endif %}">
                     <div class="panel-header-row">
                         <div>
@@ -337,20 +340,34 @@
                         </form>
                         {% endif %}
                     </div>
-                    <p class="panel-intro">{{ tournament_team.players|length }} players registered</p>
-                    {% if tournament_team.players %}
+                    <p class="panel-intro">
+                        {% if team_card.is_linked %}
+                            Linked to {{ team_card.source_team.name }} • {{ display_players|length }} roster{% if display_staff %} / {{ display_staff|length }} staff{% endif %}
+                        {% else %}
+                            Custom tournament team • {{ display_players|length }} roster
+                        {% endif %}
+                    </p>
+                    {% if display_players %}
                         <div class="list-stack top-gap">
-                            {% for player in tournament_team.players[:6] %}
+                            {% for player in display_players[:6] %}
                                 <div class="list-card static-card">
-                                    <div class="list-title">{{ player }}</div>
+                                    <div class="list-title">{{ player.name }}{% if player.is_sub %} <span class="muted-label">(Sub)</span>{% endif %}</div>
+                                    {% if player.role %}<div class="list-subtitle">{{ player.role }}</div>{% endif %}
                                 </div>
                             {% endfor %}
                         </div>
-                        {% if tournament_team.players|length > 6 %}
-                            <p class="panel-intro top-gap">+ {{ tournament_team.players|length - 6 }} more players</p>
+                        {% if display_players|length > 6 %}
+                            <p class="panel-intro top-gap">+ {{ display_players|length - 6 }} more roster players</p>
                         {% endif %}
                     {% else %}
                         <p class="empty-text">No players added yet.</p>
+                    {% endif %}
+                    {% if display_staff %}
+                        <div class="team-staff-list top-gap">
+                            {% for staffer in display_staff[:4] %}
+                                <span><strong>{{ staffer.role }}:</strong><span>{{ staffer.name }}</span></span>
+                            {% endfor %}
+                        </div>
                     {% endif %}
                     <div class="button-row top-gap">
                         <a href="{{ url_for('tournament_team_detail', tournament_id=tournament.id, tournament_team_id=tournament_team.id) }}" class="button-small">View Team Stats</a>

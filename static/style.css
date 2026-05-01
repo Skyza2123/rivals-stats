@@ -3344,6 +3344,46 @@ th {
     align-items: center;
 }
 
+.overview-activity-list {
+    display: grid;
+    gap: 8px;
+}
+
+.overview-activity-map {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-2);
+}
+
+.overview-activity-map strong,
+.overview-activity-map small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.overview-activity-map small {
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.overview-activity-outcome {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    font-weight: 900;
+}
+
 .overview-activity-frame {
     display: grid;
     gap: 8px;
@@ -7224,6 +7264,23 @@ th {
     flex-shrink: 0;
 }
 
+.scrim-log-center-col,
+.scrim-map-result-cell {
+    text-align: center;
+}
+
+.scrim-map-result-cell {
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.scrim-map-score {
+    display: inline-block;
+    margin-left: 8px;
+    color: #e2e8f0;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Scrim map row expand */
 .scrim-map-row[data-has-sections="1"] {
     cursor: pointer;
@@ -7303,6 +7360,55 @@ th {
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+.scrim-section-draft-row {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+    max-width: 280px;
+}
+
+.scrim-section-draft-row > span {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.scrim-section-draft-row .matchup-hero-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.scrim-section-draft-row .hero-inline-thumb {
+    width: 28px;
+    height: 28px;
+}
+
+.scrim-sections-map-result {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    align-self: center;
+    min-width: 96px;
+    text-align: center;
+}
+
+.scrim-sections-map-result > span {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.scrim-sections-map-result strong {
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .scrim-sections-team-header-right {
