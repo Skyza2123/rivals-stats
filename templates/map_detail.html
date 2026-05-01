@@ -434,8 +434,6 @@
 
             <p class="draft-hint">Click a slot to assign a player and pick a hero. Right-click a slot to clear.</p>
             <p class="draft-hint">You can enter heroes in any order. On save, player names are auto-matched to the heroes based on recorded picks.</p>
-            <p class="draft-hint">Heroes banned in the draft are grayed out in this comp picker.</p>
-
             <div class="panel panel-soft-blue top-gap comp-assign-panel" data-comp-modal="{{ s }}">
                 <div class="section-kicker">Player Assigner</div>
                 <h4>Assign Player To Selected Slot</h4>
@@ -877,12 +875,13 @@ function updateDraftAvailability() {
         });
         return;
     }
+
     var slotName = activeDraftSlot.dataset.slot;
     var slotTeam = slotName.startsWith('team1') ? 'team1' : 'team2';
     var slotType = slotName.includes('ban') ? 'ban' : 'protect';
     var otherTeam = slotTeam === 'team1' ? 'team2' : 'team1';
     var otherProtects = getDraftSlotHeroes(otherTeam, 'protect');
-    var teamBans = getDraftSlotHeroes(slotTeam, 'ban');
+    var ownBans = getDraftSlotHeroes(slotTeam, 'ban');
     var otherBans = getDraftSlotHeroes(otherTeam, 'ban');
 
     document.querySelectorAll('.draft-hero-btn').forEach(function(btn) {
@@ -890,7 +889,7 @@ function updateDraftAvailability() {
         var blocked = false;
         if (slotType === 'ban') {
             if (otherProtects.indexOf(hero) >= 0) blocked = true;
-            if (teamBans.indexOf(hero) >= 0) blocked = true;
+            if (ownBans.indexOf(hero) >= 0) blocked = true;
         } else {
             if (otherBans.indexOf(hero) >= 0) blocked = true;
         }
@@ -961,18 +960,15 @@ document.addEventListener('contextmenu', function(e) {
 const COMP_TEAM_PLAYER_OPTIONS = JSON.parse(
     document.getElementById('compPlayerOptionsData')?.textContent || '{"team1": [], "team2": []}'
 );
-const MAP_DRAFT_BAN_HEROES = (() => {
+const MAP_DRAFT_BAN_HEROES_BY_TEAM = (() => {
     const payload = JSON.parse(
         document.getElementById('mapDraftBanHeroesData')?.textContent || '{"team1": [], "team2": []}'
     );
-    return new Set(
-        (payload.team1 || [])
-            .concat(payload.team2 || [])
-            .map((hero) => (hero || '').trim())
-            .filter(Boolean)
-    );
+    return {
+        team1: new Set((payload.team1 || []).map((hero) => (hero || '').trim()).filter(Boolean)),
+        team2: new Set((payload.team2 || []).map((hero) => (hero || '').trim()).filter(Boolean))
+    };
 })();
-
 function getCompTeamFromSlotName(slotName) {
     if (!slotName) return '';
     if (slotName.startsWith('team1_')) return 'team1';
@@ -1312,9 +1308,8 @@ document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
 function updateCompHeroAvailability() {
     if (!activeCompSlot) {
         document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
-            var blocked = MAP_DRAFT_BAN_HEROES.has(btn.dataset.hero || '');
-            btn.disabled = blocked;
-            btn.classList.toggle('hero-disabled', blocked);
+            btn.disabled = false;
+            btn.classList.remove('hero-disabled');
         });
         return;
     }
@@ -1339,13 +1334,14 @@ function updateCompHeroAvailability() {
 
     document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
         var heroName = btn.dataset.hero || '';
-        var globallyBlocked = MAP_DRAFT_BAN_HEROES.has(heroName);
         if (btn.dataset.compModal !== modalId) {
-            btn.disabled = globallyBlocked;
-            btn.classList.toggle('hero-disabled', globallyBlocked);
+            btn.disabled = false;
+            btn.classList.remove('hero-disabled');
             return;
         }
-        var blocked = globallyBlocked || usedHeroes.has(heroName);
+        var enemyTeamKey = teamKey === 'team1' ? 'team2' : 'team1';
+        var enemyBans = MAP_DRAFT_BAN_HEROES_BY_TEAM[enemyTeamKey] || new Set();
+        var blocked = enemyBans.has(heroName) || usedHeroes.has(heroName);
         btn.disabled = blocked;
         btn.classList.toggle('hero-disabled', blocked);
     });
