@@ -641,6 +641,15 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             ],
             "enemy_comps": enemy_comps,
             "pivot_predictions": pivot_predictions,
+            "our_comp_rows": [
+                {
+                    "heroes": row.get("heroes", [])[:6],
+                    "rate": row.get("rate", 0),
+                    "win_rate": row.get("comp_win_rate", row.get("line_win_rate", row.get("win_rate", 0))),
+                }
+                for row in a_model.get("comp_rows", [])[:5]
+                if row.get("heroes")
+            ],
             "confidence": {
                 "target_comp": target_comp[:6],
                 "confidence": round(float(comp_confidence or 0), 1),
@@ -691,6 +700,27 @@ def _machine_chat_local_answer(message: str, context_text: str, meta: dict) -> s
 
 def _machine_agent_is_info_request(message: str, intent: str) -> bool:
     q = (message or "").lower()
+    # Snapshot/profile style asks should always route through site-data lookup,
+    # even if the intent parser classifies them as draft-oriented (e.g., comp snapshot).
+    snapshot_phrases = (
+        "snapshot",
+        "profile",
+        "overview",
+        "breakdown",
+        "summary",
+        "tell me about",
+        "show me",
+        "give me",
+        "what do you know about",
+        "info on",
+        "information on",
+        "information about",
+    )
+    if any(phrase in q for phrase in snapshot_phrases):
+        return True
+    if "tournament" in q and any(token in q for token in ("comp", "composition", "player", "team", "hero", "map", "stats", "record", "history")):
+        return True
+
     if intent in {
         "ban",
         "protect",
@@ -715,14 +745,19 @@ def _machine_agent_is_info_request(message: str, intent: str) -> bool:
             "who is",
             "what is",
             "what are",
+            "what was",
             "show",
             "tell me",
+            "give me",
             "list",
             "history",
             "record",
             "stats",
             "stat",
             "overview",
+            "profile",
+            "snapshot",
+            "breakdown",
             "hero pool",
             "heroes does",
             "plays",
@@ -730,6 +765,17 @@ def _machine_agent_is_info_request(message: str, intent: str) -> bool:
             "how many",
             "recent scrim",
             "recent match",
+            "our team",
+            "my team",
+            "our roster",
+            "our players",
+            "our comps",
+            "our heroes",
+            "our maps",
+            "everything about",
+            "all about",
+            "info on",
+            "summary",
         )
     )
 
@@ -743,7 +789,7 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     if not sources or sources == ["none — no matching entity found in site data"]:
         return None
 
-    def hero_bits(rows: list[dict], limit: int = 5) -> str:
+    def hero_bits(rows: list[dict], limit: int = 6) -> str:
         values = []
         for row in (rows or [])[:limit]:
             hero = (row.get("hero") or "").strip()
@@ -763,25 +809,29 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
         return _machine_chat_join(values, limit)
 
     q = (message or "").lower()
-    wants_scrims = any(phrase in q for phrase in ("scrim", "scrims", "history", "recent match", "recent matches"))
+    wants_scrims = any(phrase in q for phrase in ("scrim", "scrims", "history", "recent match", "recent matches", "recent game", "results"))
     wants_player = any(phrase in q for phrase in ("who is", "who plays", "heroes does", "hero pool", "player"))
-    wants_hero = any(phrase in q for phrase in ("tell me about", "hero", "banned", "protected"))
-    wants_team = any(phrase in q for phrase in ("overview", "team", "roster"))
+    wants_hero = any(phrase in q for phrase in ("tell me about", "banned", "protected")) and not any(phrase in q for phrase in ("team", "profile", "overview"))
+    wants_team = any(phrase in q for phrase in ("overview", "profile", "snapshot", "breakdown", "everything about", "all about", "tell me about"))
     wants_map = any(phrase in q for phrase in ("map", "maps")) and any(phrase in q for phrase in ("record", "stats", "played", "good on", "best on"))
+    wants_bans = any(phrase in q for phrase in ("ban", "bans", "banned", "ban rate", "ban stats"))
 
     section_map = {}
+
+    # --- Player section ---
     players = result.get("players", []) or []
     if players:
         player = players[0]
         section_map["player"] = (
             f"{player.get('player_name') or 'That player'} is on {player.get('team_name') or 'the roster'}"
-            f"{(' as ' + player.get('role')) if player.get('role') else ''}. Main heroes: {hero_bits(player.get('heroes', []), 5)}."
+            f"{(' as ' + player.get('role')) if player.get('role') else ''}. Main heroes: {hero_bits(player.get('heroes', []), 6)}."
         )
 
+    # --- Hero section ---
     heroes = result.get("heroes", []) or []
     if heroes:
         hero = heroes[0]
-        partners = _machine_chat_join([row.get("partner", "") for row in hero.get("pair_partners", [])], 4)
+        partners = _machine_chat_join([row.get("partner", "") for row in hero.get("pair_partners", [])], 5)
         section_map["hero"] = (
             f"{hero.get('hero') or 'That hero'} for {hero.get('team') or result.get('personal_team') or 'our team'}: "
             f"{hero.get('played_count', 0)} plays, {hero.get('played_wins', 0)}-{hero.get('played_losses', 0)}, "
@@ -789,46 +839,124 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
             f"Best partners: {partners}."
         )
 
+    # --- Teams section ---
     teams = result.get("teams", []) or []
+    team_profile_visuals: dict = {}
     if teams:
         team = teams[0]
-        bias = hero_bits(team.get("hero_bias", []), 4)
+        bias = hero_bits(team.get("hero_bias", []), 8)
         pair_cores = []
-        for row in (team.get("pair_cores", []) or [])[:3]:
+        for row in (team.get("pair_cores", []) or [])[:5]:
             left = (row.get("hero_a") or "").strip()
             right = (row.get("hero_b") or "").strip()
+            co = row.get("co_appearances", 0)
             if left and right:
-                pair_cores.append(f"{left}/{right}")
+                pair_cores.append(f"{left}/{right} ({co}x)")
         map_stats = []
-        for row in (team.get("map_stats", []) or [])[:3]:
+        for row in (team.get("map_stats", []) or [])[:5]:
             map_name = (row.get("map_name") or "").strip()
             if map_name:
-                map_stats.append(f"{map_name} ({row.get('wins', 0)}-{row.get('losses', 0)})")
-        section_map["team"] = (
-            f"{team.get('team') or 'That team'} overview: bias leans {bias}. "
-            f"Core pairs: {_machine_chat_join(pair_cores, 3)}. "
-            f"Recent map record pockets: {_machine_chat_join(map_stats, 3)}."
+                w = row.get("wins", 0)
+                l = row.get("losses", 0)
+                played = row.get("played", 0)
+                map_stats.append(f"{map_name} {w}-{l}/{played}")
+        # Player pools
+        player_lines = []
+        for pp in (team.get("player_pools") or [])[:6]:
+            pname = pp.get("player_name", "")
+            role = pp.get("role", "")
+            top_h = hero_bits(pp.get("heroes", []), 4)
+            if pname:
+                player_lines.append(f"{pname}{(' (' + role + ')') if role else ''}: {top_h}")
+        team_text = (
+            f"{team.get('team') or 'That team'} profile:\n"
+            f"  Hero bias: {bias}.\n"
+            f"  Core pairs: {_machine_chat_join(pair_cores, 5)}.\n"
+            f"  Map record: {_machine_chat_join(map_stats, 5)}."
         )
+        if wants_bans:
+            ban_rows = sorted(
+                [row for row in (team.get("hero_bias") or []) if (row.get("ban_count") or 0) > 0],
+                key=lambda row: row.get("ban_count", 0),
+                reverse=True,
+            )
+            ban_text = _machine_chat_join(
+                [f"{row.get('hero', '')} ({row.get('ban_count', 0)}x)" for row in ban_rows if row.get("hero")],
+                6,
+            )
+            if ban_text:
+                team_text += f"\n  Most banned: {ban_text}."
+        if player_lines:
+            team_text += "\n  Player pools:\n    " + "\n    ".join(player_lines)
+        section_map["team"] = team_text
 
+        # Build structured team profile for card rendering
+        team_profile_visuals = {
+            "team_name": team.get("team") or "",
+            "hero_bias": [
+                {
+                    "hero": b.get("hero", ""),
+                    "played": b.get("played_count", 0),
+                    "wins": b.get("played_wins", 0),
+                    "losses": b.get("played_losses", 0),
+                    "banned": b.get("ban_count", 0),
+                }
+                for b in (team.get("hero_bias") or [])[:10]
+                if b.get("hero")
+            ],
+            "pair_cores": [
+                {"hero_a": r.get("hero_a", ""), "hero_b": r.get("hero_b", ""), "co_appearances": r.get("co_appearances", 0)}
+                for r in (team.get("pair_cores") or [])[:5]
+                if r.get("hero_a") and r.get("hero_b")
+            ],
+            "map_stats": [
+                {"map_name": r.get("map_name", ""), "wins": r.get("wins", 0), "losses": r.get("losses", 0), "played": r.get("played", 0)}
+                for r in (team.get("map_stats") or [])[:6]
+                if r.get("map_name")
+            ],
+            "player_pools": [
+                {
+                    "player_name": pp.get("player_name", ""),
+                    "role": pp.get("role", ""),
+                    "heroes": [
+                        {"hero": h.get("hero", ""), "appearances": h.get("appearances", 0), "wins": h.get("wins", 0), "losses": h.get("losses", 0)}
+                        for h in (pp.get("heroes") or [])[:5]
+                        if h.get("hero")
+                    ],
+                }
+                for pp in (team.get("player_pools") or [])[:8]
+                if pp.get("player_name")
+            ],
+        }
+
+    # --- Map section ---
     maps = result.get("maps", []) or []
     if maps:
         map_row = maps[0]
         section_map["map"] = (
             f"On {map_row.get('map_name') or 'that map'}, {map_row.get('team') or result.get('personal_team') or 'our team'} is "
             f"{map_row.get('wins', 0)}-{map_row.get('losses', 0)} over {map_row.get('played', 0)} maps. "
-            f"Most played: {hero_bits(map_row.get('hero_freq', []), 4)}. "
+            f"Most played: {hero_bits(map_row.get('hero_freq', []), 5)}. "
             f"Most common bans: {hero_bits(map_row.get('bans', []), 4)}."
         )
 
+    # --- Scrim history section ---
     scrims = result.get("scrims_summary", []) or []
+    scrim_rows_for_card: list = []
     if scrims:
         snippets = []
-        for row in scrims[:3]:
-            enemy = row.get("enemy_team") or row.get("opponent") or "unknown enemy"
+        for row in scrims[:5]:
+            enemy = row.get("enemy_team") or row.get("opponent") or "unknown"
             scrim_date = row.get("scrim_date") or "undated"
-            snippets.append(f"{scrim_date} vs {enemy}")
-        section_map["scrims"] = f"Recent scrim history: {_machine_chat_join(snippets, 3)}."
+            maps_played = row.get("maps", []) or []
+            wins = sum(1 for m in maps_played if (m.get("result") or "").lower() == "win")
+            losses = sum(1 for m in maps_played if (m.get("result") or "").lower() == "loss")
+            result_str = f" ({wins}-{losses})" if wins + losses else ""
+            snippets.append(f"{scrim_date} vs {enemy}{result_str}")
+            scrim_rows_for_card.append({"date": scrim_date, "opponent": enemy, "wins": wins, "losses": losses})
+        section_map["scrims"] = f"Recent scrim history: {'; '.join(snippets)}."
 
+    # Build preferred ordering based on question type
     preferred = []
     if wants_player:
         preferred.append("player")
@@ -839,7 +967,8 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     if wants_scrims:
         preferred.append("scrims")
     if wants_team:
-        preferred.append("team")
+        preferred.extend(["team", "player", "scrims"])
+    # always include anything available in fallback order
     preferred.extend(["player", "hero", "team", "map", "scrims"])
 
     sections = []
@@ -847,23 +976,157 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     for key in preferred:
         if key in seen or not section_map.get(key):
             continue
-        if wants_scrims and key == "team":
+        if wants_scrims and key == "team" and not wants_team:
             continue
         sections.append(section_map[key])
         seen.add(key)
-        if len(sections) >= 3:
+        if len(sections) >= 5:
             break
 
     if not sections:
         return None
 
+    # Only attach the team profile card visuals when we have team data
+    profile_visuals: dict = {}
+    if teams and team_profile_visuals:
+        profile_visuals["team_profile"] = team_profile_visuals
+        if scrim_rows_for_card:
+            profile_visuals["team_profile"]["recent_scrims"] = scrim_rows_for_card
+
+    # Helper: load ban impact rows for a player name
+    def _load_ban_impact(player_name: str) -> list[dict]:
+        try:
+            from draft_engine.site_context import get_scrim_history
+            scrims = get_scrim_history(get_db(), result.get("personal_team") or "", vs=None, season=season, limit=100)
+            rows = build_player_ban_impact(player_name, scrims)
+            return rows
+        except Exception:
+            return []
+
+    # Player profile card visual
+    if players:
+        p = players[0]
+        ban_rows = _load_ban_impact(p.get("player_name", ""))
+        profile_visuals["player_profile"] = {
+            "player_name": p.get("player_name", ""),
+            "team_name": p.get("team_name", ""),
+            "role": p.get("role", ""),
+            "heroes": [
+                {
+                    "hero": h.get("hero", ""),
+                    "appearances": h.get("appearances", 0),
+                    "wins": h.get("wins", 0),
+                    "losses": h.get("losses", 0),
+                }
+                for h in (p.get("heroes") or [])[:10]
+                if h.get("hero")
+            ],
+            "ban_impact": [
+                {
+                    "hero": r["hero"],
+                    "hero_maps": r["hero_maps"],
+                    "hero_wr": r["hero_wr"],
+                    "times_banned": r["times_banned"],
+                    "wr_when_banned": r["wr_when_banned"],
+                    "wr_delta": r["wr_delta"],
+                    "pivots": [
+                        {"hero": pv["hero"], "count": pv["count"], "wr": pv.get("wr")}
+                        for pv in (r.get("all_pivots") or [])[:4]
+                    ],
+                }
+                for r in ban_rows[:6]
+                if r.get("hero")
+            ],
+        }
+
+    # Hero profile card visual
+    if heroes:
+        h = heroes[0]
+        hero_name_key = (h.get("hero") or "").strip().lower()
+        # Find which players on the personal team play this hero, gather their ban impact row for it
+        hero_player_impacts: list[dict] = []
+        try:
+            from draft_engine.site_context import get_scrim_history
+            scrims_for_hero = get_scrim_history(get_db(), result.get("personal_team") or "", vs=None, season=season, limit=100)
+            # Get all players on personal team
+            rows_players = get_db().execute(
+                """SELECT p.name FROM players p
+                   JOIN teams t ON p.team_id = t.id
+                   WHERE t.is_personal = 1"""
+            ).fetchall()
+            for pr in rows_players:
+                pname = pr[0]
+                bi_rows = build_player_ban_impact(pname, scrims_for_hero)
+                for bi in bi_rows:
+                    if (bi.get("hero") or "").strip().lower() == hero_name_key and bi.get("hero_maps", 0) >= 3:
+                        hero_player_impacts.append({
+                            "player_name": pname,
+                            "hero_maps": bi["hero_maps"],
+                            "hero_wr": bi["hero_wr"],
+                            "times_banned": bi["times_banned"],
+                            "wr_when_banned": bi["wr_when_banned"],
+                            "wr_delta": bi["wr_delta"],
+                            "pivots": [
+                                {"hero": pv["hero"], "count": pv["count"], "wr": pv.get("wr")}
+                                for pv in (bi.get("all_pivots") or [])[:4]
+                            ],
+                        })
+        except Exception:
+            pass
+
+        profile_visuals["hero_profile"] = {
+            "hero": h.get("hero", ""),
+            "team": h.get("team", ""),
+            "played_count": h.get("played_count", 0),
+            "played_wins": h.get("played_wins", 0),
+            "played_losses": h.get("played_losses", 0),
+            "ban_count": h.get("ban_count", 0),
+            "protect_count": h.get("protect_count", 0),
+            "pair_partners": [
+                {"partner": pp.get("partner", ""), "co_appearances": pp.get("co_appearances", 0), "wins": pp.get("wins", 0)}
+                for pp in (h.get("pair_partners") or [])[:8]
+                if pp.get("partner")
+            ],
+            "player_impacts": hero_player_impacts,
+        }
+
+    profile_links: list[dict] = []
+    if teams:
+        team_name = (teams[0].get("team") or "").strip()
+        if team_name:
+            team_row = get_db().execute("SELECT id, name FROM teams WHERE lower(name)=lower(?) LIMIT 1", (team_name,)).fetchone()
+            if team_row:
+                profile_links.append({
+                    "type": "team",
+                    "label": f"Open {team_row['name']} team profile",
+                    "url": url_for("team_detail", team_id=team_row["id"]),
+                })
+    if players:
+        player_name = (players[0].get("player_name") or "").strip()
+        player_team = (players[0].get("team_name") or "").strip()
+        if player_name and player_team:
+            player_row = get_db().execute(
+                """SELECT p.id AS player_id, t.id AS team_id, p.name AS player_name
+                   FROM players p JOIN teams t ON p.team_id = t.id
+                   WHERE lower(t.name)=lower(?) AND lower(p.name)=lower(?)
+                   LIMIT 1""",
+                (player_team, player_name),
+            ).fetchone()
+            if player_row:
+                profile_links.append({
+                    "type": "player",
+                    "label": f"Open {player_row['player_name']} player profile",
+                    "url": url_for("player_detail", team_id=player_row["team_id"], player_id=player_row["player_id"]),
+                })
+
     return {
-        "answer": "\n\n".join(sections[:3]),
+        "answer": "\n\n".join(sections),
         "meta": {
             "has_matchup": False,
             "intent": "site_info",
             "needs_context": False,
-            "visuals": {},
+            "visuals": profile_visuals,
+            "profile_links": profile_links,
             "site_search": result,
         },
     }
@@ -916,7 +1179,7 @@ def _machine_agent_filter_visuals(intent: str, visuals: dict) -> dict:
     keys_by_intent = {
         "ban": ("recommended_bans", "enemy_comfort", "volatile"),
         "protect": ("recommended_protects", "target_comp", "contested"),
-        "comp": ("target_comp", "recommended_protects", "enemy_comfort"),
+        "comp": ("target_comp", "our_comp_rows", "recommended_protects", "enemy_comfort"),
         "risk": ("volatile", "contested", "enemy_comfort", "recommended_bans"),
         "comfort": ("our_comfort", "enemy_comfort"),
         "contested": ("contested", "recommended_bans", "target_comp"),
@@ -973,6 +1236,19 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
             f"That keeps {comp_line or 'the target comp'} live."
         )
     elif intent == "comp":
+        our_comp_rows = visuals.get("our_comp_rows") or []
+        if our_comp_rows:
+            ranked = []
+            for i, r in enumerate(our_comp_rows, 1):
+                heroes = _machine_chat_join(r.get("heroes", []), 6)
+                wr = r.get("win_rate", 0)
+                rate = r.get("rate", 0)
+                ranked.append(f"{i}. {heroes} ({wr}% WR, {rate}% pick rate)")
+            comp_list = "\n".join(ranked)
+            return (
+                f"Best comps for us:\n{comp_list}\n\n"
+                f"Lead with protects on {protect_line or 'the core anchors'} and open with {ban_line or enemy_line} on their side."
+            )
         return (
             f"Lean into {comp_line or 'the strongest available route'}.\n\n"
             f"Use protects on {protect_line or 'the key anchors'} and make them answer {ban_line or enemy_line}."
@@ -1100,17 +1376,26 @@ def _machine_agent_site_context_text(site_result: dict) -> str:
     for t in (site_result.get("teams") or []):
         bias = ", ".join(
             f"{b.get('hero')} (played {b.get('played_count', 0)}, banned {b.get('ban_count', 0)})"
-            for b in (t.get("hero_bias") or [])[:8]
+            for b in (t.get("hero_bias") or [])[:10]
         )
         pairs = ", ".join(
             f"{r.get('hero_a')}/{r.get('hero_b')} ({r.get('co_appearances', 0)}x)"
-            for r in (t.get("pair_cores") or [])[:5]
+            for r in (t.get("pair_cores") or [])[:6]
         )
         map_recs = ", ".join(
             f"{r.get('map_name')} {r.get('wins', 0)}-{r.get('losses', 0)}"
-            for r in (t.get("map_stats") or [])[:5]
+            for r in (t.get("map_stats") or [])[:6]
         )
         lines.append(f"Team {t.get('team')}: bias [{bias}]. Pairs: {pairs}. Maps: {map_recs}")
+        # Include player pools
+        for pp in (t.get("player_pools") or [])[:8]:
+            pp_heroes = ", ".join(
+                f"{h.get('hero')} ({h.get('appearances', 0)})"
+                for h in (pp.get("heroes") or [])[:6]
+            )
+            lines.append(
+                f"  - {pp.get('player_name')}{(' (' + pp.get('role') + ')') if pp.get('role') else ''}: {pp_heroes}"
+            )
     for m in (site_result.get("maps") or []):
         freq = ", ".join(f"{f.get('hero')} ({f.get('count', 0)})" for f in (m.get("hero_freq") or [])[:6])
         bans = ", ".join(f"{f.get('hero')} ({f.get('count', 0)})" for f in (m.get("bans") or [])[:5])
@@ -1118,8 +1403,12 @@ def _machine_agent_site_context_text(site_result: dict) -> str:
             f"Map {m.get('map_name')} for {m.get('team')}: {m.get('wins', 0)}-{m.get('losses', 0)} over {m.get('played', 0)}. "
             f"Most picked: {freq}. Bans: {bans}"
         )
-    for s in (site_result.get("scrims_summary") or [])[:5]:
-        lines.append(f"Scrim {s.get('scrim_date', 'undated')} vs {s.get('enemy_team') or s.get('opponent', '?')}")
+    for s in (site_result.get("scrims_summary") or [])[:8]:
+        maps_played = s.get("maps", []) or []
+        wins = sum(1 for m in maps_played if (m.get("result") or "").lower() == "win")
+        losses = sum(1 for m in maps_played if (m.get("result") or "").lower() == "loss")
+        result_str = f" {wins}-{losses}" if wins + losses else ""
+        lines.append(f"Scrim {s.get('scrim_date', 'undated')} vs {s.get('enemy_team') or s.get('opponent', '?')}{result_str}")
     return "\n".join(lines)
 
 
@@ -1136,10 +1425,11 @@ def _machine_agent_llm_answer(message: str, context: str, personal_team: str) ->
         system_prompt = (
             f"You are a Marvel Rivals competitive draft analyst and coach for {personal_team or 'our team'}. "
             "Answer directly and conversationally — like a coach talking during draft prep. "
-            "Keep answers to 2-4 sentences unless the user asks for detail. "
+            "For detailed questions (profiles, snapshots, breakdowns) give structured, complete answers. "
+            "For quick questions keep it to 2-3 sentences. "
             "Use only the data provided below; do not invent hero names, team names, or statistics. "
             "If the data does not contain enough to answer confidently, say so briefly.\n\n"
-            f"Data:\n{context[:4000]}"
+            f"Data:\n{context[:6000]}"
         )
         resp = client.chat.completions.create(
             model=model,
@@ -1147,7 +1437,7 @@ def _machine_agent_llm_answer(message: str, context: str, personal_team: str) ->
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message},
             ],
-            max_tokens=220,
+            max_tokens=400,
             temperature=0.35,
         )
         text = (resp.choices[0].message.content or "").strip()
@@ -1177,10 +1467,44 @@ def _machine_agent_find_mentioned_teams(message: str) -> list[dict]:
     text = (message or "").lower()
     rows = get_db().execute("SELECT id, name FROM teams ORDER BY LENGTH(name) DESC").fetchall()
     matches = []
+    token_set = set(re.findall(r"[a-z0-9]+", text))
+
+    def _team_aliases(team_name: str) -> set[str]:
+        cleaned = re.sub(r"[^a-z0-9\s]", "", (team_name or "").lower()).strip()
+        parts = [p for p in cleaned.split() if p and p not in {"the", "team"}]
+        aliases: set[str] = set()
+        if not parts:
+            return aliases
+        aliases.add(cleaned)
+        aliases.add("".join(parts))
+        # Initialism: Virtus Pro -> vp, Liquid Citadel -> lc
+        if len(parts) > 1:
+            aliases.add("".join(p[0] for p in parts if p))
+        # Common short form: Sentinels -> sen
+        if parts and len(parts[0]) >= 3:
+            aliases.add(parts[0][:3])
+        return {a for a in aliases if len(a) >= 2}
+
     for row in rows:
         name = (row["name"] or "").strip()
-        if name and name.lower() in text:
-            matches.append({"id": int(row["id"]), "name": name, "pos": text.find(name.lower())})
+        if not name:
+            continue
+        name_l = name.lower()
+        if name_l in text:
+            matches.append({"id": int(row["id"]), "name": name, "pos": text.find(name_l)})
+            continue
+        # Alias/acronym match (e.g. VP, SEN, LC, 100T)
+        aliases = _team_aliases(name)
+        alias_hit = next((a for a in aliases if a in token_set), None)
+        if alias_hit:
+            matches.append({"id": int(row["id"]), "name": name, "pos": text.find(alias_hit)})
+
+    # Deduplicate by team id if multiple aliases hit
+    dedup = {}
+    for row in matches:
+        if row["id"] not in dedup or row["pos"] < dedup[row["id"]]["pos"]:
+            dedup[row["id"]] = row
+    matches = list(dedup.values())
     matches.sort(key=lambda row: row["pos"])
     return matches
 
@@ -1209,11 +1533,18 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
         "map": str(payload.get("map") or raw_context.get("map") or "all").strip(),
         "include_scrims": bool(payload.get("include_scrims", raw_context.get("include_scrims", True))),
         "include_tournaments": bool(payload.get("include_tournaments", raw_context.get("include_tournaments", True))),
+        "reasoning_mode": str(payload.get("reasoning_mode") or raw_context.get("reasoning_mode") or "search").strip().lower(),
     }
+    if context["reasoning_mode"] not in {"search", "reasoning"}:
+        context["reasoning_mode"] = "search"
 
     context["season"] = _machine_agent_extract_season(message, context["season"])
     context["map"] = _machine_agent_extract_map(message, context["map"])
     text = (message or "").lower()
+    if "reasoning mode" in text or "mode reasoning" in text:
+        context["reasoning_mode"] = "reasoning"
+    elif "search mode" in text or "mode search" in text:
+        context["reasoning_mode"] = "search"
     if "scrim only" in text or "only scrim" in text:
         context["include_scrims"] = True
         context["include_tournaments"] = False
@@ -1279,13 +1610,30 @@ def api_machine_chat():
     intent_message = pending_message or message
     intent = _machine_agent_intent(intent_message)
     chat_context = _machine_agent_context_from_payload(payload, message)
+    reasoning_mode = chat_context.get("reasoning_mode", "search")
     season_value = chat_context.get("season") or "all"
+    is_info_request = _machine_agent_is_info_request(intent_message, intent)
     site_answer = _machine_agent_site_answer(intent_message, season_value)
-    if site_answer and (not chat_context.get("team_b_id") or _machine_agent_is_info_request(intent_message, intent)):
+    # Search mode: act as a broad site-data search bar first (deterministic, visual-first)
+    if reasoning_mode != "reasoning" and site_answer:
+        site_answer["meta"]["context"] = chat_context
+        site_answer["meta"]["reasoning_mode"] = reasoning_mode
+        site_answer["meta"]["response_engine"] = "local_search"
+        return jsonify({
+            "answer": site_answer["answer"],
+            "source": "site_context",
+            "reason": None,
+            "meta": site_answer["meta"],
+        })
+
+    # Reasoning mode: still allow direct site answers for explicit info asks.
+    if site_answer and (not chat_context.get("team_b_id") or is_info_request):
         personal_team = (chat_context.get("team_a_name") or "") or ((_machine_agent_get_personal_team() or {}).get("name") or "")
         site_ctx = _machine_agent_site_context_text(site_answer["meta"].get("site_search") or {})
         llm_text = _machine_agent_llm_answer(intent_message, site_ctx, personal_team)
         site_answer["meta"]["context"] = chat_context
+        site_answer["meta"]["reasoning_mode"] = reasoning_mode
+        site_answer["meta"]["response_engine"] = "llm_reasoning" if llm_text else "local_search"
         return jsonify({
             "answer": llm_text or site_answer["answer"],
             "source": "site_context",
@@ -1294,6 +1642,21 @@ def api_machine_chat():
         })
 
     follow_up = _machine_agent_missing_context_response(intent, chat_context)
+    if (is_info_request or reasoning_mode != "reasoning") and not site_answer:
+        return jsonify({
+            "answer": "I could not find a direct site-data match for that yet. Try naming a specific team, player, hero, map, or season (example: `Virtus Pro snapshot season 7`, `Fate player snapshot`, `Dr. Strange profile`).",
+            "source": "site_context",
+            "reason": "no_entity_match",
+            "meta": {
+                "has_matchup": False,
+                "intent": "site_info",
+                "context": chat_context,
+                "reasoning_mode": reasoning_mode,
+                "response_engine": "local_search",
+                "needs_context": False,
+                "visuals": {},
+            },
+        })
     if follow_up:
         return jsonify({
             "answer": follow_up,
@@ -1303,6 +1666,8 @@ def api_machine_chat():
                 "has_matchup": False,
                 "intent": intent,
                 "context": chat_context,
+                "reasoning_mode": reasoning_mode,
+                "response_engine": "context_prompt",
                 "needs_context": True,
                 "visuals": {},
             },
@@ -1431,6 +1796,7 @@ def api_machine_chat():
         "team_a_name": meta.get("team_a") or chat_context.get("team_a_name", ""),
         "team_b_name": meta.get("team_b") or chat_context.get("team_b_name", ""),
     }
+    meta["response_engine"] = "llm_reasoning" if llm_text else "local_draft"
 
     return jsonify({
         "answer": answer,

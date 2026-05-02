@@ -58,6 +58,12 @@ def _norm(s: str) -> str:
     return (s or "").strip().lower()
 
 
+def _norm_search(s: str) -> str:
+    """Normalize for search: lowercase and strip common punctuation."""
+    import re
+    return re.sub(r"[.\-'\"!?]", "", (s or "").strip().lower())
+
+
 def _fuzzy_match(name: str, candidates: list[str]) -> str | None:
     """Case-insensitive prefix or substring match. Returns best candidate or None."""
     n = _norm(name)
@@ -157,10 +163,59 @@ def _known_teams(conn: sqlite3.Connection) -> list[str]:
     return [r[0] for r in rows]
 
 
+# Static alias/acronym → canonical team name mapping
+_TEAM_ALIASES: dict[str, str] = {
+    # Virtus Pro
+    "vp": "Virtus Pro",
+    "virtus": "Virtus Pro",
+    "virtusp": "Virtus Pro",
+    "virtuos pro": "Virtus Pro",
+    # Navi
+    "navi": "Navi",
+    "natus vincere": "Navi",
+    "na'vi": "Navi",
+    # Heretics
+    "heretics": "Heretics",
+    "the heretics": "Heretics",
+    "th": "Heretics",
+    # Rad Esports
+    "rad": "Rad Esports",
+    "rade": "Rad Esports",
+    "rad esport": "Rad Esports",
+    # Liquid Citadel
+    "liquid": "Liquid Citadel",
+    "lc": "Liquid Citadel",
+    "citadel": "Liquid Citadel",
+    "tl": "Liquid Citadel",
+    "team liquid": "Liquid Citadel",
+    # Swamp Gaming
+    "swamp": "Swamp Gaming",
+    "sg": "Swamp Gaming",
+    "swampgaming": "Swamp Gaming",
+    # 100T
+    "100t": "100T",
+    "100 thieves": "100T",
+    "100thieves": "100T",
+    # Sentinels
+    "sentinels": "Sentinels",
+    "sen": "Sentinels",
+    "sntnls": "Sentinels",
+}
+
+
+def _resolve_team_alias(name: str) -> str | None:
+    """Return canonical team name for known acronyms/aliases, or None if not found."""
+    return _TEAM_ALIASES.get(_norm(name))
+
+
 def resolve_team(conn: sqlite3.Connection, name: str) -> str | None:
     """Fuzzy-resolve a team name string to the canonical name in the DB."""
     if not name:
         return None
+    # Check alias map first
+    alias = _resolve_team_alias(name)
+    if alias:
+        return alias
     candidates = _known_teams(conn)
     # Also check enemy_team_name values from de_maps
     extra = [r[0] for r in conn.execute(
@@ -607,6 +662,7 @@ def search_site(
     personal = get_personal_team(conn)
     personal_name = personal.get("name", "")
     q = _norm(query)
+    qs = _norm_search(query)  # punctuation-stripped version for fuzzy matching
 
     result: dict[str, Any] = {
         "query": query,
@@ -620,14 +676,35 @@ def search_site(
         "sources_used": [],
     }
 
+    # --- detect self-referential intent ---
+    self_ref_phrases = ("our team", "my team", "we ", "us ", "our heroes", "our comp",
+                        "our record", "our maps", "our stats", "our draft", "our players",
+                        "our roster", "our scrim", "our history", "our bans", "our protects")
+    wants_self = any(phrase in q for phrase in self_ref_phrases) or q.strip() in ("us", "we", "our team", "my team")
+
+    # --- detect profile/overview/snapshot intent ---
+    profile_phrases = ("profile", "overview", "snapshot", "tell me about", "show me", "give me",
+                       "breakdown", "summary", "report", "everything about", "all about", "info on",
+                       "information on", "information about", "what do you know about",
+                       "what can you tell me about", "comp snapshot", "comp profile", "comp overview",
+                       "composition snapshot", "composition overview", "lineup snapshot", "lineup overview",
+                       "roster snapshot", "roster overview", "tournament snapshot", "tournament overview")
+    wants_profile = any(phrase in q for phrase in profile_phrases)
+
     # --- player match ---
     all_player_names = [r[0] for r in conn.execute(
         "SELECT DISTINCT player_name FROM de_player_heroes"
     ).fetchall()]
-    matched_players = [p for p in all_player_names if _norm(p) in q or q in _norm(p)]
+    matched_players_raw = [p for p in all_player_names if _norm_search(p) in qs or qs in _norm_search(p)]
+    matched_players = list(dict.fromkeys(matched_players_raw))
+    seen_player_keys: set[str] = set()
     for p in matched_players:
         info = resolve_player(conn, p)
         if info:
+            pkey = _norm_search(info.get("player_name", ""))
+            if pkey in seen_player_keys:
+                continue
+            seen_player_keys.add(pkey)
             info["heroes"] = get_player_heroes(conn, p, season)
             result["players"].append(info)
     if matched_players:
@@ -637,7 +714,8 @@ def search_site(
     all_heroes = [r[0] for r in conn.execute(
         "SELECT DISTINCT hero FROM de_team_hero_bias"
     ).fetchall()]
-    matched_heroes = [h for h in all_heroes if _norm(h) in q or q in _norm(h)]
+    matched_heroes_raw = [h for h in all_heroes if _norm_search(h) in qs or qs in _norm_search(h)]
+    matched_heroes = list(dict.fromkeys(matched_heroes_raw))
     for h in matched_heroes:
         result["heroes"].append(get_hero_stats(conn, h, personal_name, season))
     if matched_heroes:
@@ -645,9 +723,85 @@ def search_site(
 
     # --- team match ---
     all_teams = _known_teams(conn)
-    matched_teams = [t for t in all_teams if _norm(t) in q or q in _norm(t)]
+    matched_teams = [t for t in all_teams if _norm_search(t) in qs or qs in _norm_search(t)]
+
+    # Check alias map: scan each word/token in the query for known acronyms
+    for token in q.split():
+        token_clean = token.strip(".,!?\"'")
+        alias_match = _resolve_team_alias(token_clean)
+        if alias_match and alias_match not in matched_teams:
+            matched_teams.append(alias_match)
+    # Also try multi-word phrases from the alias map
+    for alias_key, canonical in _TEAM_ALIASES.items():
+        if " " in alias_key and alias_key in q and canonical not in matched_teams:
+            matched_teams.append(canonical)
+
+    # Always include personal team when self-referential phrases are used
+    if wants_self and personal_name and personal_name not in matched_teams:
+        matched_teams.insert(0, personal_name)
+
+    # If profile/overview intent and no team matched yet, default to personal team
+    if wants_profile and not matched_teams and not matched_players and not matched_heroes:
+        matched_teams = [personal_name]
+
     for t in matched_teams:
-        result["teams"].append(get_team_overview(conn, t, season))
+        overview = get_team_overview(conn, t, season)
+        # Also attach player pools for richer team profiles
+        if not season:
+            player_pool_rows = conn.execute(
+                """
+                SELECT ph.player_name, ph.hero, SUM(ph.appearances) as appearances,
+                       SUM(ph.wins) as wins, SUM(ph.losses) as losses
+                FROM de_player_heroes ph
+                WHERE ph.team_name = ?
+                  AND EXISTS (
+                      SELECT 1 FROM players p
+                      JOIN teams tm ON p.team_id = tm.id
+                      WHERE lower(p.name) = lower(ph.player_name)
+                        AND tm.name = ?
+                  )
+                GROUP BY ph.player_name, ph.hero
+                ORDER BY ph.player_name, appearances DESC
+                """,
+                (t, t),
+            ).fetchall()
+        else:
+            player_pool_rows = conn.execute(
+                """
+                SELECT ph.player_name, ph.hero, SUM(ph.appearances) as appearances,
+                       SUM(ph.wins) as wins, SUM(ph.losses) as losses
+                FROM de_player_heroes ph
+                WHERE ph.team_name = ? AND ph.season = ?
+                  AND EXISTS (
+                      SELECT 1 FROM players p
+                      JOIN teams tm ON p.team_id = tm.id
+                      WHERE lower(p.name) = lower(ph.player_name)
+                        AND tm.name = ?
+                  )
+                GROUP BY ph.player_name, ph.hero
+                ORDER BY ph.player_name, appearances DESC
+                """,
+                (t, season, t),
+            ).fetchall()
+        # Group by player
+        player_pools: dict[str, list] = {}
+        for row in player_pool_rows:
+            pname = row[0]
+            if pname not in player_pools:
+                player_pools[pname] = []
+            player_pools[pname].append({"hero": row[1], "appearances": row[2], "wins": row[3], "losses": row[4]})
+        overview["player_pools"] = [
+            {"player_name": k, "heroes": v[:6]}
+            for k, v in player_pools.items()
+        ]
+        # Get role info
+        for pp in overview["player_pools"]:
+            role_row = conn.execute(
+                "SELECT p.role FROM players p JOIN teams t ON p.team_id = t.id WHERE lower(p.name) = lower(?) AND t.name = ?",
+                (pp["player_name"], t),
+            ).fetchone()
+            pp["role"] = role_row[0] if role_row else ""
+        result["teams"].append(overview)
     if matched_teams:
         result["sources_used"].append("team_overview")
 
@@ -662,10 +816,11 @@ def search_site(
         result["sources_used"].append("map_stats")
 
     # --- scrim history snippet ---
-    if matched_teams or "scrim" in q or "history" in q:
-        vs = matched_teams[0] if matched_teams and matched_teams[0] != personal_name else None
-        result["scrims_summary"] = get_scrim_history(conn, personal_name, vs=vs, season=season, limit=5)
-        result["sources_used"].append("scrim_history")
+    if matched_teams or "scrim" in q or "history" in q or "recent" in q or "tournament" in q:
+        vs = next((t for t in matched_teams if t != personal_name), None)
+        result["scrims_summary"] = get_scrim_history(conn, personal_name, vs=vs, season=season, limit=8)
+        if result["scrims_summary"]:
+            result["sources_used"].append("scrim_history")
 
     if not result["sources_used"]:
         result["sources_used"].append("none — no matching entity found in site data")

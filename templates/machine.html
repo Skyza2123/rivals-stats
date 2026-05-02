@@ -436,6 +436,26 @@
 .machine-chat-meta { margin-top:0.45rem; font-size:0.72rem; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; }
 .machine-chat-context { background:rgba(15,23,42,0.46); border:1px solid rgba(148,163,184,0.13); border-radius:0.6rem; padding:0.75rem 0.85rem; }
 .machine-chat-context-main { color:#dbeafe; font-weight:850; margin:0.25rem 0 0.35rem; }
+.machine-mode-toggle { display:grid; grid-template-columns:1fr 1fr; gap:0.45rem; }
+.machine-mode-btn {
+    border:1px solid rgba(148,163,184,0.18);
+    background:rgba(15,23,42,0.45);
+    color:#94a3b8;
+    border-radius:0.52rem;
+    padding:0.42rem 0.55rem;
+    font-size:0.74rem;
+    font-weight:700;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    transition:all .15s ease;
+}
+.machine-mode-btn:hover { border-color:rgba(96,165,250,0.42); color:#dbeafe; }
+.machine-mode-btn.active {
+    border-color:rgba(96,165,250,0.52);
+    background:rgba(30,58,138,0.3);
+    color:#dbeafe;
+    box-shadow:inset 0 0 0 1px rgba(147,197,253,0.14);
+}
 .machine-agent-tree { display:grid; gap:0.55rem; margin-bottom:0.8rem; }
 .machine-agent-tree-root { background:rgba(37,99,235,0.13); border:1px solid rgba(96,165,250,0.32); border-radius:0.6rem; padding:0.7rem 0.8rem; }
 .machine-agent-tree-root-title { color:#dbeafe; font-weight:850; font-size:0.9rem; }
@@ -453,6 +473,20 @@
 .machine-agent-tree-text { color:#cbd5e1; font-size:0.82rem; line-height:1.48; }
 .machine-agent-copy { white-space:pre-wrap; color:#cbd5e1; }
 .machine-agent-copy.machine-agent-copy-leading { margin-bottom:0.65rem; color:#94a3b8; font-size:0.8rem; line-height:1.45; }
+.machine-agent-profile-links { display:flex; flex-wrap:wrap; gap:0.45rem; margin:0.25rem 0 0.65rem; }
+.machine-agent-profile-link {
+    display:inline-flex;
+    align-items:center;
+    gap:0.3rem;
+    padding:0.28rem 0.52rem;
+    border-radius:0.45rem;
+    font-size:0.72rem;
+    color:#bfdbfe;
+    border:1px solid rgba(96,165,250,0.32);
+    background:rgba(30,58,138,0.18);
+    text-decoration:none;
+}
+.machine-agent-profile-link:hover { color:#dbeafe; border-color:rgba(147,197,253,0.55); background:rgba(30,58,138,0.28); }
 .machine-agent-stack { display:grid; gap:0.8rem; }
 .machine-agent-panel { background:rgba(15,23,42,0.5); border:1px solid rgba(148,163,184,0.14); border-radius:0.7rem; padding:0.85rem 0.95rem; }
 .machine-agent-panel-title { color:#e2e8f0; font-size:0.86rem; font-weight:800; margin-bottom:0.18rem; }
@@ -497,6 +531,61 @@
 .machine-agent-comp-card { background:rgba(2,6,23,0.4); border:1px solid rgba(148,163,184,0.12); border-radius:0.65rem; padding:0.75rem 0.8rem; }
 .machine-agent-comp-meta { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.45rem; }
 .machine-agent-pill { display:inline-flex; align-items:center; border-radius:999px; padding:0.18rem 0.48rem; font-size:0.7rem; font-weight:800; border:1px solid rgba(148,163,184,0.14); background:rgba(15,23,42,0.5); color:#cbd5e1; }
+.machine-agent-portrait-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.25rem; }
+.machine-agent-portrait-card { display:flex; flex-direction:column; align-items:center; gap:0.28rem; }
+.machine-agent-portrait-card img { width:54px; height:54px; border-radius:0.5rem; object-fit:cover; border:2px solid rgba(148,163,184,0.22); background:rgba(15,23,42,0.72); transition:transform .15s; }
+.machine-agent-portrait-card img:hover { transform:scale(1.08); }
+.machine-agent-portrait-card.ban-card img { border-color:rgba(248,113,113,0.5); box-shadow:0 0 0 1px rgba(248,113,113,0.18); }
+.machine-agent-portrait-card.protect-card img { border-color:rgba(74,222,128,0.5); box-shadow:0 0 0 1px rgba(74,222,128,0.18); }
+.machine-agent-portrait-name { font-size:0.59rem; color:#94a3b8; text-align:center; max-width:58px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; }
+.machine-agent-comp-portrait-row { border-top:1px solid rgba(148,163,184,0.1); padding:0.55rem 0 0.15rem; }
+.machine-agent-comp-portrait-row:first-child { border-top:none; padding-top:0; }
+.machine-agent-comp-portrait-meta { display:flex; align-items:center; gap:0.45rem; margin-bottom:0.4rem; }
+/* Team profile card */
+.machine-team-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.14); border-radius:0.75rem; overflow:hidden; margin-top:0.5rem; }
+.machine-team-card-header { display:flex; align-items:center; gap:0.6rem; padding:0.7rem 1rem 0.55rem; border-bottom:1px solid rgba(148,163,184,0.1); }
+.machine-team-card-name { font-size:1rem; font-weight:700; color:#e2e8f0; letter-spacing:0.01em; }
+.machine-team-card-body { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.machine-team-card-col { padding:0.75rem 1rem; }
+.machine-team-card-col + .machine-team-card-col { border-left:1px solid rgba(148,163,184,0.1); }
+.machine-team-card-section { margin-bottom:0.85rem; }
+.machine-team-card-section:last-child { margin-bottom:0; }
+.machine-team-card-label { font-size:0.64rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:0.4rem; }
+.machine-team-card-hero-row { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.machine-team-card-hero-pill { display:flex; align-items:center; gap:0.4rem; background:rgba(30,41,59,0.8); border:1px solid rgba(148,163,184,0.13); border-radius:0.35rem; padding:0.25rem 0.55rem 0.25rem 0.25rem; }
+.machine-team-card-hero-pill img { width:32px; height:32px; border-radius:0.3rem; object-fit:cover; flex-shrink:0; }
+.machine-team-card-hero-pill span { font-size:0.72rem; color:#cbd5e1; }
+.machine-team-card-hero-pill-info { display:flex; flex-direction:column; gap:0.05rem; }
+.machine-team-card-hero-pill-name { font-size:0.76rem; color:#e2e8f0; font-weight:500; }
+.machine-team-card-hero-pill-stat { font-size:0.65rem; color:#64748b; }
+.machine-team-card-hero-wr { font-size:0.65rem; color:#94a3b8; margin-left:0.2rem; }
+.machine-team-card-pair { font-size:0.75rem; color:#94a3b8; display:flex; align-items:center; gap:0.35rem; margin-bottom:0.3rem; }
+.machine-team-card-pair img { width:20px; height:20px; border-radius:0.2rem; object-fit:cover; }
+.machine-team-card-pair-slash { color:#475569; }
+.machine-team-card-pair-count { font-size:0.65rem; color:#64748b; margin-left:0.1rem; }
+.machine-team-card-map-row { font-size:0.73rem; color:#94a3b8; margin-bottom:0.28rem; display:flex; justify-content:space-between; }
+.machine-team-card-map-name { color:#cbd5e1; }
+.machine-team-card-map-record { font-size:0.68rem; }
+.machine-team-card-map-record .win { color:#4ade80; }
+.machine-team-card-map-record .loss { color:#f87171; }
+.machine-team-card-player { margin-bottom:0.6rem; }
+.machine-team-card-player:last-child { margin-bottom:0; }
+.machine-team-card-player-header { display:flex; align-items:center; gap:0.35rem; margin-bottom:0.3rem; }
+.machine-team-card-player-name { font-size:0.78rem; font-weight:600; color:#e2e8f0; }
+.machine-team-card-player-role { font-size:0.62rem; color:#64748b; background:rgba(30,41,59,0.6); border-radius:999px; padding:0.1rem 0.4rem; }
+.machine-team-card-scrim-row { font-size:0.73rem; color:#94a3b8; margin-bottom:0.28rem; display:flex; gap:0.5rem; }
+.machine-team-card-scrim-date { color:#64748b; min-width:5.5rem; }
+.machine-ban-impact-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.6rem; }
+.machine-ban-impact-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.12); border-radius:0.5rem; padding:0.65rem 0.75rem; }
+.machine-ban-impact-card-header { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
+.machine-ban-impact-badge { font-size:0.62rem; font-weight:600; padding:0.12rem 0.4rem; border-radius:999px; white-space:nowrap; }
+.machine-ban-impact-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:0.3rem; margin-bottom:0.45rem; text-align:center; }
+.machine-team-card-scrim-opp { color:#cbd5e1; flex:1; }
+.machine-team-card-scrim-result { font-size:0.68rem; }
+.machine-team-card-scrim-result .win { color:#4ade80; }
+.machine-team-card-scrim-result .loss { color:#f87171; }
+.machine-team-card-full { grid-column:1/-1; border-top:1px solid rgba(148,163,184,0.1); padding:0.75rem 1rem; }
+@media (max-width:700px) { .machine-team-card-body { grid-template-columns:1fr; } .machine-team-card-col + .machine-team-card-col { border-left:none; border-top:1px solid rgba(148,163,184,0.1); } }
 .machine-chat-compose { display:grid; grid-template-columns:1fr auto; gap:0.75rem; padding:0.9rem; border-top:1px solid rgba(148,163,184,0.12); background:rgba(2,6,23,0.28); }
 .machine-chat-compose textarea { min-height:48px; max-height:140px; resize:vertical; }
 .machine-chat-samples { display:flex; flex-wrap:wrap; gap:0.45rem; }
@@ -527,7 +616,7 @@
 <div class="machine-tab-bar">
     <button class="machine-tab active" type="button" id="mtab-matchup">Draft Matchup</button>
     <button class="machine-tab" type="button" id="mtab-reasoner">Draft Reasoner</button>
-    <button class="machine-tab" type="button" id="mtab-chat">Draft Agent</button>
+    <button class="machine-tab" type="button" id="mtab-chat">Agent</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -879,8 +968,8 @@
 
 <div class="machine-tab-panel" id="mpanel-chat">
 <section class="panel">
-    <div class="section-kicker">Draft Agent</div>
-    <h3>Machine Draft Agent</h3>
+    <div class="section-kicker">Agent</div>
+    <h3>Machine Agent</h3>
     <p class="panel-intro">Generate local draft calls from the matchup model: bans, protects, comp direction, map reads, and risk checks.</p>
 
     <div class="machine-chat-grid">
@@ -889,6 +978,10 @@
                 <div class="machine-agent-tree-title">Current Draft Context</div>
                 <div class="machine-chat-context-main" id="machine-chat-context-main">No matchup yet</div>
                 <div class="machine-agent-tree-text" id="machine-chat-context-sub">Tell the agent who you are, who the enemy is, and the season when it matters.</div>
+            </div>
+            <div class="machine-mode-toggle" id="machine-mode-toggle" role="group" aria-label="Agent mode">
+                <button type="button" class="machine-mode-btn active" data-mode="search">Search Mode</button>
+                <button type="button" class="machine-mode-btn" data-mode="reasoning">Reasoning Mode</button>
             </div>
             <div class="machine-chat-samples">
                 <button type="button" class="machine-chat-sample" data-question="Set current draft from the reasoner tab">Set current draft</button>
@@ -903,7 +996,7 @@
 
         <div class="machine-chat-shell">
             <div class="machine-chat-log" id="machine-chat-log">
-                <div class="machine-chat-message bot">Ask normally. If I need the matchup or season, I will ask and remember the draft question.</div>
+                <div class="machine-chat-message bot">Search mode: broad site snapshots and profiles. Reasoning mode: draft strategy with LLM + matchup context.</div>
             </div>
             <form class="machine-chat-compose" id="machine-chat-form">
                 <textarea id="machine-chat-input" placeholder="Example: What should we ban here?" maxlength="1200"></textarea>
@@ -913,6 +1006,14 @@
     </div>
 </section>
 </div>
+
+<script id="machine-agent-seed" type="application/json">
+{
+  "teamNames": { {% for team in teams %}"{{ team.id }}": {{ team.name|tojson }}{% if not loop.last %},{% endif %}{% endfor %} },
+  "team_a_id": {{ (personal_team.id if personal_team else none) | tojson }},
+  "team_a_name": {{ (personal_team.name if personal_team else '') | tojson }}
+}
+</script>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -966,6 +1067,13 @@ function heroCell(hero) {
     const fallback = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero);
     return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + escapeHtml(hero) + '" class="hero-inline-thumb" onerror="this.src=\'' + fallback + '\'"><span>' + escapeHtml(hero) + '</span></span>';
 }
+function heroPortraitCardHtml(hero, type) {
+    const cls = type === 'ban' ? 'ban-card' : type === 'protect' ? 'protect-card' : '';
+    return '<div class="machine-agent-portrait-card ' + cls + '">'
+        + '<img src="' + heroThumbUrl(hero) + '" alt="' + escapeHtml(hero) + '" title="' + escapeHtml(hero) + '" loading="lazy" onerror="this.style.opacity=\'0.3\'">'
+        + '<div class="machine-agent-portrait-name">' + escapeHtml(hero) + '</div>'
+        + '</div>';
+}
 function heroChipHtml(hero, type, playerName) {
     const cls = type === 'ban' ? 'ban-chip' : type === 'protect' ? 'protect-chip' : '';
     const playerMeta = (playerName || '').trim()
@@ -984,23 +1092,39 @@ function openHeroIconHtml(hero) {
     const input = document.getElementById('machine-chat-input');
     const log = document.getElementById('machine-chat-log');
     const sendBtn = document.getElementById('machine-chat-send');
+    const modeToggle = document.getElementById('machine-mode-toggle');
     const contextMain = document.getElementById('machine-chat-context-main');
     const contextSub = document.getElementById('machine-chat-context-sub');
     if (!form || !input || !log || !sendBtn) return;
-    const teamNames = {
-        {% for team in teams %}"{{ team.id }}": {{ team.name|tojson }}{% if not loop.last %},{% endif %}{% endfor %}
-    };
+    const _agentSeed = JSON.parse(document.getElementById('machine-agent-seed').textContent);
+    const teamNames = _agentSeed.teamNames;
     let agentContext = {
-        team_a_id: {{ (personal_team.id if personal_team else none) | tojson }},
+        team_a_id: _agentSeed.team_a_id,
         team_b_id: null,
-        team_a_name: {{ (personal_team.name if personal_team else '') | tojson }},
+        team_a_name: _agentSeed.team_a_name,
         team_b_name: '',
         season: 'all',
         map: 'all',
         include_scrims: true,
-        include_tournaments: true
+        include_tournaments: true,
+        reasoning_mode: 'search'
     };
     let agentPendingMessage = '';
+
+    function syncModeControls() {
+        if (!modeToggle) return;
+        const mode = agentContext.reasoning_mode === 'reasoning' ? 'reasoning' : 'search';
+        modeToggle.querySelectorAll('.machine-mode-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        if (input) {
+            if (mode === 'reasoning') {
+                input.placeholder = 'Example: What should we ban first into VP on Shin-Shibuya?';
+            } else {
+                input.placeholder = 'Example: VP team snapshot or Fate player profile';
+            }
+        }
+    }
 
     function appendMessage(role, text, metaText) {
         const node = document.createElement('div');
@@ -1039,6 +1163,7 @@ function openHeroIconHtml(hero) {
             contextMain.textContent = 'No matchup yet';
         }
         const filters = [
+            agentContext.reasoning_mode === 'reasoning' ? 'Reasoning mode' : 'Search mode',
             'Season ' + (agentContext.season && agentContext.season !== 'all' ? agentContext.season : 'all'),
             agentContext.map && agentContext.map !== 'all' ? agentContext.map : 'All maps',
             agentContext.include_scrims && agentContext.include_tournaments ? 'scrims + tournaments' : (agentContext.include_scrims ? 'scrims only' : 'tournaments only')
@@ -1049,8 +1174,10 @@ function openHeroIconHtml(hero) {
     function mergeAgentContext(nextContext) {
         if (!nextContext) return;
         agentContext = Object.assign({}, agentContext, nextContext);
+        agentContext.reasoning_mode = agentContext.reasoning_mode === 'reasoning' ? 'reasoning' : 'search';
         if (!agentContext.team_a_name && agentContext.team_a_id) agentContext.team_a_name = teamNames[String(agentContext.team_a_id)] || '';
         if (!agentContext.team_b_name && agentContext.team_b_id) agentContext.team_b_name = teamNames[String(agentContext.team_b_id)] || '';
+        syncModeControls();
         updateContextPanel();
     }
 
@@ -1193,8 +1320,8 @@ function openHeroIconHtml(hero) {
     function summarizeHeroList(heroes, type) {
         heroes = (heroes || []).filter(Boolean);
         if (!heroes.length) return '<div class="machine-agent-mini">No strong read.</div>';
-        return '<div class="machine-agent-hero-strip">'
-            + heroes.map(function(hero) { return heroChipHtml(hero, type || ''); }).join('')
+        return '<div class="machine-agent-portrait-grid">'
+            + heroes.map(function(hero) { return heroPortraitCardHtml(hero, type || ''); }).join('')
             + '</div>';
     }
 
@@ -1526,12 +1653,262 @@ function openHeroIconHtml(hero) {
         return '';
     }
 
-    function renderFocusedVisual(intent, visuals) {
+    function renderCompPortraitPanel(visuals, meta) {
+        const ourRows = (visuals.our_comp_rows || []).slice(0, 5);
+        const teamA = (meta || {}).team_a || 'Us';
+        if (ourRows.length) {
+            return '<div class="machine-agent-panel">'
+                + '<div class="machine-agent-panel-title">Best Comps for ' + escapeHtml(teamA) + '</div>'
+                + ourRows.map(function(row, idx) {
+                    const heroes = (row.heroes || []).slice(0, 6);
+                    const wr = Number(row.win_rate || 0).toFixed(1);
+                    const rate = Number(row.rate || 0).toFixed(1);
+                    return '<div class="machine-agent-comp-portrait-row">'
+                        + '<div class="machine-agent-comp-portrait-meta">'
+                        + '<span class="machine-agent-rank" style="color:#bfdbfe">#' + (idx + 1) + '</span>'
+                        + '<span class="machine-agent-pill">' + escapeHtml(wr) + '% WR</span>'
+                        + '<span class="machine-agent-pill">' + escapeHtml(rate) + '% pick rate</span>'
+                        + '</div>'
+                        + '<div class="machine-agent-portrait-grid">'
+                        + heroes.map(function(h) { return heroPortraitCardHtml(h, ''); }).join('')
+                        + '</div>'
+                        + '</div>';
+                }).join('')
+                + '</div>';
+        }
+        if ((visuals.target_comp || []).length) {
+            return '<div class="machine-agent-panel">'
+                + '<div class="machine-agent-panel-title">Target Comp</div>'
+                + '<div class="machine-agent-portrait-grid">'
+                + (visuals.target_comp || []).map(function(h) { return heroPortraitCardHtml(h, ''); }).join('')
+                + '</div>'
+                + ((visuals.recommended_protects || []).length
+                    ? '<div class="machine-agent-visual-label" style="margin-top:0.7rem">Protect</div><div class="machine-agent-portrait-grid">'
+                      + (visuals.recommended_protects || []).map(function(h) { return heroPortraitCardHtml(h, 'protect'); }).join('')
+                      + '</div>' : '')
+                + '</div>';
+        }
+        return renderCompCardsVisual(visuals, 'Comp Cards');
+    }
+
+    function renderBanImpactRows(banRows) {
+        if (!banRows || !banRows.length) return '';
+        const deltaColor = (d) => d === null ? '#94a3b8' : d > 0 ? '#4ade80' : d < 0 ? '#f87171' : '#94a3b8';
+        const wrColor = (w) => w === null ? '#94a3b8' : w >= 55 ? '#4ade80' : w >= 45 ? '#f59e0b' : '#f87171';
+        const cards = banRows.map(row => {
+            const pivotPills = (row.pivots || []).slice(0, 3).map(pv =>
+                '<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem">'
+                + '<img src="' + heroThumbUrl(pv.hero) + '" style="width:22px;height:22px;border-radius:0.2rem;object-fit:cover" onerror="this.style.display=\'none\'">'
+                + '<span style="font-size:0.72rem;color:#cbd5e1;flex:1">' + escapeHtml(pv.hero) + '</span>'
+                + '<span style="font-size:0.65rem;color:#64748b">' + pv.count + 'x' + (pv.wr !== null ? ' · ' + pv.wr + '% WR' : '') + '</span>'
+                + '</div>'
+            ).join('');
+            const delta = row.wr_delta;
+            const deltaStr = delta !== null ? (delta > 0 ? '+' + delta + '%' : delta + '%') : '—';
+            return '<div class="machine-ban-impact-card">'
+                + '<div class="machine-ban-impact-card-header">'
+                + '<img src="' + heroThumbUrl(row.hero) + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">'
+                + '<div style="flex:1;min-width:0">'
+                + '<div style="font-size:0.8rem;font-weight:600;color:#e2e8f0">' + escapeHtml(row.hero) + '</div>'
+                + '<div style="font-size:0.65rem;color:#64748b">' + (row.hero_maps || 0) + ' maps · banned ' + (row.times_banned || 0) + 'x</div>'
+                + '</div>'
+                + '<span class="machine-ban-impact-badge" style="background:' + wrColor(row.wr_when_banned) + '22;color:' + wrColor(row.wr_when_banned) + ';border:1px solid ' + wrColor(row.wr_when_banned) + '44">Banned ' + (row.times_banned || 0) + '×</span>'
+                + '</div>'
+                + '<div class="machine-ban-impact-stats">'
+                + '<div><div class="machine-team-card-label">WR Available</div><div style="font-size:1rem;font-weight:700;color:' + wrColor(row.hero_wr) + '">' + (row.hero_wr !== null ? row.hero_wr + '%' : '—') + '</div></div>'
+                + '<div><div class="machine-team-card-label">WR Banned</div><div style="font-size:1rem;font-weight:700;color:' + wrColor(row.wr_when_banned) + '">' + (row.wr_when_banned !== null ? row.wr_when_banned + '%' : '—') + '</div></div>'
+                + '<div><div class="machine-team-card-label">Impact</div><div style="font-size:1rem;font-weight:700;color:' + deltaColor(delta) + '">' + deltaStr + '</div></div>'
+                + '</div>'
+                + (pivotPills ? '<div class="machine-team-card-label" style="margin-bottom:0.3rem">Pivots To</div>' + pivotPills : '')
+                + '</div>';
+        }).join('');
+        return '<div class="machine-ban-impact-grid">' + cards + '</div>';
+    }
+
+    function renderPlayerCard(pp) {
+        if (!pp || !pp.player_name) return '';
+        const heroPill = (h) => {
+            const total = (h.wins || 0) + (h.losses || 0);
+            const wr = total ? Math.round((h.wins / total) * 100) : null;
+            return '<div class="machine-team-card-hero-pill">'
+                + '<img src="' + heroThumbUrl(h.hero) + '" alt="' + escapeHtml(h.hero) + '" onerror="this.style.display=\'none\'">'
+                + '<div class="machine-team-card-hero-pill-info"><span class="machine-team-card-hero-pill-name">' + escapeHtml(h.hero) + '</span>'
+                + '<span class="machine-team-card-hero-pill-stat">' + (h.appearances || '') + (wr !== null ? ' (' + wr + '% WR)' : '') + '</span></div>'
+                + '</div>';
+        };
+        const roleColors = { Vanguard: '#3b82f6', Duelist: '#ef4444', Strategist: '#22c55e' };
+        const roleColor = roleColors[pp.role] || '#94a3b8';
+        const banImpactHtml = renderBanImpactRows(pp.ban_impact || []);
+        return '<div class="machine-team-card" style="max-width:700px">'
+            + '<div class="machine-team-card-header" style="gap:0.7rem;align-items:center">'
+            + '<span class="machine-team-card-name">' + escapeHtml(pp.player_name) + '</span>'
+            + (pp.role ? '<span class="machine-team-card-player-role" style="background:' + roleColor + '22;color:' + roleColor + ';border:1px solid ' + roleColor + '44">' + escapeHtml(pp.role) + '</span>' : '')
+            + (pp.team_name ? '<span style="color:#64748b;font-size:0.78rem">' + escapeHtml(pp.team_name) + '</span>' : '')
+            + '</div>'
+            + '<div class="machine-team-card-body" style="grid-template-columns:220px 1fr">'
+            + '<div class="machine-team-card-col"><div class="machine-team-card-section"><div class="machine-team-card-label">Hero Pool</div>'
+            + '<div style="display:flex;flex-direction:column;gap:0.4rem">'
+            + (pp.heroes || []).map(heroPill).join('')
+            + '</div></div></div>'
+            + '<div class="machine-team-card-col">'
+            + (banImpactHtml ? '<div class="machine-team-card-section"><div class="machine-team-card-label">Ban Impact</div>' + banImpactHtml + '</div>' : '')
+            + '</div>'
+            + '</div>'
+            + '</div>';
+    }
+
+    function renderHeroCard(h) {
+        if (!h || !h.hero) return '';
+        const total = (h.played_wins || 0) + (h.played_losses || 0);
+        const wr = total ? Math.round((h.played_wins / total) * 100) : null;
+        const wrColor = wr === null ? '#94a3b8' : wr >= 55 ? '#22c55e' : wr >= 45 ? '#f59e0b' : '#ef4444';
+        const partnerRow = (pp) => {
+            const pwr = pp.co_appearances ? Math.round((pp.wins / pp.co_appearances) * 100) : null;
+            return '<div class="machine-team-card-pair" style="align-items:center">'
+                + '<img src="' + heroThumbUrl(pp.partner) + '" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">'
+                + '<span style="flex:1">' + escapeHtml(pp.partner) + '</span>'
+                + '<span style="color:#64748b;font-size:0.8rem">' + pp.co_appearances + 'x'
+                + (pwr !== null ? ' · ' + pwr + '% WR' : '') + '</span>'
+                + '</div>';
+        };
+        // Per-player impact section for this hero
+        const playerImpactSection = (imp) => {
+            const pivots = (imp.pivots || []).slice(0, 3).map(pv =>
+                '<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.2rem">'
+                + '<img src="' + heroThumbUrl(pv.hero) + '" style="width:20px;height:20px;border-radius:0.2rem;object-fit:cover" onerror="this.style.display=\'none\'">'
+                + '<span style="font-size:0.7rem;color:#cbd5e1;flex:1">' + escapeHtml(pv.hero) + '</span>'
+                + '<span style="font-size:0.62rem;color:#64748b">' + pv.count + 'x' + (pv.wr !== null ? ' · ' + pv.wr + '%' : '') + '</span>'
+                + '</div>'
+            ).join('');
+            const dColor = imp.wr_delta === null ? '#94a3b8' : imp.wr_delta > 0 ? '#4ade80' : imp.wr_delta < 0 ? '#f87171' : '#94a3b8';
+            const dStr = imp.wr_delta !== null ? (imp.wr_delta > 0 ? '+' + imp.wr_delta + '%' : imp.wr_delta + '%') : '—';
+            const aWR = imp.hero_wr !== null ? imp.hero_wr + '%' : '—';
+            const bWR = imp.wr_when_banned !== null ? imp.wr_when_banned + '%' : '—';
+            return '<div class="machine-ban-impact-card" style="margin-bottom:0.5rem">'
+                + '<div class="machine-ban-impact-card-header">'
+                + '<div style="font-size:0.78rem;font-weight:600;color:#e2e8f0;flex:1">' + escapeHtml(imp.player_name) + '</div>'
+                + '<span style="font-size:0.65rem;color:#64748b">' + (imp.hero_maps || 0) + ' maps · banned ' + (imp.times_banned || 0) + 'x</span>'
+                + '</div>'
+                + '<div class="machine-ban-impact-stats">'
+                + '<div><div class="machine-team-card-label">Avail WR</div><div style="font-size:0.9rem;font-weight:700;color:#94a3b8">' + aWR + '</div></div>'
+                + '<div><div class="machine-team-card-label">Banned WR</div><div style="font-size:0.9rem;font-weight:700;color:#94a3b8">' + bWR + '</div></div>'
+                + '<div><div class="machine-team-card-label">Impact</div><div style="font-size:0.9rem;font-weight:700;color:' + dColor + '">' + dStr + '</div></div>'
+                + '</div>'
+                + (pivots ? '<div style="margin-top:0.4rem"><div class="machine-team-card-label" style="margin-bottom:0.3rem">Pivots To</div>' + pivots + '</div>' : '')
+                + '</div>';
+        };
+        const impactHtml = (h.player_impacts || []).length
+            ? '<div class="machine-team-card-full"><div class="machine-team-card-label" style="margin-bottom:0.5rem">Player Ban Impact</div>'
+              + '<div class="machine-ban-impact-grid">' + (h.player_impacts || []).map(playerImpactSection).join('') + '</div></div>'
+            : '';
+        return '<div class="machine-team-card" style="max-width:640px">'
+            + '<div class="machine-team-card-header" style="gap:0.7rem;align-items:center">'
+            + '<img src="' + heroThumbUrl(h.hero) + '" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">'
+            + '<span class="machine-team-card-name">' + escapeHtml(h.hero) + '</span>'
+            + (h.team ? '<span style="color:#64748b;font-size:0.78rem">' + escapeHtml(h.team) + '</span>' : '')
+            + '</div>'
+            + '<div class="machine-team-card-body" style="grid-template-columns:1fr 1fr">'
+            + '<div class="machine-team-card-col">'
+            + '<div class="machine-team-card-section"><div class="machine-team-card-label">Record</div>'
+            + '<div class="machine-agent-visual-grid cols-3" style="gap:0.5rem;margin-top:0.4rem">'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Played</div><div class="machine-agent-kpi">' + (h.played_count || 0) + '</div></div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">W/L</div><div class="machine-agent-kpi" style="color:' + wrColor + '">' + (h.played_wins || 0) + '/' + (h.played_losses || 0) + '</div></div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">WR</div><div class="machine-agent-kpi" style="color:' + wrColor + '">' + (wr !== null ? wr + '%' : '—') + '</div></div>'
+            + '</div></div>'
+            + '<div class="machine-team-card-section"><div class="machine-team-card-label">Draft Presence</div>'
+            + '<div class="machine-agent-visual-grid cols-2" style="gap:0.5rem;margin-top:0.4rem">'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Banned</div><div class="machine-agent-kpi">' + (h.ban_count || 0) + 'x</div></div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Protected</div><div class="machine-agent-kpi">' + (h.protect_count || 0) + 'x</div></div>'
+            + '</div></div>'
+            + '</div>'
+            + '<div class="machine-team-card-col">'
+            + ((h.pair_partners || []).length ? '<div class="machine-team-card-section"><div class="machine-team-card-label">Best Partners</div>'
+            + (h.pair_partners || []).map(partnerRow).join('') + '</div>' : '')
+            + '</div>'
+            + '</div>'
+            + impactHtml
+            + '</div>';
+    }
+
+    function renderTeamProfileCard(tp) {
+        if (!tp || !tp.team_name) return '';
+        const heroPill = (h) => {
+            const total = (h.wins || 0) + (h.losses || 0);
+            const wr = total ? Math.round((h.wins / total) * 100) : null;
+            const wrHtml = wr !== null ? '<span class="machine-team-card-hero-wr">' + wr + '%</span>' : '';
+            return '<div class="machine-team-card-hero-pill">'
+                + '<img src="' + heroThumbUrl(h.hero) + '" alt="' + escapeHtml(h.hero) + '" onerror="this.style.display=\'none\'">'
+                + '<span>' + escapeHtml(h.hero) + '</span>' + wrHtml + '</div>';
+        };
+        const pairRow = (p) => '<div class="machine-team-card-pair">'
+            + '<img src="' + heroThumbUrl(p.hero_a) + '" alt="" onerror="this.style.display=\'none\'">'
+            + '<span>' + escapeHtml(p.hero_a) + '</span>'
+            + '<span class="machine-team-card-pair-slash">/</span>'
+            + '<img src="' + heroThumbUrl(p.hero_b) + '" alt="" onerror="this.style.display=\'none\'">'
+            + '<span>' + escapeHtml(p.hero_b) + '</span>'
+            + '<span class="machine-team-card-pair-count">(' + (p.co_appearances || 0) + 'x)</span>'
+            + '</div>';
+        const mapRow = (m) => {
+            const pct = m.played ? Math.round((m.wins / m.played) * 100) : 0;
+            return '<div class="machine-team-card-map-row">'
+                + '<span class="machine-team-card-map-name">' + escapeHtml(m.map_name) + '</span>'
+                + '<span class="machine-team-card-map-record"><span class="win">' + m.wins + 'W</span> <span class="loss">' + m.losses + 'L</span> <span style="color:#475569">/' + m.played + ' (' + pct + '%)</span></span>'
+                + '</div>';
+        };
+        const scrimRow = (s) => {
+            const hasResult = s.wins + s.losses > 0;
+            return '<div class="machine-team-card-scrim-row">'
+                + '<span class="machine-team-card-scrim-date">' + escapeHtml(s.date) + '</span>'
+                + '<span class="machine-team-card-scrim-opp">vs ' + escapeHtml(s.opponent) + '</span>'
+                + (hasResult ? '<span class="machine-team-card-scrim-result"><span class="win">' + s.wins + 'W</span> <span class="loss">' + s.losses + 'L</span></span>' : '')
+                + '</div>';
+        };
+        const playerSection = (pp) => {
+            const heroGrid = (pp.heroes || []).map(h => heroPill(h)).join('');
+            return '<div class="machine-team-card-player">'
+                + '<div class="machine-team-card-player-header">'
+                + '<span class="machine-team-card-player-name">' + escapeHtml(pp.player_name) + '</span>'
+                + (pp.role ? '<span class="machine-team-card-player-role">' + escapeHtml(pp.role) + '</span>' : '')
+                + '</div>'
+                + '<div class="machine-team-card-hero-row">' + heroGrid + '</div>'
+                + '</div>';
+        };
+
+        const biasHtml = (tp.hero_bias || []).slice(0, 8).map(heroPill).join('');
+        const pairsHtml = (tp.pair_cores || []).slice(0, 5).map(pairRow).join('');
+        const mapsHtml = (tp.map_stats || []).slice(0, 6).map(mapRow).join('');
+        const playersHtml = (tp.player_pools || []).map(playerSection).join('');
+        const scrimsHtml = (tp.recent_scrims || []).slice(0, 6).map(scrimRow).join('');
+
+        return '<div class="machine-team-card">'
+            + '<div class="machine-team-card-header"><span class="machine-team-card-name">' + escapeHtml(tp.team_name) + '</span></div>'
+            + '<div class="machine-team-card-body">'
+            + '<div class="machine-team-card-col">'
+            + (biasHtml ? '<div class="machine-team-card-section"><div class="machine-team-card-label">Hero Bias</div><div class="machine-team-card-hero-row">' + biasHtml + '</div></div>' : '')
+            + (pairsHtml ? '<div class="machine-team-card-section"><div class="machine-team-card-label">Core Pairs</div>' + pairsHtml + '</div>' : '')
+            + (mapsHtml ? '<div class="machine-team-card-section"><div class="machine-team-card-label">Map Record</div>' + mapsHtml + '</div>' : '')
+            + '</div>'
+            + '<div class="machine-team-card-col">'
+            + (playersHtml ? '<div class="machine-team-card-section"><div class="machine-team-card-label">Player Pools</div>' + playersHtml + '</div>' : '')
+            + '</div>'
+            + '</div>'
+            + (scrimsHtml ? '<div class="machine-team-card-full"><div class="machine-team-card-label">Recent Scrims</div>' + scrimsHtml + '</div>' : '')
+            + '</div>';
+    }
+
+    function renderFocusedVisual(intent, visuals, meta) {
+        if (intent === 'site_info') {
+            // Priority: team card > player card > hero card
+            if (visuals.team_profile) return renderTeamProfileCard(visuals.team_profile);
+            if (visuals.player_profile) return renderPlayerCard(visuals.player_profile);
+            if (visuals.hero_profile) return renderHeroCard(visuals.hero_profile);
+        }
         if (intent === 'player_pivot' && visuals.player_pivot) return renderPlayerPivotProfile(visuals.player_pivot);
         if (intent === 'slot_compare') return renderScenarioCompareVisual(visuals);
         if (intent === 'summary' || intent === 'check' || intent === 'stats') return renderPreparationCoverageBoard(visuals);
         if (intent === 'ban' || intent === 'ban_impact' || intent === 'hero_volatility') return renderBanConsequencePanel(visuals);
-        if (intent === 'protect' || intent === 'comp' || intent === 'enemy_comps') return renderCompCardsVisual(visuals, 'Comp Cards');
+        if (intent === 'comp') return renderCompPortraitPanel(visuals, meta);
+        if (intent === 'protect' || intent === 'enemy_comps') return renderCompCardsVisual(visuals, 'Comp Cards');
         if (intent === 'next_pick' || intent === 'pivot') return renderBranchLadderVisual(visuals, intent === 'pivot' ? 'Branch Ladder' : 'Next-Pick Ladder');
         if (intent === 'risk' || intent === 'contested' || intent === 'comfort') return renderHeatmapVisual(visuals);
         if (intent === 'map' || intent === 'confidence') return renderScenarioCompareVisual(visuals);
@@ -1543,7 +1920,7 @@ function openHeroIconHtml(hero) {
         meta = meta || {};
         const intent = meta.intent || 'summary';
         const rankedTable = renderRankedTable(intent, visuals);
-        const focusedVisual = renderFocusedVisual(intent, visuals);
+        const focusedVisual = renderFocusedVisual(intent, visuals, meta);
         if (!rankedTable && !focusedVisual) return '';
         return '<div class="machine-agent-stack">' + rankedTable + focusedVisual + '</div>';
     }
@@ -1556,6 +1933,33 @@ function openHeroIconHtml(hero) {
         return true;
     }
 
+    function renderAgentProfileLinks(meta) {
+        const links = (meta && meta.profile_links) || [];
+        if (!links.length) return '';
+        const safeLinks = links.filter(function(link) {
+            const href = (link && link.url) || '';
+            return typeof href === 'string' && href.startsWith('/');
+        });
+        if (!safeLinks.length) return '';
+        return '<div class="machine-agent-profile-links">'
+            + safeLinks.map(function(link) {
+                const label = escapeHtml(link.label || 'Open profile');
+                const href = escapeHtml(link.url || '#');
+                return '<a class="machine-agent-profile-link" href="' + href + '">' + label + '</a>';
+            }).join('')
+            + '</div>';
+    }
+
+    function agentEngineLabel(data) {
+        const meta = (data && data.meta) || {};
+        const engine = (meta.response_engine || '').toLowerCase();
+        if (engine === 'llm_reasoning') return 'LLM reasoning';
+        if (engine === 'local_draft') return 'Local draft logic';
+        if (engine === 'local_search') return 'Local search';
+        if (engine === 'context_prompt') return 'Context prompt';
+        return 'Local agent';
+    }
+
     function renderAgentAnswer(node, data) {
         mergeAgentContext((data.meta || {}).context);
         if ((data.meta || {}).needs_context) {
@@ -1565,11 +1969,13 @@ function openHeroIconHtml(hero) {
         }
         const showVisuals = shouldRenderAgentVisuals(data);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
+        const linksHtml = renderAgentProfileLinks(data.meta || {});
         node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
+            + linksHtml
             + (showVisuals ? renderAgentVisuals((data.meta || {}).visuals, data.meta || {}) : '');
         const meta = document.createElement('div');
         meta.className = 'machine-chat-meta';
-        meta.textContent = 'Local draft agent';
+        meta.textContent = 'Local agent | ' + agentEngineLabel(data);
         node.appendChild(meta);
     }
 
@@ -1619,7 +2025,7 @@ function openHeroIconHtml(hero) {
             const question = btn.getAttribute('data-question') || '';
             if (question.indexOf('Set current draft') === 0) {
                 syncFromReasoner();
-                appendMessage('bot', 'Current draft context updated from the reasoner tab.', 'Local draft agent');
+                appendMessage('bot', 'Current draft context updated from the reasoner tab.', 'Local agent');
                 return;
             }
             input.value = question;
@@ -1648,6 +2054,17 @@ function openHeroIconHtml(hero) {
 
     document.getElementById('mtab-chat').addEventListener('click', syncFromReasoner);
     updateContextPanel();
+    syncModeControls();
+
+    if (modeToggle) {
+        modeToggle.querySelectorAll('.machine-mode-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                agentContext.reasoning_mode = btn.dataset.mode === 'reasoning' ? 'reasoning' : 'search';
+                syncModeControls();
+                updateContextPanel();
+            });
+        });
+    }
 })();
 
 //  TAB 1 · MATCHUP TREE JS

@@ -108,9 +108,10 @@
                 <a href="{{ url_for('scrims') }}" class="nav-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
                 <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
                 <a href="{{ url_for('tournaments') }}" class="nav-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
+                <a href="{{ url_for('machine', tab='chat') }}" class="nav-link {% if request.path == '/machine' and request.args.get('tab') == 'chat' %}active{% endif %}">Agent</a>
 
                 <details class="topnav-tools">
-                    <summary class="nav-link {% if request.path == '/machine' or request.path == '/draft-reasoner' %}active{% endif %}">Machine</summary>
+                    <summary class="nav-link {% if request.path == '/draft-reasoner' or (request.path == '/machine' and request.args.get('tab') != 'chat') %}active{% endif %}">Machine</summary>
                     <div class="topnav-tools-menu">
                         <a href="{{ url_for('machine') }}" class="nav-link {% if request.path == '/machine' and request.args.get('tab') != 'reasoner' %}active{% endif %}">Draft Matchup</a>
                         <a href="{{ url_for('machine', tab='reasoner') }}" class="nav-link {% if request.path == '/draft-reasoner' or (request.path == '/machine' and request.args.get('tab') == 'reasoner') %}active{% endif %}">Draft Reasoner</a>
