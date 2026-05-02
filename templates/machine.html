@@ -5,8 +5,8 @@
 {% block content %}
 <style>
 /* ── Machine page shared ─────────────────────────────────────── */
-.dashboard-layout { max-width:none; width:100%; }
-.main-content { padding-left:clamp(10px, 1.2vw, 22px); padding-right:clamp(10px, 1.2vw, 22px); }
+.dashboard-layout { max-width:var(--content-max); width:100%; }
+.main-content { padding:clamp(14px, 2vw, 24px) clamp(16px, 3vw, 38px); }
 .machine-tab-bar { display:flex; gap:0; border-bottom:2px solid rgba(148,163,184,0.12); margin-bottom:1.5rem; }
 .machine-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:0.6rem 1.4rem; font-size:0.95rem; font-weight:600; color:#94a3b8; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
 .machine-tab.active { color:#e2e8f0; border-bottom-color:#60a5fa; }
@@ -422,6 +422,99 @@
     .dr-side-panel { position:static; max-height:none; }
 }
 @media (max-width:700px) { .dr-overview-strip { grid-template-columns:1fr; } }
+
+/* Machine draft agent */
+.machine-chat-grid { display:grid; grid-template-columns:minmax(240px, 300px) minmax(0, 1fr); gap:1rem; align-items:start; }
+.machine-chat-controls { display:grid; gap:0.85rem; }
+.machine-chat-shell { display:flex; flex-direction:column; min-height:560px; background:rgba(15,23,42,0.35); border:1px solid rgba(148,163,184,0.12); border-radius:0.75rem; overflow:hidden; }
+.machine-chat-log { flex:1; display:flex; flex-direction:column; gap:0.75rem; padding:1rem; overflow:auto; min-height:380px; max-height:62vh; }
+.machine-chat-message { max-width:880px; border:1px solid rgba(148,163,184,0.14); border-radius:0.7rem; padding:0.75rem 0.9rem; line-height:1.55; font-size:0.9rem; white-space:pre-wrap; }
+.machine-chat-message.has-visuals { white-space:normal; width:min(880px, 100%); box-sizing:border-box; }
+.machine-chat-message.user { align-self:flex-end; background:rgba(96,165,250,0.13); border-color:rgba(96,165,250,0.24); color:#dbeafe; }
+.machine-chat-message.bot { align-self:flex-start; background:rgba(2,6,23,0.42); color:#cbd5e1; }
+.machine-chat-message.pending { color:#94a3b8; font-style:italic; }
+.machine-chat-meta { margin-top:0.45rem; font-size:0.72rem; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; }
+.machine-chat-context { background:rgba(15,23,42,0.46); border:1px solid rgba(148,163,184,0.13); border-radius:0.6rem; padding:0.75rem 0.85rem; }
+.machine-chat-context-main { color:#dbeafe; font-weight:850; margin:0.25rem 0 0.35rem; }
+.machine-agent-tree { display:grid; gap:0.55rem; margin-bottom:0.8rem; }
+.machine-agent-tree-root { background:rgba(37,99,235,0.13); border:1px solid rgba(96,165,250,0.32); border-radius:0.6rem; padding:0.7rem 0.8rem; }
+.machine-agent-tree-root-title { color:#dbeafe; font-weight:850; font-size:0.9rem; }
+.machine-agent-tree-root-sub { color:#94a3b8; font-size:0.78rem; margin-top:0.16rem; }
+.machine-agent-tree-branches { position:relative; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.8rem; padding-top:0.85rem; }
+.machine-agent-tree-branches::before { content:''; position:absolute; top:0.33rem; left:8%; right:8%; height:1px; background:rgba(96,165,250,0.28); }
+.machine-agent-tree-branch { position:relative; display:flex; flex-direction:column; gap:0.55rem; min-width:0; }
+.machine-agent-tree-branch::before { content:''; position:absolute; top:-0.85rem; left:50%; width:1px; height:0.85rem; background:rgba(96,165,250,0.28); }
+.machine-agent-tree-node { background:rgba(15,23,42,0.46); border:1px solid rgba(148,163,184,0.13); border-radius:0.55rem; padding:0.62rem 0.68rem; min-width:0; }
+.machine-agent-tree-node.primary { border-color:rgba(96,165,250,0.32); background:rgba(30,41,59,0.58); }
+.machine-agent-tree-node.good { border-color:rgba(74,222,128,0.24); }
+.machine-agent-tree-node.warn { border-color:rgba(248,113,113,0.24); }
+.machine-agent-tree-title { font-size:0.68rem; color:#94a3b8; font-weight:800; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:0.45rem; }
+.machine-agent-hero-row { display:flex; flex-wrap:wrap; gap:0.36rem; }
+.machine-agent-tree-text { color:#cbd5e1; font-size:0.82rem; line-height:1.48; }
+.machine-agent-copy { white-space:pre-wrap; color:#cbd5e1; }
+.machine-agent-copy.machine-agent-copy-leading { margin-bottom:0.65rem; color:#94a3b8; font-size:0.8rem; line-height:1.45; }
+.machine-agent-stack { display:grid; gap:0.8rem; }
+.machine-agent-panel { background:rgba(15,23,42,0.5); border:1px solid rgba(148,163,184,0.14); border-radius:0.7rem; padding:0.85rem 0.95rem; }
+.machine-agent-panel-title { color:#e2e8f0; font-size:0.86rem; font-weight:800; margin-bottom:0.18rem; }
+.machine-agent-panel-subtitle { color:#94a3b8; font-size:0.75rem; margin-bottom:0.65rem; }
+.machine-agent-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.machine-agent-table th,
+.machine-agent-table td { padding:0.48rem 0.42rem; border-bottom:1px solid rgba(148,163,184,0.1); vertical-align:top; text-align:left; }
+.machine-agent-table th { color:#94a3b8; font-size:0.69rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; }
+.machine-agent-table tr:last-child td { border-bottom:none; }
+.machine-agent-rank { width:2.4rem; color:#64748b; font-weight:800; }
+.machine-agent-label { color:#e2e8f0; font-weight:700; }
+.machine-agent-detail { color:#94a3b8; }
+.machine-agent-metric { color:#bfdbfe; font-weight:700; white-space:nowrap; }
+.machine-agent-visual-grid { display:grid; gap:0.75rem; }
+.machine-agent-visual-grid.cols-2 { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.machine-agent-visual-grid.cols-3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.machine-agent-visual-card { background:rgba(2,6,23,0.4); border:1px solid rgba(148,163,184,0.12); border-radius:0.6rem; padding:0.72rem 0.78rem; min-width:0; }
+.machine-agent-visual-label { color:#94a3b8; font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem; }
+.machine-agent-hero-strip { display:flex; flex-wrap:wrap; gap:0.34rem; }
+.machine-agent-kpi { font-size:1.15rem; font-weight:900; color:#e2e8f0; margin-bottom:0.15rem; }
+.machine-agent-mini { color:#94a3b8; font-size:0.77rem; line-height:1.45; }
+.machine-agent-bars { display:grid; gap:0.45rem; }
+.machine-agent-bar-row { display:grid; grid-template-columns:minmax(0, 1fr) 64px; gap:0.6rem; align-items:center; }
+.machine-agent-bar-track { height:8px; background:rgba(30,41,59,0.82); border-radius:999px; overflow:hidden; }
+.machine-agent-bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, #38bdf8, #60a5fa); }
+.machine-agent-bar-fill.warn { background:linear-gradient(90deg, #fb7185, #f97316); }
+.machine-agent-bar-fill.good { background:linear-gradient(90deg, #4ade80, #22c55e); }
+.machine-agent-bar-fill.gold { background:linear-gradient(90deg, #f59e0b, #fbbf24); }
+.machine-agent-heatmap { display:grid; gap:0.5rem; }
+.machine-agent-heatmap-row { display:grid; grid-template-columns:132px repeat(4, minmax(0, 1fr)); gap:0.35rem; align-items:center; }
+.machine-agent-heatmap-head { color:#64748b; font-size:0.67rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; }
+.machine-agent-heatmap-name { color:#e2e8f0; font-size:0.79rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.machine-agent-heatmap-cell { border-radius:0.45rem; min-height:40px; padding:0.35rem 0.3rem; border:1px solid rgba(148,163,184,0.1); display:flex; align-items:center; justify-content:center; color:#e2e8f0; font-size:0.72rem; font-weight:800; }
+.machine-agent-heatmap-cell.off { background:rgba(15,23,42,0.38); color:#475569; }
+.machine-agent-heatmap-cell.low { background:rgba(59,130,246,0.18); }
+.machine-agent-heatmap-cell.mid { background:rgba(245,158,11,0.2); }
+.machine-agent-heatmap-cell.high { background:rgba(239,68,68,0.22); }
+.machine-agent-ladder { display:grid; gap:0.58rem; }
+.machine-agent-ladder-step { display:grid; grid-template-columns:110px minmax(0, 1fr); gap:0.7rem; align-items:start; background:rgba(2,6,23,0.38); border:1px solid rgba(148,163,184,0.12); border-radius:0.55rem; padding:0.62rem 0.7rem; }
+.machine-agent-ladder-tag { color:#94a3b8; font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; }
+.machine-agent-comp-card-stack { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:0.7rem; }
+.machine-agent-comp-card { background:rgba(2,6,23,0.4); border:1px solid rgba(148,163,184,0.12); border-radius:0.65rem; padding:0.75rem 0.8rem; }
+.machine-agent-comp-meta { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.45rem; }
+.machine-agent-pill { display:inline-flex; align-items:center; border-radius:999px; padding:0.18rem 0.48rem; font-size:0.7rem; font-weight:800; border:1px solid rgba(148,163,184,0.14); background:rgba(15,23,42,0.5); color:#cbd5e1; }
+.machine-chat-compose { display:grid; grid-template-columns:1fr auto; gap:0.75rem; padding:0.9rem; border-top:1px solid rgba(148,163,184,0.12); background:rgba(2,6,23,0.28); }
+.machine-chat-compose textarea { min-height:48px; max-height:140px; resize:vertical; }
+.machine-chat-samples { display:flex; flex-wrap:wrap; gap:0.45rem; }
+.machine-chat-sample { border:1px solid rgba(148,163,184,0.18); background:rgba(15,23,42,0.55); color:#cbd5e1; border-radius:999px; padding:0.28rem 0.62rem; font-size:0.78rem; cursor:pointer; }
+.machine-chat-sample:hover { border-color:rgba(96,165,250,0.45); color:#dbeafe; }
+@media (max-width:1000px) {
+    .machine-chat-grid { grid-template-columns:1fr; }
+    .machine-chat-shell { min-height:500px; }
+    .machine-chat-compose { grid-template-columns:1fr; }
+    .machine-agent-tree-branches { grid-template-columns:1fr; padding-left:0.75rem; }
+    .machine-agent-tree-branches::before { top:0; bottom:0; left:0; right:auto; width:1px; height:auto; }
+    .machine-agent-tree-branch::before { top:1.1rem; left:-0.75rem; width:0.75rem; height:1px; }
+    .machine-agent-visual-grid.cols-2,
+    .machine-agent-visual-grid.cols-3,
+    .machine-agent-comp-card-stack,
+    .machine-agent-heatmap-row,
+    .machine-agent-ladder-step { grid-template-columns:1fr; }
+}
 </style>
 
 <div class="main-header">
@@ -434,6 +527,7 @@
 <div class="machine-tab-bar">
     <button class="machine-tab active" type="button" id="mtab-matchup">Draft Matchup</button>
     <button class="machine-tab" type="button" id="mtab-reasoner">Draft Reasoner</button>
+    <button class="machine-tab" type="button" id="mtab-chat">Draft Agent</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -510,7 +604,7 @@
             <label for="dr-team-a">Our Team</label>
             <select id="dr-team-a">
                 <option value="">Select…</option>
-                {% for team in teams %}<option value="{{ team.id }}">{{ team.name }}</option>{% endfor %}
+                {% for team in teams %}<option value="{{ team.id }}" {% if personal_team and team.id == personal_team.id %}selected{% endif %}>{{ team.name }}</option>{% endfor %}
             </select>
         </div>
         <div class="field">
@@ -783,6 +877,43 @@
 
 </div><!-- end reasoner tab panel -->
 
+<div class="machine-tab-panel" id="mpanel-chat">
+<section class="panel">
+    <div class="section-kicker">Draft Agent</div>
+    <h3>Machine Draft Agent</h3>
+    <p class="panel-intro">Generate local draft calls from the matchup model: bans, protects, comp direction, map reads, and risk checks.</p>
+
+    <div class="machine-chat-grid">
+        <div class="matchup-surface machine-chat-controls">
+            <div class="machine-chat-context">
+                <div class="machine-agent-tree-title">Current Draft Context</div>
+                <div class="machine-chat-context-main" id="machine-chat-context-main">No matchup yet</div>
+                <div class="machine-agent-tree-text" id="machine-chat-context-sub">Tell the agent who you are, who the enemy is, and the season when it matters.</div>
+            </div>
+            <div class="machine-chat-samples">
+                <button type="button" class="machine-chat-sample" data-question="Set current draft from the reasoner tab">Set current draft</button>
+                <button type="button" class="machine-chat-sample" data-question="What should we ban here?">Best starting point</button>
+                <button type="button" class="machine-chat-sample" data-question="What maps should we pick next?">Map recommendation</button>
+                <button type="button" class="machine-chat-sample" data-question="What is their most likely pivot?">Show likely pivots</button>
+                <button type="button" class="machine-chat-sample" data-question="What comps can they still get?">Enemy comps</button>
+                <button type="button" class="machine-chat-sample" data-question="How much does banning Invisible Woman matter?">Ban impact</button>
+                <button type="button" class="machine-chat-sample" data-question="Explain confidence">Confidence</button>
+            </div>
+        </div>
+
+        <div class="machine-chat-shell">
+            <div class="machine-chat-log" id="machine-chat-log">
+                <div class="machine-chat-message bot">Ask normally. If I need the matchup or season, I will ask and remember the draft question.</div>
+            </div>
+            <form class="machine-chat-compose" id="machine-chat-form">
+                <textarea id="machine-chat-input" placeholder="Example: What should we ban here?" maxlength="1200"></textarea>
+                <button type="submit" id="machine-chat-send">Run Agent</button>
+            </form>
+        </div>
+    </div>
+</section>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════════
 //  TAB SWITCHING
@@ -793,6 +924,9 @@ function setMachineTab(tabName) {
     if (tabName === 'reasoner') {
         document.getElementById('mtab-reasoner').classList.add('active');
         document.getElementById('mpanel-reasoner').classList.add('active');
+    } else if (tabName === 'chat') {
+        document.getElementById('mtab-chat').classList.add('active');
+        document.getElementById('mpanel-chat').classList.add('active');
     } else {
         document.getElementById('mtab-matchup').classList.add('active');
         document.getElementById('mpanel-matchup').classList.add('active');
@@ -805,10 +939,15 @@ document.getElementById('mtab-matchup').addEventListener('click', function() {
 document.getElementById('mtab-reasoner').addEventListener('click', function() {
     setMachineTab('reasoner');
 });
+document.getElementById('mtab-chat').addEventListener('click', function() {
+    setMachineTab('chat');
+});
 
 const initialMachineTab = new URLSearchParams(window.location.search).get('tab');
 if (initialMachineTab === 'reasoner') {
     setMachineTab('reasoner');
+} else if (initialMachineTab === 'chat') {
+    setMachineTab('chat');
 } else {
     setMachineTab('matchup');
 }
@@ -839,6 +978,678 @@ function openHeroIconHtml(hero) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Machine draft agent
+(function() {
+    const form = document.getElementById('machine-chat-form');
+    const input = document.getElementById('machine-chat-input');
+    const log = document.getElementById('machine-chat-log');
+    const sendBtn = document.getElementById('machine-chat-send');
+    const contextMain = document.getElementById('machine-chat-context-main');
+    const contextSub = document.getElementById('machine-chat-context-sub');
+    if (!form || !input || !log || !sendBtn) return;
+    const teamNames = {
+        {% for team in teams %}"{{ team.id }}": {{ team.name|tojson }}{% if not loop.last %},{% endif %}{% endfor %}
+    };
+    let agentContext = {
+        team_a_id: {{ (personal_team.id if personal_team else none) | tojson }},
+        team_b_id: null,
+        team_a_name: {{ (personal_team.name if personal_team else '') | tojson }},
+        team_b_name: '',
+        season: 'all',
+        map: 'all',
+        include_scrims: true,
+        include_tournaments: true
+    };
+    let agentPendingMessage = '';
+
+    function appendMessage(role, text, metaText) {
+        const node = document.createElement('div');
+        node.className = 'machine-chat-message ' + role;
+        node.textContent = text;
+        if (metaText) {
+            const meta = document.createElement('div');
+            meta.className = 'machine-chat-meta';
+            meta.textContent = metaText;
+            node.appendChild(meta);
+        }
+        log.appendChild(node);
+        log.scrollTop = log.scrollHeight;
+        return node;
+    }
+
+    function chatPayload(message) {
+        return {
+            message: message,
+            context: agentContext,
+            pending_message: agentPendingMessage || ''
+        };
+    }
+
+    function updateContextPanel() {
+        if (!contextMain || !contextSub) return;
+        const ourTeam = agentContext.team_a_name || (agentContext.team_a_id ? teamNames[String(agentContext.team_a_id)] : '');
+        const enemyTeam = agentContext.team_b_name || (agentContext.team_b_id ? teamNames[String(agentContext.team_b_id)] : '');
+        if (ourTeam && enemyTeam) {
+            contextMain.textContent = ourTeam + ' vs ' + enemyTeam;
+        } else if (ourTeam) {
+            contextMain.textContent = ourTeam + ' vs ?';
+        } else if (enemyTeam) {
+            contextMain.textContent = '? vs ' + enemyTeam;
+        } else {
+            contextMain.textContent = 'No matchup yet';
+        }
+        const filters = [
+            'Season ' + (agentContext.season && agentContext.season !== 'all' ? agentContext.season : 'all'),
+            agentContext.map && agentContext.map !== 'all' ? agentContext.map : 'All maps',
+            agentContext.include_scrims && agentContext.include_tournaments ? 'scrims + tournaments' : (agentContext.include_scrims ? 'scrims only' : 'tournaments only')
+        ];
+        contextSub.textContent = filters.join(' | ');
+    }
+
+    function mergeAgentContext(nextContext) {
+        if (!nextContext) return;
+        agentContext = Object.assign({}, agentContext, nextContext);
+        if (!agentContext.team_a_name && agentContext.team_a_id) agentContext.team_a_name = teamNames[String(agentContext.team_a_id)] || '';
+        if (!agentContext.team_b_name && agentContext.team_b_id) agentContext.team_b_name = teamNames[String(agentContext.team_b_id)] || '';
+        updateContextPanel();
+    }
+
+    function renderTreeNode(title, heroes, type, cls) {
+        heroes = heroes || [];
+        if (!heroes.length) return '';
+        return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
+            + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
+            + '<div class="machine-agent-hero-row">'
+            + heroes.map(function(hero) { return heroChipHtml(hero, type || ''); }).join('')
+            + '</div></div>';
+    }
+
+    function renderTextTreeNode(title, rows, cls) {
+        rows = rows || [];
+        const text = rows.map(function(row) {
+            if (typeof row === 'string') return row;
+            const maps = (row.maps || []).filter(Boolean).join(', ');
+            return (row.label || 'Map read') + ': ' + (maps || 'No clear map cluster');
+        }).filter(Boolean);
+        if (!text.length) return '';
+        return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
+            + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
+            + '<div class="machine-agent-tree-text">' + text.map(escapeHtml).join('<br>') + '</div></div>';
+    }
+
+    function renderCompTreeNode(title, rows, cls) {
+        rows = rows || [];
+        if (!rows.length) return '';
+        return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
+            + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
+            + rows.map(function(row) {
+                const heroes = row.heroes || [];
+                const meta = [];
+                if (row.rate !== undefined) meta.push(String(row.rate) + '% rate');
+                if (row.win_rate !== undefined) meta.push(String(row.win_rate) + '% WR');
+                if (row.confidence !== undefined && Number(row.confidence || 0) > 0) meta.push(String(row.confidence) + '% confidence');
+                return '<div style="margin-bottom:0.55rem">'
+                    + '<div class="machine-agent-hero-row">' + heroes.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>'
+                    + (meta.length ? '<div class="machine-agent-tree-text">' + escapeHtml(meta.join(' | ')) + '</div>' : '')
+                    + '</div>';
+            }).join('')
+            + '</div>';
+    }
+
+    function renderFocusTreeNode(title, focus, cls) {
+        focus = focus || {};
+        if (!focus.hero) return '';
+        const lines = [];
+        if (focus.is_recommended_ban) lines.push('Included in recommended bans');
+        if (focus.in_target_comp) lines.push('Part of our target comp');
+        if (focus.enemy_comfort) lines.push('Enemy comfort hero');
+        if (focus.volatile) {
+            lines.push('Volatile: favors ' + (focus.volatile.favored_side || 'unknown') + ', delta ' + (focus.volatile.delta || 0));
+        }
+        if (!lines.length) lines.push('No direct high-signal flag in this matchup model');
+        return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
+            + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
+            + '<div class="machine-agent-hero-row">' + heroChipHtml(focus.hero, focus.is_recommended_ban ? 'ban' : '') + '</div>'
+            + '<div class="machine-agent-tree-text">' + lines.map(escapeHtml).join('<br>') + '</div></div>';
+    }
+
+    function renderConfidenceTreeNode(title, confidence, cls) {
+        confidence = confidence || {};
+        if (!confidence.target_comp && confidence.confidence === undefined) return '';
+        const heroes = confidence.target_comp || [];
+        const lines = [
+            'Read strength: ' + Number(confidence.confidence || 0).toFixed(1) + '%',
+            'Projected WR: ' + Number(confidence.win_rate || 0).toFixed(1) + '%',
+            'Filtered records: ' + Number(confidence.sample || 0).toFixed(0)
+        ];
+        return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
+            + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
+            + (heroes.length ? '<div class="machine-agent-hero-row">' + heroes.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>' : '')
+            + '<div class="machine-agent-tree-text">' + lines.map(escapeHtml).join('<br>') + '</div></div>';
+    }
+
+    function renderPivotTreeNode(title, rows, cls) {
+        rows = rows || [];
+        if (!rows.length) return '';
+        return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
+            + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
+            + rows.map(function(row) {
+                return '<div style="margin-bottom:0.55rem">'
+                    + ((row.base || []).length ? '<div class="machine-agent-tree-text">Enemy base</div><div class="machine-agent-hero-row">' + row.base.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>' : '')
+                    + ((row.pivot || []).length ? '<div class="machine-agent-tree-text">Likely pivot</div><div class="machine-agent-hero-row">' + row.pivot.map(function(hero) { return heroChipHtml(hero, 'ban'); }).join('') + '</div>' : '')
+                    + ((row.counter || []).length ? '<div class="machine-agent-tree-text">Counter pivot</div><div class="machine-agent-hero-row">' + row.counter.map(function(hero) { return heroChipHtml(hero, 'protect'); }).join('') + '</div>' : '')
+                    + '</div>';
+            }).join('')
+            + '</div>';
+    }
+
+    function renderSlotCompareFlow(compare) {
+        compare = compare || {};
+        const teams = compare.teams || [];
+        if (!teams.length) return '';
+        function slotNode(slot) {
+            const details = [
+                (slot.maps || 0) + ' maps',
+                (slot.rate || 0) + '% of drafts',
+                (slot.win_rate || 0) + '% WR'
+            ];
+            const extra = [];
+            if ((slot.common_other_bans || []).length) {
+                extra.push('Other bans: ' + (slot.common_other_bans || []).slice(0, 3).join(', '));
+            }
+            if ((slot.common_protects || []).length) {
+                extra.push('Protects: ' + (slot.common_protects || []).slice(0, 2).join(', '));
+            }
+            if ((slot.common_maps || []).length) {
+                extra.push('Maps: ' + (slot.common_maps || []).slice(0, 2).join(', '));
+            }
+            return '<div class="machine-agent-tree-node ' + ((slot.maps || 0) ? 'primary' : 'warn') + '">'
+                + '<div class="machine-agent-tree-title">' + escapeHtml(slot.label || slot.slot || 'Slot') + '</div>'
+                + '<div class="machine-agent-hero-row">' + heroChipHtml(slot.hero || compare.hero || '', 'ban') + '</div>'
+                + '<div class="machine-agent-tree-text">' + escapeHtml(details.join(' | '))
+                + (extra.length ? '<br>' + extra.map(escapeHtml).join('<br>') : '')
+                + '</div></div>';
+        }
+        const branches = teams.map(function(team) {
+            const slotHtml = (team.slots || []).map(slotNode).join('');
+            const edge = team.leader ? 'Edge: ' + team.leader : 'No clear edge';
+            return '<div class="machine-agent-tree-branch">'
+                + '<div class="machine-agent-tree-node good">'
+                + '<div class="machine-agent-tree-title">' + escapeHtml(team.team || 'Team') + '</div>'
+                + '<div class="machine-agent-tree-text">' + escapeHtml((team.total_draft_maps || 0) + ' tracked draft maps | ' + edge) + '</div>'
+                + '</div>'
+                + slotHtml
+                + '</div>';
+        }).join('');
+        return '<div class="machine-agent-tree">'
+            + '<div class="machine-agent-tree-root">'
+            + '<div class="machine-agent-tree-root-title">Slot Timing Flow</div>'
+            + '<div class="machine-agent-tree-root-sub">' + heroChipHtml(compare.hero || '', 'ban') + '</div>'
+            + '</div>'
+            + '<div class="machine-agent-tree-branches">' + branches + '</div>'
+            + '</div>';
+    }
+
+    function summarizeHeroList(heroes, type) {
+        heroes = (heroes || []).filter(Boolean);
+        if (!heroes.length) return '<div class="machine-agent-mini">No strong read.</div>';
+        return '<div class="machine-agent-hero-strip">'
+            + heroes.map(function(hero) { return heroChipHtml(hero, type || ''); }).join('')
+            + '</div>';
+    }
+
+    function buildPriorityRows(intent, visuals) {
+        visuals = visuals || {};
+        const rows = [];
+        function push(label, metric, detail, heroes, type) {
+            rows.push({ label: label || 'Read', metric: metric || '', detail: detail || '', heroes: heroes || [], type: type || '' });
+        }
+        if (intent === 'player_pivot' && visuals.player_pivot) {
+            const stats = visuals.player_pivot;
+            (stats.pivots || []).forEach(function(row) {
+                push(row.hero, row.rate + '% pivot rate', row.count + ' of ' + (stats.player_banned_maps || 0) + ' matching maps | ' + row.win_rate + '% WR', [row.hero]);
+            });
+            if (!rows.length) {
+                (stats.fallback || []).forEach(function(row) {
+                    push(row.hero, row.rate + '% comfort fallback', row.count + ' of ' + (stats.total_player_maps || 0) + ' player maps | ' + row.win_rate + '% WR', [row.hero]);
+                });
+            }
+            return rows;
+        }
+        if (intent === 'slot_compare' && visuals.slot_compare) {
+            (visuals.slot_compare.teams || []).forEach(function(team) {
+                (team.slots || []).forEach(function(slot) {
+                    push(team.team + ' · ' + (slot.label || slot.slot || 'Slot'), slot.win_rate + '% WR', (slot.maps || 0) + ' maps | ' + (slot.rate || 0) + '% of drafts', [slot.hero || visuals.slot_compare.hero], 'ban');
+                });
+            });
+            return rows;
+        }
+        if (intent === 'enemy_comps') {
+            (visuals.enemy_comps || []).forEach(function(row, idx) {
+                push('Enemy comp ' + (idx + 1), (row.rate || 0) + '% rate', (row.win_rate || 0) + '% WR' + (row.confidence ? ' | ' + row.confidence + '% confidence' : ''), row.heroes || []);
+            });
+            return rows;
+        }
+        if (intent === 'pivot') {
+            (visuals.pivot_predictions || []).forEach(function(row, idx) {
+                push('Pivot lane ' + (idx + 1), ((row.pivot || []).join(', ') || 'No pivot'), 'Base: ' + ((row.base || []).join(', ') || 'none') + ' | Counter: ' + ((row.counter || []).join(', ') || 'none'), row.pivot || row.base || []);
+            });
+            return rows;
+        }
+        if (intent === 'map') {
+            (visuals.map_consensus || []).forEach(function(row) {
+                push(row.label || 'Map lane', ((row.maps || []).length || 0) + ' maps', (row.maps || []).join(', ') || 'No clear map cluster', []);
+            });
+            return rows;
+        }
+        if (intent === 'confidence' && visuals.confidence) {
+            const c = visuals.confidence;
+            push('Target comp confidence', Number(c.confidence || 0).toFixed(1) + '%', Number(c.win_rate || 0).toFixed(1) + '% projected WR | ' + Number(c.sample || 0).toFixed(0) + ' records', c.target_comp || []);
+            return rows;
+        }
+        const scored = new Map();
+        function addHeroes(heroes, score, detail, metric, type) {
+            (heroes || []).forEach(function(hero, index) {
+                if (!hero) return;
+                const key = String(hero).toLowerCase();
+                const entry = scored.get(key) || { label: hero, score: 0, detail: [], metric: [], heroes: [hero], type: type || '' };
+                entry.score += Math.max(score - index, 1);
+                if (detail) entry.detail.push(detail);
+                if (metric) entry.metric.push(metric);
+                scored.set(key, entry);
+            });
+        }
+        addHeroes(visuals.likely_next_pick, 12, 'next pick lane', 'open next', '');
+        addHeroes(visuals.recommended_bans, 10, 'ban pressure', 'deny', 'ban');
+        addHeroes(visuals.recommended_protects, 9, 'protect priority', 'protect', 'protect');
+        addHeroes(visuals.target_comp, 8, 'target comp route', 'route', '');
+        addHeroes(visuals.enemy_comfort, 7, 'enemy comfort', 'comfort', 'ban');
+        addHeroes(visuals.our_comfort, 6, 'our comfort', 'comfort', '');
+        addHeroes(visuals.contested, 5, 'contested', 'shared', 'ban');
+        addHeroes(visuals.volatile, 4, 'volatile lane', 'swing', 'ban');
+        (visuals.volatile_rows || []).forEach(function(row, index) {
+            if (!row || !row.hero) return;
+            const key = String(row.hero).toLowerCase();
+            const entry = scored.get(key) || { label: row.hero, score: 0, detail: [], metric: [], heroes: [row.hero], type: 'ban' };
+            entry.score += Math.max(7 - index, 1) + Math.abs(Number(row.delta || 0));
+            entry.detail.push('volatile for ' + (row.favored_side || 'unknown'));
+            entry.metric.push('delta ' + Number(row.delta || 0));
+            scored.set(key, entry);
+        });
+        return Array.from(scored.values())
+            .sort(function(a, b) { return b.score - a.score; })
+            .slice(0, 6)
+            .map(function(entry) {
+                return {
+                    label: entry.label,
+                    metric: entry.metric.filter(Boolean).slice(0, 2).join(' | ') || String(entry.score),
+                    detail: entry.detail.filter(Boolean).slice(0, 3).join(' | '),
+                    heroes: entry.heroes,
+                    type: entry.type,
+                };
+            });
+    }
+
+    function renderRankedTable(intent, visuals) {
+        const rows = buildPriorityRows(intent, visuals);
+        if (!rows.length) return '';
+        const titleByIntent = {
+            ban: 'Ranked Ban Board',
+            protect: 'Ranked Protect Board',
+            comp: 'Ranked Comp Priorities',
+            risk: 'Ranked Risk Board',
+            comfort: 'Ranked Comfort Board',
+            contested: 'Ranked Contested Board',
+            map: 'Ranked Map Lanes',
+            stats: 'Ranked Draft Priorities',
+            next_pick: 'Ranked Next-Pick Board',
+            enemy_comps: 'Ranked Enemy Comp Board',
+            ban_impact: 'Ranked Ban Consequences',
+            hero_volatility: 'Ranked Volatility Board',
+            player_pivot: 'Ranked Pivot Board',
+            pivot: 'Ranked Pivot Lanes',
+            confidence: 'Ranked Confidence Board',
+            slot_compare: 'Ranked Slot Comparison',
+            check: 'Ranked Draft Check',
+            summary: 'Ranked Draft Board'
+        };
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">' + escapeHtml(titleByIntent[intent] || 'Ranked Draft Board') + '</div>'
+            + '<table class="machine-agent-table">'
+            + '<thead><tr><th class="machine-agent-rank">Rank</th><th>Read</th><th>Signal</th><th>Why</th></tr></thead>'
+            + '<tbody>'
+            + rows.map(function(row, index) {
+                return '<tr>'
+                    + '<td class="machine-agent-rank">' + escapeHtml('#' + (index + 1)) + '</td>'
+                    + '<td><div class="machine-agent-label">' + summarizeHeroList(row.heroes, row.type || '') + '</div>'
+                    + '<div class="machine-agent-mini">' + escapeHtml(row.label || '') + '</div></td>'
+                    + '<td class="machine-agent-metric">' + escapeHtml(row.metric || '') + '</td>'
+                    + '<td class="machine-agent-detail">' + escapeHtml(row.detail || '') + '</td>'
+                    + '</tr>';
+            }).join('')
+            + '</tbody></table></div>';
+    }
+
+    function renderBanConsequencePanel(visuals) {
+        const topBan = (visuals.recommended_bans || [])[0] || '';
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">Ban Consequence Panel</div>'
+            + '<div class="machine-agent-panel-subtitle">Fast read for who to remove, what lane it breaks, and what still remains.</div>'
+            + '<div class="machine-agent-visual-grid cols-3">'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Primary ban</div><div class="machine-agent-kpi">' + escapeHtml(topBan || 'No clear ban') + '</div><div class="machine-agent-mini">Top deny from the current matchup model.</div></div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Enemy comfort left</div>' + summarizeHeroList((visuals.enemy_comfort || []).slice(0, 4), 'ban') + '</div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Route preserved</div>' + summarizeHeroList((visuals.target_comp || []).slice(0, 6), '') + '</div>'
+            + '</div></div>';
+    }
+
+    function renderPreparationCoverageBoard(visuals) {
+        const volatileRows = (visuals.volatile_rows || []).slice(0, 4);
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">Preparation Coverage Board</div>'
+            + '<div class="machine-agent-panel-subtitle">One board for ban pressure, both comfort pools, the route you are keeping open, and the volatility watch list.</div>'
+            + '<div class="machine-agent-visual-grid cols-2">'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Ban pressure</div>' + summarizeHeroList((visuals.recommended_bans || []).slice(0, 6), 'ban') + '</div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Target comp</div>' + summarizeHeroList((visuals.target_comp || []).slice(0, 6), '') + '</div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Our comfort</div>' + summarizeHeroList((visuals.our_comfort || []).slice(0, 6), '') + '</div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Enemy comfort</div>' + summarizeHeroList((visuals.enemy_comfort || []).slice(0, 6), 'ban') + '</div>'
+            + '</div>'
+            + (volatileRows.length ? '<div class="machine-agent-bars" style="margin-top:0.8rem">'
+                + volatileRows.map(function(row) {
+                    const delta = Math.abs(Number(row.delta || 0));
+                    const pct = Math.max(8, Math.min(100, delta * 20 + 8));
+                    return '<div class="machine-agent-bar-row">'
+                        + '<div><div class="machine-agent-label">' + escapeHtml(row.hero || '') + '</div><div class="machine-agent-mini">Favors ' + escapeHtml(row.favored_side || 'unknown') + '</div><div class="machine-agent-bar-track"><div class="machine-agent-bar-fill warn" style="width:' + pct + '%"></div></div></div>'
+                        + '<div class="machine-agent-metric">' + escapeHtml('Δ ' + delta) + '</div>'
+                        + '</div>';
+                }).join('')
+                + '</div>' : '')
+            + '</div>';
+    }
+
+    function renderCompCardsVisual(visuals, title) {
+        const cards = [];
+        if ((visuals.target_comp || []).length) cards.push({ title: 'Target comp', heroes: visuals.target_comp, pills: ['Our route'] });
+        if ((visuals.enemy_comps || []).length) {
+            (visuals.enemy_comps || []).slice(0, 2).forEach(function(row, index) {
+                const pills = [];
+                if (row.rate !== undefined) pills.push(row.rate + '% rate');
+                if (row.win_rate !== undefined) pills.push(row.win_rate + '% WR');
+                if (row.confidence) pills.push(row.confidence + '% conf');
+                cards.push({ title: 'Enemy comp ' + (index + 1), heroes: row.heroes || [], pills: pills });
+            });
+        }
+        if ((visuals.recommended_protects || []).length) cards.push({ title: 'Protects needed', heroes: visuals.recommended_protects, pills: ['Keep route open'] });
+        if (!cards.length && (visuals.enemy_comfort || []).length) cards.push({ title: 'Enemy comfort', heroes: visuals.enemy_comfort, pills: ['Deny lane'] });
+        if (!cards.length) return '';
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">' + escapeHtml(title || 'Comp Cards') + '</div>'
+            + '<div class="machine-agent-comp-card-stack">'
+            + cards.slice(0, 3).map(function(card) {
+                return '<div class="machine-agent-comp-card">'
+                    + '<div class="machine-agent-visual-label">' + escapeHtml(card.title || 'Comp') + '</div>'
+                    + summarizeHeroList(card.heroes || [], '')
+                    + '<div class="machine-agent-comp-meta">' + (card.pills || []).map(function(pill) { return '<span class="machine-agent-pill">' + escapeHtml(pill) + '</span>'; }).join('') + '</div>'
+                    + '</div>';
+            }).join('')
+            + '</div></div>';
+    }
+
+    function renderHeatmapVisual(visuals) {
+        const heroes = buildPriorityRows('risk', visuals).slice(0, 5).map(function(row) { return row.label; });
+        if (!heroes.length) return '';
+        const columns = [
+            { key: 'enemy_comfort', label: 'Comfort' },
+            { key: 'contested', label: 'Contest' },
+            { key: 'volatile', label: 'Swing' },
+            { key: 'recommended_bans', label: 'Ban' }
+        ];
+        function level(hero, key) {
+            const values = (visuals[key] || []).map(function(v) { return String(v || '').toLowerCase(); });
+            if (!values.includes(String(hero || '').toLowerCase())) return { cls: 'off', text: '0' };
+            if (key === 'recommended_bans' || key === 'volatile') return { cls: 'high', text: '3' };
+            if (key === 'contested') return { cls: 'mid', text: '2' };
+            return { cls: 'low', text: '1' };
+        }
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">Preparation Coverage Heatmap</div>'
+            + '<div class="machine-agent-panel-subtitle">Red means the hero hits multiple draft pressure lanes at once.</div>'
+            + '<div class="machine-agent-heatmap">'
+            + '<div class="machine-agent-heatmap-row">'
+            + '<div class="machine-agent-heatmap-head">Hero</div>'
+            + columns.map(function(col) { return '<div class="machine-agent-heatmap-head">' + escapeHtml(col.label) + '</div>'; }).join('')
+            + '</div>'
+            + heroes.map(function(hero) {
+                return '<div class="machine-agent-heatmap-row">'
+                    + '<div class="machine-agent-heatmap-name">' + escapeHtml(hero) + '</div>'
+                    + columns.map(function(col) {
+                        const cell = level(hero, col.key);
+                        return '<div class="machine-agent-heatmap-cell ' + escapeHtml(cell.cls) + '">' + escapeHtml(cell.text) + '</div>';
+                    }).join('')
+                    + '</div>';
+            }).join('')
+            + '</div></div>';
+    }
+
+    function renderBranchLadderVisual(visuals, title) {
+        const steps = [];
+        if ((visuals.likely_next_pick || []).length) steps.push({ label: 'Next pick', heroes: visuals.likely_next_pick, type: '' });
+        if ((visuals.pivot_predictions || []).length) {
+            const row = visuals.pivot_predictions[0] || {};
+            if ((row.base || []).length) steps.push({ label: 'Base', heroes: row.base, type: '' });
+            if ((row.pivot || []).length) steps.push({ label: 'Pivot', heroes: row.pivot, type: 'ban' });
+            if ((row.counter || []).length) steps.push({ label: 'Counter', heroes: row.counter, type: 'protect' });
+        }
+        if ((visuals.target_comp || []).length) steps.push({ label: 'Route', heroes: visuals.target_comp, type: '' });
+        if ((visuals.recommended_bans || []).length) steps.push({ label: 'Ban cover', heroes: visuals.recommended_bans.slice(0, 3), type: 'ban' });
+        if (!steps.length) return '';
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">' + escapeHtml(title || 'Branch Ladder') + '</div>'
+            + '<div class="machine-agent-ladder">'
+            + steps.slice(0, 4).map(function(step) {
+                return '<div class="machine-agent-ladder-step">'
+                    + '<div class="machine-agent-ladder-tag">' + escapeHtml(step.label) + '</div>'
+                    + '<div>' + summarizeHeroList(step.heroes || [], step.type || '') + '</div>'
+                    + '</div>';
+            }).join('')
+            + '</div></div>';
+    }
+
+    function renderPlayerPivotProfile(stats) {
+        stats = stats || {};
+        const rows = (stats.pivots || stats.fallback || []).slice(0, 4);
+        if (!stats.player) return '';
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">Player Pivot Profile</div>'
+            + '<div class="machine-agent-panel-subtitle">' + escapeHtml(stats.player) + ' when ' + escapeHtml(stats.banned_hero || 'that hero') + ' is removed.</div>'
+            + '<div class="machine-agent-visual-grid cols-2">'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Sample</div><div class="machine-agent-kpi">' + escapeHtml(String(stats.player_banned_maps || 0)) + '</div><div class="machine-agent-mini">Matching player maps under this ban condition.</div></div>'
+            + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Best pivot lane</div>' + summarizeHeroList(rows[0] ? [rows[0].hero] : [], '') + '<div class="machine-agent-mini">' + (rows[0] ? escapeHtml(rows[0].rate + '% pivot rate | ' + rows[0].win_rate + '% WR') : 'No direct pivot sample') + '</div></div>'
+            + '</div>'
+            + '<div class="machine-agent-bars" style="margin-top:0.7rem">'
+            + rows.map(function(row) {
+                const pct = Math.max(4, Math.min(100, Number(row.rate || 0)));
+                return '<div class="machine-agent-bar-row">'
+                    + '<div><div class="machine-agent-label">' + escapeHtml(row.hero || '') + '</div><div class="machine-agent-bar-track"><div class="machine-agent-bar-fill good" style="width:' + pct + '%"></div></div></div>'
+                    + '<div class="machine-agent-metric">' + escapeHtml((row.rate || 0) + '%') + '</div>'
+                    + '</div>';
+            }).join('')
+            + '</div></div>';
+    }
+
+    function renderScenarioCompareVisual(visuals) {
+        if (visuals.slot_compare) {
+            const compare = visuals.slot_compare;
+            return '<div class="machine-agent-panel">'
+                + '<div class="machine-agent-panel-title">Scenario Compare</div>'
+                + '<div class="machine-agent-panel-subtitle">Compare draft slot timing impact for ' + escapeHtml(compare.hero || 'the hero') + '.</div>'
+                + '<div class="machine-agent-comp-card-stack">'
+                + (compare.teams || []).map(function(team) {
+                    return '<div class="machine-agent-comp-card">'
+                        + '<div class="machine-agent-visual-label">' + escapeHtml(team.team || 'Team') + '</div>'
+                        + '<div class="machine-agent-mini">' + escapeHtml(String(team.total_draft_maps || 0) + ' tracked draft maps') + '</div>'
+                        + '<div class="machine-agent-bars" style="margin-top:0.65rem">'
+                        + (team.slots || []).map(function(slot) {
+                            const pct = Math.max(4, Math.min(100, Number(slot.win_rate || 0)));
+                            return '<div class="machine-agent-bar-row">'
+                                + '<div><div class="machine-agent-label">' + escapeHtml(slot.label || slot.slot || 'Slot') + '</div><div class="machine-agent-bar-track"><div class="machine-agent-bar-fill gold" style="width:' + pct + '%"></div></div></div>'
+                                + '<div class="machine-agent-metric">' + escapeHtml((slot.win_rate || 0) + '%') + '</div>'
+                                + '</div>';
+                        }).join('')
+                        + '</div></div>';
+                }).join('')
+                + '</div></div>';
+        }
+        if (visuals.confidence) {
+            const c = visuals.confidence;
+            return '<div class="machine-agent-panel">'
+                + '<div class="machine-agent-panel-title">Scenario Compare</div>'
+                + '<div class="machine-agent-visual-grid cols-3">'
+                + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Confidence</div><div class="machine-agent-kpi">' + escapeHtml(Number(c.confidence || 0).toFixed(1) + '%') + '</div></div>'
+                + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Projected WR</div><div class="machine-agent-kpi">' + escapeHtml(Number(c.win_rate || 0).toFixed(1) + '%') + '</div></div>'
+                + '<div class="machine-agent-visual-card"><div class="machine-agent-visual-label">Records</div><div class="machine-agent-kpi">' + escapeHtml(String(c.sample || 0)) + '</div></div>'
+                + '</div>'
+                + ((c.target_comp || []).length ? '<div style="margin-top:0.7rem">' + summarizeHeroList(c.target_comp, '') + '</div>' : '')
+                + '</div>';
+        }
+        if ((visuals.map_consensus || []).length) {
+            return '<div class="machine-agent-panel">'
+                + '<div class="machine-agent-panel-title">Scenario Compare</div>'
+                + '<div class="machine-agent-comp-card-stack">'
+                + (visuals.map_consensus || []).slice(0, 3).map(function(row) {
+                    return '<div class="machine-agent-comp-card">'
+                        + '<div class="machine-agent-visual-label">' + escapeHtml(row.label || 'Map lane') + '</div>'
+                        + '<div class="machine-agent-mini">' + escapeHtml((row.maps || []).join(', ') || 'No maps') + '</div>'
+                        + '</div>';
+                }).join('')
+                + '</div></div>';
+        }
+        return '';
+    }
+
+    function renderFocusedVisual(intent, visuals) {
+        if (intent === 'player_pivot' && visuals.player_pivot) return renderPlayerPivotProfile(visuals.player_pivot);
+        if (intent === 'slot_compare') return renderScenarioCompareVisual(visuals);
+        if (intent === 'summary' || intent === 'check' || intent === 'stats') return renderPreparationCoverageBoard(visuals);
+        if (intent === 'ban' || intent === 'ban_impact' || intent === 'hero_volatility') return renderBanConsequencePanel(visuals);
+        if (intent === 'protect' || intent === 'comp' || intent === 'enemy_comps') return renderCompCardsVisual(visuals, 'Comp Cards');
+        if (intent === 'next_pick' || intent === 'pivot') return renderBranchLadderVisual(visuals, intent === 'pivot' ? 'Branch Ladder' : 'Next-Pick Ladder');
+        if (intent === 'risk' || intent === 'contested' || intent === 'comfort') return renderHeatmapVisual(visuals);
+        if (intent === 'map' || intent === 'confidence') return renderScenarioCompareVisual(visuals);
+        return renderPreparationCoverageBoard(visuals) || renderCompCardsVisual(visuals, 'Comp Cards') || renderBanConsequencePanel(visuals) || renderHeatmapVisual(visuals);
+    }
+
+    function renderAgentVisuals(visuals, meta) {
+        visuals = visuals || {};
+        meta = meta || {};
+        const intent = meta.intent || 'summary';
+        const rankedTable = renderRankedTable(intent, visuals);
+        const focusedVisual = renderFocusedVisual(intent, visuals);
+        if (!rankedTable && !focusedVisual) return '';
+        return '<div class="machine-agent-stack">' + rankedTable + focusedVisual + '</div>';
+    }
+
+    function shouldRenderAgentVisuals(data) {
+        const meta = data.meta || {};
+        if (meta.needs_context) return false;
+        const visuals = meta.visuals || {};
+        if (!Object.keys(visuals).length) return false;
+        return true;
+    }
+
+    function renderAgentAnswer(node, data) {
+        mergeAgentContext((data.meta || {}).context);
+        if ((data.meta || {}).needs_context) {
+            agentPendingMessage = agentPendingMessage || node.dataset.userMessage || '';
+        } else {
+            agentPendingMessage = '';
+        }
+        const showVisuals = shouldRenderAgentVisuals(data);
+        node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
+        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
+            + (showVisuals ? renderAgentVisuals((data.meta || {}).visuals, data.meta || {}) : '');
+        const meta = document.createElement('div');
+        meta.className = 'machine-chat-meta';
+        meta.textContent = 'Local draft agent';
+        node.appendChild(meta);
+    }
+
+    async function sendChat(message) {
+        appendMessage('user', message);
+        const pending = appendMessage('bot pending', 'Evaluating the draft...');
+        pending.dataset.userMessage = message;
+        sendBtn.disabled = true;
+        input.disabled = true;
+        try {
+            const res = await fetch('/api/draft-agent', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(chatPayload(message))
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Chat request failed.');
+            renderAgentAnswer(pending, data);
+        } catch (err) {
+            pending.className = 'machine-chat-message bot';
+            pending.textContent = err.message || 'Chat request failed.';
+        } finally {
+            sendBtn.disabled = false;
+            input.disabled = false;
+            input.focus();
+            log.scrollTop = log.scrollHeight;
+        }
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = input.value.trim();
+        if (!message) return;
+        input.value = '';
+        sendChat(message);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    document.querySelectorAll('.machine-chat-sample').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const question = btn.getAttribute('data-question') || '';
+            if (question.indexOf('Set current draft') === 0) {
+                syncFromReasoner();
+                appendMessage('bot', 'Current draft context updated from the reasoner tab.', 'Local draft agent');
+                return;
+            }
+            input.value = question;
+            input.focus();
+        });
+    });
+
+    function syncFromReasoner() {
+        const teamA = document.getElementById('dr-team-a');
+        const teamB = document.getElementById('dr-team-b');
+        const season = document.getElementById('dr-season');
+        const map = document.getElementById('dr-map');
+        const scrims = document.getElementById('dr-include-scrims');
+        const tournaments = document.getElementById('dr-include-tournaments');
+        mergeAgentContext({
+            team_a_id: teamA && teamA.value ? Number(teamA.value) : agentContext.team_a_id,
+            team_b_id: teamB && teamB.value ? Number(teamB.value) : agentContext.team_b_id,
+            team_a_name: teamA && teamA.value ? (teamNames[String(teamA.value)] || '') : agentContext.team_a_name,
+            team_b_name: teamB && teamB.value ? (teamNames[String(teamB.value)] || '') : agentContext.team_b_name,
+            season: season && season.value ? season.value : agentContext.season,
+            map: map && map.value ? map.value : agentContext.map,
+            include_scrims: scrims ? scrims.checked : agentContext.include_scrims,
+            include_tournaments: tournaments ? tournaments.checked : agentContext.include_tournaments
+        });
+    }
+
+    document.getElementById('mtab-chat').addEventListener('click', syncFromReasoner);
+    updateContextPanel();
+})();
+
 //  TAB 1 · MATCHUP TREE JS
 // ═══════════════════════════════════════════════════════════════
 (function() {

@@ -32,6 +32,8 @@ def check_auth() -> None:
     if not _is_session_authenticated():
         _clear_auth_session()
         return redirect(url_for("login", next=request.path))
+    if request.path in {"/api/draft-agent", "/api/machine-chat"}:
+        return
     if _is_write_request() and not _is_edit_session():
         if request.path.startswith("/api/"):
             return jsonify({"ok": False, "error": "Edit access required"}), 403

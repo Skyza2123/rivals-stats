@@ -2,3 +2,5 @@ Flask
 gunicorn
 whitenoise
 asgiref
+openai
+python-dotenv
