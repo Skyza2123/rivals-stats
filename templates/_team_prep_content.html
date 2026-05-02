@@ -74,6 +74,35 @@
                 <div id="prepEnemyBanTooltip" class="chart-tooltip" hidden></div>
             </div>
         </div>
+        <div class="table-wrap top-gap">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Hero</th>
+                        <th>Bans</th>
+                        <th>Ban Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in prep_analytics.enemy_ban_rows[:10] %}
+                        <tr>
+                            <td class="muted-label">{{ loop.index }}</td>
+                            <td>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.hero) }}</span>
+                                </span>
+                            </td>
+                            <td>{{ row.count }}</td>
+                            <td>
+                                <span class="metric-text {% if row.ban_rate >= 60 %}metric-bad{% elif row.ban_rate >= 35 %}metric-warn{% else %}metric-neutral{% endif %}">{{ row.ban_rate }}%</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% endif %}
 </section>
 
