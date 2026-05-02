@@ -1649,6 +1649,20 @@ def _machine_agent_missing_context_response(intent: str, context: dict) -> str |
 @app.route("/api/draft-agent", methods=["POST"])
 @app.route("/api/machine-chat", methods=["POST"])
 def api_machine_chat():
+    try:
+        return _api_machine_chat_inner()
+    except Exception as _exc:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "answer": "Something went wrong processing that request. Try rephrasing or loading a different matchup.",
+            "source": "error",
+            "reason": "internal_error",
+            "meta": {"has_matchup": False, "intent": "error", "needs_context": False, "visuals": {}},
+        }), 200
+
+
+def _api_machine_chat_inner():
     payload = request.get_json(silent=True) or {}
     message = (payload.get("message") or "").strip()
     if not message:
