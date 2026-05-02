@@ -181,6 +181,10 @@ def init_db() -> None:
         TEAM_LOGO_DIR.mkdir(parents=True, exist_ok=True)
         migrate_enemy_teams_to_team_database(conn)
         migrate_legacy_logo_paths_to_disk(conn)
+
+        from draft_engine.schema import create_draft_engine_tables
+        create_draft_engine_tables(conn)
+
         conn.commit()
     finally:
         conn.close()
