@@ -810,12 +810,17 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
 
     q = (message or "").lower()
     wants_scrims = any(phrase in q for phrase in ("scrim", "scrims", "history", "recent match", "recent matches", "recent game", "results"))
+    wants_comps = any(phrase in q for phrase in (
+        "what comp", "what comps", "comps do", "comp do", "comps does", "comp does",
+        "comps can", "comp can", "comps will", "comp will", "comps they", "comp they",
+        "comp style", "comp options", "play in", "run in", "draft style",
+    ))
     wants_player = any(phrase in q for phrase in ("who is", "who plays", "heroes does", "hero pool", "player"))
     wants_hero = any(phrase in q for phrase in (
         "tell me about", "banned", "protected", "how much does", "how often does",
         "how many times", "ban rate", "does ban",
     )) and not any(phrase in q for phrase in ("team profile", "team overview", "profile", "overview"))
-    wants_team = any(phrase in q for phrase in ("overview", "profile", "snapshot", "breakdown", "everything about", "all about", "tell me about"))
+    wants_team = wants_comps or any(phrase in q for phrase in ("overview", "profile", "snapshot", "breakdown", "everything about", "all about", "tell me about"))
     wants_map = any(phrase in q for phrase in ("map", "maps")) and any(
         phrase in q
         for phrase in (
@@ -876,12 +881,16 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
             top_h = hero_bits(pp.get("heroes", []), 4)
             if pname:
                 player_lines.append(f"{pname}{(' (' + role + ')') if role else ''}: {top_h}")
-        team_text = (
-            f"{team.get('team') or 'That team'} profile:\n"
-            f"  Hero bias: {bias}.\n"
-            f"  Core pairs: {_machine_chat_join(pair_cores, 5)}.\n"
-            f"  Map record: {_machine_chat_join(map_stats, 5)}."
-        )
+        team_has_data = bool(bias) or bool(pair_cores) or bool(map_stats)
+        if team_has_data:
+            team_text = (
+                f"{team.get('team') or 'That team'} profile:\n"
+                f"  Hero bias: {bias}.\n"
+                f"  Core pairs: {_machine_chat_join(pair_cores, 5)}.\n"
+                f"  Map record: {_machine_chat_join(map_stats, 5)}."
+            )
+        else:
+            team_text = f"No draft-engine data loaded yet for {team.get('team') or 'that team'} — comp data will appear after the ETL runs."
         if wants_bans:
             ban_rows = sorted(
                 [row for row in (team.get("hero_bias") or []) if (row.get("ban_count") or 0) > 0],
@@ -975,12 +984,13 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     if wants_scrims:
         preferred.append("scrims")
     if wants_team:
-        preferred.extend(["team", "player", "scrims"])
+        preferred.extend(["team", "player"])
+        if wants_scrims:
+            preferred.append("scrims")
     # always include anything available in fallback order
-    preferred.extend(["player", "hero", "team", "map", "scrims"])
-
-    sections = []
-    seen = set()
+    preferred.extend(["player", "hero", "team", "map"])
+    if not wants_comps:
+        preferred.append("scrims")
     for key in preferred:
         if key in seen or not section_map.get(key):
             continue
@@ -1153,7 +1163,12 @@ def _machine_agent_intent(message: str) -> str:
         return "map"
     if any(phrase in q for phrase in ("next pick", "likely pick", "first pick", "pick next")):
         return "next_pick"
-    if any(phrase in q for phrase in ("enemy comp", "enemy comps", "full enemy", "likely full", "they still get", "can they still get", "comps can they")):
+    if any(phrase in q for phrase in ("enemy comp", "enemy comps", "full enemy", "likely full", "they still get", "can they still get", "comps can they",
+                                        "what comps do", "what comp do", "what comps can", "what comp can",
+                                        "comps do they", "comp do they", "comps will they", "comp will they",
+                                        "comps does", "comp does", "comps get", "comp get",
+                                        "comps are available", "comp is available", "available comps",
+                                        "comps for them", "their comps", "their comp options")):
         return "enemy_comps"
     if any(phrase in q for phrase in ("top 4 likely bans", "top four likely bans", "likely bans after", "after our first ban", "after my first ban", "after first ban")):
         return "ban_impact"
@@ -1314,15 +1329,23 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
             f"That keeps {comp_line or 'the route'} open and pairs with {protect_line or enemy_line}."
         )
     elif intent == "enemy_comps":
+        q_lower = (message or "").lower()
+        # Resolve which team is the subject — prefer an explicitly named team_b
+        subject = meta.get("team_b") or "them"
         if enemy_comps:
-            top = enemy_comps[0]
+            ranked = []
+            for i, r in enumerate(enemy_comps, 1):
+                heroes = _machine_chat_join(r.get("heroes", []), 6)
+                wr = r.get("win_rate", 0)
+                rate = r.get("rate", 0)
+                ranked.append(f"{i}. {heroes} ({wr}% WR{(', ' + str(rate) + '% pick rate') if rate else ''})")
+            comp_list = "\n".join(ranked)
             return (
-                f"Their cleanest look is {_machine_chat_join(top.get('heroes', []), 6)}.\n\n"
-                f"Comfort read: they lean on {enemy_line or 'their comfort core'}, while we can anchor on {our_line or 'our comfort core'}.\n\n"
-                f"Break it up with {ban_line or 'the first deny layer'}."
+                f"Best comp options for {subject}:\n{comp_list}\n\n"
+                f"They lean on {enemy_line or 'their comfort core'}. Break it up with {ban_line or 'the first deny layer'}."
             )
         return (
-            f"Read their draft through {enemy_line or 'their comfort core'}, and keep {our_line or 'our comfort core'} available.\n\n"
+            f"Read {subject}'s draft through {enemy_line or 'their comfort core'}, and keep {our_line or 'our comfort core'} available.\n\n"
             f"Use {ban_line or 'the deny layer'} to keep the full comp from settling."
         )
     elif intent == "ban_impact":

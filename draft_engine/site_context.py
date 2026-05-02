@@ -833,7 +833,7 @@ def search_site(
         result["sources_used"].append("map_stats")
 
     # --- scrim history snippet ---
-    if matched_teams or "scrim" in q or "history" in q or "recent" in q or "tournament" in q:
+    if matched_teams or "scrim" in q or "history" in q or "recent" in q:
         vs = next((t for t in matched_teams if t != personal_name), None)
         result["scrims_summary"] = get_scrim_history(conn, personal_name, vs=vs, season=season, limit=8)
         if result["scrims_summary"]:

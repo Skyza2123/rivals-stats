@@ -248,4 +248,28 @@ def save_app_state(*, allow_scrim_removal: bool = False) -> None:
     if conflict_detected and has_request_context():
         flash("A concurrent scrim update was detected. Changes were merged to prevent data loss.", "warning")
 
+    schedule_draft_etl()
+
+
+def schedule_draft_etl() -> None:
+    """Rebuild draft engine tables in a background thread (non-blocking)."""
+    import threading
+
+    def _run() -> None:
+        try:
+            import sqlite3 as _sqlite3
+            from draft_engine.etl import run_etl
+            conn = _sqlite3.connect(str(DB_PATH))
+            conn.row_factory = _sqlite3.Row
+            try:
+                run_etl(conn, reset=True)
+            finally:
+                conn.close()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error("Draft ETL background run failed: %s", exc)
+
+    t = threading.Thread(target=_run, daemon=True, name="draft-etl")
+    t.start()
+
 
