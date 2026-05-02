@@ -2,5 +2,7 @@ Flask
 gunicorn
 whitenoise
 asgiref
-openai
+mlxtend
+scikit-learn
+xgboost
 python-dotenv

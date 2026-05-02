@@ -811,9 +811,17 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     q = (message or "").lower()
     wants_scrims = any(phrase in q for phrase in ("scrim", "scrims", "history", "recent match", "recent matches", "recent game", "results"))
     wants_player = any(phrase in q for phrase in ("who is", "who plays", "heroes does", "hero pool", "player"))
-    wants_hero = any(phrase in q for phrase in ("tell me about", "banned", "protected")) and not any(phrase in q for phrase in ("team", "profile", "overview"))
+    wants_hero = any(phrase in q for phrase in (
+        "tell me about", "banned", "protected", "how much does", "how often does",
+        "how many times", "ban rate", "does ban",
+    )) and not any(phrase in q for phrase in ("team profile", "team overview", "profile", "overview"))
     wants_team = any(phrase in q for phrase in ("overview", "profile", "snapshot", "breakdown", "everything about", "all about", "tell me about"))
-    wants_map = any(phrase in q for phrase in ("map", "maps")) and any(phrase in q for phrase in ("record", "stats", "played", "good on", "best on"))
+    wants_map = any(phrase in q for phrase in ("map", "maps")) and any(
+        phrase in q
+        for phrase in (
+            "record", "stats", "played", "good on", "best on", "best map", "strongest map", "favorite map", "go to map",
+        )
+    )
     wants_bans = any(phrase in q for phrase in ("ban", "bans", "banned", "ban rate", "ban stats"))
 
     section_map = {}
@@ -960,7 +968,7 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     preferred = []
     if wants_player:
         preferred.append("player")
-    if wants_hero:
+    if wants_hero or (section_map.get("hero") and wants_bans):
         preferred.append("hero")
     if wants_map:
         preferred.append("map")
@@ -1147,6 +1155,8 @@ def _machine_agent_intent(message: str) -> str:
         return "next_pick"
     if any(phrase in q for phrase in ("enemy comp", "enemy comps", "full enemy", "likely full", "they still get", "can they still get", "comps can they")):
         return "enemy_comps"
+    if any(phrase in q for phrase in ("top 4 likely bans", "top four likely bans", "likely bans after", "after our first ban", "after my first ban", "after first ban")):
+        return "ban_impact"
     if hero_name and any(word in q for word in ("ban", "banned", "remove", "deny")) and any(phrase in q for phrase in ("what if", "if i", "if we", "first")):
         return "ban_impact"
     if any(phrase in q for phrase in ("ban impact", "impact of ban", "if we ban", "banning impact")) or ("banning" in q and "matter" in q):
@@ -1186,8 +1196,8 @@ def _machine_agent_filter_visuals(intent: str, visuals: dict) -> dict:
         "stats": ("recommended_bans", "our_comfort", "enemy_comfort", "target_comp"),
         "slot_compare": ("slot_compare",),
         "next_pick": ("likely_next_pick", "target_comp", "enemy_comfort"),
-        "enemy_comps": ("enemy_comps", "recommended_bans"),
-        "ban_impact": ("hero_focus", "target_comp", "enemy_comfort", "volatile_rows"),
+        "enemy_comps": ("enemy_comps", "recommended_bans", "enemy_comfort", "our_comfort"),
+        "ban_impact": ("hero_focus", "recommended_bans", "likely_next_pick", "target_comp", "enemy_comfort", "our_comfort", "volatile_rows"),
         "player_pivot": ("player_pivot",),
         "pivot": ("pivot_predictions", "recommended_bans"),
         "confidence": ("confidence", "target_comp", "recommended_bans"),
@@ -1226,9 +1236,12 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
 
     lines = context_text.splitlines()
     if intent == "ban":
+        ban_seq = (visuals.get("recommended_bans") or [])[:4]
+        seq_line = " | ".join(f"Ban {i+1}: {h}" for i, h in enumerate(ban_seq))
         return (
-            f"Open on {ban_line}.\n\n"
-            f"That hits their comfort lane and keeps {comp_line or 'our route'} cleaner."
+            f"Top likely bans right now: {ban_line}.\n\n"
+            f"{('Likely sequence: ' + seq_line + '.\\n\\n') if seq_line else ''}"
+            f"If you name your first ban, I can re-rank this sequence conditionally."
         )
     elif intent == "protect":
         return (
@@ -1305,10 +1318,11 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
             top = enemy_comps[0]
             return (
                 f"Their cleanest look is {_machine_chat_join(top.get('heroes', []), 6)}.\n\n"
+                f"Comfort read: they lean on {enemy_line or 'their comfort core'}, while we can anchor on {our_line or 'our comfort core'}.\n\n"
                 f"Break it up with {ban_line or 'the first deny layer'}."
             )
         return (
-            f"Read their draft through {enemy_line or 'their comfort core'}.\n\n"
+            f"Read their draft through {enemy_line or 'their comfort core'}, and keep {our_line or 'our comfort core'} available.\n\n"
             f"Use {ban_line or 'the deny layer'} to keep the full comp from settling."
         )
     elif intent == "ban_impact":
@@ -1322,9 +1336,22 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
             [item for item in visuals.get("recommended_bans", []) if (item or "").strip().lower() != hero_key],
             4,
         )
+        enemy_ban_line = _machine_chat_join(
+            [item for item in visuals.get("recommended_bans", []) if (item or "").strip().lower() != hero_key],
+            5,
+        )
+        ban_seq = [
+            item for item in (visuals.get("recommended_bans", []) or [])
+            if (item or "").strip().lower() != hero_key
+        ][:4]
+        seq_line = " | ".join(f"Ban {i+1}: {h}" for i, h in enumerate(ban_seq))
+        next_pressure = _machine_chat_join(visuals.get("likely_next_pick", []), 2)
         return (
-            f"If you remove {hero or 'that hero'}, the draft shifts toward {filtered_comp or enemy_line or 'the next best route'}.\n\n"
-            f"Pair that ban with {filtered_followup or protect_line or enemy_line}."
+            f"If you first-ban {hero or 'that hero'}, their likely deny board becomes {enemy_ban_line or filtered_followup or enemy_line or 'their comfort layer'}.\n\n"
+            f"{('Likely sequence: ' + seq_line + '.\n\n') if seq_line else ''}"
+            f"Comfort read after that ban: they still lean on {enemy_line or 'their comfort core'}, while we can route through {our_line or filtered_comp or 'our comfort core'}.\n\n"
+            f"That usually shifts the draft toward {filtered_comp or enemy_line or 'the next best route'}"
+            f"{('. Next pick pressure: ' + next_pressure + '.') if next_pressure else '.'}"
         )
     elif intent == "hero_volatility":
         hero = _machine_agent_parse_hero(message)
@@ -1412,38 +1439,33 @@ def _machine_agent_site_context_text(site_result: dict) -> str:
     return "\n".join(lines)
 
 
-def _machine_agent_llm_answer(message: str, context: str, personal_team: str) -> str | None:
-    """Call OpenAI to generate a natural-language answer grounded in `context`. Returns None if unavailable or on error."""
-    import os
-    api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    if not api_key:
-        return None
+def _machine_agent_llm_answer(message: str, context: str, personal_team: str, meta: dict | None = None, intent: str = "general", site_context_text: str = "", season: str = "all") -> str | None:
+    """Generate a natural-language answer using local ML (association rules + NLG). No external API calls."""
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        model = (os.environ.get("OPENAI_DRAFT_MODEL") or "gpt-4o-mini").strip()
-        system_prompt = (
-            f"You are a Marvel Rivals competitive draft analyst and coach for {personal_team or 'our team'}. "
-            "Answer directly and conversationally — like a coach talking during draft prep. "
-            "For detailed questions (profiles, snapshots, breakdowns) give structured, complete answers. "
-            "For quick questions keep it to 2-3 sentences. "
-            "Use only the data provided below; do not invent hero names, team names, or statistics. "
-            "If the data does not contain enough to answer confidently, say so briefly.\n\n"
-            f"Data:\n{context[:6000]}"
+        from draft_engine.local_ml import generate_local_answer
+        result = generate_local_answer(
+            message=message,
+            context_text=context or "",
+            site_context_text=site_context_text or "",
+            meta=meta or {},
+            intent=intent,
+            personal_team=personal_team or "",
+            db=get_db(),
+            season=season,
         )
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": message},
-            ],
-            max_tokens=400,
-            temperature=0.35,
-        )
-        text = (resp.choices[0].message.content or "").strip()
-        return text or None
+        return result or None
     except Exception:
         return None
+
+
+def _machine_agent_humanize_answer(text: str) -> str:
+    """Strip markdown-style emphasis and inline code for plain chat rendering."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    cleaned = cleaned.replace("`", "")
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
 
 
 def _machine_agent_extract_season(message: str, fallback: str = "all") -> str:
@@ -1533,18 +1555,12 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
         "map": str(payload.get("map") or raw_context.get("map") or "all").strip(),
         "include_scrims": bool(payload.get("include_scrims", raw_context.get("include_scrims", True))),
         "include_tournaments": bool(payload.get("include_tournaments", raw_context.get("include_tournaments", True))),
-        "reasoning_mode": str(payload.get("reasoning_mode") or raw_context.get("reasoning_mode") or "search").strip().lower(),
+        "reasoning_mode": "reasoning",
     }
-    if context["reasoning_mode"] not in {"search", "reasoning"}:
-        context["reasoning_mode"] = "search"
 
     context["season"] = _machine_agent_extract_season(message, context["season"])
     context["map"] = _machine_agent_extract_map(message, context["map"])
     text = (message or "").lower()
-    if "reasoning mode" in text or "mode reasoning" in text:
-        context["reasoning_mode"] = "reasoning"
-    elif "search mode" in text or "mode search" in text:
-        context["reasoning_mode"] = "search"
     if "scrim only" in text or "only scrim" in text:
         context["include_scrims"] = True
         context["include_tournaments"] = False
@@ -1568,14 +1584,13 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
         before = text[:team["pos"]]
         if context.get("team_a_id") and context.get("team_a_id") == team["id"]:
             pass
-        elif re.search(r"\b(vs|versus|against|enemy|opp|opponent)\s*$", before) or context.get("team_a_id"):
+        elif re.search(r"\b(vs|versus|against|enemy|opp|opponent)\s*$", before):
             context["team_b_id"] = team["id"]
         elif re.search(r"\b(we are|we're|our team is|as|playing as)\s*$", before):
             context["team_a_id"] = team["id"]
-        elif not context.get("team_a_id"):
+        elif not context.get("team_a_id") and not context.get("team_b_id"):
             context["team_a_id"] = team["id"]
-        else:
-            context["team_b_id"] = team["id"]
+        # Otherwise keep the currently selected context intact.
 
     for key in ("team_a_id", "team_b_id"):
         if context.get(key):
@@ -1610,41 +1625,35 @@ def api_machine_chat():
     intent_message = pending_message or message
     intent = _machine_agent_intent(intent_message)
     chat_context = _machine_agent_context_from_payload(payload, message)
-    reasoning_mode = chat_context.get("reasoning_mode", "search")
+    reasoning_mode = "reasoning"
     season_value = chat_context.get("season") or "all"
     is_info_request = _machine_agent_is_info_request(intent_message, intent)
     site_answer = _machine_agent_site_answer(intent_message, season_value)
-    # Search mode: act as a broad site-data search bar first (deterministic, visual-first)
-    if reasoning_mode != "reasoning" and site_answer:
-        site_answer["meta"]["context"] = chat_context
-        site_answer["meta"]["reasoning_mode"] = reasoning_mode
-        site_answer["meta"]["response_engine"] = "local_search"
-        return jsonify({
-            "answer": site_answer["answer"],
-            "source": "site_context",
-            "reason": None,
-            "meta": site_answer["meta"],
-        })
-
     # Reasoning mode: still allow direct site answers for explicit info asks.
     if site_answer and (not chat_context.get("team_b_id") or is_info_request):
         personal_team = (chat_context.get("team_a_name") or "") or ((_machine_agent_get_personal_team() or {}).get("name") or "")
         site_ctx = _machine_agent_site_context_text(site_answer["meta"].get("site_search") or {})
-        llm_text = _machine_agent_llm_answer(intent_message, site_ctx, personal_team)
+        llm_text = _machine_agent_llm_answer(
+            intent_message, site_ctx, personal_team,
+            meta={"has_matchup": False},
+            intent=intent,
+            site_context_text=site_ctx,
+            season=season_value,
+        )
         site_answer["meta"]["context"] = chat_context
         site_answer["meta"]["reasoning_mode"] = reasoning_mode
-        site_answer["meta"]["response_engine"] = "llm_reasoning" if llm_text else "local_search"
+        site_answer["meta"]["response_engine"] = "local_ml"
         return jsonify({
-            "answer": llm_text or site_answer["answer"],
+            "answer": _machine_agent_humanize_answer(llm_text or site_answer["answer"]),
             "source": "site_context",
             "reason": None,
             "meta": site_answer["meta"],
         })
 
     follow_up = _machine_agent_missing_context_response(intent, chat_context)
-    if (is_info_request or reasoning_mode != "reasoning") and not site_answer:
+    if is_info_request and not site_answer:
         return jsonify({
-            "answer": "I could not find a direct site-data match for that yet. Try naming a specific team, player, hero, map, or season (example: `Virtus Pro snapshot season 7`, `Fate player snapshot`, `Dr. Strange profile`).",
+            "answer": _machine_agent_humanize_answer("I could not find a direct site-data match for that yet. Try naming a specific team, player, hero, map, or season (example: `Virtus Pro snapshot season 7`, `Fate player snapshot`, `Dr. Strange profile`)."),
             "source": "site_context",
             "reason": "no_entity_match",
             "meta": {
@@ -1652,7 +1661,7 @@ def api_machine_chat():
                 "intent": "site_info",
                 "context": chat_context,
                 "reasoning_mode": reasoning_mode,
-                "response_engine": "local_search",
+                "response_engine": "local_ml",
                 "needs_context": False,
                 "visuals": {},
             },
@@ -1692,8 +1701,14 @@ def api_machine_chat():
         )
     all_visuals = dict((meta.get("visuals") or {}))
     personal_team_name = meta.get("team_a") or ""
-    llm_text = _machine_agent_llm_answer(intent_message, context_text, personal_team_name)
-    answer = llm_text or _machine_agent_answer_for_intent(intent_message, context_text, meta, intent)
+    llm_text = _machine_agent_llm_answer(
+        intent_message, context_text, personal_team_name,
+        meta=meta,
+        intent=intent,
+        site_context_text="",
+        season=season_value,
+    )
+    answer = _machine_agent_humanize_answer(llm_text or _machine_agent_answer_for_intent(intent_message, context_text, meta, intent))
     compare_request = _machine_agent_parse_slot_compare(intent_message) if meta.get("has_matchup") else None
     player_pivot_request = _machine_agent_parse_player_pivot(intent_message, chat_context) if meta.get("has_matchup") else None
     hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
@@ -1796,7 +1811,7 @@ def api_machine_chat():
         "team_a_name": meta.get("team_a") or chat_context.get("team_a_name", ""),
         "team_b_name": meta.get("team_b") or chat_context.get("team_b_name", ""),
     }
-    meta["response_engine"] = "llm_reasoning" if llm_text else "local_draft"
+    meta["response_engine"] = "local_ml" if llm_text else "local_draft"
 
     return jsonify({
         "answer": answer,

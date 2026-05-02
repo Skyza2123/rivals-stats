@@ -979,9 +979,10 @@
                 <div class="machine-chat-context-main" id="machine-chat-context-main">No matchup yet</div>
                 <div class="machine-agent-tree-text" id="machine-chat-context-sub">Tell the agent who you are, who the enemy is, and the season when it matters.</div>
             </div>
-            <div class="machine-mode-toggle" id="machine-mode-toggle" role="group" aria-label="Agent mode">
-                <button type="button" class="machine-mode-btn active" data-mode="search">Search Mode</button>
-                <button type="button" class="machine-mode-btn" data-mode="reasoning">Reasoning Mode</button>
+            <div class="machine-chat-context" aria-label="Agent mode">
+                <div class="machine-agent-tree-title">Mode</div>
+                <div class="machine-chat-context-main">Reasoning Mode</div>
+                <div class="machine-agent-tree-text">Draft strategy with local ML + matchup context.</div>
             </div>
             <div class="machine-chat-samples">
                 <button type="button" class="machine-chat-sample" data-question="Set current draft from the reasoner tab">Set current draft</button>
@@ -996,7 +997,7 @@
 
         <div class="machine-chat-shell">
             <div class="machine-chat-log" id="machine-chat-log">
-                <div class="machine-chat-message bot">Search mode: broad site snapshots and profiles. Reasoning mode: draft strategy with LLM + matchup context.</div>
+                <div class="machine-chat-message bot">Reasoning mode is always on: draft strategy with local ML + matchup context.</div>
             </div>
             <form class="machine-chat-compose" id="machine-chat-form">
                 <textarea id="machine-chat-input" placeholder="Example: What should we ban here?" maxlength="1200"></textarea>
@@ -1107,22 +1108,19 @@ function openHeroIconHtml(hero) {
         map: 'all',
         include_scrims: true,
         include_tournaments: true,
-        reasoning_mode: 'search'
+        reasoning_mode: 'reasoning'
     };
     let agentPendingMessage = '';
 
     function syncModeControls() {
-        if (!modeToggle) return;
-        const mode = agentContext.reasoning_mode === 'reasoning' ? 'reasoning' : 'search';
-        modeToggle.querySelectorAll('.machine-mode-btn').forEach(function(btn) {
-            btn.classList.toggle('active', btn.dataset.mode === mode);
-        });
+        const mode = 'reasoning';
+        if (modeToggle) {
+            modeToggle.querySelectorAll('.machine-mode-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+        }
         if (input) {
-            if (mode === 'reasoning') {
-                input.placeholder = 'Example: What should we ban first into VP on Shin-Shibuya?';
-            } else {
-                input.placeholder = 'Example: VP team snapshot or Fate player profile';
-            }
+            input.placeholder = 'Example: What should we ban first into VP on Shin-Shibuya?';
         }
     }
 
@@ -1163,7 +1161,7 @@ function openHeroIconHtml(hero) {
             contextMain.textContent = 'No matchup yet';
         }
         const filters = [
-            agentContext.reasoning_mode === 'reasoning' ? 'Reasoning mode' : 'Search mode',
+            'Reasoning mode',
             'Season ' + (agentContext.season && agentContext.season !== 'all' ? agentContext.season : 'all'),
             agentContext.map && agentContext.map !== 'all' ? agentContext.map : 'All maps',
             agentContext.include_scrims && agentContext.include_tournaments ? 'scrims + tournaments' : (agentContext.include_scrims ? 'scrims only' : 'tournaments only')
@@ -1174,7 +1172,7 @@ function openHeroIconHtml(hero) {
     function mergeAgentContext(nextContext) {
         if (!nextContext) return;
         agentContext = Object.assign({}, agentContext, nextContext);
-        agentContext.reasoning_mode = agentContext.reasoning_mode === 'reasoning' ? 'reasoning' : 'search';
+        agentContext.reasoning_mode = 'reasoning';
         if (!agentContext.team_a_name && agentContext.team_a_id) agentContext.team_a_name = teamNames[String(agentContext.team_a_id)] || '';
         if (!agentContext.team_b_name && agentContext.team_b_id) agentContext.team_b_name = teamNames[String(agentContext.team_b_id)] || '';
         syncModeControls();
@@ -1953,7 +1951,8 @@ function openHeroIconHtml(hero) {
     function agentEngineLabel(data) {
         const meta = (data && data.meta) || {};
         const engine = (meta.response_engine || '').toLowerCase();
-        if (engine === 'llm_reasoning') return 'LLM reasoning';
+        if (engine === 'local_ml') return 'Local ML reasoning';
+        if (engine === 'llm_reasoning') return 'Local ML reasoning';
         if (engine === 'local_draft') return 'Local draft logic';
         if (engine === 'local_search') return 'Local search';
         if (engine === 'context_prompt') return 'Context prompt';
@@ -2007,6 +2006,7 @@ function openHeroIconHtml(hero) {
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        syncFromReasoner();
         const message = input.value.trim();
         if (!message) return;
         input.value = '';
@@ -2056,15 +2056,7 @@ function openHeroIconHtml(hero) {
     updateContextPanel();
     syncModeControls();
 
-    if (modeToggle) {
-        modeToggle.querySelectorAll('.machine-mode-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                agentContext.reasoning_mode = btn.dataset.mode === 'reasoning' ? 'reasoning' : 'search';
-                syncModeControls();
-                updateContextPanel();
-            });
-        });
-    }
+    // Search mode removed: reasoning mode is always on.
 })();
 
 //  TAB 1 · MATCHUP TREE JS

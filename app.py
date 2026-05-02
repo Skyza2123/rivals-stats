@@ -25,6 +25,7 @@ from flask import Flask, render_template, request, redirect, url_for, abort, g, 
 from markupsafe import Markup
 from werkzeug.datastructures import FileStorage
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from hero_analytics import (
     build_hero_usage_timeline,
@@ -115,6 +116,11 @@ if _whitenoise_module is not None:
     from whitenoise import WhiteNoise
 
     app.wsgi_app = WhiteNoise(app.wsgi_app, root=str(Path(app.root_path) / "static"), prefix="static/")
+
+# Trust X-Forwarded-Proto/Host headers from the reverse proxy (Render/Gunicorn)
+# so Flask generates https:// URLs in redirects and url_for().
+# ProxyFix must wrap the outermost middleware layer.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 def _default_database_path() -> Path:
     configured = (os.environ.get("DATABASE_PATH") or "").strip()

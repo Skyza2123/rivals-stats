@@ -716,8 +716,8 @@ def search_site(
     ).fetchall()]
     matched_heroes_raw = [h for h in all_heroes if _norm_search(h) in qs or qs in _norm_search(h)]
     matched_heroes = list(dict.fromkeys(matched_heroes_raw))
-    for h in matched_heroes:
-        result["heroes"].append(get_hero_stats(conn, h, personal_name, season))
+    # Hero stats are populated after team matching so we scope them to the
+    # explicitly named team when one is present in the query.
     if matched_heroes:
         result["sources_used"].append("hero_stats")
 
@@ -728,9 +728,17 @@ def search_site(
     # Check alias map: scan each word/token in the query for known acronyms
     for token in q.split():
         token_clean = token.strip(".,!?\"'")
-        alias_match = _resolve_team_alias(token_clean)
-        if alias_match and alias_match not in matched_teams:
-            matched_teams.append(alias_match)
+        token_norm = _norm_search(token_clean)
+        token_variants = [token_clean, token_norm]
+        if token_norm.endswith("s") and len(token_norm) > 2:
+            # Handle possessive/plural-like forms such as "vp's" -> "vps" -> "vp"
+            token_variants.append(token_norm[:-1])
+        for variant in token_variants:
+            if not variant:
+                continue
+            alias_match = _resolve_team_alias(variant)
+            if alias_match and alias_match not in matched_teams:
+                matched_teams.append(alias_match)
     # Also try multi-word phrases from the alias map
     for alias_key, canonical in _TEAM_ALIASES.items():
         if " " in alias_key and alias_key in q and canonical not in matched_teams:
@@ -804,6 +812,15 @@ def search_site(
         result["teams"].append(overview)
     if matched_teams:
         result["sources_used"].append("team_overview")
+
+    # --- populate hero stats (deferred until team scope is known) ---
+    # Use the first non-personal matched team, or fall back to personal team.
+    hero_team_scope = next(
+        (t for t in matched_teams if _norm(t) != _norm(personal_name)),
+        personal_name,
+    )
+    for h in matched_heroes:
+        result["heroes"].append(get_hero_stats(conn, h, hero_team_scope, season))
 
     # --- map match ---
     all_maps = [r[0] for r in conn.execute(
