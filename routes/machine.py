@@ -543,6 +543,8 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             "base": row.get("enemy_base", row.get("base_heroes", []))[:6],
             "pivot": row.get("enemy_pivot", [])[:6],
             "counter": row.get("our_counter_pivot", [])[:6],
+            "diff_count": row.get("enemy_diff_count", 0),
+            "counter_diff_count": row.get("our_counter_diff_count", 0),
         }
         for row in model.get("pivot_pressure_rows", [])[:4]
     ]
@@ -974,6 +976,8 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
         section_map["scrims"] = f"Recent scrim history: {'; '.join(snippets)}."
 
     # Build preferred ordering based on question type
+    sections: list[str] = []
+    seen: set[str] = set()
     preferred = []
     if wants_player:
         preferred.append("player")
@@ -1385,8 +1389,16 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
     elif intent == "pivot":
         if pivot_predictions:
             row = pivot_predictions[0]
+            diff = row.get("diff_count", 0) or 0
+            pivot_type = "round swap" if diff <= 2 else "pressure pivot"
+            pivot_label = (
+                f"{diff}-hero swap — likely a situational round adjustment"
+                if diff <= 2
+                else f"{diff}-hero rebuild — typically a losing-map response"
+            )
             return (
-                f"If they start on {_machine_chat_join(row.get('base', []), 4)}, expect the pivot into {_machine_chat_join(row.get('pivot', []), 4)}.\n\n"
+                f"If they start on {_machine_chat_join(row.get('base', []), 4)}, expect the pivot into {_machine_chat_join(row.get('pivot', []), 4)}.\n"
+                f"Read: {pivot_label} ({pivot_type}).\n\n"
                 f"Our clean answer is {_machine_chat_join(row.get('counter', []), 4) or comp_line}."
             )
         return (
@@ -1651,7 +1663,14 @@ def api_machine_chat():
     reasoning_mode = "reasoning"
     season_value = chat_context.get("season") or "all"
     is_info_request = _machine_agent_is_info_request(intent_message, intent)
-    site_answer = _machine_agent_site_answer(intent_message, season_value)
+    # For ban_impact with a named hero but no matchup context, treat as a hero info request
+    # so we use site data instead of prompting for a team.
+    if intent == "ban_impact" and not chat_context.get("team_b_id") and _machine_agent_parse_hero(intent_message):
+        is_info_request = True
+    try:
+        site_answer = _machine_agent_site_answer(intent_message, season_value)
+    except Exception:
+        site_answer = None
     # Reasoning mode: still allow direct site answers for explicit info asks.
     if site_answer and (not chat_context.get("team_b_id") or is_info_request):
         personal_team = (chat_context.get("team_a_name") or "") or ((_machine_agent_get_personal_team() or {}).get("name") or "")
@@ -2047,6 +2066,7 @@ def api_draft_reasoner_model():
             SELECT name, role, main_hero, COALESCE(is_sub, 0) AS is_sub
             FROM players
             WHERE team_id = ?
+              AND role NOT IN ('Coach', 'AC', 'Analyst')
             ORDER BY COALESCE(is_sub, 0), name COLLATE NOCASE
             """,
             (team_id,),

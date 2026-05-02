@@ -531,6 +531,9 @@
 .machine-agent-comp-card { background:rgba(2,6,23,0.4); border:1px solid rgba(148,163,184,0.12); border-radius:0.65rem; padding:0.75rem 0.8rem; }
 .machine-agent-comp-meta { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.45rem; }
 .machine-agent-pill { display:inline-flex; align-items:center; border-radius:999px; padding:0.18rem 0.48rem; font-size:0.7rem; font-weight:800; border:1px solid rgba(148,163,184,0.14); background:rgba(15,23,42,0.5); color:#cbd5e1; }
+.machine-agent-pivot-pressure { color:#f87171 !important; font-weight:800; }
+.machine-agent-pivot-swap { color:#fbbf24 !important; font-weight:700; }
+.machine-agent-pivot-tip { font-size:0.68rem; font-weight:400; opacity:0.72; margin-left:0.35rem; }
 .machine-agent-portrait-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.25rem; }
 .machine-agent-portrait-card { display:flex; flex-direction:column; align-items:center; gap:0.28rem; }
 .machine-agent-portrait-card img { width:54px; height:54px; border-radius:0.5rem; object-fit:cover; border:2px solid rgba(148,163,184,0.22); background:rgba(15,23,42,0.72); transition:transform .15s; }
@@ -1259,10 +1262,21 @@ function openHeroIconHtml(hero) {
         return '<div class="machine-agent-tree-node ' + escapeHtml(cls || '') + '">'
             + '<div class="machine-agent-tree-title">' + escapeHtml(title) + '</div>'
             + rows.map(function(row) {
-                return '<div style="margin-bottom:0.55rem">'
+                var diff = Number(row.diff_count || 0);
+                var isSwap = diff > 0 && diff <= 2;
+                var isPressure = diff >= 3;
+                var typeLabel = isPressure ? 'Pressure pivot' : (isSwap ? 'Round swap' : 'Likely pivot');
+                var typeCls = isPressure ? 'machine-agent-pivot-pressure' : (isSwap ? 'machine-agent-pivot-swap' : '');
+                var typeTip = isPressure
+                    ? diff + '-hero rebuild — losing-map response'
+                    : (isSwap ? diff + '-hero swap — situational adjustment' : '');
+                return '<div style="margin-bottom:0.75rem">'
                     + ((row.base || []).length ? '<div class="machine-agent-tree-text">Enemy base</div><div class="machine-agent-hero-row">' + row.base.map(function(hero) { return heroChipHtml(hero, ''); }).join('') + '</div>' : '')
-                    + ((row.pivot || []).length ? '<div class="machine-agent-tree-text">Likely pivot</div><div class="machine-agent-hero-row">' + row.pivot.map(function(hero) { return heroChipHtml(hero, 'ban'); }).join('') + '</div>' : '')
-                    + ((row.counter || []).length ? '<div class="machine-agent-tree-text">Counter pivot</div><div class="machine-agent-hero-row">' + row.counter.map(function(hero) { return heroChipHtml(hero, 'protect'); }).join('') + '</div>' : '')
+                    + ((row.pivot || []).length
+                        ? '<div class="machine-agent-tree-text ' + typeCls + '">' + escapeHtml(typeLabel) + (typeTip ? ' <span class="machine-agent-pivot-tip">' + escapeHtml(typeTip) + '</span>' : '') + '</div>'
+                          + '<div class="machine-agent-hero-row">' + row.pivot.map(function(hero) { return heroChipHtml(hero, isPressure ? 'ban' : 'protect'); }).join('') + '</div>'
+                        : '')
+                    + ((row.counter || []).length ? '<div class="machine-agent-tree-text">Our counter</div><div class="machine-agent-hero-row">' + row.counter.map(function(hero) { return heroChipHtml(hero, 'protect'); }).join('') + '</div>' : '')
                     + '</div>';
             }).join('')
             + '</div>';
@@ -1357,7 +1371,10 @@ function openHeroIconHtml(hero) {
         }
         if (intent === 'pivot') {
             (visuals.pivot_predictions || []).forEach(function(row, idx) {
-                push('Pivot lane ' + (idx + 1), ((row.pivot || []).join(', ') || 'No pivot'), 'Base: ' + ((row.base || []).join(', ') || 'none') + ' | Counter: ' + ((row.counter || []).join(', ') || 'none'), row.pivot || row.base || []);
+                var diff = Number(row.diff_count || 0);
+                var typeLabel = diff >= 3 ? 'Pressure pivot (' + diff + '-hero rebuild)' : (diff > 0 ? 'Round swap (' + diff + '-hero)' : 'Pivot lane ' + (idx + 1));
+                var detail = 'Base: ' + ((row.base || []).join(', ') || 'none') + ' | Counter: ' + ((row.counter || []).join(', ') || 'none');
+                push(typeLabel, ((row.pivot || []).join(', ') || 'No pivot'), detail, row.pivot || row.base || [], diff >= 3 ? 'ban' : '');
             });
             return rows;
         }
