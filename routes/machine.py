@@ -1257,9 +1257,10 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
     if intent == "ban":
         ban_seq = (visuals.get("recommended_bans") or [])[:4]
         seq_line = " | ".join(f"Ban {i+1}: {h}" for i, h in enumerate(ban_seq))
+        seq_part = ("Likely sequence: " + seq_line + ".\n\n") if seq_line else ""
         return (
             f"Top likely bans right now: {ban_line}.\n\n"
-            f"{('Likely sequence: ' + seq_line + '.\\n\\n') if seq_line else ''}"
+            f"{seq_part}"
             f"If you name your first ban, I can re-rank this sequence conditionally."
         )
     elif intent == "protect":
@@ -1372,10 +1373,11 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
             if (item or "").strip().lower() != hero_key
         ][:4]
         seq_line = " | ".join(f"Ban {i+1}: {h}" for i, h in enumerate(ban_seq))
+        seq_part = ("Likely sequence: " + seq_line + ".\n\n") if seq_line else ""
         next_pressure = _machine_chat_join(visuals.get("likely_next_pick", []), 2)
         return (
             f"If you first-ban {hero or 'that hero'}, their likely deny board becomes {enemy_ban_line or filtered_followup or enemy_line or 'their comfort layer'}.\n\n"
-            f"{('Likely sequence: ' + seq_line + '.\n\n') if seq_line else ''}"
+            f"{seq_part}"
             f"Comfort read after that ban: they still lean on {enemy_line or 'their comfort core'}, while we can route through {our_line or filtered_comp or 'our comfort core'}.\n\n"
             f"That usually shifts the draft toward {filtered_comp or enemy_line or 'the next best route'}"
             f"{('. Next pick pressure: ' + next_pressure + '.') if next_pressure else '.'}"
