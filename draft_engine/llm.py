@@ -24,16 +24,29 @@ _TIMEOUT_SECONDS = 30
 
 
 def _get_api_key() -> str | None:
-    return os.environ.get("OPENAI_API_KEY", "").strip() or None
+    # OPENAI_API_KEY is the canonical production setting.  MINIMAX_API_KEY is
+    # accepted as a legacy alias because older sample env files used that name.
+    return (
+        os.environ.get("OPENAI_API_KEY", "").strip()
+        or os.environ.get("MINIMAX_API_KEY", "").strip()
+        or None
+    )
 
 
 def _get_model() -> str:
-    return os.environ.get("OPENAI_DRAFT_MODEL", "").strip() or _DEFAULT_MODEL
+    return (
+        os.environ.get("OPENAI_DRAFT_MODEL", "").strip()
+        or os.environ.get("MINIMAX_MODEL", "").strip()
+        or _DEFAULT_MODEL
+    )
 
 
 def _get_max_tokens() -> int:
     try:
-        return int(os.environ.get("OPENAI_MAX_TOKENS", "")) or _DEFAULT_MAX_TOKENS
+        return int(
+            os.environ.get("OPENAI_MAX_TOKENS", "").strip()
+            or os.environ.get("MINIMAX_MAX_TOKENS", "").strip()
+        ) or _DEFAULT_MAX_TOKENS
     except (TypeError, ValueError):
         return _DEFAULT_MAX_TOKENS
 
