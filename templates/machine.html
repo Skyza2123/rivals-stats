@@ -423,17 +423,48 @@
 }
 @media (max-width:700px) { .dr-overview-strip { grid-template-columns:1fr; } }
 
-/* Machine draft agent */
-.machine-chat-grid { display:grid; grid-template-columns:minmax(240px, 300px) minmax(0, 1fr); gap:1rem; align-items:start; }
-.machine-chat-controls { display:grid; gap:0.85rem; }
-.machine-chat-shell { display:flex; flex-direction:column; min-height:560px; background:rgba(15,23,42,0.35); border:1px solid rgba(148,163,184,0.12); border-radius:0.75rem; overflow:hidden; }
-.machine-chat-log { flex:1; display:flex; flex-direction:column; gap:0.75rem; padding:1rem; overflow:auto; min-height:380px; max-height:62vh; }
-.machine-chat-message { max-width:880px; border:1px solid rgba(148,163,184,0.14); border-radius:0.7rem; padding:0.75rem 0.9rem; line-height:1.55; font-size:0.9rem; white-space:pre-wrap; }
-.machine-chat-message.has-visuals { white-space:normal; width:min(880px, 100%); box-sizing:border-box; }
-.machine-chat-message.user { align-self:flex-end; background:rgba(96,165,250,0.13); border-color:rgba(96,165,250,0.24); color:#dbeafe; }
-.machine-chat-message.bot { align-self:flex-start; background:rgba(2,6,23,0.42); color:#cbd5e1; }
-.machine-chat-message.pending { color:#94a3b8; font-style:italic; }
+/* Parsertime-style full-height chat */
+.machine-chat-shell { display:flex; flex-direction:column; min-height:84vh; border:1px solid rgba(148,163,184,0.12); border-radius:0.85rem; overflow:hidden; }
+.machine-chat-ctx-bar { display:flex; align-items:center; gap:0.6rem; padding:0.55rem 1.2rem; border-bottom:1px solid rgba(148,163,184,0.1); background:rgba(2,6,23,0.45); font-size:0.78rem; color:#475569; flex-shrink:0; flex-wrap:wrap; }
+.machine-chat-ctx-brand { color:#bfdbfe; font-weight:700; letter-spacing:0.03em; }
+.machine-chat-ctx-sep { color:#1e293b; }
+.machine-chat-ctx-matchup { color:#e2e8f0; font-weight:600; }
+.machine-chat-log { flex:1; display:flex; flex-direction:column; gap:0; padding:0; overflow-y:auto; min-height:0; }
+.machine-chat-msg-outer { padding:0.75rem 1.5rem; display:flex; }
+.machine-chat-msg-outer.user { justify-content:flex-end; }
+.machine-chat-msg-outer.bot { justify-content:flex-start; }
+.machine-chat-message { line-height:1.55; font-size:0.9rem; }
+.machine-chat-message.user { max-width:min(640px,90%); background:rgba(96,165,250,0.13); border:1px solid rgba(96,165,250,0.22); border-radius:1rem 1rem 0.25rem 1rem; padding:0.6rem 0.9rem; color:#dbeafe; white-space:pre-wrap; }
+.machine-chat-message.bot { max-width:min(860px,100%); background:none; border:none; padding:0; color:#cbd5e1; white-space:pre-wrap; }
+.machine-chat-message.bot.has-visuals { white-space:normal; }
+.machine-chat-message.bot.pending { color:#475569; }
+.machine-chat-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.9rem; padding:5rem 1.5rem 3rem; text-align:center; flex:1; }
+.machine-chat-empty.hidden { display:none; }
+.machine-chat-empty-icon { width:42px; height:42px; border-radius:50%; background:rgba(37,99,235,0.15); border:1px solid rgba(96,165,250,0.28); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:#60a5fa; }
+.machine-chat-empty-title { font-size:1rem; font-weight:600; color:#e2e8f0; margin:0; }
+.machine-chat-empty-body { font-size:0.84rem; color:#64748b; max-width:320px; margin:0; line-height:1.55; }
+.machine-chat-suggestions { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; width:100%; max-width:460px; }
+.machine-chat-suggestion { border:1px solid rgba(148,163,184,0.16); background:rgba(15,23,42,0.6); color:#94a3b8; border-radius:0.55rem; padding:0.58rem 0.8rem; font-size:0.8rem; cursor:pointer; text-align:left; line-height:1.4; transition:all 0.15s; }
+.machine-chat-suggestion:hover { border-color:rgba(96,165,250,0.42); color:#dbeafe; background:rgba(30,58,138,0.2); }
 .machine-chat-meta { margin-top:0.45rem; font-size:0.72rem; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; }
+
+/* Tool call cards (Parsertime-style inline tool indicators) */
+.machine-chat-tool-track { display:flex; flex-direction:column; gap:0.3rem; margin-bottom:0.5rem; }
+.machine-tool-card { display:flex; align-items:center; gap:0.5rem; background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.15); border-radius:0.45rem; padding:0.38rem 0.62rem; font-size:0.78rem; color:#94a3b8; max-width:520px; transition:border-color 0.2s, color 0.2s; }
+.machine-tool-card.loading { border-color:rgba(96,165,250,0.35); color:#93c5fd; }
+.machine-tool-card.done { border-color:rgba(74,222,128,0.28); color:#6ee7b7; }
+.machine-tool-spinner { width:9px; height:9px; border:1.5px solid rgba(96,165,250,0.25); border-top-color:#60a5fa; border-radius:50%; animation:mToolSpin 0.7s linear infinite; flex-shrink:0; }
+@keyframes mToolSpin { to { transform:rotate(360deg); } }
+.machine-tool-check { width:12px; height:12px; flex-shrink:0; font-size:10px; line-height:12px; text-align:center; }
+.machine-tool-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.machine-chat-thinking { display:flex; align-items:center; gap:0.45rem; font-size:0.82rem; color:#64748b; font-style:italic; margin-top:0.1rem; }
+
+/* Message actions */
+.machine-chat-actions { display:flex; gap:0.4rem; margin-top:0.5rem; }
+.machine-chat-copy-btn { display:inline-flex; align-items:center; gap:0.25rem; background:none; border:1px solid rgba(148,163,184,0.18); border-radius:0.35rem; color:#64748b; font-size:0.72rem; padding:0.2rem 0.5rem; cursor:pointer; transition:color 0.15s, border-color 0.15s; }
+.machine-chat-copy-btn:hover { color:#94a3b8; border-color:rgba(148,163,184,0.35); }
+.machine-chat-copy-btn.copied { color:#4ade80; border-color:rgba(74,222,128,0.35); }
+
 .machine-chat-context { background:rgba(15,23,42,0.46); border:1px solid rgba(148,163,184,0.13); border-radius:0.6rem; padding:0.75rem 0.85rem; }
 .machine-chat-context-main { color:#dbeafe; font-weight:850; margin:0.25rem 0 0.35rem; }
 .machine-mode-toggle { display:grid; grid-template-columns:1fr 1fr; gap:0.45rem; }
@@ -589,15 +620,18 @@
 .machine-team-card-scrim-result .loss { color:#f87171; }
 .machine-team-card-full { grid-column:1/-1; border-top:1px solid rgba(148,163,184,0.1); padding:0.75rem 1rem; }
 @media (max-width:700px) { .machine-team-card-body { grid-template-columns:1fr; } .machine-team-card-col + .machine-team-card-col { border-left:none; border-top:1px solid rgba(148,163,184,0.1); } }
-.machine-chat-compose { display:grid; grid-template-columns:1fr auto; gap:0.75rem; padding:0.9rem; border-top:1px solid rgba(148,163,184,0.12); background:rgba(2,6,23,0.28); }
-.machine-chat-compose textarea { min-height:48px; max-height:140px; resize:vertical; }
-.machine-chat-samples { display:flex; flex-wrap:wrap; gap:0.45rem; }
-.machine-chat-sample { border:1px solid rgba(148,163,184,0.18); background:rgba(15,23,42,0.55); color:#cbd5e1; border-radius:999px; padding:0.28rem 0.62rem; font-size:0.78rem; cursor:pointer; }
-.machine-chat-sample:hover { border-color:rgba(96,165,250,0.45); color:#dbeafe; }
+.machine-chat-compose-wrap { border-top:1px solid rgba(148,163,184,0.1); background:rgba(2,6,23,0.3); padding:0.75rem 1.25rem 1rem; flex-shrink:0; }
+.machine-chat-compose { display:flex; align-items:flex-end; gap:0.5rem; background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.2); border-radius:0.8rem; padding:0.45rem 0.45rem 0.45rem 0.9rem; transition:border-color 0.15s; max-width:860px; margin:0 auto; }
+.machine-chat-compose:focus-within { border-color:rgba(96,165,250,0.45); }
+.machine-chat-compose textarea { flex:1; background:none; border:none; outline:none; resize:none; color:#e2e8f0; font-size:0.9rem; line-height:1.5; min-height:24px; max-height:160px; padding:0; overflow:hidden; }
+.machine-chat-compose textarea::placeholder { color:#475569; }
+#machine-chat-send { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:0.55rem; background:#2563eb; border:none; color:#fff; cursor:pointer; flex-shrink:0; transition:background 0.15s; }
+#machine-chat-send:hover { background:#1d4ed8; }
+#machine-chat-send:disabled { background:rgba(30,41,59,0.6); color:#334155; cursor:not-allowed; }
 @media (max-width:1000px) {
-    .machine-chat-grid { grid-template-columns:1fr; }
-    .machine-chat-shell { min-height:500px; }
-    .machine-chat-compose { grid-template-columns:1fr; }
+    .machine-chat-shell { min-height:76vh; }
+    .machine-chat-msg-outer { padding:0.6rem 0.9rem; }
+    .machine-chat-suggestions { grid-template-columns:1fr; }
     .machine-agent-tree-branches { grid-template-columns:1fr; padding-left:0.75rem; }
     .machine-agent-tree-branches::before { top:0; bottom:0; left:0; right:auto; width:1px; height:auto; }
     .machine-agent-tree-branch::before { top:1.1rem; left:-0.75rem; width:0.75rem; height:1px; }
@@ -970,45 +1004,35 @@
 </div><!-- end reasoner tab panel -->
 
 <div class="machine-tab-panel" id="mpanel-chat">
-<section class="panel">
-    <div class="section-kicker">Agent</div>
-    <h3>Machine Agent</h3>
-    <p class="panel-intro">Generate local draft calls from the matchup model: bans, protects, comp direction, map reads, and risk checks.</p>
-
-    <div class="machine-chat-grid">
-        <div class="matchup-surface machine-chat-controls">
-            <div class="machine-chat-context">
-                <div class="machine-agent-tree-title">Current Draft Context</div>
-                <div class="machine-chat-context-main" id="machine-chat-context-main">No matchup yet</div>
-                <div class="machine-agent-tree-text" id="machine-chat-context-sub">Tell the agent who you are, who the enemy is, and the season when it matters.</div>
+<div class="machine-chat-shell">
+    <div class="machine-chat-ctx-bar">
+        <span class="machine-chat-ctx-brand">&#10022; The Scout</span>
+        <span class="machine-chat-ctx-sep">&nbsp;&middot;&nbsp;</span>
+        <span class="machine-chat-ctx-matchup" id="machine-chat-context-main">Ready</span>
+        <span id="machine-chat-context-sub" style="font-size:0.72rem;color:#334155"></span>
+    </div>
+    <div class="machine-chat-log" id="machine-chat-log">
+        <div class="machine-chat-empty" id="machine-chat-empty">
+            <div class="machine-chat-empty-icon">&#10022;</div>
+            <h3 class="machine-chat-empty-title">The Scout</h3>
+            <p class="machine-chat-empty-body">Your AI-powered draft advisor. Ask about bans, protects, comps, map reads, or player pivots.</p>
+            <div class="machine-chat-suggestions">
+                <button type="button" class="machine-chat-suggestion" data-question="What should we ban first?">What should we ban first?</button>
+                <button type="button" class="machine-chat-suggestion" data-question="Show me our comfort heroes">Our comfort heroes</button>
+                <button type="button" class="machine-chat-suggestion" data-question="What maps should we pick next?">Best maps to pick</button>
+                <button type="button" class="machine-chat-suggestion" data-question="What is their most likely pivot?">Their likely pivots</button>
             </div>
-            <div class="machine-chat-context" aria-label="Agent mode">
-                <div class="machine-agent-tree-title">Mode</div>
-                <div class="machine-chat-context-main">Reasoning Mode</div>
-                <div class="machine-agent-tree-text">Draft strategy with local ML + matchup context.</div>
-            </div>
-            <div class="machine-chat-samples">
-                <button type="button" class="machine-chat-sample" data-question="Set current draft from the reasoner tab">Set current draft</button>
-                <button type="button" class="machine-chat-sample" data-question="What should we ban here?">Best starting point</button>
-                <button type="button" class="machine-chat-sample" data-question="What maps should we pick next?">Map recommendation</button>
-                <button type="button" class="machine-chat-sample" data-question="What is their most likely pivot?">Show likely pivots</button>
-                <button type="button" class="machine-chat-sample" data-question="What comps can they still get?">Enemy comps</button>
-                <button type="button" class="machine-chat-sample" data-question="How much does banning Invisible Woman matter?">Ban impact</button>
-                <button type="button" class="machine-chat-sample" data-question="Explain confidence">Confidence</button>
-            </div>
-        </div>
-
-        <div class="machine-chat-shell">
-            <div class="machine-chat-log" id="machine-chat-log">
-                <div class="machine-chat-message bot">Reasoning mode is always on: draft strategy with local ML + matchup context.</div>
-            </div>
-            <form class="machine-chat-compose" id="machine-chat-form">
-                <textarea id="machine-chat-input" placeholder="Example: What should we ban here?" maxlength="1200"></textarea>
-                <button type="submit" id="machine-chat-send">Run Agent</button>
-            </form>
         </div>
     </div>
-</section>
+    <div class="machine-chat-compose-wrap">
+        <form class="machine-chat-compose" id="machine-chat-form">
+            <textarea id="machine-chat-input" placeholder="Ask about bans, comps, pivots, maps…" maxlength="1200" rows="1"></textarea>
+            <button type="submit" id="machine-chat-send" title="Send">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </form>
+    </div>
+</div>
 </div>
 
 <script id="machine-agent-seed" type="application/json">
@@ -1116,18 +1140,17 @@ function openHeroIconHtml(hero) {
     let agentPendingMessage = '';
 
     function syncModeControls() {
-        const mode = 'reasoning';
-        if (modeToggle) {
-            modeToggle.querySelectorAll('.machine-mode-btn').forEach(function(btn) {
-                btn.classList.toggle('active', btn.dataset.mode === mode);
-            });
-        }
         if (input) {
-            input.placeholder = 'Example: What should we ban first into VP on Shin-Shibuya?';
+            input.placeholder = 'Ask about bans, comps, pivots, maps…';
         }
     }
 
     function appendMessage(role, text, metaText) {
+        const emptyEl = document.getElementById('machine-chat-empty');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        const outerRole = role.indexOf('user') >= 0 ? 'user' : 'bot';
+        const outer = document.createElement('div');
+        outer.className = 'machine-chat-msg-outer ' + outerRole;
         const node = document.createElement('div');
         node.className = 'machine-chat-message ' + role;
         node.textContent = text;
@@ -1137,7 +1160,8 @@ function openHeroIconHtml(hero) {
             meta.textContent = metaText;
             node.appendChild(meta);
         }
-        log.appendChild(node);
+        outer.appendChild(node);
+        log.appendChild(outer);
         log.scrollTop = log.scrollHeight;
         return node;
     }
@@ -1968,6 +1992,8 @@ function openHeroIconHtml(hero) {
     function agentEngineLabel(data) {
         const meta = (data && data.meta) || {};
         const engine = (meta.response_engine || '').toLowerCase();
+        if (engine === 'openai') return 'AI (GPT-4o mini)';
+        if (engine === 'minimax') return 'AI (Minimax)';
         if (engine === 'local_ml') return 'Local ML reasoning';
         if (engine === 'llm_reasoning') return 'Local ML reasoning';
         if (engine === 'local_draft') return 'Local draft logic';
@@ -1991,34 +2017,191 @@ function openHeroIconHtml(hero) {
             + (showVisuals ? renderAgentVisuals((data.meta || {}).visuals, data.meta || {}) : '');
         const meta = document.createElement('div');
         meta.className = 'machine-chat-meta';
-        meta.textContent = 'Local agent | ' + agentEngineLabel(data);
+        meta.textContent = 'The Scout | ' + agentEngineLabel(data);
         node.appendChild(meta);
     }
 
     async function sendChat(message) {
         appendMessage('user', message);
-        const pending = appendMessage('bot pending', 'Evaluating the draft...');
-        pending.dataset.userMessage = message;
+
+        // Create the bot response node (streaming version)
+        const emptyEl = document.getElementById('machine-chat-empty');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        const botOuter = document.createElement('div');
+        botOuter.className = 'machine-chat-msg-outer bot';
+        const botNode = document.createElement('div');
+        botNode.className = 'machine-chat-message bot pending';
+        botNode.dataset.userMessage = message;
+        botOuter.appendChild(botNode);
+        log.appendChild(botOuter);
+
+        // Tool cards track
+        const toolsEl = document.createElement('div');
+        toolsEl.className = 'machine-chat-tool-track';
+        botNode.appendChild(toolsEl);
+
+        // Thinking indicator
+        const thinkingEl = document.createElement('div');
+        thinkingEl.className = 'machine-chat-thinking';
+        thinkingEl.innerHTML = '<div class="machine-tool-spinner"></div><span>Thinking\u2026</span>';
+        botNode.appendChild(thinkingEl);
+
+        log.scrollTop = log.scrollHeight;
         sendBtn.disabled = true;
         input.disabled = true;
+
+        const toolCardEls = {};
+
         try {
-            const res = await fetch('/api/draft-agent', {
+            const res = await fetch('/api/machine-chat-stream', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(chatPayload(message))
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || 'Chat request failed.');
-            renderAgentAnswer(pending, data);
+            if (!res.ok) throw new Error('Stream request failed (' + res.status + ').');
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let sseBuf = '';
+
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                sseBuf += decoder.decode(value, {stream: true});
+                const parts = sseBuf.split('\n\n');
+                sseBuf = parts.pop() || '';
+                for (const part of parts) {
+                    const line = part.trim();
+                    if (!line.startsWith('data:')) continue;
+                    const raw = line.slice(5).trim();
+                    let evt;
+                    try { evt = JSON.parse(raw); } catch (_e) { continue; }
+                    _handleStreamEvent(evt, botNode, toolsEl, thinkingEl, toolCardEls);
+                }
+            }
         } catch (err) {
-            pending.className = 'machine-chat-message bot';
-            pending.textContent = err.message || 'Chat request failed.';
+            thinkingEl.remove();
+            toolsEl.remove();
+            botNode.className = 'machine-chat-message bot';
+            botNode.textContent = err.message || 'Chat request failed.';
         } finally {
             sendBtn.disabled = false;
             input.disabled = false;
             input.focus();
             log.scrollTop = log.scrollHeight;
         }
+    }
+
+    function _handleStreamEvent(evt, botNode, toolsEl, thinkingEl, toolCardEls) {
+        if (evt.type === 'tool_start') {
+            // Update thinking → "Fetching data..."
+            const thinkSpan = thinkingEl.querySelector('span');
+            if (thinkSpan) thinkSpan.textContent = evt.label || 'Working\u2026';
+            // Append tool card (loading state)
+            const card = document.createElement('div');
+            card.className = 'machine-tool-card loading';
+            card.innerHTML = '<div class="machine-tool-spinner"></div><span class="machine-tool-label">' + escapeHtml(evt.label || evt.name) + '</span>';
+            toolsEl.appendChild(card);
+            toolCardEls[evt.name] = card;
+            log.scrollTop = log.scrollHeight;
+
+        } else if (evt.type === 'tool_end') {
+            // Resolve the tool card to done state
+            const card = toolCardEls[evt.name];
+            if (card) {
+                card.className = 'machine-tool-card done';
+                card.innerHTML = '<span class="machine-tool-check">\u2713</span><span class="machine-tool-label">' + escapeHtml(evt.label || evt.name) + '</span>';
+            }
+            // Update thinking indicator
+            const thinkSpan = thinkingEl.querySelector('span');
+            if (thinkSpan) thinkSpan.textContent = 'Generating answer\u2026';
+
+        } else if (evt.type === 'done') {
+            thinkingEl.remove();
+            const answer = evt.answer || '';
+            const meta = evt.meta || {};
+
+            mergeAgentContext(meta.context);
+            if (meta.needs_context) {
+                agentPendingMessage = agentPendingMessage || botNode.dataset.userMessage || '';
+            } else {
+                agentPendingMessage = '';
+            }
+
+            const showVisuals = !meta.needs_context && Object.keys(meta.visuals || {}).length > 0;
+            botNode.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
+
+            // Tool cards stay; add spacing if any exist
+            if (toolsEl.children.length === 0) toolsEl.remove();
+
+            // Answer text element (typed in)
+            const answerEl = document.createElement('div');
+            answerEl.className = 'machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '');
+            botNode.appendChild(answerEl);
+
+            const linksHtml = renderAgentProfileLinks(meta);
+            const visualsHtml = showVisuals ? renderAgentVisuals(meta.visuals, meta) : '';
+
+            // Animate answer then render visuals + actions
+            _animateChatText(answerEl, answer || 'No answer returned.', function() {
+                if (linksHtml) answerEl.insertAdjacentHTML('afterend', linksHtml);
+                if (visualsHtml) botNode.insertAdjacentHTML('beforeend', visualsHtml);
+
+                // Copy button
+                const actionsEl = document.createElement('div');
+                actionsEl.className = 'machine-chat-actions';
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'machine-chat-copy-btn';
+                copyBtn.type = 'button';
+                copyBtn.textContent = '\u29d7 Copy';
+                copyBtn.addEventListener('click', function() {
+                    navigator.clipboard.writeText(answer).then(function() {
+                        copyBtn.textContent = '\u2713 Copied';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = '\u29d7 Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    }).catch(function() {});
+                });
+                actionsEl.appendChild(copyBtn);
+                botNode.appendChild(actionsEl);
+
+                // Meta footer
+                const metaEl = document.createElement('div');
+                metaEl.className = 'machine-chat-meta';
+                metaEl.textContent = 'The Scout | ' + agentEngineLabel({meta: meta});
+                botNode.appendChild(metaEl);
+
+                log.scrollTop = log.scrollHeight;
+            });
+
+        } else if (evt.type === 'error') {
+            thinkingEl.remove();
+            toolsEl.remove();
+            botNode.className = 'machine-chat-message bot';
+            botNode.textContent = evt.text || 'Agent error.';
+        }
+    }
+
+    function _animateChatText(el, text, onComplete) {
+        el.textContent = '';
+        if (!text) { if (onComplete) onComplete(); return; }
+        let i = 0;
+        const CHUNK = 4;   // chars per tick
+        const DELAY = 10;  // ms between ticks
+        function tick() {
+            if (i < text.length) {
+                el.textContent += text.slice(i, i + CHUNK);
+                i += CHUNK;
+                log.scrollTop = log.scrollHeight;
+                setTimeout(tick, DELAY);
+            } else {
+                el.textContent = text; // ensure exact final string
+                if (onComplete) onComplete();
+            }
+        }
+        tick();
     }
 
     form.addEventListener('submit', function(e) {
@@ -2037,16 +2220,17 @@ function openHeroIconHtml(hero) {
         }
     });
 
-    document.querySelectorAll('.machine-chat-sample').forEach(function(btn) {
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+    });
+
+    document.querySelectorAll('.machine-chat-suggestion').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const question = btn.getAttribute('data-question') || '';
-            if (question.indexOf('Set current draft') === 0) {
-                syncFromReasoner();
-                appendMessage('bot', 'Current draft context updated from the reasoner tab.', 'Local agent');
-                return;
-            }
-            input.value = question;
-            input.focus();
+            if (!question) return;
+            syncFromReasoner();
+            sendChat(question);
         });
     });
 
