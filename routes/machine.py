@@ -1785,7 +1785,7 @@ def api_machine_chat_stream():
         intent=intent,
     )
 
-    def generate():
+    def _generate_events():
         import json as _json
         agent_answer = ""
         for event in stream_agent_loop(
@@ -1901,6 +1901,15 @@ def api_machine_chat_stream():
                 }
                 yield f"data: {_json.dumps(done_event)}\n\n"
                 return
+
+    def generate():
+        import json as _json
+        try:
+            yield from _generate_events()
+        except Exception as _exc:
+            import traceback as _tb
+            print(f"[machine] streaming chat failed: {_exc}\n{_tb.format_exc()}")
+            yield f"data: {_json.dumps({'type': 'error', 'text': 'Chat stream failed while building the answer. Check Render logs for details.'})}\n\n"
 
     return Response(
         stream_with_context(generate()),
@@ -2425,5 +2434,4 @@ def api_draft_reasoner_model():
         teams_payload[1]["roster_players"] = roster_b
         teams_payload[1].setdefault("model", {})["player_hero_rows"] = _build_player_hero_rows(roster_b, b_hero_pool_scrims)
     return jsonify(matchup)
-
 

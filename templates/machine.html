@@ -2063,6 +2063,7 @@ function openHeroIconHtml(hero) {
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let sseBuf = '';
+            let streamFinished = false;
 
             while (true) {
                 const {done, value} = await reader.read();
@@ -2076,8 +2077,15 @@ function openHeroIconHtml(hero) {
                     const raw = line.slice(5).trim();
                     let evt;
                     try { evt = JSON.parse(raw); } catch (_e) { continue; }
+                    if (evt.type === 'done' || evt.type === 'error') streamFinished = true;
                     _handleStreamEvent(evt, botNode, toolsEl, thinkingEl, toolCardEls);
                 }
+            }
+            if (!streamFinished) {
+                thinkingEl.remove();
+                if (toolsEl.children.length === 0) toolsEl.remove();
+                botNode.className = 'machine-chat-message bot';
+                botNode.textContent = 'The chat stream ended before an answer came back. Try again, or check the Render logs for the server error.';
             }
         } catch (err) {
             thinkingEl.remove();
