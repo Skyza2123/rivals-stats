@@ -291,6 +291,8 @@ def build_atk_def_wr(team_scrims: list[dict], *, attack_defense_maps: set[str] |
 def build_scrim_log_rows(
     team_scrims: list,
     *,
+    target_team_id: int | None = None,
+    target_team_name: str = "",
     team_slots: list[str] | tuple[str, ...],
     canonical_draft_hero,
     hero_match_key,
@@ -302,6 +304,69 @@ def build_scrim_log_rows(
 ) -> dict:
     """Build flat per-map rows for the Scrims tab quick-scan view."""
     role_order = {"Vanguard": 0, "Duelist": 1, "Strategist": 2}
+    target_team_name_normalized = (target_team_name or "").strip().lower()
+
+    def normalize_slot(raw_slot: str | None) -> str:
+        raw_slot = (raw_slot or "").strip()
+        return raw_slot if raw_slot in team_slots else "team1"
+
+    def same_team_id(raw_value) -> bool:
+        if target_team_id is None or raw_value in (None, ""):
+            return False
+        try:
+            return int(raw_value) == int(target_team_id)
+        except (TypeError, ValueError):
+            return False
+
+    def side_label(scrim: dict, map_entry: dict, slot: str) -> str:
+        slot = normalize_slot(slot)
+        label = (
+            (map_entry.get(f"{slot}_name", "") or "").strip()
+            or (scrim.get(f"{slot}_name", "") or "").strip()
+        )
+        if label:
+            return label
+
+        scrim_team_slot = normalize_slot(scrim.get("team_slot", "team1"))
+        if slot == scrim_team_slot:
+            return (scrim.get("team_name", "") or "").strip() or "Our Team"
+        return (
+            (scrim.get("enemy_team", "") or "").strip()
+            or (scrim.get("opponent", "") or "").strip()
+            or "Opponent"
+        )
+
+    def resolve_target_slot(scrim: dict, map_entry: dict) -> str:
+        if target_team_id is not None:
+            if same_team_id(map_entry.get("team1_id")) or same_team_id(scrim.get("team1_id")):
+                return "team1"
+            if same_team_id(map_entry.get("team2_id")) or same_team_id(scrim.get("team2_id")):
+                return "team2"
+            if same_team_id(scrim.get("team_id")):
+                return normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1"))
+            if same_team_id(scrim.get("enemy_team_id")):
+                return opposite_team_slot(normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1")))
+
+        if target_team_name_normalized:
+            for slot in team_slots:
+                if side_label(scrim, map_entry, slot).strip().lower() == target_team_name_normalized:
+                    return slot
+            if (scrim.get("team_name", "") or "").strip().lower() == target_team_name_normalized:
+                return normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1"))
+            if (
+                (scrim.get("enemy_team", "") or "").strip().lower() == target_team_name_normalized
+                or (scrim.get("opponent", "") or "").strip().lower() == target_team_name_normalized
+            ):
+                return opposite_team_slot(normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1")))
+
+        return normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1"))
+
+    def display_score_for_slot(raw_score: str, slot: str) -> str:
+        raw_score = (raw_score or "").strip()
+        if slot != "team2" or not raw_score:
+            return raw_score
+        left, right = split_score_pair(raw_score)
+        return f"{right}-{left}" if left and right else raw_score
 
     def sort_heroes(raw_heroes: list[str]) -> list[str]:
         unique_by_key: dict[str, str] = {}
@@ -324,22 +389,22 @@ def build_scrim_log_rows(
     for scrim in team_scrims:
         scrim_id = scrim.get("id")
         scrim_date = (scrim.get("scrim_date", "") or "").strip()
-        opponent_name = ((scrim.get("enemy_team", "") or "").strip() or (scrim.get("opponent", "") or "").strip() or "Opponent")
         season = (scrim.get("season", "") or "").strip()
-        opponents.add(opponent_name)
         if season:
             all_seasons.add(season)
 
         for map_entry in scrim.get("maps", []):
-            our_team_slot = map_entry.get("our_team_slot", "team1")
-            if our_team_slot not in team_slots:
-                our_team_slot = "team1"
+            our_team_slot = resolve_target_slot(scrim, map_entry)
             enemy_team_slot = opposite_team_slot(our_team_slot)
+            opponent_name = side_label(scrim, map_entry, enemy_team_slot)
+            our_team_name = side_label(scrim, map_entry, our_team_slot)
+            opponents.add(opponent_name)
 
             map_name = (map_entry.get("map_name", "") or "").strip() or "Unknown Map"
             map_type = (map_entry.get("map_type", "Standard") or "Standard").strip()
             result = get_map_outcome_for_slot(map_entry, our_team_slot)
             score = (map_entry.get("score", "") or "").strip()
+            map_display_score = display_score_for_slot(score, our_team_slot)
 
             draft = map_entry.get("draft", {})
             our_draft = draft.get(our_team_slot, {}) if isinstance(draft, dict) else {}
@@ -400,14 +465,14 @@ def build_scrim_log_rows(
 
                 our_slots = [{"hero": (slot.get("hero", "") or "").strip(), "player": (slot.get("player", "") or "").strip()} for slot in section.get(our_team_slot, [])]
                 enemy_slots = [{"hero": (slot.get("hero", "") or "").strip(), "player": (slot.get("player", "") or "").strip()} for slot in section.get(enemy_team_slot, [])]
-                display_score = sec_score
+                section_display_score = sec_score
                 if our_team_slot == "team2" and sec_score:
                     left, right = split_score_pair(sec_score)
                     if left and right:
-                        display_score = f"{right}-{left}"
+                        section_display_score = f"{right}-{left}"
                 sections_data.append({
                     "label": sec_label,
-                    "score": display_score,
+                    "score": section_display_score,
                     "result": sec_result,
                     "side": sec_side,
                     "our_slots": our_slots,
@@ -418,12 +483,14 @@ def build_scrim_log_rows(
                 "scrim_id": scrim_id,
                 "scrim_date": scrim_date,
                 "opponent_name": opponent_name,
+                "our_team_name": our_team_name,
                 "season": season,
                 "patch": season,
                 "map_name": map_name,
                 "map_type": map_type,
                 "result": result,
                 "score": score,
+                "display_score": map_display_score,
                 "our_team_slot": our_team_slot,
                 "our_bans": our_bans,
                 "our_protects": our_protects,
@@ -548,10 +615,10 @@ def build_scrim_log_export_archive(
     player_writer.writerow(["match_id", "team_side", "player", "hero"])
 
     for row_index, row in enumerate(rows, start=1):
-        our_team_name = (team_name or "").strip() or "Our Team"
+        our_team_name = (row.get("our_team_name", "") or "").strip() or (team_name or "").strip() or "Our Team"
         their_team_name = (row.get("opponent_name", "") or "").strip() or "Their Team"
         map_result = (row.get("result", "") or "").strip()
-        map_score = (row.get("score", "") or "").strip()
+        map_score = (row.get("display_score", "") or row.get("score", "") or "").strip()
         sections = row.get("sections", [])
         if sections:
             for section_index, section in enumerate(sections, start=1):

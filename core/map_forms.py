@@ -63,6 +63,13 @@ def normalize_player_role(raw_role: str) -> str:
     return ""
 
 
+STAFF_ROLES = {"Coach", "AC", "Analyst"}
+
+
+def is_staff_role(raw_role: str | None) -> bool:
+    return (raw_role or "").strip() in STAFF_ROLES
+
+
 def build_comp_slot_player_order(player_pool: list[dict], slot_count: int = 6) -> list[str]:
     cleaned: list[dict] = []
     seen_names: set[str] = set()
@@ -360,10 +367,10 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 team_players = [
                     (row["name"] or "").strip()
                     for row in db.execute(
-                        "SELECT name FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                        "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
                         (team_row["id"],),
                     ).fetchall()
-                    if (row["name"] or "").strip()
+                    if (row["name"] or "").strip() and not is_staff_role(row["role"])
                 ]
         team2_players = list((team2 or {}).get("players", []))
         if not team2_players and team2_label:
@@ -375,10 +382,10 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 team2_players = [
                     (row["name"] or "").strip()
                     for row in db.execute(
-                        "SELECT name FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
+                        "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0 ORDER BY name COLLATE NOCASE",
                         (team_row["id"],),
                     ).fetchall()
-                    if (row["name"] or "").strip()
+                    if (row["name"] or "").strip() and not is_staff_role(row["role"])
                 ]
         enemy_players = [
             {
@@ -450,7 +457,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                     "is_sub": bool(row["is_sub"]),
                 }
                 for row in rows
-                if (row["name"] or "").strip()
+                if (row["name"] or "").strip() and not is_staff_role(row["role"])
             ]
 
         def _load_enemy_player_options(enemy_team_id_value: int | None) -> list[dict]:
@@ -472,7 +479,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                     "is_sub": bool(row["is_sub"]),
                 }
                 for row in rows
-                if (row["name"] or "").strip()
+                if (row["name"] or "").strip() and not is_staff_role(row["role"])
             ]
 
         if team_id:
@@ -492,7 +499,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                     "SELECT name, role, main_hero FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
                     (enemy_team_id,),
                 ).fetchall()
-                enemy_players = [dict(row) for row in enemy_player_rows]
+                enemy_players = [dict(row) for row in enemy_player_rows if not is_staff_role(row["role"])]
 
         our_team_id = map_entry.get("team1_id") or match_record.get("team1_id") or match_record.get("team_id")
         enemy_team_id = map_entry.get("team2_id") or match_record.get("team2_id") or match_record.get("enemy_team_id")
@@ -512,7 +519,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                     "is_sub": False,
                 }
                 for player in enemy_players
-                if (player.get("name") or "").strip()
+                if (player.get("name") or "").strip() and not is_staff_role(player.get("role"))
             ]
 
         side_options_cache: dict[tuple[int | None, str], list[dict]] = {}

@@ -4,6 +4,13 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
+STAFF_ROLES = {"Coach", "AC", "Analyst"}
+
+
+def _is_staff_role(raw_role: str | None) -> bool:
+    return (raw_role or "").strip() in STAFF_ROLES
+
+
 def _parse_scrim_date(raw_value: str) -> date | None:
     text = (raw_value or "").strip()
     if not text:
@@ -205,7 +212,7 @@ def get_map_side_default_players(
         return [
             {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
             for row in rows
-            if (row["name"] or "").strip()
+            if (row["name"] or "").strip() and not _is_staff_role(row["role"])
         ]
 
     def _query_legacy_enemy_players(enemy_team_id_value: int | None) -> list[dict]:
@@ -218,7 +225,7 @@ def get_map_side_default_players(
         return [
             {"name": (row["name"] or "").strip(), "role": (row["role"] or "").strip()}
             for row in rows
-            if (row["name"] or "").strip()
+            if (row["name"] or "").strip() and not _is_staff_role(row["role"])
         ]
 
     def _load_side_player_pool(side_team_id: int | None, side_team_name: str = "") -> list[dict]:
@@ -462,9 +469,10 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
                     [
                         row["name"]
                         for row in roster_db.execute(
-                            "SELECT name FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0",
+                            "SELECT name, role FROM players WHERE team_id = ? AND COALESCE(is_sub, 0) = 0",
                             (resolved_team_id,),
                         ).fetchall()
+                        if not _is_staff_role(row["role"])
                     ]
                 )
         finally:

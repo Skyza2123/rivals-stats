@@ -5,6 +5,8 @@ def build_team_detail_matchup_context(
     team_scrims: list[dict],
     players: list[dict],
     *,
+    target_team_id: int | None = None,
+    target_team_name: str = "",
     team_slots: list[str] | tuple[str, ...],
     canonical_draft_hero,
     hero_match_key,
@@ -13,6 +15,62 @@ def build_team_detail_matchup_context(
     get_map_outcome_for_slot,
 ) -> dict:
     role_order = {"Vanguard": 0, "Duelist": 1, "Strategist": 2}
+    target_team_name_normalized = (target_team_name or "").strip().lower()
+
+    def normalize_slot(raw_slot: str | None) -> str:
+        raw_slot = (raw_slot or "").strip()
+        return raw_slot if raw_slot in team_slots else "team1"
+
+    def same_team_id(raw_value) -> bool:
+        if target_team_id is None or raw_value in (None, ""):
+            return False
+        try:
+            return int(raw_value) == int(target_team_id)
+        except (TypeError, ValueError):
+            return False
+
+    def side_label(scrim: dict, map_entry: dict, slot: str) -> str:
+        slot = normalize_slot(slot)
+        label = (
+            (map_entry.get(f"{slot}_name", "") or "").strip()
+            or (scrim.get(f"{slot}_name", "") or "").strip()
+        )
+        if label:
+            return label
+
+        scrim_team_slot = normalize_slot(scrim.get("team_slot", "team1"))
+        if slot == scrim_team_slot:
+            return (scrim.get("team_name", "") or "").strip() or "Our Team"
+        return (
+            (scrim.get("enemy_team", "") or "").strip()
+            or (scrim.get("opponent", "") or "").strip()
+            or "Opponent"
+        )
+
+    def resolve_target_slot(scrim: dict, map_entry: dict) -> str:
+        if target_team_id is not None:
+            if same_team_id(map_entry.get("team1_id")) or same_team_id(scrim.get("team1_id")):
+                return "team1"
+            if same_team_id(map_entry.get("team2_id")) or same_team_id(scrim.get("team2_id")):
+                return "team2"
+            if same_team_id(scrim.get("team_id")):
+                return normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1"))
+            if same_team_id(scrim.get("enemy_team_id")):
+                return opposite_team_slot(normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1")))
+
+        if target_team_name_normalized:
+            for slot in team_slots:
+                if side_label(scrim, map_entry, slot).strip().lower() == target_team_name_normalized:
+                    return slot
+            if (scrim.get("team_name", "") or "").strip().lower() == target_team_name_normalized:
+                return normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1"))
+            if (
+                (scrim.get("enemy_team", "") or "").strip().lower() == target_team_name_normalized
+                or (scrim.get("opponent", "") or "").strip().lower() == target_team_name_normalized
+            ):
+                return opposite_team_slot(normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1")))
+
+        return normalize_slot(map_entry.get("our_team_slot") or scrim.get("team_slot", "team1"))
 
     def sorted_heroes_for_matchup(raw_heroes: list[str]) -> list[str]:
         unique_by_key: dict[str, str] = {}
@@ -41,18 +99,12 @@ def build_team_detail_matchup_context(
 
     for scrim in team_scrims:
         scrim_date = (scrim.get("scrim_date", "") or "").strip()
-        opponent_name = (
-            (scrim.get("enemy_team", "") or "").strip()
-            or (scrim.get("opponent", "") or "").strip()
-            or "Opponent"
-        )
-        matchup_opponents.add(opponent_name)
 
         for map_entry in scrim.get("maps", []):
-            our_team_slot = map_entry.get("our_team_slot", "team1")
-            if our_team_slot not in team_slots:
-                our_team_slot = "team1"
+            our_team_slot = resolve_target_slot(scrim, map_entry)
             enemy_team_slot = opposite_team_slot(our_team_slot)
+            opponent_name = side_label(scrim, map_entry, enemy_team_slot)
+            matchup_opponents.add(opponent_name)
 
             map_name = (map_entry.get("map_name", "") or "").strip() or "Unknown Map"
             result = get_map_outcome_for_slot(map_entry, our_team_slot)
@@ -89,6 +141,7 @@ def build_team_detail_matchup_context(
                 {
                     "scrim_date": scrim_date,
                     "opponent_name": opponent_name,
+                    "our_team_name": side_label(scrim, map_entry, our_team_slot),
                     "map_name": map_name,
                     "result": result,
                     "our_heroes": sorted_heroes_for_matchup(our_raw_heroes),
@@ -128,9 +181,7 @@ def build_team_detail_matchup_context(
         per_map = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "decided": 0, "unresolved": 0})
         for scrim in team_scrims:
             for map_entry in scrim.get("maps", []):
-                our_team_slot = map_entry.get("our_team_slot", "team1")
-                if our_team_slot not in team_slots:
-                    our_team_slot = "team1"
+                our_team_slot = resolve_target_slot(scrim, map_entry)
 
                 player_found = False
                 for section in map_entry.get("comp", []):

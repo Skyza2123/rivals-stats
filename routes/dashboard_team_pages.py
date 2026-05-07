@@ -655,6 +655,8 @@ def team_scrims_csv(team_id: int):
 
     scrim_log = build_scrim_log_rows(
         team_scrims,
+        target_team_id=team["id"],
+        target_team_name=team["name"],
         team_slots=TEAM_SLOTS,
         canonical_draft_hero=_canonical_draft_hero,
         hero_match_key=_hero_match_key,
@@ -810,6 +812,8 @@ def team_detail(team_id: int):
     pivot_wr = build_pivot_wr(team_scrims, attack_defense_maps=ATTACK_DEFENSE_MAPS)
     scrim_log = build_scrim_log_rows(
         team_scrims,
+        target_team_id=team["id"],
+        target_team_name=team["name"],
         team_slots=TEAM_SLOTS,
         canonical_draft_hero=_canonical_draft_hero,
         hero_match_key=_hero_match_key,
@@ -829,6 +833,8 @@ def team_detail(team_id: int):
     matchup_context = build_team_detail_matchup_context(
         team_scrims,
         players,
+        target_team_id=team["id"],
+        target_team_name=team["name"],
         team_slots=TEAM_SLOTS,
         canonical_draft_hero=_canonical_draft_hero,
         hero_match_key=_hero_match_key,

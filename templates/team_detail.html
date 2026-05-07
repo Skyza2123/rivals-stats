@@ -2684,7 +2684,7 @@
                             {% if row.result == 'Win' %}<span class="wr-good">W</span>
                             {% elif row.result == 'Loss' %}<span class="wr-bad">L</span>
                             {% else %}<span class="wr-na">—</span>{% endif %}
-                            <span class="scrim-map-score">{{ row.score or '—' }}</span>
+                            <span class="scrim-map-score">{{ row.display_score or row.score or '—' }}</span>
                         </td>
                         <td>{{ row.opponent_name }}</td>
                     </tr>
@@ -2728,14 +2728,14 @@
                                             {% if row.result == 'Win' %}<span class="wr-good">W</span>
                                             {% elif row.result == 'Loss' %}<span class="wr-bad">L</span>
                                             {% else %}<span class="wr-na">—</span>{% endif %}
-                                            {{ row.score or '—' }}
+                                            {{ row.display_score or row.score or '—' }}
                                         </strong>
                                     </div>
                                     <div class="scrim-sections-team-draft scrim-sections-team-draft-right">
-                                        <span class="scrim-sections-team-label scrim-sections-team-label-right">{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }}</span>
+                                        <span class="scrim-sections-team-label scrim-sections-team-label-right">{{ row.opponent_name if row and row.opponent_name else 'Them' }}</span>
                                         <div class="scrim-section-draft-inline">
                                             <span>Bans</span>
-                                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Bans">
+                                            <div class="matchup-hero-strip scrim-hero-strip-bans" title="{{ row.opponent_name if row and row.opponent_name else 'Them' }} Bans">
                                             {% for hero in row.enemy_bans %}
                                                 {% if hero in hero_transformations %}
                                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">
@@ -2747,7 +2747,7 @@
                                             {% endfor %}
                                             </div>
                                             <span>Protects</span>
-                                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ first_row.opponent_name if first_row and first_row.opponent_name else 'Them' }} Protects">
+                                            <div class="matchup-hero-strip scrim-hero-strip-protects" title="{{ row.opponent_name if row and row.opponent_name else 'Them' }} Protects">
                                             {% for hero in row.enemy_protects %}
                                                 {% if hero in hero_transformations %}
                                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" title="{{ hero }}">

@@ -330,12 +330,17 @@ def tournament_map_detail(tournament_id: int, map_id: int):
     db = get_db()
     team_id = scrim.get("team_id")
     team_players = []
+    staff_roles = {"Coach", "AC", "Analyst"}
     if team_id:
         player_rows = db.execute(
-            "SELECT name FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+            "SELECT name, role FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
             (team_id,),
         ).fetchall()
-        team_players = [row["name"] for row in player_rows]
+        team_players = [
+            row["name"]
+            for row in player_rows
+            if (row["name"] or "").strip() and (row["role"] or "").strip() not in staff_roles
+        ]
 
     # Get enemy team info and players if available
     enemy_team_data = None
