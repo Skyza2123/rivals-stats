@@ -425,10 +425,12 @@
 
 /* Parsertime-style full-height chat */
 .machine-chat-shell { display:flex; flex-direction:column; min-height:84vh; border:1px solid rgba(148,163,184,0.12); border-radius:0.85rem; overflow:hidden; }
-.machine-chat-ctx-bar { display:flex; align-items:center; gap:0.6rem; padding:0.55rem 1.2rem; border-bottom:1px solid rgba(148,163,184,0.1); background:rgba(2,6,23,0.45); font-size:0.78rem; color:#475569; flex-shrink:0; flex-wrap:wrap; }
-.machine-chat-ctx-brand { color:#bfdbfe; font-weight:700; letter-spacing:0.03em; }
-.machine-chat-ctx-sep { color:#1e293b; }
-.machine-chat-ctx-matchup { color:#e2e8f0; font-weight:600; }
+.machine-chat-toolbar { display:flex; align-items:center; gap:0.55rem; padding:0.65rem 1.25rem; border-bottom:1px solid rgba(148,163,184,0.1); background:rgba(2,6,23,0.35); flex-wrap:wrap; }
+.machine-chat-picker { min-width:220px; max-width:360px; flex:1; background:rgba(15,23,42,0.72); border:1px solid rgba(148,163,184,0.2); color:#dbeafe; border-radius:0.55rem; padding:0.42rem 0.55rem; font-size:0.82rem; outline:none; }
+.machine-chat-picker:focus { border-color:rgba(96,165,250,0.5); }
+.machine-chat-toolbar-btn { border:1px solid rgba(148,163,184,0.18); background:rgba(15,23,42,0.58); color:#94a3b8; border-radius:0.5rem; padding:0.42rem 0.68rem; font-size:0.78rem; font-weight:700; cursor:pointer; transition:color 0.15s, border-color 0.15s, background 0.15s; }
+.machine-chat-toolbar-btn:hover { color:#dbeafe; border-color:rgba(96,165,250,0.38); background:rgba(30,58,138,0.22); }
+.machine-chat-toolbar-btn.danger:hover { color:#fecaca; border-color:rgba(248,113,113,0.36); background:rgba(127,29,29,0.22); }
 .machine-chat-log { flex:1; display:flex; flex-direction:column; gap:0; padding:0; overflow-y:auto; min-height:0; }
 .machine-chat-msg-outer { padding:0.75rem 1.5rem; display:flex; }
 .machine-chat-msg-outer.user { justify-content:flex-end; }
@@ -630,6 +632,8 @@
 #machine-chat-send:disabled { background:rgba(30,41,59,0.6); color:#334155; cursor:not-allowed; }
 @media (max-width:1000px) {
     .machine-chat-shell { min-height:76vh; }
+    .machine-chat-toolbar { padding:0.6rem 0.9rem; }
+    .machine-chat-picker { min-width:100%; }
     .machine-chat-msg-outer { padding:0.6rem 0.9rem; }
     .machine-chat-suggestions { grid-template-columns:1fr; }
     .machine-agent-tree-branches { grid-template-columns:1fr; padding-left:0.75rem; }
@@ -1005,11 +1009,10 @@
 
 <div class="machine-tab-panel" id="mpanel-chat">
 <div class="machine-chat-shell">
-    <div class="machine-chat-ctx-bar">
-        <span class="machine-chat-ctx-brand">&#10022; The Scout</span>
-        <span class="machine-chat-ctx-sep">&nbsp;&middot;&nbsp;</span>
-        <span class="machine-chat-ctx-matchup" id="machine-chat-context-main">Ready</span>
-        <span id="machine-chat-context-sub" style="font-size:0.72rem;color:#334155"></span>
+    <div class="machine-chat-toolbar">
+        <select class="machine-chat-picker" id="machine-chat-picker" aria-label="Saved chats"></select>
+        <button type="button" class="machine-chat-toolbar-btn" id="machine-chat-new">New</button>
+        <button type="button" class="machine-chat-toolbar-btn danger" id="machine-chat-delete">Delete</button>
     </div>
     <div class="machine-chat-log" id="machine-chat-log">
         <div class="machine-chat-empty" id="machine-chat-empty">
@@ -1093,7 +1096,7 @@ function heroThumbUrl(hero) {
 function heroCell(hero) {
     const img = heroThumbUrl(hero);
     const fallback = 'https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(hero);
-    return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + escapeHtml(hero) + '" class="hero-inline-thumb" onerror="this.src=\'' + fallback + '\'"><span>' + escapeHtml(hero) + '</span></span>';
+    return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + escapeHtml(hero) + '" class="hero-inline-thumb" loading="lazy" decoding="async" onerror="this.src=\'' + fallback + '\'"><span>' + escapeHtml(hero) + '</span></span>';
 }
 function heroPortraitCardHtml(hero, type) {
     const cls = type === 'ban' ? 'ban-card' : type === 'protect' ? 'protect-card' : '';
@@ -1107,10 +1110,10 @@ function heroChipHtml(hero, type, playerName) {
     const playerMeta = (playerName || '').trim()
         ? '<span class="dr-hero-chip-meta">\u00b7 ' + escapeHtml(playerName) + '</span>'
         : '';
-    return '<span class="dr-hero-chip ' + cls + '"><img src="' + heroThumbUrl(hero) + '" alt="" onerror="this.style.display=\'none\'">' + escapeHtml(hero) + playerMeta + '</span>';
+    return '<span class="dr-hero-chip ' + cls + '"><img src="' + heroThumbUrl(hero) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">' + escapeHtml(hero) + playerMeta + '</span>';
 }
 function openHeroIconHtml(hero) {
-    return '<img src="' + heroThumbUrl(hero) + '" alt="' + escapeHtml(hero) + '" title="' + escapeHtml(hero) + '" class="dr-open-hero-icon" onerror="this.style.display=\'none\'">';
+    return '<img src="' + heroThumbUrl(hero) + '" alt="' + escapeHtml(hero) + '" title="' + escapeHtml(hero) + '" class="dr-open-hero-icon" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1120,12 +1123,19 @@ function openHeroIconHtml(hero) {
     const input = document.getElementById('machine-chat-input');
     const log = document.getElementById('machine-chat-log');
     const sendBtn = document.getElementById('machine-chat-send');
+    const chatPicker = document.getElementById('machine-chat-picker');
+    const newChatBtn = document.getElementById('machine-chat-new');
+    const deleteChatBtn = document.getElementById('machine-chat-delete');
     const modeToggle = document.getElementById('machine-mode-toggle');
     const contextMain = document.getElementById('machine-chat-context-main');
     const contextSub = document.getElementById('machine-chat-context-sub');
     if (!form || !input || !log || !sendBtn) return;
     const _agentSeed = JSON.parse(document.getElementById('machine-agent-seed').textContent);
     const teamNames = _agentSeed.teamNames;
+    const CHAT_STORAGE_KEY = 'rivals.machine.chats.v2';
+    const LEGACY_CHAT_STORAGE_KEY = 'rivals.machine.chat.v1';
+    const MAX_STORED_MESSAGES = 24;
+    const MAX_STORED_CHATS = 12;
     let agentContext = {
         team_a_id: _agentSeed.team_a_id,
         team_b_id: null,
@@ -1138,6 +1148,8 @@ function openHeroIconHtml(hero) {
         reasoning_mode: 'reasoning'
     };
     let agentPendingMessage = '';
+    let chatHistory = [];
+    let chatStore = {active_id: '', conversations: []};
 
     function syncModeControls() {
         if (input) {
@@ -1145,7 +1157,100 @@ function openHeroIconHtml(hero) {
         }
     }
 
-    function appendMessage(role, text, metaText) {
+    function defaultChatContext() {
+        return {
+            team_a_id: _agentSeed.team_a_id,
+            team_b_id: null,
+            team_a_name: _agentSeed.team_a_name,
+            team_b_name: '',
+            season: 'all',
+            map: 'all',
+            include_scrims: true,
+            include_tournaments: true,
+            reasoning_mode: 'reasoning'
+        };
+    }
+
+    function createConversation(title, seed) {
+        seed = seed || {};
+        const now = Date.now();
+        return {
+            id: 'chat-' + now + '-' + Math.random().toString(36).slice(2, 7),
+            title: title || 'New chat',
+            context: Object.assign(defaultChatContext(), seed.context || {}),
+            pending_message: seed.pending_message || '',
+            messages: Array.isArray(seed.messages) ? seed.messages.slice(-MAX_STORED_MESSAGES) : [],
+            updated_at: now
+        };
+    }
+
+    function currentConversation() {
+        return chatStore.conversations.find(function(chat) {
+            return chat.id === chatStore.active_id;
+        }) || chatStore.conversations[0] || null;
+    }
+
+    function normalizeChatStore(raw) {
+        const store = raw && Array.isArray(raw.conversations) ? raw : null;
+        if (!store) return null;
+        const conversations = store.conversations.filter(Boolean).slice(0, MAX_STORED_CHATS).map(function(chat, index) {
+            return {
+                id: chat.id || ('chat-' + index),
+                title: chat.title || 'New chat',
+                context: Object.assign(defaultChatContext(), chat.context || {}),
+                pending_message: chat.pending_message || '',
+                messages: Array.isArray(chat.messages) ? chat.messages.slice(-MAX_STORED_MESSAGES) : [],
+                updated_at: chat.updated_at || Date.now()
+            };
+        });
+        if (!conversations.length) return null;
+        return {
+            active_id: store.active_id || conversations[0].id,
+            conversations: conversations
+        };
+    }
+
+    function readStoredChatStore() {
+        try {
+            const stored = normalizeChatStore(JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || '{}'));
+            if (stored) return stored;
+            const legacy = JSON.parse(localStorage.getItem(LEGACY_CHAT_STORAGE_KEY) || '{}') || {};
+            if (legacy.messages || legacy.context) {
+                const migrated = createConversation('Saved chat', legacy);
+                return {active_id: migrated.id, conversations: [migrated]};
+            }
+        } catch (_e) {}
+        const first = createConversation('New chat');
+        return {active_id: first.id, conversations: [first]};
+    }
+
+    function writeStoredChat() {
+        try {
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatStore));
+        } catch (_e) {}
+        renderChatPicker();
+    }
+
+    function updateCurrentConversation() {
+        const chat = currentConversation();
+        if (!chat) return;
+        chat.context = Object.assign({}, agentContext);
+        chat.pending_message = agentPendingMessage || '';
+        chat.messages = chatHistory.slice(-MAX_STORED_MESSAGES);
+        chat.updated_at = Date.now();
+        writeStoredChat();
+    }
+
+    function rememberChatMessage(entry) {
+        chatHistory.push(entry);
+        if (chatHistory.length > MAX_STORED_MESSAGES) {
+            chatHistory = chatHistory.slice(-MAX_STORED_MESSAGES);
+        }
+        updateCurrentConversation();
+    }
+
+    function appendMessage(role, text, metaText, options) {
+        options = options || {};
         const emptyEl = document.getElementById('machine-chat-empty');
         if (emptyEl) emptyEl.classList.add('hidden');
         const outerRole = role.indexOf('user') >= 0 ? 'user' : 'bot';
@@ -1163,7 +1268,52 @@ function openHeroIconHtml(hero) {
         outer.appendChild(node);
         log.appendChild(outer);
         log.scrollTop = log.scrollHeight;
+        if (!options.skipPersist) {
+            rememberChatMessage({kind: outerRole, text: text || '', metaText: metaText || ''});
+        }
         return node;
+    }
+
+    function makeChatTitle(message) {
+        const clean = (message || '').replace(/\s+/g, ' ').trim();
+        if (!clean) return 'New chat';
+        return clean.length > 42 ? clean.slice(0, 39) + '...' : clean;
+    }
+
+    function renderChatPicker() {
+        if (!chatPicker) return;
+        chatPicker.innerHTML = '';
+        chatStore.conversations.forEach(function(chat) {
+            const option = document.createElement('option');
+            option.value = chat.id;
+            option.textContent = chat.title || 'New chat';
+            chatPicker.appendChild(option);
+        });
+        chatPicker.value = chatStore.active_id;
+        if (deleteChatBtn) deleteChatBtn.disabled = chatStore.conversations.length <= 1;
+    }
+
+    function clearChatLog() {
+        Array.from(log.querySelectorAll('.machine-chat-msg-outer')).forEach(function(node) {
+            node.remove();
+        });
+        const emptyEl = document.getElementById('machine-chat-empty');
+        if (emptyEl) emptyEl.classList.toggle('hidden', chatHistory.length > 0);
+    }
+
+    function renderChatHistory() {
+        clearChatLog();
+        chatHistory.forEach(function(entry) {
+            if (!entry) return;
+            if (entry.kind === 'user') {
+                appendMessage('user', entry.text || '', entry.metaText || '', {skipPersist: true});
+            } else if (entry.kind === 'bot') {
+                renderStoredBotMessage(entry);
+            }
+        });
+        const emptyEl = document.getElementById('machine-chat-empty');
+        if (emptyEl) emptyEl.classList.toggle('hidden', chatHistory.length > 0);
+        log.scrollTop = log.scrollHeight;
     }
 
     function chatPayload(message) {
@@ -1204,6 +1354,62 @@ function openHeroIconHtml(hero) {
         if (!agentContext.team_b_name && agentContext.team_b_id) agentContext.team_b_name = teamNames[String(agentContext.team_b_id)] || '';
         syncModeControls();
         updateContextPanel();
+        writeStoredChat();
+    }
+
+    function renderStoredBotMessage(entry) {
+        const emptyEl = document.getElementById('machine-chat-empty');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        const outer = document.createElement('div');
+        outer.className = 'machine-chat-msg-outer bot';
+        const node = document.createElement('div');
+        const data = {answer: entry.answer || entry.text || '', meta: entry.meta || {}};
+        const showVisuals = shouldRenderAgentVisuals(data);
+        node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
+        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
+            + renderAgentProfileLinks(data.meta)
+            + (showVisuals ? renderAgentVisuals(data.meta.visuals || {}, data.meta) : '');
+        const metaEl = document.createElement('div');
+        metaEl.className = 'machine-chat-meta';
+        metaEl.textContent = entry.metaText || ('The Scout | ' + agentEngineLabel(data));
+        node.appendChild(metaEl);
+        outer.appendChild(node);
+        log.appendChild(outer);
+    }
+
+    function restoreStoredChat() {
+        chatStore = readStoredChatStore();
+        loadConversation(chatStore.active_id);
+    }
+
+    function loadConversation(chatId) {
+        const chat = chatStore.conversations.find(function(item) { return item.id === chatId; }) || chatStore.conversations[0];
+        if (!chat) return;
+        chatStore.active_id = chat.id;
+        agentContext = Object.assign(defaultChatContext(), chat.context || {});
+        agentPendingMessage = chat.pending_message || '';
+        chatHistory = Array.isArray(chat.messages) ? chat.messages.slice(-MAX_STORED_MESSAGES) : [];
+        renderChatPicker();
+        renderChatHistory();
+        syncModeControls();
+        updateContextPanel();
+        writeStoredChat();
+    }
+
+    function startNewConversation() {
+        const chat = createConversation('New chat', {context: agentContext});
+        chatStore.conversations.unshift(chat);
+        chatStore.conversations = chatStore.conversations.slice(0, MAX_STORED_CHATS);
+        loadConversation(chat.id);
+    }
+
+    function deleteCurrentConversation() {
+        if (chatStore.conversations.length <= 1) return;
+        const activeId = chatStore.active_id;
+        const activeIndex = chatStore.conversations.findIndex(function(chat) { return chat.id === activeId; });
+        chatStore.conversations = chatStore.conversations.filter(function(chat) { return chat.id !== activeId; });
+        const next = chatStore.conversations[Math.max(0, activeIndex - 1)] || chatStore.conversations[0];
+        loadConversation(next.id);
     }
 
     function renderTreeNode(title, heroes, type, cls) {
@@ -2022,6 +2228,10 @@ function openHeroIconHtml(hero) {
     }
 
     async function sendChat(message) {
+        const activeChat = currentConversation();
+        if (activeChat && (!chatHistory.length || activeChat.title === 'New chat')) {
+            activeChat.title = makeChatTitle(message);
+        }
         appendMessage('user', message);
 
         // Create the bot response node (streaming version)
@@ -2086,12 +2296,14 @@ function openHeroIconHtml(hero) {
                 if (toolsEl.children.length === 0) toolsEl.remove();
                 botNode.className = 'machine-chat-message bot';
                 botNode.textContent = 'The chat stream ended before an answer came back. Try again, or check the Render logs for the server error.';
+                rememberChatMessage({kind: 'bot', text: botNode.textContent, metaText: 'The Scout | Stream ended'});
             }
         } catch (err) {
             thinkingEl.remove();
             toolsEl.remove();
             botNode.className = 'machine-chat-message bot';
             botNode.textContent = err.message || 'Chat request failed.';
+            rememberChatMessage({kind: 'bot', text: botNode.textContent, metaText: 'The Scout | Error'});
         } finally {
             sendBtn.disabled = false;
             input.disabled = false;
@@ -2178,8 +2390,10 @@ function openHeroIconHtml(hero) {
                 // Meta footer
                 const metaEl = document.createElement('div');
                 metaEl.className = 'machine-chat-meta';
-                metaEl.textContent = 'The Scout | ' + agentEngineLabel({meta: meta});
+                const metaText = 'The Scout | ' + agentEngineLabel({meta: meta});
+                metaEl.textContent = metaText;
                 botNode.appendChild(metaEl);
+                rememberChatMessage({kind: 'bot', answer: answer || 'No answer returned.', meta: meta, metaText: metaText});
 
                 log.scrollTop = log.scrollHeight;
             });
@@ -2189,6 +2403,7 @@ function openHeroIconHtml(hero) {
             toolsEl.remove();
             botNode.className = 'machine-chat-message bot';
             botNode.textContent = evt.text || 'Agent error.';
+            rememberChatMessage({kind: 'bot', text: botNode.textContent, metaText: 'The Scout | Error'});
         }
     }
 
@@ -2196,8 +2411,8 @@ function openHeroIconHtml(hero) {
         el.textContent = '';
         if (!text) { if (onComplete) onComplete(); return; }
         let i = 0;
-        const CHUNK = 4;   // chars per tick
-        const DELAY = 10;  // ms between ticks
+        const CHUNK = 48;  // chars per tick
+        const DELAY = 4;   // ms between ticks
         function tick() {
             if (i < text.length) {
                 el.textContent += text.slice(i, i + CHUNK);
@@ -2262,8 +2477,18 @@ function openHeroIconHtml(hero) {
     }
 
     document.getElementById('mtab-chat').addEventListener('click', syncFromReasoner);
-    updateContextPanel();
-    syncModeControls();
+    if (chatPicker) {
+        chatPicker.addEventListener('change', function() {
+            loadConversation(this.value);
+        });
+    }
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', startNewConversation);
+    }
+    if (deleteChatBtn) {
+        deleteChatBtn.addEventListener('click', deleteCurrentConversation);
+    }
+    restoreStoredChat();
 
     // Search mode removed: reasoning mode is always on.
 })();
