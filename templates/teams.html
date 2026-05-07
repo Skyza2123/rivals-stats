@@ -60,6 +60,8 @@
             class="team-dash-logo"
             src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
             alt="{{ team.name }} logo"
+            loading="lazy"
+            decoding="async"
         >
         <div class="team-dash-title">{{ team.name }}</div>
         <div class="team-dash-badges">
@@ -145,6 +147,8 @@
             class="team-row-logo"
             src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
             alt="{{ team.name }} logo"
+            loading="lazy"
+            decoding="async"
         >
         <div class="team-row-identity">
             <div class="team-row-title-line">
@@ -259,9 +263,8 @@
 
     <div class="tab-content" id="tab-all">
         {% if teams %}
-            {% set charted = teams | selectattr('map_count') | list %}
-            {% if charted | length > 1 %}
-            <script id="teamsCompareData" type="application/json">{{ charted | tojson }}</script>
+            {% if chart_teams | length > 1 %}
+            <script id="teamsCompareData" type="application/json">{{ chart_teams | tojson }}</script>
             <div class="teams-wr-chart-wrap">
                 <canvas id="teamsWrChart"></canvas>
             </div>

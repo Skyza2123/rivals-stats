@@ -209,6 +209,30 @@ def teams():
         ORDER BY COALESCE(t.sort_order, 0), t.name COLLATE NOCASE
         """
     ).fetchall()
+    team_ids = [int(row["id"]) for row in team_rows]
+    roster_rows_by_team: dict[int, list] = {team_id: [] for team_id in team_ids}
+    if team_ids:
+        placeholders = ",".join("?" for _ in team_ids)
+        roster_rows = db.execute(
+            f"""
+            SELECT team_id, name, role, COALESCE(is_sub, 0) AS is_sub
+            FROM players
+            WHERE team_id IN ({placeholders})
+            ORDER BY
+                team_id,
+                CASE
+                    WHEN role = 'Coach' THEN 10
+                    WHEN role = 'AC' THEN 11
+                    WHEN role = 'Analyst' THEN 12
+                    WHEN COALESCE(is_sub, 0) = 0 THEN 0
+                    ELSE 1
+                END,
+                name COLLATE NOCASE
+            """,
+            team_ids,
+        ).fetchall()
+        for player in roster_rows:
+            roster_rows_by_team.setdefault(int(player["team_id"]), []).append(player)
 
     season_options = get_scrim_season_options(SCRIMS)
     default_season = get_current_season_from_recent_scrim(SCRIMS)
@@ -223,17 +247,27 @@ def teams():
     teams_with_scrim_stats = []
     staff_roles = {"Coach", "AC", "Analyst"}
     quality_rank = {"Preferred": 0, "Semi Preferred": 1, "Good": 2, "Avoid": 3}
+    team_scrims_cache: dict[int, list[dict]] = {}
+
+    def _team_scrims_for(row) -> list[dict]:
+        team_id = int(row["id"])
+        if team_id not in team_scrims_cache:
+            team_scrims_cache[team_id] = get_scrims_for_team(team_id, row["name"])
+        return team_scrims_cache[team_id]
+
+    personal_team_scrims = []
+    if personal_team is not None:
+        personal_team_scrims = filter_scrims_by_season(
+            _team_scrims_for(personal_team),
+            selected_season,
+        )
     for row in team_rows:
-        all_team_scrims = get_scrims_for_team(row["id"], row["name"])
+        all_team_scrims = _team_scrims_for(row)
         team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
         stats_scrims = team_scrims
         if personal_team is not None and int(row["id"]) != int(personal_team["id"]):
-            personal_scrims = filter_scrims_by_season(
-                get_scrims_for_team(int(personal_team["id"]), personal_team["name"]),
-                selected_season,
-            )
             stats_scrims = [
-                scrim for scrim in personal_scrims
+                scrim for scrim in personal_team_scrims
                 if scrim_involves_team(scrim, int(row["id"]), row["name"])
             ]
         team_maps = sum(len(scrim.get("maps", [])) for scrim in stats_scrims)
@@ -265,23 +299,7 @@ def teams():
             last_played = latest_date.strftime("%m/%d/%Y")
             last_played_sort = latest_date.isoformat()
 
-        roster_rows = db.execute(
-            """
-            SELECT name, role, COALESCE(is_sub, 0) AS is_sub
-            FROM players
-            WHERE team_id = ?
-            ORDER BY
-                CASE
-                    WHEN role = 'Coach' THEN 10
-                    WHEN role = 'AC' THEN 11
-                    WHEN role = 'Analyst' THEN 12
-                    WHEN COALESCE(is_sub, 0) = 0 THEN 0
-                    ELSE 1
-                END,
-                name COLLATE NOCASE
-            """,
-            (row["id"],),
-        ).fetchall()
+        roster_rows = roster_rows_by_team.get(int(row["id"]), [])
         active_roster = [
             {"name": (player["name"] or "").strip(), "role": (player["role"] or "").strip(), "is_sub": bool(player["is_sub"])}
             for player in roster_rows
@@ -298,25 +316,6 @@ def teams():
             for player in roster_rows
             if (player["name"] or "").strip() and (player["role"] or "").strip() in staff_roles
         ]
-
-        # Calculate hero pool (top 5 heroes)
-        pick_counter: Counter = Counter()
-        for scrim in stats_scrims:
-            for map_entry in scrim.get("maps", []):
-                if not isinstance(map_entry, dict):
-                    continue
-                our_slot = map_entry.get("our_team_slot", "team1")
-                for section in map_entry.get("comp", []):
-                    if not isinstance(section, dict):
-                        continue
-                    for slot in section.get(our_slot, []):
-                        if not isinstance(slot, dict):
-                            continue
-                        hero = canonicalize_hero_name(slot.get("hero", ""))
-                        if hero:
-                            pick_counter[hero] += 1
-
-        hero_pool = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
 
         teams_with_scrim_stats.append(
             {
@@ -340,7 +339,6 @@ def teams():
                 "win_rate_class": win_rate_class,
                 "last_played": last_played,
                 "last_played_sort": last_played_sort,
-                "hero_pool": hero_pool,
             }
         )
 
@@ -357,11 +355,21 @@ def teams():
     teams_with_scrim_stats.sort(key=lambda t: not t["is_personal"])
 
     personal_teams = [team for team in teams_with_scrim_stats if team["is_personal"]]
+    chart_teams = [
+        {
+            "name": team["name"],
+            "map_count": team["map_count"],
+            "map_win_rate": team["map_win_rate"],
+        }
+        for team in teams_with_scrim_stats
+        if team["map_count"]
+    ]
 
     return render_template(
         "teams.html",
         teams=teams_with_scrim_stats,
         personal_teams=personal_teams,
+        chart_teams=chart_teams,
         season_options=season_options,
         selected_season=selected_season,
         selected_sort=selected_sort,
