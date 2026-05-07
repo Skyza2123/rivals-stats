@@ -7,8 +7,11 @@
 def _connect_db(path=None):
     """Return a SQLite database connection."""
     target = path or DB_PATH
-    conn = sqlite3.connect(target)
+    conn = sqlite3.connect(target, timeout=15)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 15000")
+    conn.execute("PRAGMA cache_size = -20000")
+    conn.execute("PRAGMA temp_store = MEMORY")
     return conn
 
 
@@ -245,6 +248,21 @@ def load_app_state() -> None:
             )
             conn.commit()
         LAST_STATE_REFRESH_AT = time.monotonic()
+    finally:
+        conn.close()
+
+
+def current_persisted_state_rev() -> int:
+    conn = _connect_db()
+    try:
+        row = conn.execute(
+            "SELECT state_value FROM app_state WHERE state_key = ?",
+            ("scrims_rev",),
+        ).fetchone()
+        try:
+            return int(row["state_value"]) if row else 0
+        except (TypeError, ValueError):
+            return 0
     finally:
         conn.close()
 

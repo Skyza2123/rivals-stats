@@ -140,13 +140,17 @@ def logout():
 
 @app.before_request
 def refresh_app_state_from_db() -> None:
+    global LAST_STATE_REFRESH_AT
     # Keep in-memory state in sync across hosted worker processes without reloading every request.
     if STATE_REFRESH_INTERVAL_SECONDS <= 0:
         load_app_state()
         return
     elapsed = time.monotonic() - LAST_STATE_REFRESH_AT
     if elapsed >= STATE_REFRESH_INTERVAL_SECONDS:
-        load_app_state()
+        if current_persisted_state_rev() != LAST_SCRIMS_REV:
+            load_app_state()
+        else:
+            LAST_STATE_REFRESH_AT = time.monotonic()
 
 
 register_team_routes(

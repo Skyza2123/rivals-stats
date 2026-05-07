@@ -1,5 +1,6 @@
 ﻿import csv
 import copy
+import gzip
 import io
 import os
 import json
@@ -70,6 +71,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
+_STATIC_ASSET_VERSION_CACHE: dict[str, tuple[float, str]] = {}
 
 if TYPE_CHECKING:
     def init_db() -> None: ...
@@ -96,7 +98,14 @@ def static_asset_url(filename: str) -> str:
     try:
         asset_path = Path(app.static_folder) / filename
         if asset_path.exists():
-            version = str(int(asset_path.stat().st_mtime))
+            cache_key = str(asset_path)
+            stat = asset_path.stat()
+            cached = _STATIC_ASSET_VERSION_CACHE.get(cache_key)
+            if cached and cached[0] == stat.st_mtime:
+                version = cached[1]
+            else:
+                version = str(int(stat.st_mtime))
+                _STATIC_ASSET_VERSION_CACHE[cache_key] = (stat.st_mtime, version)
     except OSError:
         pass
     return url_for("static", filename=filename, v=version)
@@ -110,6 +119,40 @@ def inject_static_asset_url() -> dict:
 @app.route("/favicon.ico")
 def favicon_ico():
     return app.send_static_file("favicon.png")
+
+
+@app.after_request
+def compress_large_text_responses(response):
+    """Gzip large dynamic text responses when the client supports it."""
+    if (
+        response.direct_passthrough
+        or response.status_code < 200
+        or response.status_code >= 300
+        or response.headers.get("Content-Encoding")
+        or "gzip" not in request.headers.get("Accept-Encoding", "").lower()
+    ):
+        return response
+
+    content_type = response.mimetype or ""
+    if content_type == "text/event-stream" or not (
+        content_type.startswith("text/")
+        or content_type in {"application/json", "application/javascript", "application/xml"}
+    ):
+        return response
+
+    payload = response.get_data()
+    if len(payload) < 1024:
+        return response
+
+    compressed = gzip.compress(payload, compresslevel=5)
+    if len(compressed) >= len(payload):
+        return response
+
+    response.set_data(compressed)
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = str(len(compressed))
+    response.headers.add("Vary", "Accept-Encoding")
+    return response
 
 # Serve static assets reliably behind WSGI hosts (Render/Gunicorn) when available.
 _whitenoise_module = importlib.util.find_spec("whitenoise")
