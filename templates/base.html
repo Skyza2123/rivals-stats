@@ -97,40 +97,16 @@
 <body>
     <header class="topnav">
         <div class="topnav-inner">
-            <a href="{{ url_for('dashboard') }}" class="topnav-brand">Scrim Dashboard</a>
-
-            <button class="topnav-burger" id="topnavBurger" aria-label="Toggle navigation" aria-expanded="false">
+            <button class="topnav-burger" id="navDrawerToggle" aria-label="Open navigation" aria-expanded="false">
                 <span></span><span></span><span></span>
             </button>
-
-            <nav class="topnav-links" id="topnavLinks">
-                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="{{ url_for('scrims') }}" class="nav-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
-                <a href="{{ url_for('teams') }}" class="nav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
-                <a href="{{ url_for('tournaments') }}" class="nav-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
-                <a href="{{ url_for('machine', tab='chat') }}" class="nav-link {% if request.path == '/machine' and request.args.get('tab') == 'chat' %}active{% endif %}">Agent</a>
-
-                <details class="topnav-tools">
-                    <summary class="nav-link {% if request.path == '/draft-reasoner' or (request.path == '/machine' and request.args.get('tab') != 'chat') %}active{% endif %}">Machine</summary>
-                    <div class="topnav-tools-menu">
-                        <a href="{{ url_for('machine') }}" class="nav-link {% if request.path == '/machine' and request.args.get('tab') != 'reasoner' %}active{% endif %}">Draft Matchup</a>
-                        <a href="{{ url_for('machine', tab='reasoner') }}" class="nav-link {% if request.path == '/draft-reasoner' or (request.path == '/machine' and request.args.get('tab') == 'reasoner') %}active{% endif %}">Draft Reasoner</a>
-                    </div>
-                </details>
-
-                <details class="topnav-tools">
-                    <summary class="nav-link {% if request.path == '/draft-simulator' or request.path.startswith('/teams/compare') or request.path.startswith('/players/compare') %}active{% endif %}">Tools</summary>
-                    <div class="topnav-tools-menu">
-                        <a href="{{ url_for('draft_simulator') }}" class="nav-link {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Prep</a>
-                        <a href="{{ url_for('teams_compare') }}" class="nav-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
-                        <a href="{{ url_for('player_compare') }}" class="nav-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
-                    </div>
-                </details>
+            <a href="{{ url_for('dashboard') }}" class="topnav-brand">Scrim Dashboard</a>
+            <div class="topnav-right">
                 {% set access_level = session.get('access_level', 'view') %}
                 <span class="access-badge {% if access_level == 'edit' %}access-badge-edit{% else %}access-badge-view{% endif %}">
                     {{ 'EDIT MODE' if access_level == 'edit' else 'VIEW MODE' }}
                 </span>
-                <label class="theme-picker" for="themeSelect">
+                <label class="theme-picker" for="themeSelect" title="Theme">
                     <span class="theme-picker-dot" aria-hidden="true"></span>
                     <select id="themeSelect" class="theme-select" aria-label="Theme color">
                         <option value="blue">Blue</option>
@@ -140,10 +116,77 @@
                         <option value="light">Light</option>
                     </select>
                 </label>
-                <a href="{{ url_for('logout') }}" class="nav-link nav-link-logout">Logout</a>
-            </nav>
+                <a href="{{ url_for('logout') }}" class="topnav-icon-btn" title="Logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </a>
+            </div>
         </div>
     </header>
+
+    <!-- Top Navigation Bar (Desktop) -->
+    <nav class="top-nav-bar" aria-label="Main navigation">
+        <div class="top-nav-content">
+            <a href="{{ url_for('dashboard') }}" class="top-nav-item {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('scrims') }}" class="top-nav-item {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
+            <a href="{{ url_for('teams') }}" class="top-nav-item {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
+            <a href="{{ url_for('tournaments') }}" class="top-nav-item {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
+            <a href="{{ url_for('machine', tab='chat') }}" class="top-nav-item {% if request.path == '/machine' and request.args.get('tab') == 'chat' %}active{% endif %}">Agent</a>
+            
+            <!-- Machine Dropdown -->
+            <div class="top-nav-dropdown">
+                <button class="top-nav-item top-nav-dropdown-btn {% if request.path == '/machine' %}active{% endif %}" data-dropdown="machine" aria-label="Machine menu">
+                    Machine
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <polyline points="0 0 5 5 10 0"></polyline>
+                    </svg>
+                </button>
+                <div class="top-nav-dropdown-content" id="machine-dropdown">
+                    <a href="{{ url_for('machine') }}" class="top-nav-dropdown-link {% if request.path == '/machine' and not request.args.get('tab') %}active{% endif %}">Draft Matchup</a>
+                    <a href="{{ url_for('machine', tab='reasoner') }}" class="top-nav-dropdown-link {% if request.path == '/machine' and request.args.get('tab') == 'reasoner' %}active{% endif %}">Draft Reasoner</a>
+                </div>
+            </div>
+            
+            <!-- Tools Dropdown -->
+            <div class="top-nav-dropdown">
+                <button class="top-nav-item top-nav-dropdown-btn {% if request.path.startswith('/draft-simulator') or request.path.startswith('/teams/compare') or request.path.startswith('/players/compare') %}active{% endif %}" data-dropdown="tools" aria-label="Tools menu">
+                    Tools
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <polyline points="0 0 5 5 10 0"></polyline>
+                    </svg>
+                </button>
+                <div class="top-nav-dropdown-content" id="tools-dropdown">
+                    <a href="{{ url_for('draft_simulator') }}" class="top-nav-dropdown-link {% if request.path.startswith('/draft-simulator') %}active{% endif %}">Draft Prep</a>
+                    <a href="{{ url_for('teams_compare') }}" class="top-nav-dropdown-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
+                    <a href="{{ url_for('player_compare') }}" class="top-nav-dropdown-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Nav Drawer -->
+    <div class="nav-drawer-overlay" id="navDrawerOverlay"></div>
+    <nav class="nav-drawer" id="navDrawer" aria-label="Main navigation">
+        <div class="nav-drawer-header">
+            <span class="nav-drawer-title">Menu</span>
+            <button class="nav-drawer-close" id="navDrawerClose" aria-label="Close navigation">
+                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="nav-drawer-links">
+            <a href="{{ url_for('dashboard') }}" class="nav-drawer-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('scrims') }}" class="nav-drawer-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
+            <a href="{{ url_for('teams') }}" class="nav-drawer-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
+            <a href="{{ url_for('tournaments') }}" class="nav-drawer-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
+            <a href="{{ url_for('machine', tab='chat') }}" class="nav-drawer-link {% if request.path == '/machine' and request.args.get('tab') == 'chat' %}active{% endif %}">Agent</a>
+            <div class="nav-drawer-group-label">Machine</div>
+            <a href="{{ url_for('machine') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path == '/machine' and not request.args.get('tab') %}active{% endif %}">Draft Matchup</a>
+            <a href="{{ url_for('machine', tab='reasoner') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path == '/machine' and request.args.get('tab') == 'reasoner' %}active{% endif %}">Draft Reasoner</a>
+            <div class="nav-drawer-group-label">Tools</div>
+            <a href="{{ url_for('draft_simulator') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Prep</a>
+            <a href="{{ url_for('teams_compare') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
+            <a href="{{ url_for('player_compare') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
+        </div>
+    </nav>
 
     <div class="dashboard-layout">
         <main class="main-content">
@@ -185,23 +228,75 @@
 })();
 </script>
 <script>
-/* Burger menu toggle */
+/* Nav drawer toggle */
 (function () {
-    var burger = document.getElementById('topnavBurger');
-    var links  = document.getElementById('topnavLinks');
-    if (!burger || !links) return;
-    burger.addEventListener('click', function () {
-        var open = links.classList.toggle('open');
-        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-        burger.classList.toggle('is-open', open);
+    var toggle  = document.getElementById('navDrawerToggle');
+    var closeBtn = document.getElementById('navDrawerClose');
+    var overlay = document.getElementById('navDrawerOverlay');
+    var drawer  = document.getElementById('navDrawer');
+    if (!toggle || !drawer) return;
+
+    function openDrawer() {
+        drawer.classList.add('open');
+        overlay.classList.add('open');
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer() {
+        drawer.classList.remove('open');
+        overlay.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.classList.remove('is-open');
+        document.body.style.overflow = '';
+    }
+
+    toggle.addEventListener('click', openDrawer);
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    if (overlay) overlay.addEventListener('click', closeDrawer);
+    drawer.querySelectorAll('a.nav-drawer-link').forEach(function (a) {
+        a.addEventListener('click', closeDrawer);
     });
-    /* Close on nav-link click (mobile) */
-    links.querySelectorAll('a.nav-link').forEach(function (a) {
-        a.addEventListener('click', function () {
-            links.classList.remove('open');
-            burger.setAttribute('aria-expanded', 'false');
-            burger.classList.remove('is-open');
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeDrawer();
+    });
+})();
+</script>
+<script>
+/* Top nav dropdowns */
+(function () {
+    var dropdownBtns = document.querySelectorAll('.top-nav-dropdown-btn');
+    
+    dropdownBtns.forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var dropdownId = this.getAttribute('data-dropdown');
+            var menu = document.getElementById(dropdownId + '-dropdown');
+            var isOpen = menu.classList.toggle('open');
+            this.setAttribute('aria-expanded', isOpen);
+            
+            // Close other dropdowns
+            dropdownBtns.forEach(function (otherBtn) {
+                if (otherBtn !== btn) {
+                    otherBtn.setAttribute('aria-expanded', 'false');
+                    var otherId = otherBtn.getAttribute('data-dropdown');
+                    var otherMenu = document.getElementById(otherId + '-dropdown');
+                    if (otherMenu) otherMenu.classList.remove('open');
+                }
+            });
         });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.top-nav-dropdown')) {
+            dropdownBtns.forEach(function (btn) {
+                btn.setAttribute('aria-expanded', 'false');
+            });
+            document.querySelectorAll('.top-nav-dropdown-content').forEach(function (menu) {
+                menu.classList.remove('open');
+            });
+        }
     });
 })();
 </script>

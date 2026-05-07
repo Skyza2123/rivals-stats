@@ -3,7 +3,7 @@
 {% block title %}Player Comparison{% endblock %}
 
 {% block content %}
-<div class="team-hero">
+<div class="team-hero gap-lg">
     <div class="team-hero-left">
         <div>
             <h2>Player Comparison</h2>
@@ -66,8 +66,8 @@
             <small id="player_b_match_count" class="muted-text"></small>
         </div>
         <div class="button-row field-full">
-            <button type="button" class="button-secondary" id="swap_players_btn">Swap</button>
-            <button type="button" class="button-secondary" id="clear_players_btn">Clear</button>
+            <button type="button" class="button-secondary btn-muted" id="swap_players_btn">Swap</button>
+            <button type="button" class="button-secondary btn-muted" id="clear_players_btn">Clear</button>
             <button type="submit">Compare</button>
         </div>
     </form>
@@ -549,8 +549,8 @@
     display: flex;
     align-items: center;
     gap: 20px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
     border-radius: 16px;
     padding: 20px 24px;
 }
@@ -571,7 +571,7 @@
     height: 72px;
     border-radius: 12px;
     object-fit: cover;
-    border: 2px solid rgba(255,255,255,0.12);
+    border: 2px solid var(--border);
     flex-shrink: 0;
 }
 
@@ -602,8 +602,8 @@
 
 .cmp-stat-card {
     flex: 1 1 120px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 12px 14px;
     display: flex;

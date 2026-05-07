@@ -44,9 +44,9 @@
         </form>
         <div class="page-toolbar-group">
             {% if session.get('access_level') == 'edit' %}
-            <button id="openAddTeamModal" type="button" class="button-small">+ Add Team</button>
+            <button id="openAddTeamModal" type="button" class="btn-sm">New Team</button>
             {% endif %}
-            <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
+            <a href="{{ url_for('dashboard') }}" class="button-secondary btn-muted">Dashboard</a>
         </div>
     </div>
 </section>
@@ -123,17 +123,17 @@
             {% endif %}
         </div>
     </a>
-    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">View stats -&gt;</a>
+    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">Open Team</a>
     <div class="team-dash-players">{{ team.active_roster_count }} roster{% if team.staff %} / {{ team.staff|length }} staff{% endif %}</div>
     {% if session.get('access_level') == 'edit' %}
     <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
         <input type="hidden" name="season" value="{{ selected_season }}">
         {% if team.is_personal %}
             <input type="hidden" name="action" value="remove">
-            <button type="submit" class="button-secondary button-small">Remove From Personal</button>
+            <button type="submit" class="button-secondary btn-muted btn-sm">Unpin</button>
         {% else %}
             <input type="hidden" name="action" value="add">
-            <button type="submit" class="button-secondary button-small">Add To Personal</button>
+            <button type="submit" class="button-secondary btn-muted btn-sm">Pin</button>
         {% endif %}
     </form>
     {% endif %}
@@ -196,16 +196,16 @@
         </div>
     </a>
     <div class="team-row-actions">
-        <a class="button-secondary button-small" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">Stats</a>
+        <a class="button-secondary btn-muted btn-sm" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">Open</a>
         {% if session.get('access_level') == 'edit' %}
         <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}">
             <input type="hidden" name="season" value="{{ selected_season }}">
             {% if team.is_personal %}
                 <input type="hidden" name="action" value="remove">
-                <button type="submit" class="button-secondary button-small">Unset Personal</button>
+                <button type="submit" class="button-secondary btn-muted btn-sm">Unpin</button>
             {% else %}
                 <input type="hidden" name="action" value="add">
-                <button type="submit" class="button-secondary button-small">Set Personal</button>
+                <button type="submit" class="button-secondary btn-muted btn-sm">Pin</button>
             {% endif %}
         </form>
         {% endif %}
@@ -216,7 +216,7 @@
 {% if personal_teams %}
 <section class="panel gap-md">
     <div class="panel-header-row">
-        <h3>Personal Team Quick Links</h3>
+        <h3>Pinned Teams</h3>
         <span class="muted-label">{{ personal_teams|length }} pinned</span>
     </div>
     <div class="dashboard-quick-links gap-sm">
@@ -353,14 +353,14 @@
                 <div class="team-logo-picker">
                     <img id="modalTeamLogoPreview" class="team-logo-thumb team-logo-thumb-lg" src="https://avatar.vercel.sh/Team.png?size=140" alt="Team logo preview">
                     <div class="team-logo-picker-actions">
-                        <button id="modalChooseLogoBtn" type="button" class="button-secondary button-small">Add / Change</button>
-                        <button id="modalClearLogoBtn" type="button" class="button-secondary button-small">Clear</button>
+                        <button id="modalChooseLogoBtn" type="button" class="button-secondary btn-muted btn-sm">Add / Change</button>
+                        <button id="modalClearLogoBtn" type="button" class="button-secondary btn-muted btn-sm">Clear</button>
                     </div>
                 </div>
             </div>
             <div class="modal-actions field-full">
-                <button type="button" class="button-secondary" id="cancelAddTeamModal">Cancel</button>
-                <button type="submit" class="button-small">Create Team</button>
+                <button type="button" class="button-secondary btn-muted" id="cancelAddTeamModal">Cancel</button>
+                <button type="submit" class="btn-sm">Create Team</button>
             </div>
         </form>
     </div>
