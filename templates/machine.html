@@ -639,8 +639,9 @@
 @media (max-width:700px) { .machine-team-card-body { grid-template-columns:1fr; } .machine-team-card-col + .machine-team-card-col { border-left:none; border-top:1px solid rgba(148,163,184,0.1); } }
 .machine-chat-compose-wrap { border-top:1px solid rgba(148,163,184,0.08); background:rgba(2,6,23,0.2); padding:0.85rem 1.25rem 1.1rem; flex-shrink:0; }
 .machine-chat-compose { display:flex; align-items:flex-end; gap:0.5rem; background:rgba(15,23,42,0.65); border:1px solid rgba(148,163,184,0.18); border-radius:1rem; padding:0.5rem 0.5rem 0.5rem 1rem; transition:border-color 0.15s, box-shadow 0.15s; max-width:780px; margin:0 auto; }
-.machine-chat-compose:focus-within { border-color:rgba(96,165,250,0.45); box-shadow:0 0 0 3px rgba(96,165,250,0.07); }
+.machine-chat-compose:focus-within { border-color:var(--accent, rgba(96,165,250,0.6)); box-shadow:0 0 0 3px var(--ring, rgba(96,165,250,0.08)); }
 .machine-chat-compose textarea { flex:1; background:none; border:none; outline:none; resize:none; color:#e2e8f0; font-size:0.9rem; line-height:1.55; min-height:24px; max-height:160px; padding:0; overflow:hidden; }
+.machine-chat-compose textarea:focus { box-shadow:none; border-color:transparent; background-color:transparent; }
 .machine-chat-compose textarea::placeholder { color:#334155; }
 #machine-chat-send { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:0.7rem; background:#1d4ed8; border:none; color:#fff; cursor:pointer; flex-shrink:0; transition:background 0.15s, transform 0.1s; }
 #machine-chat-send:hover { background:#2563eb; transform:translateY(-1px); }

@@ -896,9 +896,13 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
             if pname:
                 player_lines.append(f"{pname}{(' (' + role + ')') if role else ''}: {top_h}")
         team_has_data = bool(bias) or bool(pair_cores) or bool(map_stats)
+        data_season = team.get("data_season") or team.get("season")
+        season_note = ""
+        if data_season and data_season != season_value and season_value and season_value != "all":
+            season_note = f" [data is from season {data_season} — no ETL data exists yet for season {season_value}]"
         if team_has_data:
             team_text = (
-                f"{team.get('team') or 'That team'} profile:\n"
+                f"{team.get('team') or 'That team'} profile{season_note}:\n"
                 f"  Hero bias: {bias}.\n"
                 f"  Core pairs: {_machine_chat_join(pair_cores, 5)}.\n"
                 f"  Map record: {_machine_chat_join(map_stats, 5)}."

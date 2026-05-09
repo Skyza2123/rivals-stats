@@ -312,6 +312,27 @@ def get_player_heroes(
             """,
             (resolved["player_name"], resolved["team_name"], season),
         ).fetchall()
+        if not rows:
+            # Fall back to most recent season with data for this player
+            latest = conn.execute(
+                """SELECT season FROM de_player_heroes
+                   WHERE lower(player_name) = lower(?) AND team_name = ? AND season != ''
+                   ORDER BY season DESC LIMIT 1""",
+                (resolved["player_name"], resolved["team_name"]),
+            ).fetchone()
+            if latest:
+                rows = conn.execute(
+                    """
+                    SELECT hero, SUM(appearances) as appearances,
+                           SUM(wins) as wins, SUM(losses) as losses
+                    FROM de_player_heroes
+                    WHERE lower(player_name) = lower(?) AND team_name = ? AND season = ?
+                    GROUP BY hero ORDER BY appearances DESC
+                    """,
+                    (resolved["player_name"], resolved["team_name"], latest[0]),
+                ).fetchall()
+            else:
+                rows = resolved["heroes"]
     else:
         rows = resolved["heroes"]
     return [dict(r) for r in rows]
@@ -452,6 +473,65 @@ def get_team_overview(
         "hero_bias": [dict(r) for r in bias_rows],
         "pair_cores": [dict(r) for r in pair_rows],
         "map_stats": [dict(r) for r in map_rows],
+        if team is None:
+            team = get_personal_team(conn).get("name", "")
+
+        def _query_overview(s: str | None) -> tuple:
+            sc = "AND season = ?" if s else ""
+            p = [team] + ([s] if s else [])
+            b = conn.execute(
+                f"""SELECT hero, ban_count, protect_count, played_count,
+                           played_wins, played_losses
+                    FROM de_team_hero_bias
+                    WHERE team_name = ? {sc}
+                    ORDER BY (ban_count + protect_count + played_count) DESC""",
+                p,
+            ).fetchall()
+            pr = conn.execute(
+                f"""SELECT hero_a, hero_b, co_appearances, wins, losses
+                    FROM de_ally_pair_stats
+                    WHERE team_name = ? {sc}
+                    ORDER BY co_appearances DESC LIMIT 20""",
+                p,
+            ).fetchall()
+            mr = conn.execute(
+                f"""SELECT map_name, COUNT(*) as played,
+                           SUM(result = 'Win') as wins,
+                           SUM(result = 'Loss') as losses
+                    FROM de_maps
+                    WHERE team_name = ? {sc}
+                    GROUP BY map_name ORDER BY played DESC""",
+                p,
+            ).fetchall()
+            return b, pr, mr
+
+        bias_rows, pair_rows, map_rows = _query_overview(season)
+        data_season = season
+
+        # If a specific season was requested but returned no ETL data, fall back
+        # to the most recent season that has data for this team.
+        if season and not bias_rows and not pair_rows:
+            available = conn.execute(
+                """SELECT DISTINCT season FROM de_team_hero_bias
+                   WHERE team_name = ? AND season != ''
+                   ORDER BY season DESC""",
+                (team,),
+            ).fetchall()
+            if available:
+                data_season = available[0][0]
+                bias_rows, pair_rows, map_rows = _query_overview(data_season)
+            else:
+                data_season = None
+                bias_rows, pair_rows, map_rows = _query_overview(None)
+
+        return {
+            "team": team,
+            "season": season,
+            "data_season": data_season,
+            "hero_bias": [dict(r) for r in bias_rows],
+            "pair_cores": [dict(r) for r in pair_rows],
+            "map_stats": [dict(r) for r in map_rows],
+        }
     }
 
 
@@ -540,21 +620,38 @@ def get_scrim_history(
         team = get_personal_team(conn).get("name", "")
 
     scrims = _load_scrims(conn)
-    out = []
-    for scrim in scrims:
-        t = (scrim.get("team_name") or "").strip()
-        if _norm(t) != _norm(team):
-            continue
-        s = str(scrim.get("season") or "")
-        if season and _norm(s) != _norm(season):
-            continue
-        opp = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
-        if vs and not (_norm(vs) in _norm(opp) or _norm(opp) in _norm(vs)):
-            continue
-        out.append(scrim)
 
-    # Sort newest first by scrim_date
-    out.sort(key=lambda x: x.get("scrim_date") or "", reverse=True)
+    def _filter(s_val: str | None) -> list[dict]:
+        out = []
+        for scrim in scrims:
+            t = (scrim.get("team_name") or "").strip()
+            if _norm(t) != _norm(team):
+                continue
+            sc = str(scrim.get("season") or "")
+            if s_val and _norm(sc) != _norm(s_val):
+                continue
+            opp = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
+            if vs and not (_norm(vs) in _norm(opp) or _norm(opp) in _norm(vs)):
+                continue
+            out.append(scrim)
+        out.sort(key=lambda x: x.get("scrim_date") or "", reverse=True)
+        return out
+
+    out = _filter(season)
+
+    # If season-specific filter returned nothing, fall back to the most recent
+    # season that has scrim data for this team.
+    if season and not out:
+        all_team_scrims = _filter(None)
+        known_seasons = sorted(
+            {str(sc.get("season") or "") for sc in all_team_scrims if sc.get("season")},
+            reverse=True,
+        )
+        if known_seasons:
+            out = _filter(known_seasons[0])
+        else:
+            out = all_team_scrims
+
     return out[:limit]
 
 
