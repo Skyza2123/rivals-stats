@@ -1681,6 +1681,12 @@ def api_machine_chat_stream():
     import time as _time
     from flask import Response, stream_with_context
     from draft_engine.llm import build_draft_system_prompt, stream_agent_loop, _AGENT_TOOLS
+    from draft_engine.agent_tools import build_machine_tool_hint
+    from draft_engine.agent_tool_runtime import (
+        build_tool_executor,
+        prefetch_site_payload,
+        should_prefetch_site,
+    )
 
     # Parse the request eagerly (request context not guaranteed inside generator)
     payload = request.get_json(silent=True) or {}
@@ -1710,77 +1716,57 @@ def api_machine_chat_stream():
     captured_team_a_id: list = [chat_context.get("team_a_id")]
     captured_team_b_id: list = [chat_context.get("team_b_id")]
     tools_called: list[set] = [set()]
+    prefetched_site_answer = ""
+    prefetched_site_context = ""
 
-    def _normalize_season(s: str | None) -> str | None:
-        """Strip leading 'season ' prefix so 'season 7' -> '7'."""
-        if not s or s.lower() == "all":
-            return None
-        import re as _re
-        return _re.sub(r'^season\s*', '', s.strip(), flags=_re.IGNORECASE) or None
+    if should_prefetch_site(intent, chat_context, intent_message):
+        prefetched = prefetch_site_payload(
+            intent_message,
+            season_value,
+            site_answer_fn=_machine_agent_site_answer,
+            site_context_text_fn=_machine_agent_site_context_text,
+        )
+        prefetched_site_answer = prefetched.get("answer") or ""
+        prefetched_site_context = prefetched.get("context") or ""
+        prefetched_meta = prefetched.get("meta") or {}
+        if prefetched_meta.get("visuals"):
+            captured_visuals[0].update(prefetched_meta["visuals"])
 
-    def tool_executor(fn_name: str, fn_args: dict) -> str:
-        if fn_name == "get_matchup_data":
-            team_a_name = (fn_args.get("team_a_name") or "").strip()
-            team_b_name = (fn_args.get("team_b_name") or "").strip()
-            season = fn_args.get("season") or season_value
-            map_name = fn_args.get("map") or selected_map_name
-            ta_id = (_resolve_team_by_name(team_a_name) if team_a_name else None) \
-                    or chat_context.get("team_a_id") or personal_team_id
-            tb_id = (_resolve_team_by_name(team_b_name) if team_b_name else None) \
-                    or chat_context.get("team_b_id")
-            if not ta_id or not tb_id:
-                return (
-                    "Cannot fetch matchup: no opponent team is selected. "
-                    "Use search_site_data to answer single-team questions instead. "
-                    "Only call get_matchup_data again if the user explicitly names an opponent."
-                )
-            captured_team_a_id[0] = ta_id
-            captured_team_b_id[0] = tb_id
-            context_text, meta = _machine_chat_build_context(
-                ta_id, tb_id, season, map_name, include_scrims, include_tournaments
-            )
-            captured_meta[0] = meta
-            captured_visuals[0] = dict(meta.get("visuals") or {})
-            return context_text
-        elif fn_name == "search_site_data":
-            if "search_site_data" in tools_called[0]:
-                return (
-                    "search_site_data was already called. "
-                    "Do not call it again. Use the data already returned to answer the question."
-                )
-            tools_called[0].add("search_site_data")
-            query = fn_args.get("query", "")
-            season = _normalize_season(fn_args.get("season")) or _normalize_season(season_value)
-            try:
-                site_result = _machine_agent_site_answer(query, season)
-            except Exception as _exc:
-                import traceback as _tb
-                print(f"[machine] search_site_data error: {_exc}\n{_tb.format_exc()}")
-                site_result = None
-            if not site_result:
-                return (
-                    "No data found in the database for that query. "
-                    "Answer from your general knowledge about the team or player if possible. "
-                    "Do not call any more tools."
-                )
-            site_meta = site_result.get("meta") or {}
-            if site_meta.get("visuals"):
-                captured_visuals[0].update(site_meta["visuals"])
-            answer_text = site_result.get("answer", "")
-            raw_ctx = _machine_agent_site_context_text(site_meta.get("site_search") or {})
-            return (answer_text + "\n\n" + raw_ctx).strip() if answer_text else raw_ctx
-        return f"Unknown tool: {fn_name}"
+    tool_executor = build_tool_executor(
+        season_value=season_value,
+        selected_map_name=selected_map_name,
+        chat_context=chat_context,
+        personal_team_id=personal_team_id,
+        include_scrims=include_scrims,
+        include_tournaments=include_tournaments,
+        tools_called=tools_called[0],
+        captured_meta=captured_meta,
+        captured_visuals=captured_visuals,
+        captured_team_a_id=captured_team_a_id,
+        captured_team_b_id=captured_team_b_id,
+        resolve_team_by_name=_resolve_team_by_name,
+        build_context_fn=lambda ta_id, tb_id, season, map_name: _machine_chat_build_context(
+            ta_id,
+            tb_id,
+            season,
+            map_name,
+            include_scrims,
+            include_tournaments,
+        ),
+        site_answer_fn=_machine_agent_site_answer,
+        site_context_text_fn=_machine_agent_site_context_text,
+    )
 
     has_opponent = bool(chat_context.get("team_b_id") or chat_context.get("team_b_name"))
     opponent_display = chat_context.get("team_b_name") or ("id=" + str(chat_context.get("team_b_id")) if chat_context.get("team_b_id") else "not set")
-    context_hint = (
-        f"Current UI context — our team: {personal_team_name or 'not set'}; "
-        f"opponent: {opponent_display}; season: {season_value}; map filter: {selected_map_name}.\n"
-        f"Tool selection: use search_site_data for single-team questions (hero pool, comfort heroes, "
-        f"player stats, team profile, map records). Only call get_matchup_data when the question "
-        f"explicitly requires comparing two specific teams (bans vs each other, force paths, matchup analysis). "
-        f"Call each tool at most once per question — do not retry."
+    context_hint = build_machine_tool_hint(
+        personal_team_name or "not set",
+        opponent_display,
+        season_value,
+        selected_map_name,
     )
+    if prefetched_site_context:
+        context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
     system_prompt = build_draft_system_prompt(
         context_text="",
         site_context_text=context_hint,
@@ -1818,7 +1804,7 @@ def api_machine_chat_stream():
                 hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
 
                 fallback_text = _machine_agent_answer_for_intent(intent_message, "", meta, intent)
-                final_answer = _machine_agent_humanize_answer(agent_answer or fallback_text)
+                final_answer = _machine_agent_humanize_answer(agent_answer or prefetched_site_answer or fallback_text)
 
                 if intent == "player_pivot" and not player_pivot_request:
                     final_answer = _machine_agent_humanize_answer(
@@ -1940,6 +1926,12 @@ def api_machine_chat():
 
 def _api_machine_chat_inner():
     from draft_engine.llm import build_draft_system_prompt, run_agent_loop, _AGENT_TOOLS
+    from draft_engine.agent_tools import build_machine_tool_hint
+    from draft_engine.agent_tool_runtime import (
+        build_tool_executor,
+        prefetch_site_payload,
+        should_prefetch_site,
+    )
 
     payload = request.get_json(silent=True) or {}
     message = (payload.get("message") or "").strip()
@@ -1969,83 +1961,58 @@ def _api_machine_chat_inner():
     captured_team_a_id: list = [chat_context.get("team_a_id")]
     captured_team_b_id: list = [chat_context.get("team_b_id")]
     tools_called: list[set] = [set()]
+    prefetched_site_answer = ""
+    prefetched_site_context = ""
 
-    def _normalize_season(s: str | None) -> str | None:
-        """Strip leading 'season ' prefix so 'season 7' -> '7'."""
-        if not s or s.lower() == "all":
-            return None
-        import re as _re
-        return _re.sub(r'^season\s*', '', s.strip(), flags=_re.IGNORECASE) or None
+    if should_prefetch_site(intent, chat_context, intent_message):
+        prefetched = prefetch_site_payload(
+            intent_message,
+            season_value,
+            site_answer_fn=_machine_agent_site_answer,
+            site_context_text_fn=_machine_agent_site_context_text,
+        )
+        prefetched_site_answer = prefetched.get("answer") or ""
+        prefetched_site_context = prefetched.get("context") or ""
+        prefetched_meta = prefetched.get("meta") or {}
+        if prefetched_meta.get("visuals"):
+            captured_visuals[0].update(prefetched_meta["visuals"])
 
-    def tool_executor(fn_name: str, fn_args: dict) -> str:
-        if fn_name == "get_matchup_data":
-            team_a_name = (fn_args.get("team_a_name") or "").strip()
-            team_b_name = (fn_args.get("team_b_name") or "").strip()
-            season = fn_args.get("season") or season_value
-            map_name = fn_args.get("map") or selected_map_name
-
-            ta_id = (_resolve_team_by_name(team_a_name) if team_a_name else None) \
-                    or chat_context.get("team_a_id") or personal_team_id
-            tb_id = (_resolve_team_by_name(team_b_name) if team_b_name else None) \
-                    or chat_context.get("team_b_id")
-
-            if not ta_id or not tb_id:
-                return (
-                    "Cannot fetch matchup: no opponent team is selected. "
-                    "Use search_site_data to answer single-team questions instead. "
-                    "Only call get_matchup_data again if the user explicitly names an opponent."
-                )
-
-            captured_team_a_id[0] = ta_id
-            captured_team_b_id[0] = tb_id
-            context_text, meta = _machine_chat_build_context(
-                ta_id, tb_id, season, map_name, include_scrims, include_tournaments
-            )
-            captured_meta[0] = meta
-            captured_visuals[0] = dict(meta.get("visuals") or {})
-            return context_text
-
-        elif fn_name == "search_site_data":
-            if "search_site_data" in tools_called[0]:
-                return (
-                    "search_site_data was already called. "
-                    "Do not call it again. Use the data already returned to answer the question."
-                )
-            tools_called[0].add("search_site_data")
-            query = fn_args.get("query", "")
-            season = _normalize_season(fn_args.get("season")) or _normalize_season(season_value)
-            try:
-                site_result = _machine_agent_site_answer(query, season)
-            except Exception as _exc:
-                import traceback as _tb
-                print(f"[machine] search_site_data error: {_exc}\n{_tb.format_exc()}")
-                site_result = None
-            if not site_result:
-                return (
-                    "No data found in the database for that query. "
-                    "Answer from your general knowledge about the team or player if possible. "
-                    "Do not call any more tools."
-                )
-            site_meta = site_result.get("meta") or {}
-            if site_meta.get("visuals"):
-                captured_visuals[0].update(site_meta["visuals"])
-            answer_text = site_result.get("answer", "")
-            raw_ctx = _machine_agent_site_context_text(site_meta.get("site_search") or {})
-            return (answer_text + "\n\n" + raw_ctx).strip() if answer_text else raw_ctx
-
-        return f"Unknown tool: {fn_name}"
+    tool_executor = build_tool_executor(
+        season_value=season_value,
+        selected_map_name=selected_map_name,
+        chat_context=chat_context,
+        personal_team_id=personal_team_id,
+        include_scrims=include_scrims,
+        include_tournaments=include_tournaments,
+        tools_called=tools_called[0],
+        captured_meta=captured_meta,
+        captured_visuals=captured_visuals,
+        captured_team_a_id=captured_team_a_id,
+        captured_team_b_id=captured_team_b_id,
+        resolve_team_by_name=_resolve_team_by_name,
+        build_context_fn=lambda ta_id, tb_id, season, map_name: _machine_chat_build_context(
+            ta_id,
+            tb_id,
+            season,
+            map_name,
+            include_scrims,
+            include_tournaments,
+        ),
+        site_answer_fn=_machine_agent_site_answer,
+        site_context_text_fn=_machine_agent_site_context_text,
+    )
 
     # Build a thin system prompt — the LLM will call tools to fetch what it needs
     has_opponent = bool(chat_context.get("team_b_id") or chat_context.get("team_b_name"))
     opponent_display = chat_context.get("team_b_name") or ("id=" + str(chat_context.get("team_b_id")) if chat_context.get("team_b_id") else "not set")
-    context_hint = (
-        f"Current UI context — our team: {personal_team_name or 'not set'}; "
-        f"opponent: {opponent_display}; season: {season_value}; map filter: {selected_map_name}.\n"
-        f"Tool selection: use search_site_data for single-team questions (hero pool, comfort heroes, "
-        f"player stats, team profile, map records). Only call get_matchup_data when the question "
-        f"explicitly requires comparing two specific teams (bans vs each other, force paths, matchup analysis). "
-        f"Call each tool at most once per question — do not retry."
+    context_hint = build_machine_tool_hint(
+        personal_team_name or "not set",
+        opponent_display,
+        season_value,
+        selected_map_name,
     )
+    if prefetched_site_context:
+        context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
     system_prompt = build_draft_system_prompt(
         context_text="",
         site_context_text=context_hint,
@@ -2073,7 +2040,7 @@ def _api_machine_chat_inner():
     hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
 
     fallback_text = _machine_agent_answer_for_intent(intent_message, "", meta, intent)
-    final_answer = _machine_agent_humanize_answer(agent_answer or fallback_text)
+    final_answer = _machine_agent_humanize_answer(agent_answer or prefetched_site_answer or fallback_text)
 
     if intent == "player_pivot" and not player_pivot_request:
         final_answer = _machine_agent_humanize_answer(

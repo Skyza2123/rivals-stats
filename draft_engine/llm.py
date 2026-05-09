@@ -17,6 +17,8 @@ import re
 import urllib.error
 import urllib.request
 
+from draft_engine.agent_tools import AGENT_TOOLS, TOOL_LABELS
+
 _OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 _DEFAULT_MODEL = "gpt-4o-mini"
 _DEFAULT_MAX_TOKENS = 768
@@ -240,10 +242,7 @@ def stream_agent_loop(
         {"role": "user", "content": user_message},
     ]
 
-    _tool_labels = {
-        "get_matchup_data": "Fetching matchup data",
-        "search_site_data": "Searching site data",
-    }
+    _tool_labels = TOOL_LABELS
 
     for _step in range(max_steps):
         payload: dict = {
@@ -337,73 +336,7 @@ def stream_agent_loop(
 
 
 # Tool schemas exposed to the OpenAI model
-_AGENT_TOOLS: list[dict] = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_matchup_data",
-            "description": (
-                "Fetch draft matchup data for two teams: ban priorities, protect targets, "
-                "comfort heroes, contested heroes, volatile heroes, force paths, comp paths, "
-                "map consensus, and enemy comp options. "
-                "Use whenever the question involves bans, protects, comps, pivots, "
-                "risk, confidence, or map strategy between two specific teams."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "team_a_name": {
-                        "type": "string",
-                        "description": "Name of our team (team A). Leave blank to use the currently selected team.",
-                    },
-                    "team_b_name": {
-                        "type": "string",
-                        "description": "Name of the opponent team (team B).",
-                    },
-                    "season": {
-                        "type": "string",
-                        "description": "Season filter such as 'season 7', or 'all' for all seasons.",
-                    },
-                    "map": {
-                        "type": "string",
-                        "description": "Map name filter, or 'all' for all maps.",
-                    },
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_site_data",
-            "description": (
-                "Search team, player, hero, and map statistics from recorded match history. "
-                "Use for questions about a team's hero pool, player hero stats and win rates, "
-                "map records, hero ban/protect counts, scrim history, and general team profiles. "
-                "Works for any team or player by name — no opponent required."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": (
-                            "Natural-language search query. Examples: "
-                            "'Navi hero stats season 7', 'Fate player profile', "
-                            "'Strange ban rate', 'Virtus Pro map records'."
-                        ),
-                    },
-                    "season": {
-                        "type": "string",
-                        "description": "Season filter, e.g. 'season 7', or 'all'.",
-                    },
-                },
-                "required": ["query"],
-            },
-        },
-    },
-]
+_AGENT_TOOLS: list[dict] = AGENT_TOOLS
 
 
 _PERSONA_BLOCK = """\

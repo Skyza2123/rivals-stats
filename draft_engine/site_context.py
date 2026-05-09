@@ -431,107 +431,74 @@ def get_team_overview(
     if team is None:
         team = get_personal_team(conn).get("name", "")
 
-    season_clause = "AND season = ?" if season else ""
-    params = [team] + ([season] if season else [])
+    def _query_overview(s: str | None) -> tuple[list, list, list]:
+        season_clause = "AND season = ?" if s else ""
+        params = [team] + ([s] if s else [])
 
-    bias_rows = conn.execute(
-        f"""
-        SELECT hero, ban_count, protect_count, played_count,
-               played_wins, played_losses
-        FROM de_team_hero_bias
-        WHERE team_name = ? {season_clause}
-        ORDER BY (ban_count + protect_count + played_count) DESC
-        """,
-        params,
-    ).fetchall()
+        bias_rows = conn.execute(
+            f"""
+            SELECT hero, ban_count, protect_count, played_count,
+                   played_wins, played_losses
+            FROM de_team_hero_bias
+            WHERE team_name = ? {season_clause}
+            ORDER BY (ban_count + protect_count + played_count) DESC
+            """,
+            params,
+        ).fetchall()
 
-    pair_rows = conn.execute(
-        f"""
-        SELECT hero_a, hero_b, co_appearances, wins, losses
-        FROM de_ally_pair_stats
-        WHERE team_name = ? {season_clause}
-        ORDER BY co_appearances DESC LIMIT 20
-        """,
-        params,
-    ).fetchall()
+        pair_rows = conn.execute(
+            f"""
+            SELECT hero_a, hero_b, co_appearances, wins, losses
+            FROM de_ally_pair_stats
+            WHERE team_name = ? {season_clause}
+            ORDER BY co_appearances DESC LIMIT 20
+            """,
+            params,
+        ).fetchall()
 
-    map_rows = conn.execute(
-        f"""
-        SELECT map_name, COUNT(*) as played,
-               SUM(result = 'Win') as wins,
-               SUM(result = 'Loss') as losses
-        FROM de_maps
-        WHERE team_name = ? {season_clause}
-        GROUP BY map_name ORDER BY played DESC
-        """,
-        params,
-    ).fetchall()
+        map_rows = conn.execute(
+            f"""
+            SELECT map_name, COUNT(*) as played,
+                   SUM(result = 'Win') as wins,
+                   SUM(result = 'Loss') as losses
+            FROM de_maps
+            WHERE team_name = ? {season_clause}
+            GROUP BY map_name ORDER BY played DESC
+            """,
+            params,
+        ).fetchall()
+
+        return bias_rows, pair_rows, map_rows
+
+    bias_rows, pair_rows, map_rows = _query_overview(season)
+    data_season = season
+
+    # If a specific season was requested but returned no ETL data, fall back
+    # to the most recent season that has data for this team.
+    if season and not bias_rows and not pair_rows:
+        available = conn.execute(
+            """
+            SELECT DISTINCT season
+            FROM de_team_hero_bias
+            WHERE team_name = ? AND season != ''
+            ORDER BY season DESC
+            """,
+            (team,),
+        ).fetchall()
+        if available:
+            data_season = available[0][0]
+            bias_rows, pair_rows, map_rows = _query_overview(data_season)
+        else:
+            data_season = None
+            bias_rows, pair_rows, map_rows = _query_overview(None)
 
     return {
         "team": team,
         "season": season,
+        "data_season": data_season,
         "hero_bias": [dict(r) for r in bias_rows],
         "pair_cores": [dict(r) for r in pair_rows],
         "map_stats": [dict(r) for r in map_rows],
-        if team is None:
-            team = get_personal_team(conn).get("name", "")
-
-        def _query_overview(s: str | None) -> tuple:
-            sc = "AND season = ?" if s else ""
-            p = [team] + ([s] if s else [])
-            b = conn.execute(
-                f"""SELECT hero, ban_count, protect_count, played_count,
-                           played_wins, played_losses
-                    FROM de_team_hero_bias
-                    WHERE team_name = ? {sc}
-                    ORDER BY (ban_count + protect_count + played_count) DESC""",
-                p,
-            ).fetchall()
-            pr = conn.execute(
-                f"""SELECT hero_a, hero_b, co_appearances, wins, losses
-                    FROM de_ally_pair_stats
-                    WHERE team_name = ? {sc}
-                    ORDER BY co_appearances DESC LIMIT 20""",
-                p,
-            ).fetchall()
-            mr = conn.execute(
-                f"""SELECT map_name, COUNT(*) as played,
-                           SUM(result = 'Win') as wins,
-                           SUM(result = 'Loss') as losses
-                    FROM de_maps
-                    WHERE team_name = ? {sc}
-                    GROUP BY map_name ORDER BY played DESC""",
-                p,
-            ).fetchall()
-            return b, pr, mr
-
-        bias_rows, pair_rows, map_rows = _query_overview(season)
-        data_season = season
-
-        # If a specific season was requested but returned no ETL data, fall back
-        # to the most recent season that has data for this team.
-        if season and not bias_rows and not pair_rows:
-            available = conn.execute(
-                """SELECT DISTINCT season FROM de_team_hero_bias
-                   WHERE team_name = ? AND season != ''
-                   ORDER BY season DESC""",
-                (team,),
-            ).fetchall()
-            if available:
-                data_season = available[0][0]
-                bias_rows, pair_rows, map_rows = _query_overview(data_season)
-            else:
-                data_season = None
-                bias_rows, pair_rows, map_rows = _query_overview(None)
-
-        return {
-            "team": team,
-            "season": season,
-            "data_season": data_season,
-            "hero_bias": [dict(r) for r in bias_rows],
-            "pair_cores": [dict(r) for r in pair_rows],
-            "map_stats": [dict(r) for r in map_rows],
-        }
     }
 
 
@@ -788,6 +755,21 @@ def search_site(
                        "roster snapshot", "roster overview", "tournament snapshot", "tournament overview")
     wants_profile = any(phrase in q for phrase in profile_phrases)
 
+    comfort_phrases = (
+        "comfort",
+        "hero pool",
+        "comfort heroes",
+        "main heroes",
+        "signature heroes",
+        "best heroes",
+        "most played heroes",
+        "what should we play",
+        "what should i play",
+        "what comps",
+        "what comp",
+    )
+    wants_comfort = any(phrase in q for phrase in comfort_phrases)
+
     # --- player match ---
     all_player_names = [r[0] for r in conn.execute(
         "SELECT DISTINCT player_name FROM de_player_heroes"
@@ -847,6 +829,10 @@ def search_site(
 
     # If profile/overview intent and no team matched yet, default to personal team
     if wants_profile and not matched_teams and not matched_players and not matched_heroes:
+        matched_teams = [personal_name]
+
+    # Comfort/pool questions are usually team-scoped even when the team is implied.
+    if wants_comfort and not matched_teams and not matched_players and not matched_heroes and personal_name:
         matched_teams = [personal_name]
 
     for t in matched_teams:
