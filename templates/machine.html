@@ -1144,6 +1144,71 @@ function openHeroIconHtml(hero) {
     return '<img src="' + heroThumbUrl(hero) + '" alt="' + escapeHtml(hero) + '" title="' + escapeHtml(hero) + '" class="dr-open-hero-icon" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">';
 }
 
+const KNOWN_CHAT_HEROES = Array.from(new Set(
+    Array.from(document.querySelectorAll('.hero-pick-btn[data-hero]'))
+        .map(function(btn) { return String(btn.dataset.hero || '').trim(); })
+        .filter(Boolean)
+)).sort(function(a, b) { return b.length - a.length; });
+
+function regexEscape(text) {
+    return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractReplyHeroes(answer, meta) {
+    const found = [];
+    const seen = new Set();
+
+    function addHero(hero) {
+        const label = String(hero || '').trim();
+        if (!label) return;
+        const key = label.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push(label);
+    }
+
+    function scanText(text) {
+        const source = String(text || '');
+        if (!source) return;
+        KNOWN_CHAT_HEROES.forEach(function(hero) {
+            const pattern = new RegExp('(^|[^A-Za-z0-9])' + regexEscape(hero) + '(?=$|[^A-Za-z0-9])', 'i');
+            if (pattern.test(source)) addHero(hero);
+        });
+    }
+
+    function walk(value, depth) {
+        if (depth > 5 || value == null) return;
+        if (Array.isArray(value)) {
+            value.forEach(function(item) { walk(item, depth + 1); });
+            return;
+        }
+        if (typeof value === 'string') {
+            scanText(value);
+            return;
+        }
+        if (typeof value === 'object') {
+            Object.keys(value).forEach(function(key) {
+                walk(value[key], depth + 1);
+            });
+        }
+    }
+
+    scanText(answer);
+    walk((meta || {}).visuals || {}, 0);
+    return found.slice(0, 8);
+}
+
+function renderReplyHeroStrip(answer, meta) {
+    const heroes = extractReplyHeroes(answer, meta);
+    if (!heroes.length) return '';
+    return '<div class="machine-agent-panel">'
+        + '<div class="machine-agent-panel-title">Heroes Mentioned</div>'
+        + '<div class="machine-agent-panel-subtitle">Portraits from your app data</div>'
+        + '<div class="machine-agent-portrait-grid">'
+        + heroes.map(function(hero) { return heroPortraitCardHtml(hero, ''); }).join('')
+        + '</div></div>';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Machine draft agent
 (function() {
@@ -1397,11 +1462,14 @@ function openHeroIconHtml(hero) {
         outer.className = 'machine-chat-msg-outer bot';
         const node = document.createElement('div');
         const data = {answer: entry.answer || entry.text || '', meta: entry.meta || {}};
-        const showVisuals = shouldRenderAgentVisuals(data);
+        const visualPanelHtml = shouldRenderAgentVisuals(data) ? renderAgentVisuals(data.meta.visuals || {}, data.meta) : '';
+        const heroStripHtml = renderReplyHeroStrip(data.answer, data.meta || {});
+        const showVisuals = !!(visualPanelHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
         node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
             + renderAgentProfileLinks(data.meta)
-            + (showVisuals ? renderAgentVisuals(data.meta.visuals || {}, data.meta) : '');
+            + heroStripHtml
+            + visualPanelHtml;
         const metaEl = document.createElement('div');
         metaEl.className = 'machine-chat-meta';
         metaEl.textContent = entry.metaText || ('The Scout | ' + agentEngineLabel(data));
@@ -2248,12 +2316,15 @@ function openHeroIconHtml(hero) {
         } else {
             agentPendingMessage = '';
         }
-        const showVisuals = shouldRenderAgentVisuals(data);
+        const visualsHtml = shouldRenderAgentVisuals(data) ? renderAgentVisuals((data.meta || {}).visuals, data.meta || {}) : '';
+        const heroStripHtml = renderReplyHeroStrip(data.answer || '', data.meta || {});
+        const showVisuals = !!(visualsHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
         const linksHtml = renderAgentProfileLinks(data.meta || {});
         node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
             + linksHtml
-            + (showVisuals ? renderAgentVisuals((data.meta || {}).visuals, data.meta || {}) : '');
+            + heroStripHtml
+            + visualsHtml;
         const meta = document.createElement('div');
         meta.className = 'machine-chat-meta';
         meta.textContent = 'The Scout | ' + agentEngineLabel(data);
@@ -2383,7 +2454,11 @@ function openHeroIconHtml(hero) {
                 agentPendingMessage = '';
             }
 
-            const showVisuals = !meta.needs_context && Object.keys(meta.visuals || {}).length > 0;
+            const visualsHtml = (!meta.needs_context && Object.keys(meta.visuals || {}).length > 0)
+                ? renderAgentVisuals(meta.visuals, meta)
+                : '';
+            const heroStripHtml = meta.needs_context ? '' : renderReplyHeroStrip(answer, meta);
+            const showVisuals = !!(visualsHtml || heroStripHtml);
             botNode.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
 
             // Tool cards stay; add spacing if any exist
@@ -2395,11 +2470,11 @@ function openHeroIconHtml(hero) {
             botNode.appendChild(answerEl);
 
             const linksHtml = renderAgentProfileLinks(meta);
-            const visualsHtml = showVisuals ? renderAgentVisuals(meta.visuals, meta) : '';
 
             // Animate answer then render visuals + actions
             _animateChatText(answerEl, answer || 'No answer returned.', function() {
                 if (linksHtml) answerEl.insertAdjacentHTML('afterend', linksHtml);
+                if (heroStripHtml) botNode.insertAdjacentHTML('beforeend', heroStripHtml);
                 if (visualsHtml) botNode.insertAdjacentHTML('beforeend', visualsHtml);
 
                 // Copy button
