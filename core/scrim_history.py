@@ -34,7 +34,8 @@ def _parse_scrim_date(raw_value: str) -> date | None:
 _SEASON_MIDPOINT_DATES: dict[str, date] = {
     "6": date(2026, 1, 29),    # Season 6: Jan 16 - Feb 12
     "6.5": date(2026, 3, 1),   # Season 6.5: Feb 13 - Mar 19
-    "7": date(2026, 4, 7),     # Season 7: Mar 20 - present (~Apr 24)
+    "7": date(2026, 4, 7),     # Season 7: Mar 20 - Apr 24
+    "7.5": date(2026, 5, 7),   # Season 7.5: Apr 25 - present
 }
 
 
@@ -54,8 +55,11 @@ def _get_season_from_date(scrim_date_str: str) -> str:
     if not parsed_date:
         return ""
     
-    # Season 7: March 20 and after
-    if parsed_date >= date(2026, 3, 20):
+    # Season 7.5: Apr 25 and after
+    if parsed_date >= date(2026, 4, 25):
+        return "7.5"
+    # Season 7: March 20 - Apr 24
+    elif parsed_date >= date(2026, 3, 20):
         return "7"
     # Season 6.5: Feb 13 to March 19
     elif parsed_date >= date(2026, 2, 13):

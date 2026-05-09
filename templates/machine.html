@@ -2351,10 +2351,10 @@ function renderReplyHeroStrip(answer, meta) {
         botOuter.appendChild(botNode);
         log.appendChild(botOuter);
 
-        // Tool cards track
+        // Tool cards track (hidden — we track internally but don't render the green cards)
         const toolsEl = document.createElement('div');
         toolsEl.className = 'machine-chat-tool-track';
-        botNode.appendChild(toolsEl);
+        toolsEl.style.display = 'none';
 
         // Thinking indicator
         const thinkingEl = document.createElement('div');
@@ -2399,14 +2399,12 @@ function renderReplyHeroStrip(answer, meta) {
             }
             if (!streamFinished) {
                 thinkingEl.remove();
-                if (toolsEl.children.length === 0) toolsEl.remove();
                 botNode.className = 'machine-chat-message bot';
                 botNode.textContent = 'The chat stream ended before an answer came back. Try again, or check the Render logs for the server error.';
                 rememberChatMessage({kind: 'bot', text: botNode.textContent, metaText: 'The Scout | Stream ended'});
             }
         } catch (err) {
             thinkingEl.remove();
-            toolsEl.remove();
             botNode.className = 'machine-chat-message bot';
             botNode.textContent = err.message || 'Chat request failed.';
             rememberChatMessage({kind: 'bot', text: botNode.textContent, metaText: 'The Scout | Error'});
@@ -2420,24 +2418,12 @@ function renderReplyHeroStrip(answer, meta) {
 
     function _handleStreamEvent(evt, botNode, toolsEl, thinkingEl, toolCardEls) {
         if (evt.type === 'tool_start') {
-            // Update thinking → "Fetching data..."
+            // Update thinking indicator only — no green card rendered
             const thinkSpan = thinkingEl.querySelector('span');
             if (thinkSpan) thinkSpan.textContent = evt.label || 'Working\u2026';
-            // Append tool card (loading state)
-            const card = document.createElement('div');
-            card.className = 'machine-tool-card loading';
-            card.innerHTML = '<div class="machine-tool-spinner"></div><span class="machine-tool-label">' + escapeHtml(evt.label || evt.name) + '</span>';
-            toolsEl.appendChild(card);
-            toolCardEls[evt.name] = card;
             log.scrollTop = log.scrollHeight;
 
         } else if (evt.type === 'tool_end') {
-            // Resolve the tool card to done state
-            const card = toolCardEls[evt.name];
-            if (card) {
-                card.className = 'machine-tool-card done';
-                card.innerHTML = '<span class="machine-tool-check">\u2713</span><span class="machine-tool-label">' + escapeHtml(evt.label || evt.name) + '</span>';
-            }
             // Update thinking indicator
             const thinkSpan = thinkingEl.querySelector('span');
             if (thinkSpan) thinkSpan.textContent = 'Generating answer\u2026';

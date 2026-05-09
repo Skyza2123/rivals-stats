@@ -1529,7 +1529,7 @@ def _machine_agent_humanize_answer(text: str) -> str:
 
 
 def _machine_agent_extract_season(message: str, fallback: str = "all") -> str:
-    match = re.search(r"\b(?:season|patch|s)\s*([0-9]+)\b", message or "", re.IGNORECASE)
+    match = re.search(r"\b(?:season|patch|s)\s*([0-9]+(?:\.[0-9]+)?)\b", message or "", re.IGNORECASE)
     if match:
         return match.group(1)
     if re.search(r"\ball\s+seasons?\b", message or "", re.IGNORECASE):
