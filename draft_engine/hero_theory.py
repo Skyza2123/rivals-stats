@@ -45,6 +45,7 @@ ARCHETYPES: dict[str, str] = {
 #   function     : 1-sentence plain-English description in a comp
 #   comp_tags    : comp styles this hero enables — see COMP_ARCHETYPES keys
 #   synergies    : hero names that pair well
+#   teamup       : known Team-Up bonus names for this hero, or "" when none
 #   countered_by : hero names or archetype labels that reliably shut this down
 #   ban_priority : "high" | "medium" | "low" — general strategic importance
 #   notes        : game-specific mechanic or season note
@@ -53,15 +54,76 @@ HERO_PROFILES: dict[str, dict] = {
 
     # ── Vanguards ──────────────────────────────────────────────────────────
 
+    "Angela": {
+        "role": "Vanguard",
+        "archetype": "Diver",
+        "function": "Aggressive frontline diver who sustains through kills — heals on elimination, enabling sustained offensive pressure.",
+        "comp_tags": ["dive", "brawl"],
+        "synergies": ["Venom", "Cloak & Dagger"],
+        "teamup": "Divine Armory",
+        "countered_by": ["Spread comp", "Hard CC"],
+        "ban_priority": "low",
+        "notes": "Hybrid dive/brawl tank. Unlike most Vanguards she scales off aggressive play — reward loops on kills rather than passive space control.",
+    },
+
+    "Captain America": {
+        "role": "Vanguard",
+        "archetype": "Rush",
+        "function": "High-mobility engage tank that initiates brawl fights and disrupts enemy positioning.",
+        "comp_tags": ["rush", "brawl"],
+        "synergies": ["Thor", "Wolverine", "Mantis"],
+        "teamup": "Lucky Loan, Stars Aligned",
+        "countered_by": ["Poke", "Kite"],
+        "ban_priority": "low",
+        "notes": "Forces early fight — good into passive poke teams but struggles against brawl with good holds.",
+    },
+
     "Dr. Strange": {
         "role": "Vanguard",
         "archetype": "Controller",
         "function": "Creates angles unavailable to other tanks via portals; repositions teams mid-fight.",
         "comp_tags": ["poke", "brawl", "rush"],
         "synergies": ["Hulk", "Iron Man", "Scarlet Witch"],
+        "teamup": "Arcane Order, Psionic Mayhem",
         "countered_by": ["Diver", "Psylocke"],
         "ban_priority": "high",
         "notes": "Portal ult ends fights or rescues the team. Teams relying on fixed-range damage suffer most without him.",
+    },
+
+    "Tankpool": {
+        "role": "Vanguard",
+        "archetype": "Flex",
+        "function": "Deadpool's Vanguard placeholder — a frontline flex pick used when the roster or draft records his tank-role version.",
+        "comp_tags": ["brawl", "flex"],
+        "synergies": ["Mantis", "Rocket Raccoon", "Invisible Woman"],
+        "teamup": "Mr. Pool's Interdimensional Toy Box",
+        "countered_by": ["Poke", "Kite"],
+        "ban_priority": "low",
+        "notes": "Represents Deadpool in the Vanguard slot only. Deadpool can only appear once in a legal lineup, so Tankpool, DpsPool, and SupportPool are mutually exclusive placeholders.",
+    },
+
+    "Emma Frost": {
+        "role": "Vanguard",
+        "archetype": "Flex",
+        "function": "Diamond form brawler / psychic mode damage suppression hybrid; adapts role mid-fight.",
+        "comp_tags": ["brawl", "poke", "flex"],
+        "synergies": ["Magneto", "Psylocke"],
+        "teamup": "Chilling Assault",
+        "countered_by": ["Sustained burst", "Dive"],
+        "ban_priority": "medium",
+        "notes": "Flexible enough to slot into multiple comp styles — harder to draft against because of dual mode.",
+    },
+
+    "Groot": {
+        "role": "Vanguard",
+        "archetype": "Controller",
+        "function": "Zone-control tank — places walls to split fights, block sightlines, and root enemies with ult.",
+        "comp_tags": ["brawl", "poke"],
+        "synergies": ["Rocket Raccoon", "Magneto", "Hulk"],
+        "teamup": "Planet X Pals, Vibrant Vitality",
+        "countered_by": ["Dive that bypasses walls", "Heroes with CC immunity"],
+        "ban_priority": "low",
+        "notes": "Wall placement is the skill expression. Good walls create 2v1s inside the split.",
     },
 
     "Hulk": {
@@ -70,6 +132,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Occupies space and demands attention; Bruce Banner alt mode creates pick opportunities.",
         "comp_tags": ["brawl", "rush"],
         "synergies": ["Dr. Strange", "Wolverine"],
+        "teamup": "Fastball Special, Gamma Charge",
         "countered_by": ["Poke", "Kite"],
         "ban_priority": "medium",
         "notes": "High ban target when paired with a strong dive core — denying him forces unfavorable tank picks.",
@@ -81,257 +144,10 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Long-range poke tank with shield utility; creates resource pressure from distance.",
         "comp_tags": ["poke", "brawl"],
         "synergies": ["Storm", "Iron Man"],
+        "teamup": "Explosive Entanglement",
         "countered_by": ["Diver", "Rush"],
         "ban_priority": "medium",
         "notes": "Meta-dependent: strong when poke is uncontested, weak when dive gets through.",
-    },
-
-    "Venom": {
-        "role": "Vanguard",
-        "archetype": "Diver",
-        "function": "Aggressive frontline dive tank — jumps backline to force fights on bad ground or peel supports.",
-        "comp_tags": ["dive", "rush"],
-        "synergies": ["Psylocke", "Black Panther", "Cloak & Dagger"],
-        "countered_by": ["High burst", "Brawl with strong healer"],
-        "ban_priority": "medium",
-        "notes": "Value scales directly with how good the accompanying dive duelists are.",
-    },
-
-    "Captain America": {
-        "role": "Vanguard",
-        "archetype": "Rush",
-        "function": "High-mobility engage tank that initiates brawl fights and disrupts enemy positioning.",
-        "comp_tags": ["rush", "brawl"],
-        "synergies": ["Thor", "Wolverine", "Mantis"],
-        "countered_by": ["Poke", "Kite"],
-        "ban_priority": "low",
-        "notes": "Forces early fight — good into passive poke teams but struggles against brawl with good holds.",
-    },
-
-    "Emma Frost": {
-        "role": "Vanguard",
-        "archetype": "Flex",
-        "function": "Diamond form brawler / psychic mode damage suppression hybrid; adapts role mid-fight.",
-        "comp_tags": ["brawl", "poke", "flex"],
-        "synergies": ["Magneto", "Psylocke"],
-        "countered_by": ["Sustained burst", "Dive"],
-        "ban_priority": "medium",
-        "notes": "Flexible enough to slot into multiple comp styles — harder to draft against because of dual mode.",
-    },
-
-    # ── Duelists ───────────────────────────────────────────────────────────
-
-    "Star-Lord": {
-        "role": "Duelist",
-        "archetype": "Poke",
-        "function": "Mobile aerial poke carry — maintains range, punishes overextension, team ult is a fight winner.",
-        "comp_tags": ["poke", "flex"],
-        "synergies": ["Invisible Woman", "Mantis"],
-        "countered_by": ["Diver", "Flanker"],
-        "ban_priority": "high",
-        "notes": "Team ult changes the fight. High priority for both ban and protect depending on who has him.",
-    },
-
-    "Daredevil": {
-        "role": "Duelist",
-        "archetype": "Diver",
-        "function": "Melee dive duelist that targets supports — eliminates healers to create sustained pressure.",
-        "comp_tags": ["dive"],
-        "synergies": ["Venom", "Cloak & Dagger"],
-        "countered_by": ["Peel support", "Burst-on-engage"],
-        "ban_priority": "medium",
-        "notes": "Punishes teams with no peel. Weak against comps with displacement or burst on engage.",
-    },
-
-    "Psylocke": {
-        "role": "Duelist",
-        "archetype": "Diver",
-        "function": "Fast mobile assassin — flanks, picks isolated targets, resets on kill.",
-        "comp_tags": ["dive"],
-        "synergies": ["Venom", "Cloak & Dagger", "Loki"],
-        "countered_by": ["Bubble/shield supports", "High HP frontline"],
-        "ban_priority": "high",
-        "notes": "Ban priority against teams with exposed backlines. Reset mechanic rewards snowballing.",
-    },
-
-    "Phoenix": {
-        "role": "Duelist",
-        "archetype": "Anchor",
-        "function": "High-damage ult-centric carry — ult resets on kill, enabling chain wipes.",
-        "comp_tags": ["dive", "brawl"],
-        "synergies": ["Mantis", "Luna Snow", "Cloak & Dagger"],
-        "countered_by": ["Spread damage", "CC-heavy comps"],
-        "ban_priority": "medium",
-        "notes": "Ult chain is the win condition — teams that protect her protect the chain.",
-    },
-
-    "Elsa Bloodstone": {
-        "role": "Duelist",
-        "archetype": "Poke",
-        "function": "Ranged poke duelist with interrupt — punishes grouped enemies and cooldown-dependent targets.",
-        "comp_tags": ["poke"],
-        "synergies": ["Magneto", "Invisible Woman"],
-        "countered_by": ["Diver", "Flanker"],
-        "ban_priority": "medium",
-        "notes": "Interrupt mechanic is situationally game-breaking into ult-dependent teams.",
-    },
-
-    "Ultron": {
-        "role": "Duelist",
-        "archetype": "Poke",
-        "function": "Mobile aerial duelist with drone area denial — persistent pressure from range.",
-        "comp_tags": ["poke", "flex"],
-        "synergies": ["Star-Lord", "Invisible Woman"],
-        "countered_by": ["Dive", "High-burst flankers"],
-        "ban_priority": "low",
-        "notes": "Weaker when enemy forces active close-range fights.",
-    },
-
-    "Rogue": {
-        "role": "Vanguard",
-        "archetype": "Flex",
-        "function": "Absorbs an enemy ability and turns it against them — frontline flex tank whose kit adapts to counter whatever the enemy drafted.",
-        "comp_tags": ["flex", "dive", "brawl"],
-        "synergies": ["Venom", "Captain America"],
-        "countered_by": ["Heroes with weak ability kits", "Burst that bypasses her adaptation window"],
-        "ban_priority": "medium",
-        "notes": "Scout the enemy draft before committing — her value floor is low when stealing a weak kit, and her ceiling is very high when stealing a strong one.",
-    },
-
-    "Angela": {
-        "role": "Vanguard",
-        "archetype": "Diver",
-        "function": "Aggressive frontline diver who sustains through kills — heals on elimination, enabling sustained offensive pressure.",
-        "comp_tags": ["dive", "brawl"],
-        "synergies": ["Venom", "Cloak & Dagger"],
-        "countered_by": ["Spread comp", "Hard CC"],
-        "ban_priority": "low",
-        "notes": "Hybrid dive/brawl tank. Unlike most Vanguards she scales off aggressive play — reward loops on kills rather than passive space control.",
-    },
-
-    # ── Strategists ────────────────────────────────────────────────────────
-
-    "Invisible Woman": {
-        "role": "Strategist",
-        "archetype": "Enabler",
-        "function": "Bubble/force field support — peels for carries, cancels dives, extends fights via displacement.",
-        "comp_tags": ["brawl", "poke", "dive"],
-        "synergies": ["Star-Lord", "Phoenix", "Psylocke"],
-        "countered_by": ["Sustained pressure that depletes bubbles", "CC stacking"],
-        "ban_priority": "high",
-        "notes": "Enables almost every comp style. Banning her removes peel and exposes the backline.",
-    },
-
-    "Mantis": {
-        "role": "Strategist",
-        "archetype": "Enabler",
-        "function": "Damage-amp and healing hybrid — Sleep dart creates pick opportunities on key targets.",
-        "comp_tags": ["brawl", "poke", "dive"],
-        "synergies": ["Phoenix", "Captain America", "Star-Lord"],
-        "countered_by": ["Sustained burst before she can sustain", "Dive"],
-        "ban_priority": "medium",
-        "notes": "Sleep dart on a diving threat can flip a fight. High skill-cap impact.",
-    },
-
-    "Jeff TLS": {
-        "role": "Strategist",
-        "archetype": "Displacer",
-        "function": "Swallows enemies or allies to reposition — ult removes multiple players from a fight entirely.",
-        "comp_tags": ["dive", "brawl", "flex"],
-        "synergies": ["Venom", "Daredevil"],
-        "countered_by": ["Range-heavy comps", "Teams that handle repositioned targets quickly"],
-        "ban_priority": "high",
-        "notes": "Ult is among the highest impact in the game — displaces full teams off objectives. Frequent ban target.",
-    },
-
-    "Rocket Raccoon": {
-        "role": "Strategist",
-        "archetype": "Sustain",
-        "function": "Consistent healing with revive ult — keeps team alive through sustained fights.",
-        "comp_tags": ["brawl", "rush"],
-        "synergies": ["Hulk", "Groot", "Captain America"],
-        "countered_by": ["Dive that eliminates him first", "High burst one-shots"],
-        "ban_priority": "low",
-        "notes": "Revive ult is game-state altering in close matches.",
-    },
-
-    "Luna Snow": {
-        "role": "Strategist",
-        "archetype": "Sustain",
-        "function": "High healing throughput with AoE ult — pairs with dive for rapid recovery after engages.",
-        "comp_tags": ["brawl", "dive"],
-        "synergies": ["Phoenix", "Psylocke", "Venom"],
-        "countered_by": ["Burst that outpaces healing", "CC that prevents ult"],
-        "ban_priority": "medium",
-        "notes": "Ice disc slow creates zone control. Ult timing is the skill check.",
-    },
-
-    "Loki": {
-        "role": "Strategist",
-        "archetype": "Flex",
-        "function": "Copies ally heroes — provides flexibility and confuses opponent target priority.",
-        "comp_tags": ["dive", "flex"],
-        "synergies": ["Psylocke", "Daredevil", "Any high-value anchor"],
-        "countered_by": ["Focused kill priority", "Low-value comps where copying is weak"],
-        "ban_priority": "low",
-        "notes": "Most valuable when there is an extremely high-value hero to copy.",
-    },
-
-    "Cloak & Dagger": {
-        "role": "Strategist",
-        "archetype": "Flex",
-        "function": "Sustain/damage hybrid — Dagger heals allies, Cloak damages enemies; toggleable identity.",
-        "comp_tags": ["dive", "brawl", "flex"],
-        "synergies": ["Daredevil", "Venom", "Psylocke"],
-        "countered_by": ["Sustained burst before toggle cooldown", "Hard engage before peel"],
-        "ban_priority": "medium",
-        "notes": "Strong in dive because she can heal after the dive commits and survive burst with Cloak mode.",
-    },
-
-    "White Fox": {
-        "role": "Strategist",
-        "archetype": "Flex",
-        "function": "Mobile support with slows and escapes — kite potential and sustained healing on the move.",
-        "comp_tags": ["poke", "flex"],
-        "synergies": ["Star-Lord", "Elsa Bloodstone", "Invisible Woman"],
-        "countered_by": ["Hard engage before escape cooldown", "Heavy CC"],
-        "ban_priority": "low",
-        "notes": "Better in spread/poke comps than brawl. Mobility makes her harder to dive.",
-    },
-
-    "Gambit": {
-        "role": "Strategist",
-        "archetype": "Enabler",
-        "function": "Charge-based support — builds and expends charge to amplify ally damage or disrupt enemies.",
-        "comp_tags": ["brawl", "poke", "flex"],
-        "synergies": ["Invisible Woman", "Mantis"],
-        "countered_by": ["Dive that eliminates him before charge builds"],
-        "ban_priority": "medium",
-        "notes": "Appears as a top-played strategist comfort pick in Season 7 data.",
-    },
-
-    "Black Cat": {
-        "role": "Duelist",
-        "archetype": "Diver",
-        "function": "Extreme-mobility flanker that reaches backlines instantly and punishes isolated targets with burst.",
-        "comp_tags": ["dive"],
-        "synergies": ["Venom", "Cloak & Dagger", "Luna Snow"],
-        "countered_by": ["Peel supports with displacement", "Burst-on-engage CC"],
-        "ban_priority": "medium",
-        "notes": "Among the highest mobility ceilings in the game — grapple/dash kit makes her nearly impossible to lock down. High execution, high reward.",
-    },
-
-    # ── Additional Vanguards ───────────────────────────────────────────────
-
-    "Groot": {
-        "role": "Vanguard",
-        "archetype": "Controller",
-        "function": "Zone-control tank — places walls to split fights, block sightlines, and root enemies with ult.",
-        "comp_tags": ["brawl", "poke"],
-        "synergies": ["Rocket Raccoon", "Magneto", "Hulk"],
-        "countered_by": ["Dive that bypasses walls", "Heroes with CC immunity"],
-        "ban_priority": "low",
-        "notes": "Wall placement is the skill expression. Good walls create 2v1s inside the split.",
     },
 
     "Peni Parker": {
@@ -340,9 +156,22 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Anchor zone-control tank — spider-nest creates a mine field that controls an area entirely.",
         "comp_tags": ["brawl", "poke"],
         "synergies": ["Magneto", "Invisible Woman"],
+        "teamup": "Parker Power-Up",
         "countered_by": ["Dive that ignores the mine field", "Forced displacement off nest"],
         "ban_priority": "low",
         "notes": "Nest anchor is almost immovable when positioned correctly. Weak if displaced or nest is destroyed.",
+    },
+
+    "Rogue": {
+        "role": "Vanguard",
+        "archetype": "Flex",
+        "function": "Absorbs an enemy ability and turns it against them — frontline flex tank whose kit adapts to counter whatever the enemy drafted.",
+        "comp_tags": ["flex", "dive", "brawl"],
+        "synergies": ["Venom", "Captain America"],
+        "teamup": "Explosive Entanglement",
+        "countered_by": ["Heroes with weak ability kits", "Burst that bypasses her adaptation window"],
+        "ban_priority": "medium",
+        "notes": "Scout the enemy draft before committing — her value floor is low when stealing a weak kit, and her ceiling is very high when stealing a strong one.",
     },
 
     "Thing": {
@@ -351,6 +180,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "High-HP close-range brawl tank — absorbs punishment and chunks grouped enemies.",
         "comp_tags": ["brawl", "rush"],
         "synergies": ["Hulk", "Captain America", "Mantis"],
+        "teamup": "Fastball Special, First Steps, Gamma Charge",
         "countered_by": ["Poke", "Kite"],
         "ban_priority": "low",
         "notes": "Straightforward brawler — high floor, low ceiling. Value scales with how well the team stays grouped.",
@@ -362,22 +192,36 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "High-mobility engage tank — hammer throw harasses at range, Lightning ult disrupts enemy formation.",
         "comp_tags": ["rush", "brawl"],
         "synergies": ["Captain America", "Mantis", "Luna Snow"],
+        "teamup": "Divine Armory",
         "countered_by": ["Poke", "Teams that disengage cleanly after his engage"],
         "ban_priority": "low",
         "notes": "Strong initiation ceiling. Ult demands a follow-up — a team that can't follow up wastes the engage.",
     },
 
-    # ── Additional Duelists ────────────────────────────────────────────────
-
-    "Adam Warlock": {
-        "role": "Strategist",
-        "archetype": "Sustain",
-        "function": "Team resurrection support — ult revives fallen allies, enabling fight resets mid-round.",
-        "comp_tags": ["brawl", "flex"],
-        "synergies": ["Phoenix", "Hulk", "Captain America"],
-        "countered_by": ["Burst that downs multiple targets before ult resolves"],
+    "Venom": {
+        "role": "Vanguard",
+        "archetype": "Diver",
+        "function": "Aggressive frontline dive tank — jumps backline to force fights on bad ground or peel supports.",
+        "comp_tags": ["dive", "rush"],
+        "synergies": ["Psylocke", "Black Panther", "Cloak & Dagger"],
+        "teamup": "Symbiote Shenanigans",
+        "countered_by": ["High burst", "Brawl with strong healer"],
         "ban_priority": "medium",
-        "notes": "Ult is the value — not the healing throughput. Teams with a critical carry that dies often benefit most.",
+        "notes": "Value scales directly with how good the accompanying dive duelists are.",
+    },
+
+    # ── Duelists ───────────────────────────────────────────────────────────
+
+    "Black Cat": {
+        "role": "Duelist",
+        "archetype": "Diver",
+        "function": "Extreme-mobility flanker that reaches backlines instantly and punishes isolated targets with burst.",
+        "comp_tags": ["dive"],
+        "synergies": ["Venom", "Cloak & Dagger", "Luna Snow"],
+        "teamup": "Lucky Loan",
+        "countered_by": ["Peel supports with displacement", "Burst-on-engage CC"],
+        "ban_priority": "medium",
+        "notes": "Among the highest mobility ceilings in the game — grapple/dash kit makes her nearly impossible to lock down. High execution, high reward.",
     },
 
     "Black Panther": {
@@ -386,6 +230,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "High-mobility melee assassin — dashes in, bursts a target, escapes before peel arrives.",
         "comp_tags": ["dive"],
         "synergies": ["Venom", "Cloak & Dagger", "Luna Snow"],
+        "teamup": "Gamma Charge",
         "countered_by": ["Peel supports with displacement", "Burst CC on engage"],
         "ban_priority": "medium",
         "notes": "Extreme execution ceiling. Strong when ahead, weak when denied his initial pick.",
@@ -397,6 +242,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Precision ranged duelist — consistent headshot threat from safe distance.",
         "comp_tags": ["poke"],
         "synergies": ["Invisible Woman", "Mantis", "Magneto"],
+        "teamup": "Primal Flame",
         "countered_by": ["Dive", "Smoke/obstruction"],
         "ban_priority": "low",
         "notes": "Reward is entirely execution-based — same level of value as the player's aim.",
@@ -408,9 +254,70 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Life-steal melee duelist — sustains through combat, strong into low-burst brawl fights.",
         "comp_tags": ["brawl", "dive"],
         "synergies": ["Venom", "Luna Snow", "Cloak & Dagger"],
+        "teamup": "Blade of Khonshu",
         "countered_by": ["High burst that outpaces lifesteal", "Hard CC"],
         "ban_priority": "low",
         "notes": "Sustain scales with how long fights go. Better in brawl attrition than burst dive windows.",
+    },
+
+    "Star-Lord": {
+        "role": "Duelist",
+        "archetype": "Poke",
+        "function": "Mobile aerial poke carry — maintains range, punishes overextension, team ult is a fight winner.",
+        "comp_tags": ["poke", "flex"],
+        "synergies": ["Invisible Woman", "Mantis"],
+        "teamup": "Rocket Network",
+        "countered_by": ["Diver", "Flanker"],
+        "ban_priority": "high",
+        "notes": "Team ult changes the fight. High priority for both ban and protect depending on who has him.",
+    },
+
+    "Daredevil": {
+        "role": "Duelist",
+        "archetype": "Diver",
+        "function": "Melee dive duelist that targets supports — eliminates healers to create sustained pressure.",
+        "comp_tags": ["dive"],
+        "synergies": ["Venom", "Cloak & Dagger"],
+        "teamup": "Bestial Hunt",
+        "countered_by": ["Peel support", "Burst-on-engage"],
+        "ban_priority": "medium",
+        "notes": "Punishes teams with no peel. Weak against comps with displacement or burst on engage.",
+    },
+
+    "DpsPool": {
+        "role": "Duelist",
+        "archetype": "Flex",
+        "function": "Deadpool's Duelist placeholder — a damage-role flex pick used when the roster or draft records his Duelist version.",
+        "comp_tags": ["brawl", "poke", "flex"],
+        "synergies": ["Mantis", "Invisible Woman", "Captain America"],
+        "teamup": "Mr. Pool's Interdimensional Toy Box",
+        "countered_by": ["Dive", "Burst CC"],
+        "ban_priority": "low",
+        "notes": "Represents Deadpool in the Duelist slot only. Deadpool can only appear once in a legal lineup, so DpsPool, Tankpool, and SupportPool are mutually exclusive placeholders.",
+    },
+
+    "Psylocke": {
+        "role": "Duelist",
+        "archetype": "Diver",
+        "function": "Fast mobile assassin — flanks, picks isolated targets, resets on kill.",
+        "comp_tags": ["dive"],
+        "synergies": ["Venom", "Cloak & Dagger", "Loki"],
+        "teamup": "Sword of Duality",
+        "countered_by": ["Bubble/shield supports", "High HP frontline"],
+        "ban_priority": "high",
+        "notes": "Ban priority against teams with exposed backlines. Reset mechanic rewards snowballing.",
+    },
+
+    "Elsa Bloodstone": {
+        "role": "Duelist",
+        "archetype": "Poke",
+        "function": "Ranged poke duelist with interrupt — punishes grouped enemies and cooldown-dependent targets.",
+        "comp_tags": ["poke"],
+        "synergies": ["Magneto", "Invisible Woman"],
+        "teamup": "Mr. Pool's Interdimensional Toy Box",
+        "countered_by": ["Diver", "Flanker"],
+        "ban_priority": "medium",
+        "notes": "Interrupt mechanic is situationally game-breaking into ult-dependent teams.",
     },
 
     "Hawkeye": {
@@ -419,6 +326,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Long-range precision archer — highest single-shot damage ceiling among poke carries.",
         "comp_tags": ["poke"],
         "synergies": ["Invisible Woman", "Mantis"],
+        "teamup": "Sword of Duality",
         "countered_by": ["Dive", "Mobile flankers"],
         "ban_priority": "low",
         "notes": "One-shot potential on charged shot makes him oppressive into slow-moving targets.",
@@ -430,6 +338,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "High-damage ranged anchor carry — soul mechanic revives her on death if souls are stacked.",
         "comp_tags": ["poke", "brawl"],
         "synergies": ["Invisible Woman", "Mantis", "Luna Snow"],
+        "teamup": "Deep Wrath, Symbiote Shenanigans",
         "countered_by": ["Dive", "Flankers who force bad positioning"],
         "ban_priority": "medium",
         "notes": "Soul stack makes her resilient to burst — she is her own second life if positioned to stack souls safely.",
@@ -441,6 +350,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Aerial fire-based ranged duelist — zones with AoE fire and harasses from above sightlines.",
         "comp_tags": ["poke", "flex"],
         "synergies": ["Magneto", "Star-Lord", "Invisible Woman"],
+        "teamup": "First Steps",
         "countered_by": ["Dive that reaches aerial targets", "High burst flankers"],
         "ban_priority": "low",
         "notes": "Aerial positioning is his primary defense — loses value in close-quarter chokepoints.",
@@ -452,6 +362,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Melee martial arts duelist — rapid close-range burst with fast cooldown resets.",
         "comp_tags": ["dive"],
         "synergies": ["Venom", "Cloak & Dagger"],
+        "teamup": "Chilling Assault",
         "countered_by": ["Peel supports", "Burst CC on engage"],
         "ban_priority": "low",
         "notes": "Gap close is instant — punishes supports that stand still. Weak into organized peel.",
@@ -463,6 +374,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Aerial tech duelist — sustained energy beam and repulsor burst from range.",
         "comp_tags": ["poke", "flex"],
         "synergies": ["Dr. Strange", "Magneto", "Invisible Woman"],
+        "teamup": "Stark Protocol",
         "countered_by": ["Dive", "High-burst flankers"],
         "ban_priority": "low",
         "notes": "Portal synergy with Dr. Strange creates angles unavailable to most aerial poke comps.",
@@ -474,6 +386,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Teleport-based melee duelist — opens portals to appear behind targets instantly.",
         "comp_tags": ["dive"],
         "synergies": ["Venom", "Luna Snow"],
+        "teamup": "Arcane Order",
         "countered_by": ["Peel supports with displacement", "High burst on portal exit"],
         "ban_priority": "medium",
         "notes": "Portal angle creation is unique — can appear in spots no other melee duelist can reach.",
@@ -485,6 +398,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Bouncing projectile duelist — crescent darts ricochet to hit multiple targets and punish grouped enemies.",
         "comp_tags": ["poke", "flex"],
         "synergies": ["Invisible Woman", "Mantis"],
+        "teamup": "Blade of Khonshu",
         "countered_by": ["Dive", "Spread comp that negates bounce chains"],
         "ban_priority": "low",
         "notes": "Value scales with how grouped enemies are — spread comps significantly reduce his damage output.",
@@ -496,6 +410,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Elastic melee brawler — soaks hits with elasticity mechanics, disrupts close-range fights.",
         "comp_tags": ["brawl", "flex"],
         "synergies": ["Hulk", "Thing", "Mantis"],
+        "teamup": "Rocket Network",
         "countered_by": ["Poke", "High-mobility duelists who disengage cleanly"],
         "ban_priority": "low",
         "notes": "Close-range fight disruptor. Stronger in triple-tank formats where the brawl goes extended.",
@@ -507,9 +422,34 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Ranged aquatic duelist with summons — electric eel turrets create persistent zone denial.",
         "comp_tags": ["poke"],
         "synergies": ["Magneto", "Invisible Woman", "Mantis"],
+        "teamup": "Deep Wrath",
         "countered_by": ["Dive", "Flankers that destroy turrets"],
         "ban_priority": "low",
         "notes": "Turret zones force enemy positioning decisions. Weak if the turrets are destroyed quickly.",
+    },
+
+    "Phoenix": {
+        "role": "Duelist",
+        "archetype": "Anchor",
+        "function": "High-damage ult-centric carry — ult resets on kill, enabling chain wipes.",
+        "comp_tags": ["dive", "brawl"],
+        "synergies": ["Mantis", "Luna Snow", "Cloak & Dagger"],
+        "teamup": "Primal Flame",
+        "countered_by": ["Spread damage", "CC-heavy comps"],
+        "ban_priority": "medium",
+        "notes": "Ult chain is the win condition — teams that protect her protect the chain.",
+    },
+
+    "Psylocke": {
+        "role": "Duelist",
+        "archetype": "Diver",
+        "function": "Fast mobile assassin — flanks, picks isolated targets, resets on kill.",
+        "comp_tags": ["dive"],
+        "synergies": ["Venom", "Cloak & Dagger", "Loki"],
+        "teamup": "Sword of Duality",
+        "countered_by": ["Bubble/shield supports", "High HP frontline"],
+        "ban_priority": "high",
+        "notes": "Ban priority against teams with exposed backlines. Reset mechanic rewards snowballing.",
     },
 
     "Punisher": {
@@ -518,6 +458,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "High-damage firearms duelist — consistent sustained output at mid-close range.",
         "comp_tags": ["brawl", "poke"],
         "synergies": ["Captain America", "Rocket Raccoon", "Mantis"],
+        "teamup": "Bestial Hunt",
         "countered_by": ["Dive", "Mobile flankers"],
         "ban_priority": "low",
         "notes": "Predictable but reliable. Ult provides area-denial turret mode that controls a choke.",
@@ -529,6 +470,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "AoE chaos magic duelist — reality-warping projectiles and crowd control punish grouped enemies.",
         "comp_tags": ["poke", "flex"],
         "synergies": ["Dr. Strange", "Magneto", "Invisible Woman"],
+        "teamup": "Arcane Order",
         "countered_by": ["Dive", "Flankers that close distance quickly"],
         "ban_priority": "low",
         "notes": "Ult is a full-room wipe threat on grouped enemies. Strong at choke angles.",
@@ -540,6 +482,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Extreme-mobility web-slinger — highest movement ceiling in the game, creates constant pick threat.",
         "comp_tags": ["dive"],
         "synergies": ["Venom", "Cloak & Dagger"],
+        "teamup": "Parker Power-Up",
         "countered_by": ["Peel supports with AOE slow/CC", "Hard CC on swing commit"],
         "ban_priority": "medium",
         "notes": "Execution ceiling is among the highest. Rewards players who can maintain unpredictable angles.",
@@ -551,6 +494,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Acorn projectile duelist — persistent area denial and poke damage from safe distance.",
         "comp_tags": ["poke"],
         "synergies": ["Invisible Woman", "Magneto"],
+        "teamup": "Stark Protocol",
         "countered_by": ["Dive", "Mobile flankers"],
         "ban_priority": "low",
         "notes": "High-burst ult can one-shot grouped targets. Primarily a zone-denial poke tool.",
@@ -562,6 +506,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Aerial weather-control duelist — creates lightning zones and persistent AoE from elevated positions.",
         "comp_tags": ["poke", "flex"],
         "synergies": ["Magneto", "Dr. Strange", "Invisible Woman"],
+        "teamup": "Cosmic Cyclone",
         "countered_by": ["Dive reaching aerial targets", "Hard CC"],
         "ban_priority": "low",
         "notes": "Ult creates a persistent kill zone. Strong on maps with high ground angles.",
@@ -573,6 +518,7 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Mid-range brawl duelist — grapple creates burst windows at variable range.",
         "comp_tags": ["brawl", "poke"],
         "synergies": ["Captain America", "Mantis", "Invisible Woman"],
+        "teamup": "Stars Aligned",
         "countered_by": ["High-mobility duelists that negate grapple", "Dive"],
         "ban_priority": "low",
         "notes": "Consistent mid-range damage. Grapple into burst is the value pattern.",
@@ -584,9 +530,156 @@ HERO_PROFILES: dict[str, dict] = {
         "function": "Berserker melee duelist with regeneration — trades aggressively knowing regen will restore HP.",
         "comp_tags": ["dive", "brawl"],
         "synergies": ["Hulk", "Cloak & Dagger", "Mantis"],
+        "teamup": "Fastball Special, Primal Flame",
         "countered_by": ["Sustained burst that outpaces regen", "Hard CC"],
         "ban_priority": "low",
         "notes": "Regen mechanic lets him take trades other duelists can't. Hybrid dive/brawl like Angela.",
+    },
+
+    # ── Strategists ────────────────────────────────────────────────────────
+
+    "Adam Warlock": {
+        "role": "Strategist",
+        "archetype": "Sustain",
+        "function": "Team resurrection support — ult revives fallen allies, enabling fight resets mid-round.",
+        "comp_tags": ["brawl", "flex"],
+        "synergies": ["Phoenix", "Hulk", "Captain America"],
+        "teamup": "Cosmic Cyclone",
+        "countered_by": ["Burst that downs multiple targets before ult resolves"],
+        "ban_priority": "medium",
+        "notes": "Ult is the value — not the healing throughput. Teams with a critical carry that dies often benefit most.",
+    },
+
+    "Cloak & Dagger": {
+        "role": "Strategist",
+        "archetype": "Flex",
+        "function": "Sustain/damage hybrid — Dagger heals allies, Cloak damages enemies; toggleable identity.",
+        "comp_tags": ["dive", "brawl", "flex"],
+        "synergies": ["Daredevil", "Venom", "Psylocke"],
+        "teamup": "Sword of Duality",
+        "countered_by": ["Sustained burst before toggle cooldown", "Hard engage before peel"],
+        "ban_priority": "medium",
+        "notes": "Strong in dive because she can heal after the dive commits and survive burst with Cloak mode.",
+    },
+
+    "Gambit": {
+        "role": "Strategist",
+        "archetype": "Enabler",
+        "function": "Charge-based support — builds and expends charge to amplify ally damage or disrupt enemies.",
+        "comp_tags": ["brawl", "poke", "flex"],
+        "synergies": ["Invisible Woman", "Mantis"],
+        "teamup": "Explosive Entanglement",
+        "countered_by": ["Dive that eliminates him before charge builds"],
+        "ban_priority": "medium",
+        "notes": "Appears as a top-played strategist comfort pick in Season 7 data.",
+    },
+
+    "Invisible Woman": {
+        "role": "Strategist",
+        "archetype": "Enabler",
+        "function": "Bubble/force field support — peels for carries, cancels dives, extends fights via displacement.",
+        "comp_tags": ["brawl", "poke", "dive"],
+        "synergies": ["Star-Lord", "Phoenix", "Psylocke"],
+        "teamup": "Psionic Mayhem",
+        "countered_by": ["Sustained pressure that depletes bubbles", "CC stacking"],
+        "ban_priority": "high",
+        "notes": "Enables almost every comp style. Banning her removes peel and exposes the backline.",
+    },
+
+    "Jeff TLS": {
+        "role": "Strategist",
+        "archetype": "Displacer",
+        "function": "Swallows enemies or allies to reposition — ult removes multiple players from a fight entirely.",
+        "comp_tags": ["dive", "brawl", "flex"],
+        "synergies": ["Venom", "Daredevil"],
+        "teamup": "Mr. Pool's Interdimensional Toy Box, Planet X Pals, Symbiote Shenanigans",
+        "countered_by": ["Range-heavy comps", "Teams that handle repositioned targets quickly"],
+        "ban_priority": "high",
+        "notes": "Ult is among the highest impact in the game — displaces full teams off objectives. Frequent ban target.",
+    },
+
+    "Loki": {
+        "role": "Strategist",
+        "archetype": "Flex",
+        "function": "Copies ally heroes — provides flexibility and confuses opponent target priority.",
+        "comp_tags": ["dive", "flex"],
+        "synergies": ["Psylocke", "Daredevil", "Any high-value anchor"],
+        "teamup": "Vibrant Vitality",
+        "countered_by": ["Focused kill priority", "Low-value comps where copying is weak"],
+        "ban_priority": "low",
+        "notes": "Most valuable when there is an extremely high-value hero to copy.",
+    },
+
+    "Luna Snow": {
+        "role": "Strategist",
+        "archetype": "Sustain",
+        "function": "High healing throughput with AoE ult — pairs with dive for rapid recovery after engages.",
+        "comp_tags": ["brawl", "dive"],
+        "synergies": ["Phoenix", "Psylocke", "Venom"],
+        "teamup": "Blessing of the Kumiho, Chilling Assault",
+        "countered_by": ["Burst that outpaces healing", "CC that prevents ult"],
+        "ban_priority": "medium",
+        "notes": "Ice disc slow creates zone control. Ult timing is the skill check.",
+    },
+
+    "Mantis": {
+        "role": "Strategist",
+        "archetype": "Enabler",
+        "function": "Damage-amp and healing hybrid — Sleep dart creates pick opportunities on key targets.",
+        "comp_tags": ["brawl", "poke", "dive"],
+        "synergies": ["Phoenix", "Captain America", "Star-Lord"],
+        "teamup": "Vibrant Vitality",
+        "countered_by": ["Sustained burst before she can sustain", "Dive"],
+        "ban_priority": "medium",
+        "notes": "Sleep dart on a diving threat can flip a fight. High skill-cap impact.",
+    },
+
+    "Rocket Raccoon": {
+        "role": "Strategist",
+        "archetype": "Sustain",
+        "function": "Consistent healing with revive ult — keeps team alive through sustained fights.",
+        "comp_tags": ["brawl", "rush"],
+        "synergies": ["Hulk", "Groot", "Captain America"],
+        "teamup": "Planet X Pals, Rocket Network",
+        "countered_by": ["Dive that eliminates him first", "High burst one-shots"],
+        "ban_priority": "low",
+        "notes": "Revive ult is game-state altering in close matches.",
+    },
+
+    "SupportPool": {
+        "role": "Strategist",
+        "archetype": "Flex",
+        "function": "Deadpool's Strategist placeholder — a support-role flex pick used when the roster or draft records his Strategist version.",
+        "comp_tags": ["brawl", "flex"],
+        "synergies": ["Phoenix", "Venom", "Star-Lord"],
+        "teamup": "Mr. Pool's Interdimensional Toy Box",
+        "countered_by": ["Hard engage", "Burst before peel lands"],
+        "ban_priority": "low",
+        "notes": "Represents Deadpool in the Strategist slot only. Deadpool can only appear once in a legal lineup, so SupportPool, Tankpool, and DpsPool are mutually exclusive placeholders.",
+    },
+
+    "Ultron": {
+        "role": "Strategist",
+        "archetype": "Poke",
+        "function": "Mobile aerial strategist with drone area denial — adds ranged pressure while supporting from safe angles.",
+        "comp_tags": ["poke", "flex"],
+        "synergies": ["Star-Lord", "Invisible Woman"],
+        "teamup": "Stark Protocol",
+        "countered_by": ["Dive", "High-burst flankers"],
+        "ban_priority": "low",
+        "notes": "Weaker when enemy forces active close-range fights.",
+    },
+
+    "White Fox": {
+        "role": "Strategist",
+        "archetype": "Flex",
+        "function": "Mobile support with slows and escapes — kite potential and sustained healing on the move.",
+        "comp_tags": ["poke", "flex"],
+        "synergies": ["Star-Lord", "Elsa Bloodstone", "Invisible Woman"],
+        "teamup": "Blessing of the Kumiho, Lucky Loan",
+        "countered_by": ["Hard engage before escape cooldown", "Heavy CC"],
+        "ban_priority": "low",
+        "notes": "Better in spread/poke comps than brawl. Mobility makes her harder to dive.",
     },
 }
 
@@ -734,10 +827,12 @@ def get_heroes_for_prompt(hero_names: list[str]) -> str:
         p = get_hero_profile(name)
         if p:
             synergies = ", ".join(p.get("synergies", [])[:3])
+            teamup = p.get("teamup", "")
             counters = ", ".join(p.get("countered_by", [])[:2])
             lines.append(
                 f"- {name} ({p['role']}/{p['archetype']}): {p['function']}"
                 + (f" Synergies: {synergies}." if synergies else "")
+                + (f" Team-Up: {teamup}." if teamup else "")
                 + (f" Countered by: {counters}." if counters else "")
             )
     return "\n".join(lines) if lines else ""
@@ -763,6 +858,11 @@ HERO_SCORES: dict[str, dict] = {
         "primary_style": "brawl", "secondary_style": "rush",
         "mobility_score": 5, "sustain_score": 4, "poke_score": 3,
         "engage_score": 7, "peel_score": 8, "execution_difficulty": 7,
+    },
+    "Tankpool": {
+        "primary_style": "brawl", "secondary_style": "flex",
+        "mobility_score": 5, "sustain_score": 6, "poke_score": 3,
+        "engage_score": 6, "peel_score": 5, "execution_difficulty": 4,
     },
     "Hulk": {
         "primary_style": "brawl", "secondary_style": "rush",
@@ -800,6 +900,11 @@ HERO_SCORES: dict[str, dict] = {
         "primary_style": "dive", "secondary_style": None,
         "mobility_score": 9, "sustain_score": 3, "poke_score": 1,
         "engage_score": 8, "peel_score": 2, "execution_difficulty": 7,
+    },
+    "DpsPool": {
+        "primary_style": "brawl", "secondary_style": "poke",
+        "mobility_score": 6, "sustain_score": 4, "poke_score": 5,
+        "engage_score": 6, "peel_score": 3, "execution_difficulty": 4,
     },
     "Psylocke": {
         "primary_style": "dive", "secondary_style": None,
@@ -859,6 +964,11 @@ HERO_SCORES: dict[str, dict] = {
         "primary_style": "brawl", "secondary_style": "rush",
         "mobility_score": 4, "sustain_score": 9, "poke_score": 2,
         "engage_score": 2, "peel_score": 5, "execution_difficulty": 4,
+    },
+    "SupportPool": {
+        "primary_style": "brawl", "secondary_style": "flex",
+        "mobility_score": 5, "sustain_score": 6, "poke_score": 3,
+        "engage_score": 3, "peel_score": 5, "execution_difficulty": 4,
     },
     "Luna Snow": {
         "primary_style": "brawl", "secondary_style": "dive",
@@ -1032,11 +1142,11 @@ PLAYSTYLE_COMPS: dict[str, dict] = {
         "heroes": [
             # Vanguards
             "Dr. Strange", "Hulk", "Magneto", "Captain America", "Emma Frost",
-            "Thing", "Thor", "Groot", "Peni Parker",
+            "Thing", "Thor", "Groot", "Peni Parker", "Tankpool",
             # Duelists
-            "Phoenix", "Hela", "Punisher", "Mr. Fantastic", "Winter Soldier",
+            "Phoenix", "Hela", "Punisher", "Mr. Fantastic", "Winter Soldier", "DpsPool",
             # Strategists
-            "Mantis", "Rocket Raccoon", "Luna Snow", "Invisible Woman", "Gambit", "Adam Warlock",
+            "Mantis", "Rocket Raccoon", "Luna Snow", "Invisible Woman", "Gambit", "Adam Warlock", "SupportPool",
         ],
     },
     "dive": {
@@ -1057,11 +1167,11 @@ PLAYSTYLE_COMPS: dict[str, dict] = {
             # Vanguards
             "Magneto", "Dr. Strange", "Emma Frost",
             # Duelists
-            "Star-Lord", "Elsa Bloodstone", "Ultron", "Hela", "Hawkeye",
+            "Star-Lord", "Elsa Bloodstone", "Hela", "Hawkeye", "DpsPool",
             "Black Widow", "Iron Man", "Human Torch", "Storm", "Namor",
             "Moon Knight", "Scarlet Witch", "Squirrel Girl",
             # Strategists
-            "White Fox", "Invisible Woman",
+            "White Fox", "Invisible Woman", "Ultron",
         ],
     },
     "hybrid": {
