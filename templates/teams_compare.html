@@ -282,7 +282,7 @@
                     {% set wr = row.win_rate %}
                     {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
                     <div class="tc-map-card">
-                        {% set img = map_images.get(row.map_name, '') %}
+                        {% set img = map_image_url(row.map_name) %}
                         {% if img %}
                             <img class="tc-map-banner" src="{{ img }}" alt="{{ row.map_name }}" onerror="this.style.display='none'">
                         {% else %}
@@ -306,7 +306,7 @@
                     {% set wr = row.win_rate %}
                     {% set wr_class = 'wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad') %}
                     <div class="tc-map-card">
-                        {% set img = map_images.get(row.map_name, '') %}
+                        {% set img = map_image_url(row.map_name) %}
                         {% if img %}
                             <img class="tc-map-banner" src="{{ img }}" alt="{{ row.map_name }}" onerror="this.style.display='none'">
                         {% else %}
@@ -352,7 +352,7 @@
                     <tr>
                         <td>
                             <div class="player-inline-hero">
-                                {% set img = map_images.get(row.map_name, '') %}
+                                {% set img = map_image_url(row.map_name) %}
                                 {% if img %}
                                     <img src="{{ img }}" alt="{{ row.map_name }}" style="width:32px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
                                 {% endif %}

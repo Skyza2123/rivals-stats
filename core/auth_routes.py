@@ -23,7 +23,7 @@ configure_auth_helpers(
 @app.before_request
 def check_auth() -> None:
     """Require password setup/login before allowing access."""
-    if request.path.startswith("/static") or request.path.startswith("/hero-image"):
+    if request.path.startswith("/static") or request.path.startswith("/hero-image") or request.path.startswith("/map-image"):
         return
     if request.path in _AUTH_EXEMPT:
         return

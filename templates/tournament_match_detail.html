@@ -69,8 +69,8 @@
                     {% set map_winner_label = map_entry.team2_name or match.team2_name or 'Team 2' %}
                 {% endif %}
                 <a class="map-card" href="{{ url_for('tournament_match_map_detail', tournament_id=tournament.id, match_id=match.id, map_id=map_entry.id) }}"
-                   {% if map_entry.map_name in map_images %}
-                   style="background-image: url('{{ map_images[map_entry.map_name] }}');"
+                   {% if map_image_url(map_entry.map_name) %}
+                   style="background-image: url('{{ map_image_url(map_entry.map_name) }}');"
                    {% endif %}>
                     <div class="map-card-overlay">
                         <div class="map-card-top">

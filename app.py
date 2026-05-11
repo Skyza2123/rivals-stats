@@ -308,14 +308,88 @@ def _normalize_map_name_key(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip().lower())
 
 
+MAP_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24
+_MAP_IMAGE_CACHE: dict[str, tuple[float, bytes, str]] = {}
+
+
+def _canonical_map_name(map_name: str) -> str:
+    if not map_name:
+        return ""
+    if map_name in MAP_IMAGES:
+        return map_name
+    return MAP_NAME_ALIASES.get(_normalize_map_name_key(map_name), map_name)
+
+
+def _map_image_source_url(map_name: str) -> str:
+    canonical_name = _canonical_map_name(map_name)
+    return MAP_IMAGES.get(canonical_name, "")
+
+
+def _map_image_placeholder_svg(map_name: str) -> str:
+    text = (map_name or "Map").strip()[:28] or "Map"
+    return (
+        "<svg xmlns='http://www.w3.org/2000/svg' width='960' height='360' viewBox='0 0 960 360'>"
+        "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0%' stop-color='#0f172a'/><stop offset='60%' stop-color='#1e293b'/>"
+        "<stop offset='100%' stop-color='#111827'/></linearGradient></defs>"
+        "<rect width='960' height='360' fill='url(#g)'/>"
+        f"<text x='480' y='190' text-anchor='middle' font-size='34' font-family='Arial, sans-serif' fill='#e6edf3'>{text}</text>"
+        "</svg>"
+    )
+
+
 def get_map_image_url(map_name: str) -> str:
     if not map_name:
         return ""
-    direct_url = MAP_IMAGES.get(map_name)
-    if direct_url:
-        return direct_url
-    canonical_name = MAP_NAME_ALIASES.get(_normalize_map_name_key(map_name), map_name)
-    return MAP_IMAGES.get(canonical_name, "")
+    source_url = _map_image_source_url(map_name)
+    if not source_url:
+        return ""
+    if source_url.startswith("/static/"):
+        return source_url
+    return f"/map-image/{quote(_canonical_map_name(map_name)[:80], safe='')}"
+
+
+@app.route("/map-image/<path:map_name>")
+def map_image_proxy(map_name: str):
+    requested = (map_name or "").strip() or "Map"
+    canonical_name = _canonical_map_name(requested) or requested
+    source_url = _map_image_source_url(canonical_name)
+    if source_url.startswith("/static/"):
+        return redirect(source_url)
+
+    now = time.time()
+    cached = _MAP_IMAGE_CACHE.get(canonical_name)
+    if cached and (now - cached[0]) < MAP_IMAGE_CACHE_TTL_SECONDS:
+        return Response(
+            cached[1],
+            mimetype=cached[2],
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    if source_url:
+        try:
+            remote_request = Request(source_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(remote_request, timeout=2.5) as remote_response:
+                content_type = remote_response.headers.get_content_type() or "image/png"
+                if content_type.startswith("image/"):
+                    payload = remote_response.read()
+                    if payload:
+                        _MAP_IMAGE_CACHE[canonical_name] = (now, payload, content_type)
+                        return Response(
+                            payload,
+                            mimetype=content_type,
+                            headers={"Cache-Control": "public, max-age=86400"},
+                        )
+        except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+            pass
+
+    placeholder = _map_image_placeholder_svg(canonical_name).encode("utf-8")
+    _MAP_IMAGE_CACHE[canonical_name] = (now, placeholder, "image/svg+xml")
+    return Response(
+        placeholder,
+        mimetype="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 _RINGER_NAME_MARKERS = (
     "r",

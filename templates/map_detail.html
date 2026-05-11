@@ -32,7 +32,7 @@
     {% endif %}
 {% endif %}
 <!-- Header with map image banner -->
-<div class="map-banner" {% if map_entry.map_name in map_images %}style="background-image: url('{{ map_images[map_entry.map_name] }}');"{% endif %}>
+<div class="map-banner" {% if map_image_url(map_entry.map_name) %}style="background-image: url('{{ map_image_url(map_entry.map_name) }}');"{% endif %}>
     <div class="map-banner-overlay">
         <div class="main-header">
             <div>

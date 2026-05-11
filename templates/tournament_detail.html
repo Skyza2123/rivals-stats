@@ -142,8 +142,8 @@
             <div class="map-card-grid">
                 {% for row in overview_analytics.map_rows %}
                     <article class="map-card"
-                        {% if map_images.get(row.map_name) %}
-                        style="background-image: url('{{ map_images[row.map_name] }}');"
+                        {% if map_image_url(row.map_name) %}
+                        style="background-image: url('{{ map_image_url(row.map_name) }}');"
                         {% endif %}>
                         <div class="map-card-overlay">
                             <div class="map-card-top">

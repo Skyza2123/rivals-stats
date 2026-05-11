@@ -171,6 +171,9 @@ MAP_IMAGES = {
     "Codex": "https://marvelrivalsapi.com/rivals/maps/large/map_1294.png",
     "Vault": "https://marvelrivalsapi.com/rivals/maps/large/map_1295.png",
     "Hand": "https://marvelrivalsapi.com/rivals/maps/large/map_1296.png",
+    "Point A": "https://marvelrivalsapi.com/rivals/maps/large/map_1320.png",
+    "Point B": "https://marvelrivalsapi.com/rivals/maps/large/map_1320.png",
+    "Point C": "https://marvelrivalsapi.com/rivals/maps/large/map_1320.png",
 }
 
 HERO_ROLES = {
