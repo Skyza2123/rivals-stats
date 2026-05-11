@@ -4,6 +4,31 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
+_DRAFT_REASONER_MODEL_CACHE: dict[tuple, dict] = {}
+_DRAFT_REASONER_MODEL_CACHE_TTL_SECONDS = 180
+_DRAFT_REASONER_MODEL_CACHE_MAX_ITEMS = 32
+
+
+def _draft_reasoner_cache_prune(now_ts: float) -> None:
+    expired = [
+        key
+        for key, item in _DRAFT_REASONER_MODEL_CACHE.items()
+        if (now_ts - float(item.get("ts") or 0)) > _DRAFT_REASONER_MODEL_CACHE_TTL_SECONDS
+    ]
+    for key in expired:
+        _DRAFT_REASONER_MODEL_CACHE.pop(key, None)
+    if len(_DRAFT_REASONER_MODEL_CACHE) <= _DRAFT_REASONER_MODEL_CACHE_MAX_ITEMS:
+        return
+    # Keep most recently used entries when over capacity.
+    by_age = sorted(
+        _DRAFT_REASONER_MODEL_CACHE.items(),
+        key=lambda kv: float((kv[1] or {}).get("ts") or 0),
+        reverse=True,
+    )
+    _DRAFT_REASONER_MODEL_CACHE.clear()
+    for key, value in by_age[:_DRAFT_REASONER_MODEL_CACHE_MAX_ITEMS]:
+        _DRAFT_REASONER_MODEL_CACHE[key] = value
+
 @app.route("/draft-simulator")
 def draft_simulator():
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
@@ -2448,6 +2473,23 @@ def api_draft_reasoner_model():
     selected_map_name = (request.args.get("map", "") or "").strip()
     include_scrims = _bool_arg("include_scrims", True)
     include_tournaments = _bool_arg("include_tournaments", True)
+    include_player_rows = _bool_arg("include_player_rows", True)
+
+    now_ts = time.time()
+    cache_key = (
+        int(team_a_id),
+        int(team_b_id),
+        str((season_value or "all").strip().lower() or "all"),
+        str((selected_map_type or "all").strip().lower() or "all"),
+        str((selected_map_name or "all").strip().lower() or "all"),
+        bool(include_scrims),
+        bool(include_tournaments),
+        bool(include_player_rows),
+    )
+    _draft_reasoner_cache_prune(now_ts)
+    cached = _DRAFT_REASONER_MODEL_CACHE.get(cache_key)
+    if cached and (now_ts - float(cached.get("ts") or 0)) <= _DRAFT_REASONER_MODEL_CACHE_TTL_SECONDS:
+        return jsonify(cached.get("payload") or {})
 
     def _get_filtered_scrims(team_row) -> tuple[list[dict], list[dict]]:
         all_scrims = get_team_history_for_sources(
@@ -2557,10 +2599,16 @@ def api_draft_reasoner_model():
     if len(teams_payload) >= 1:
         roster_a = _get_team_roster(team_a_id)
         teams_payload[0]["roster_players"] = roster_a
-        teams_payload[0].setdefault("model", {})["player_hero_rows"] = _build_player_hero_rows(roster_a, a_hero_pool_scrims)
+        teams_payload[0].setdefault("model", {})["player_hero_rows"] = (
+            _build_player_hero_rows(roster_a, a_hero_pool_scrims) if include_player_rows else []
+        )
     if len(teams_payload) >= 2:
         roster_b = _get_team_roster(team_b_id)
         teams_payload[1]["roster_players"] = roster_b
-        teams_payload[1].setdefault("model", {})["player_hero_rows"] = _build_player_hero_rows(roster_b, b_hero_pool_scrims)
+        teams_payload[1].setdefault("model", {})["player_hero_rows"] = (
+            _build_player_hero_rows(roster_b, b_hero_pool_scrims) if include_player_rows else []
+        )
+
+    _DRAFT_REASONER_MODEL_CACHE[cache_key] = {"ts": now_ts, "payload": matchup}
     return jsonify(matchup)
 
