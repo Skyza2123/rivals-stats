@@ -1240,7 +1240,75 @@ def _machine_agent_intent(message: str) -> str:
         return "ban_impact"
     if any(phrase in q for phrase in ("pivot", "pivot prediction", "swap to")):
         return "pivot"
-    if any(word in q for word in ("confidence", "explain", "explanation", "why")):
+
+    # Strategic analysis taxonomy (identity / matchup theory / tradeoffs / failure / coaching).
+    if any(
+        phrase in q
+        for phrase in (
+            "draft identity",
+            "identity",
+            "fundamentally trying",
+            "conditions must be true",
+            "assumptions",
+            "hidden weakness",
+            "pressure point",
+            "fight environments",
+            "matchup",
+            "interaction determines",
+            "controls engagement",
+            "controls spacing",
+            "longer fights",
+            "chaotic fights",
+            "ult economy",
+            "easier execution",
+            "tradeoff",
+            "what pivots remain",
+            "adaptation",
+            "strategic shift",
+            "flexibility remains",
+            "remaining adaptation options",
+            "failure condition",
+            "collapsed first",
+            "draft structure or execution",
+            "execution burden",
+            "coordination",
+            "common mistakes",
+            "coach",
+            "communication requirements",
+            "player tendencies",
+            "team historically prefer",
+            "tendencies under pressure",
+            "strategic habits",
+            "tempo",
+            "snowballing",
+            "forced reactions",
+            "timing window",
+            "pace of adaptation",
+            "pressure cycle",
+            "stability",
+            "high variance",
+            "resilient",
+            "collapse quickly",
+            "disciplined teams",
+            "misconception",
+            "evidence conflicts",
+            "supported but not proven",
+            "overvalued",
+            "undervalued",
+            "remaining risks",
+        )
+    ):
+        return "check"
+
+    if any(
+        phrase in q
+        for phrase in (
+            "how confident",
+            "confidence level",
+            "confidence",
+            "sample size confidence",
+        )
+    ):
         return "confidence"
     if any(word in q for word in ("comp", "composition", "play", "run", "target")):
         return "comp"

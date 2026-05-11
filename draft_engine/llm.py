@@ -21,7 +21,7 @@ from draft_engine.agent_tools import AGENT_TOOLS, TOOL_LABELS
 
 _OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 _DEFAULT_MODEL = "gpt-4o-mini"
-_DEFAULT_MAX_TOKENS = 768
+_DEFAULT_MAX_TOKENS = 1100
 _TIMEOUT_SECONDS = 30
 
 
@@ -401,6 +401,43 @@ For every draft question, work through this sequence -- do not skip steps:
 4. **Make the call** -- single best move, one sentence why, one sentence risk, confidence label.
 5. **Win rate alone is never enough** -- cross-check with ban/protect frequency and pivot quality before committing.
 
+## Depth Rules
+
+- For strategic asks (ban/protect/comp/pivot/ban impact/risk), include at least **3 concrete evidence points**.
+- Always include a short **"Why this over alternatives"** comparison with the next-best option.
+- Include a **contingency** line: what to do if the opponent does not follow the expected line.
+- When sample size is thin, say so explicitly and lower confidence.
+- Avoid generic hero-theory prose when concrete team/player data is present.
+
+## Pre-Recommendation Diagnostic Chain (Mandatory)
+
+Before giving any hero recommendation, you must explicitly reason through this order:
+
+1. **Removed Strategic Function** -- what function was removed (engage, peel, sustain, dive pressure, poke pressure, cleanse, etc.).
+2. **Identity Loss** -- what draft identity weakens because of that removal.
+3. **Replacement Identities** -- at least 2 viable pivot identities that could replace the lost function.
+4. **Historical Preference Check** -- which of those identities this team has historically preferred (from available data).
+5. **Tradeoff Matrix** -- strengths and weaknesses created by each pivot identity.
+
+Only after this chain, provide your recommended line.
+
+## Strategic Question Taxonomy (How To Frame Answers)
+
+When the user asks questions in these categories, frame your analysis accordingly:
+
+- **Draft Identity**: identify purpose, assumptions, success conditions, pressure point, and hidden weakness.
+- **Matchup Theory**: identify the decisive interaction, timing/spacing controller, scaling side, and execution burden.
+- **Tradeoffs / Adaptation**: identify remaining pivots, likely enemy adaptation, fallback if expectation fails, and flexibility left.
+- **Failure Analysis**: separate draft-structure failure vs execution failure, then identify first collapse point and recurrence pattern.
+- **Execution / Coaching**: identify role burden, timing and positioning mistakes, communication requirements, and first coaching priority.
+- **Team Tendencies**: identify historical style preference, comfort alignment, pressure behavior, and repeated strategic habits.
+- **Map Theory**: identify geometry/sightline/objective effects on engage pressure, rotation value, and punishability.
+- **Pressure / Tempo**: identify pace controller, first pressure source, recovery conditions after lost tempo, and key timing windows.
+- **Risk / Stability**: identify variance drivers, collapse triggers, resilience after errors, and disciplined-opponent punish paths.
+- **High-Level Critique**: identify missing information, weakest assumption, conflicting evidence, and likely over/undervalued factors.
+
+For these categories, default to analysis-first output and only recommend heroes when explicitly asked or when a concrete draft decision is required.
+
 ## Recommendation Labels
 
 Every recommendation must be one of:
@@ -418,9 +455,23 @@ Every recommendation must be one of:
 **Best Move:** [hero -- ban / protect / pick]
 **Type:** [label from above]
 **Reason:** [1 sentence with numbers]
+**Why This Over Alternatives:** [compare against next-best line using numbers]
 **Draft Logic:** [how this changes opponent options]
 **Risk:** [what could go wrong]
+**Contingency:** [if opponent pivots differently, what we do next]
 **Confidence:** High / Medium / Low
+
+For ban/protect/comp/pivot questions, include a short diagnostic block before the recommendation:
+- Removed Function
+- Identity Loss
+- Replacement Identities
+- Historical Preference
+- Pivot Tradeoffs
+
+Then end with:
+- Conclusion
+- Confidence
+- Remaining Risks
 
 Internal slot labels (ban1, protect1, team1) must never appear in output. \
 Translate: "first ban", "first protect", "your team", "the opponent". \
@@ -498,19 +549,19 @@ def build_draft_system_prompt(
 
     # ── Question focus hint ────────────────────────────────────────────────
     _intent_hints = {
-        "ban":            "Lead with the top ban target and the leverage score that supports it.",
-        "protect":        "Lead with the highest-value protect and why the data points there.",
-        "comp":           "Lead with the strongest comp path and what anchors it.",
+        "ban":            "Lead with the top ban target, quantify leverage, and compare it to the next-best ban.",
+        "protect":        "Lead with the highest-value protect, quantify protect value, and compare it to the next-best protect.",
+        "comp":           "Lead with the strongest comp path, explain why it beats the runner-up, and add one contingency.",
         "enemy_comps":    "Lead with the most likely opponent lineup and what enables it.",
-        "ban_impact":     "Lead with how opponent options shift after the ban, and what we gain.",
+        "ban_impact":     "Lead with how opponent options shift after the ban, what we gain, and the likely fallback they keep.",
         "player_pivot":   "Lead with the most likely pivot and the appearance count backing it.",
         "slot_compare":   "Lead with which ban slot shows the better outcome and by how much.",
         "hero_volatility":"Lead with which side the hero favors and why.",
-        "risk":           "Lead with the highest-variance swing piece and how to neutralise it.",
+        "risk":           "Lead with the highest-variance swing piece, quantify the downside, and give the safest mitigation.",
         "map":            "Lead with the strongest map options and any comp dependencies.",
         "confidence":     "Lead with the confidence level and the sample size behind it.",
         "pivot":          "Lead with the most likely pivot path and our cleanest counter.",
-        "comfort":        "Lead with the highest-impact comfort picks for each side.",
+        "comfort":        "Lead with the highest-impact comfort picks for each side and describe the hero-pool pressure created by each ban/protect.",
         "contested":      "Lead with the hero both teams most want and who benefits more.",
     }
     hint = _intent_hints.get(intent, "")
