@@ -1724,6 +1724,24 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
         "reasoning_mode": "reasoning",
     }
 
+    # Optional live draft snapshot from the Draft Reasoner board.
+    raw_draft_live = raw_context.get("draft_live")
+    if isinstance(raw_draft_live, dict):
+        phase_data = raw_draft_live.get("current_phase") or {}
+        context["draft_live"] = {
+            "active": bool(raw_draft_live.get("active")),
+            "our_bans": list(raw_draft_live.get("our_bans") or []),
+            "our_protects": list(raw_draft_live.get("our_protects") or []),
+            "enemy_bans": list(raw_draft_live.get("enemy_bans") or []),
+            "enemy_protects": list(raw_draft_live.get("enemy_protects") or []),
+            "open_slots": list(raw_draft_live.get("open_slots") or []),
+            "current_phase": {
+                "phase_num": phase_data.get("phase_num"),
+                "phase_label": phase_data.get("phase_label"),
+                "next_team": phase_data.get("next_team"),
+            }
+        }
+
     context["season"] = _machine_agent_extract_season(message, context["season"])
     context["map"] = _machine_agent_extract_map(message, context["map"])
     text = (message or "").lower()
@@ -1763,6 +1781,38 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
             row = get_db().execute("SELECT name FROM teams WHERE id = ?", (context[key],)).fetchone()
             context[key.replace("_id", "_name")] = row["name"] if row else ""
     return context
+
+
+def _machine_agent_draft_live_context_hint(chat_context: dict) -> str:
+    draft_live = chat_context.get("draft_live")
+    if not isinstance(draft_live, dict) or not draft_live.get("active"):
+        return ""
+
+    our_bans = [str(v).strip() for v in (draft_live.get("our_bans") or []) if str(v).strip()]
+    our_protects = [str(v).strip() for v in (draft_live.get("our_protects") or []) if str(v).strip()]
+    enemy_bans = [str(v).strip() for v in (draft_live.get("enemy_bans") or []) if str(v).strip()]
+    enemy_protects = [str(v).strip() for v in (draft_live.get("enemy_protects") or []) if str(v).strip()]
+    open_slots = [str(v).strip() for v in (draft_live.get("open_slots") or []) if str(v).strip()]
+    current_phase = draft_live.get("current_phase") or {}
+    phase_label = current_phase.get("phase_label", "")
+    next_team = current_phase.get("next_team", "")
+
+    lines = ["Live draft board state (from Draft Reasoner):"]
+    if phase_label:
+        team_label = "Our team" if next_team == "a" else ("Enemy team" if next_team == "b" else "")
+        lines.append(f"- Current: {phase_label}, next turn is {team_label}")
+    if our_bans:
+        lines.append("- Our bans: " + ", ".join(our_bans[:6]))
+    if our_protects:
+        lines.append("- Our protects: " + ", ".join(our_protects[:4]))
+    if enemy_bans:
+        lines.append("- Enemy bans: " + ", ".join(enemy_bans[:6]))
+    if enemy_protects:
+        lines.append("- Enemy protects: " + ", ".join(enemy_protects[:4]))
+    if open_slots:
+        lines.append("- Open draft slots: " + ", ".join(open_slots[:8]))
+    lines.append("Use this board as live state for reasoning and adaptation analysis.")
+    return "\n".join(lines)
 
 
 def _machine_agent_missing_context_response(intent: str, context: dict) -> str | None:
@@ -1867,6 +1917,9 @@ def api_machine_chat_stream():
         season_value,
         selected_map_name,
     )
+    draft_live_hint = _machine_agent_draft_live_context_hint(chat_context)
+    if draft_live_hint:
+        context_hint += "\n\n" + draft_live_hint
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
     system_prompt = build_draft_system_prompt(
@@ -2113,6 +2166,9 @@ def _api_machine_chat_inner():
         season_value,
         selected_map_name,
     )
+    draft_live_hint = _machine_agent_draft_live_context_hint(chat_context)
+    if draft_live_hint:
+        context_hint += "\n\n" + draft_live_hint
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
     system_prompt = build_draft_system_prompt(
