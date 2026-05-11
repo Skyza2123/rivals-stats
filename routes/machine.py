@@ -925,6 +925,40 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
             team_text += "\n  Player pools:\n    " + "\n    ".join(player_lines)
         section_map["team"] = team_text
 
+        if heroes and section_map.get("hero") and wants_bans:
+            hero_name = (heroes[0].get("hero") or "").strip().lower()
+            impacted_players = []
+            for pp in (team.get("player_pools") or []):
+                pname = (pp.get("player_name") or "").strip()
+                if not pname:
+                    continue
+                hero_rows = pp.get("heroes") or []
+                for h_row in hero_rows:
+                    h_name = (h_row.get("hero") or "").strip().lower()
+                    if h_name != hero_name:
+                        continue
+                    appearances = h_row.get("appearances", 0) or 0
+                    wins = h_row.get("wins", 0) or 0
+                    losses = h_row.get("losses", 0) or 0
+                    total = wins + losses
+                    if total > 0:
+                        wr = round((wins / total) * 100, 1)
+                        impacted_players.append(f"{pname} ({appearances} maps, {wr}% WR)")
+                    else:
+                        impacted_players.append(f"{pname} ({appearances} maps)")
+                    break
+            if impacted_players:
+                section_map["hero"] += (
+                    " Hero-pool impact if banned: this displaces "
+                    + _machine_chat_join(impacted_players, 4)
+                    + "."
+                )
+            else:
+                section_map["hero"] += (
+                    " Hero-pool impact if banned: no strong one-trick signal in current team pool, "
+                    "so ban value is mostly comp-denial rather than player displacement."
+                )
+
         # Build structured team profile for card rendering
         team_profile_visuals = {
             "team_name": team.get("team") or "",

@@ -349,18 +349,78 @@ def normalize_tournament_match_record(tournament_match: dict, tournament_teams: 
 
 
 def get_scrim_season_options(scrims: list[dict]) -> list[str]:
+    def _map_has_played_data(map_entry: dict) -> bool:
+        if not isinstance(map_entry, dict):
+            return False
+        result = str(map_entry.get("result", "")).strip().lower()
+        if result in ("win", "loss"):
+            return True
+        score_text = str(map_entry.get("score", "")).strip()
+        if re.search(r"\d+\s*[-:]\s*\d+", score_text):
+            return True
+        for section in map_entry.get("comp", []) or []:
+            if not isinstance(section, dict):
+                continue
+            for side in TEAM_SLOTS:
+                for slot in section.get(side, []) or []:
+                    if isinstance(slot, dict) and str(slot.get("hero", "")).strip():
+                        return True
+        return False
+
+    def _record_has_played_maps(record: dict) -> bool:
+        maps = record.get("maps", []) or []
+        if any(_map_has_played_data(m) for m in maps if isinstance(m, dict)):
+            return True
+        for match in record.get("matches", []) or []:
+            if not isinstance(match, dict):
+                continue
+            nested_maps = match.get("maps", []) or []
+            if any(_map_has_played_data(m) for m in nested_maps if isinstance(m, dict)):
+                return True
+        return False
+
     seasons = {
         normalize_season_value(scrim.get("season", ""))
         for scrim in scrims
-        if normalize_season_value(scrim.get("season", ""))
+        if normalize_season_value(scrim.get("season", "")) and _record_has_played_maps(scrim)
     }
     return sorted(seasons, key=lambda value: [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)])
 
 
 def get_current_season_from_recent_scrim(scrims: list[dict]) -> str:
+    def _map_has_played_data(map_entry: dict) -> bool:
+        if not isinstance(map_entry, dict):
+            return False
+        result = str(map_entry.get("result", "")).strip().lower()
+        if result in ("win", "loss"):
+            return True
+        score_text = str(map_entry.get("score", "")).strip()
+        if re.search(r"\d+\s*[-:]\s*\d+", score_text):
+            return True
+        for section in map_entry.get("comp", []) or []:
+            if not isinstance(section, dict):
+                continue
+            for side in TEAM_SLOTS:
+                for slot in section.get(side, []) or []:
+                    if isinstance(slot, dict) and str(slot.get("hero", "")).strip():
+                        return True
+        return False
+
+    def _record_has_played_maps(record: dict) -> bool:
+        maps = record.get("maps", []) or []
+        if any(_map_has_played_data(m) for m in maps if isinstance(m, dict)):
+            return True
+        for match in record.get("matches", []) or []:
+            if not isinstance(match, dict):
+                continue
+            nested_maps = match.get("maps", []) or []
+            if any(_map_has_played_data(m) for m in nested_maps if isinstance(m, dict)):
+                return True
+        return False
+
     for scrim in reversed(scrims):
         season = normalize_season_value(scrim.get("season", ""))
-        if season:
+        if season and _record_has_played_maps(scrim):
             return season
     return "all"
 

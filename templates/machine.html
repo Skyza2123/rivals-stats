@@ -1204,7 +1204,6 @@ function renderReplyHeroStrip(answer, meta) {
     if (!heroes.length) return '';
     return '<div class="machine-agent-panel">'
         + '<div class="machine-agent-panel-title">Heroes Mentioned</div>'
-        + '<div class="machine-agent-panel-subtitle">Portraits from your app data</div>'
         + '<div class="machine-agent-portrait-grid">'
         + heroes.map(function(hero) { return heroPortraitCardHtml(hero, ''); }).join('')
         + '</div></div>';
