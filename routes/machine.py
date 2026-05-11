@@ -49,6 +49,9 @@ def draft_reasoner():
 @app.route("/machine")
 def machine():
     db = get_db()
+    initial_tab = (request.args.get("tab") or "matchup").strip().lower()
+    if initial_tab not in {"matchup", "reasoner", "chat"}:
+        initial_tab = "matchup"
     teams = db.execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
     personal_team = db.execute(
         "SELECT id, name FROM teams WHERE is_personal = 1 ORDER BY id LIMIT 1"
@@ -59,6 +62,7 @@ def machine():
     has_unseasoned = any(not normalize_season_value(s.get("season", "")) for s in machine_history)
     return render_template(
         "machine.html",
+        initial_tab=initial_tab,
         hero_roles=HERO_ROLES,
         hero_transformations=HERO_TRANSFORMATIONS,
         teams=teams,
@@ -1840,6 +1844,54 @@ def _machine_agent_draft_live_context_hint(chat_context: dict) -> str:
     return "\n".join(lines)
 
 
+def _machine_agent_live_draft_fallback(chat_context: dict) -> str:
+    draft_live = chat_context.get("draft_live")
+    if not isinstance(draft_live, dict) or not draft_live.get("active"):
+        return ""
+
+    team_a = chat_context.get("team_a_name") or "our team"
+    team_b = chat_context.get("team_b_name") or "the enemy"
+    our_bans = [str(v).strip() for v in (draft_live.get("our_bans") or []) if str(v).strip()]
+    our_protects = [str(v).strip() for v in (draft_live.get("our_protects") or []) if str(v).strip()]
+    enemy_bans = [str(v).strip() for v in (draft_live.get("enemy_bans") or []) if str(v).strip()]
+    enemy_protects = [str(v).strip() for v in (draft_live.get("enemy_protects") or []) if str(v).strip()]
+    current_phase = draft_live.get("current_phase") or {}
+    next_team = current_phase.get("next_team")
+    next_side = "our" if next_team == "a" else ("enemy" if next_team == "b" else "next")
+
+    locked = our_bans + our_protects + enemy_bans + enemy_protects
+    if not locked:
+        return ""
+
+    pieces = []
+    if our_bans:
+        pieces.append(f"Our bans are shaping the draft around {', '.join(our_bans[:4])}.")
+    if our_protects:
+        pieces.append(f"Our protected route is {', '.join(our_protects[:2])}.")
+    if enemy_bans:
+        pieces.append(f"{team_b} has already removed {', '.join(enemy_bans[:4])}, so treat those as pressure on our comfort route.")
+    if enemy_protects:
+        pieces.append(f"{team_b} protected {', '.join(enemy_protects[:2])}; that is the clearest enemy commitment right now.")
+
+    next_action = "Next action: "
+    if next_team == "a":
+        if len(our_protects) < 2:
+            next_action += "protect the hero that keeps the best remaining comp path alive, unless an enemy S-tier comfort pick is still open."
+        else:
+            next_action += "ban the strongest enemy comfort or the hero that completes their protected route."
+    elif next_team == "b":
+        next_action += "expect the enemy to answer by removing our most obvious comfort piece or protecting the hero their route depends on."
+    else:
+        next_action += "draft is mostly locked; evaluate whether the final bans closed the enemy route or only traded comfort."
+
+    return (
+        f"Live read: {team_a} vs {team_b}.\n\n"
+        + "\n".join(pieces)
+        + f"\n\nCurrent turn is {next_side}. Biggest danger is over-banning names without closing a comp path. "
+        + next_action
+    )
+
+
 def _machine_agent_missing_context_response(intent: str, context: dict) -> str | None:
     if context.get("team_a_id") and context.get("team_b_id"):
         return None
@@ -1983,7 +2035,8 @@ def api_machine_chat_stream():
                 player_pivot_request = _machine_agent_parse_player_pivot(intent_message, chat_context) if meta.get("has_matchup") else None
                 hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
 
-                fallback_text = _machine_agent_answer_for_intent(intent_message, "", meta, intent)
+                live_draft_fallback = _machine_agent_live_draft_fallback(chat_context)
+                fallback_text = live_draft_fallback or _machine_agent_answer_for_intent(intent_message, "", meta, intent)
                 final_answer = _machine_agent_humanize_answer(agent_answer or prefetched_site_answer or fallback_text)
 
                 if intent == "player_pivot" and not player_pivot_request:
@@ -2222,7 +2275,8 @@ def _api_machine_chat_inner():
     player_pivot_request = _machine_agent_parse_player_pivot(intent_message, chat_context) if meta.get("has_matchup") else None
     hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
 
-    fallback_text = _machine_agent_answer_for_intent(intent_message, "", meta, intent)
+    live_draft_fallback = _machine_agent_live_draft_fallback(chat_context)
+    fallback_text = live_draft_fallback or _machine_agent_answer_for_intent(intent_message, "", meta, intent)
     final_answer = _machine_agent_humanize_answer(agent_answer or prefetched_site_answer or fallback_text)
 
     if intent == "player_pivot" and not player_pivot_request:
@@ -2611,4 +2665,3 @@ def api_draft_reasoner_model():
 
     _DRAFT_REASONER_MODEL_CACHE[cache_key] = {"ts": now_ts, "payload": matchup}
     return jsonify(matchup)
-

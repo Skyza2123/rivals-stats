@@ -818,10 +818,10 @@
         </div>
     </div>
     <div class="button-row top-gap">
-        <button type="button" id="dr-analyze-btn">Apply Settings</button>
+        <button type="button" id="dr-analyze-btn">Build Draft Plan</button>
         <button type="button" class="button-secondary" id="dr-reset-btn">Reset Draft</button>
     </div>
-    <p class="dr-model-status" id="dr-status">Simulator ready. Open settings to import matchup data.</p>
+    <p class="dr-model-status" id="dr-status">Choose two teams to start.</p>
     <div id="dr-lineup-section" style="display:none;margin-top:0.75rem">
         <div class="field">
             <label>Our Lineup <span style="color:#94a3b8;font-size:0.72rem;font-weight:400">— who's playing this map?</span></label>
@@ -957,11 +957,11 @@
                     <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
                     <div class="hero-icon-grid">
                         {% for hero in hero_roles[role] %}
-                        <button type="button" class="hero-pick-btn" data-hero="{{ hero }}"
+                        <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-image="{{ hero_image_url(hero) }}"
                                 onclick="drPickHero(this)"
                                 title="{{ hero }}">
                             <div class="hero-img-wrap">
-                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy">
+                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy" decoding="async" onerror="this.src=heroPlaceholderUrl(this.alt || 'Hero'); this.onerror=null;">
                             </div>
                             <span class="hero-pick-name">{{ hero }}</span>
                         </button>
@@ -977,6 +977,7 @@
         <div class="dr-side-tabs" id="dr-side-tabs">
             <button type="button" class="dr-side-tab active" data-view="assistant">Draft Assistant</button>
             <button type="button" class="dr-side-tab" data-view="reasoning">Draft Notes</button>
+            <button type="button" class="dr-side-tab" data-view="ai-live">AI Live Read</button>
             <button type="button" class="dr-side-tab" data-view="hero-pools">Hero Pools</button>
             <button type="button" class="dr-side-tab" data-view="open-ban-targets">Open Ban Targets</button>
         </div>
@@ -1019,6 +1020,23 @@
             <h3>Draft Notes</h3>
             <div class="dr-reason-stream" id="dr-reason-stream">
                 <p class="matchup-empty">Build a plan, then fill slots to see the read.</p>
+            </div>
+        </section>
+        </div>
+
+        <div id="dr-side-ai-live-view" style="display:none">
+        <section class="panel dr-side-panel">
+            <h3>AI Live Read</h3>
+            <div class="dr-suggest-meta" id="dr-live-ai-status">Fill a draft slot to start the live read.</div>
+            <div class="button-row top-gap" style="margin-top:0.55rem">
+                <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer">
+                    <input type="checkbox" id="dr-live-ai-toggle" checked>
+                    Live
+                </label>
+                <button type="button" class="button-secondary" id="dr-live-ai-refresh">Analyze Now</button>
+            </div>
+            <div class="dr-reason-stream" id="dr-live-ai-output" style="margin-top:0.75rem">
+                <p class="matchup-empty">The AI read will update as bans and protects are locked.</p>
             </div>
         </section>
         </div>
@@ -1110,6 +1128,9 @@ function setMachineTab(tabName) {
     document.querySelectorAll('.machine-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.machine-tab-panel').forEach(p => p.classList.remove('active'));
     if (tabName === 'reasoner') {
+        if (typeof window.drEnsureReasonerBoot === 'function') {
+            window.drEnsureReasonerBoot();
+        }
         document.getElementById('mtab-reasoner').classList.add('active');
         document.getElementById('mpanel-reasoner').classList.add('active');
     } else if (tabName === 'chat') {
@@ -1122,23 +1143,18 @@ function setMachineTab(tabName) {
 }
 
 document.getElementById('mtab-matchup').addEventListener('click', function() {
-    setMachineTab('matchup');
+    window.location.href = '/machine?tab=matchup';
 });
 document.getElementById('mtab-reasoner').addEventListener('click', function() {
-    setMachineTab('reasoner');
+    window.location.href = '/machine?tab=reasoner';
 });
 document.getElementById('mtab-chat').addEventListener('click', function() {
-    setMachineTab('chat');
+    window.location.href = '/machine?tab=chat';
 });
 
 const initialMachineTab = new URLSearchParams(window.location.search).get('tab');
-if (initialMachineTab === 'reasoner') {
-    setMachineTab('reasoner');
-} else if (initialMachineTab === 'chat') {
-    setMachineTab('chat');
-} else {
-    setMachineTab('matchup');
-}
+const activeMachineTab = ['matchup', 'reasoner', 'chat'].includes(initialMachineTab) ? initialMachineTab : 'matchup';
+setMachineTab(activeMachineTab);
 
 // ═══════════════════════════════════════════════════════════════
 //  SHARED HELPERS
@@ -1146,8 +1162,35 @@ if (initialMachineTab === 'reasoner') {
 function escapeHtml(v) {
     return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+function heroPlaceholderUrl(hero) {
+    const label = String(hero || 'Hero').trim().slice(0, 18) || 'Hero';
+    const initials = label.split(/\s+/).map(function(part) { return part.charAt(0); }).join('').slice(0, 3).toUpperCase() || '?';
+    const hue = Array.from(label).reduce(function(total, ch) { return total + ch.charCodeAt(0); }, 0) % 360;
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">'
+        + '<rect width="80" height="80" rx="14" fill="hsl(' + hue + ' 34% 22%)"/>'
+        + '<text x="40" y="45" text-anchor="middle" font-size="18" font-family="Arial,sans-serif" font-weight="700" fill="#e6edf3">' + escapeHtml(initials) + '</text>'
+        + '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+const heroImageUrlTemplate = '{{ hero_image_url("__HERO__") }}';
 function heroThumbUrl(hero) {
-    return '{{ hero_image_url("__HERO__") }}'.replace('__HERO__', encodeURIComponent(hero));
+    const heroName = String(hero || 'Hero');
+    return heroImageUrlTemplate.replace('__HERO__', encodeURIComponent(heroName));
+}
+function hydrateHeroImages(root) {
+    const scope = root || document;
+    const imgs = Array.from(scope.querySelectorAll('img[data-hero-image]:not([data-hero-image-loaded="1"])'));
+    if (!imgs.length) return;
+    function loadImg(img) {
+        if (!img || img.dataset.heroImageLoaded === '1') return;
+        img.dataset.heroImageLoaded = '1';
+        img.onerror = function() {
+            this.src = heroPlaceholderUrl(this.alt || this.title || 'Hero');
+            this.onerror = null;
+        };
+        img.src = img.dataset.heroImage || heroThumbUrl(img.alt || img.title || 'Hero');
+    }
+    imgs.forEach(loadImg);
 }
 function heroCell(hero) {
     const img = heroThumbUrl(hero);
@@ -1246,6 +1289,9 @@ function renderReplyHeroStrip(answer, meta) {
 // ═══════════════════════════════════════════════════════════════
 // Machine draft agent
 (function() {
+    if (activeMachineTab !== 'chat') return;
+    window.machineChatReady = true;
+    let machineChatRestored = false;
     const form = document.getElementById('machine-chat-form');
     const input = document.getElementById('machine-chat-input');
     const log = document.getElementById('machine-chat-log');
@@ -1264,6 +1310,7 @@ function renderReplyHeroStrip(answer, meta) {
     const LEGACY_CHAT_STORAGE_KEY = 'rivals.machine.chat.v1';
     const MAX_STORED_MESSAGES = 24;
     const MAX_STORED_CHATS = 12;
+    const CHAT_FAST_RENDER_LIMIT = 8;
     let agentContext = {
         team_a_id: _agentSeed.team_a_id,
         team_b_id: null,
@@ -1516,7 +1563,13 @@ function renderReplyHeroStrip(answer, meta) {
 
     function readStoredChatStore() {
         try {
-            const stored = normalizeChatStore(JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || '{}'));
+            const raw = localStorage.getItem(CHAT_STORAGE_KEY) || '';
+            // Guard against very large chat blobs that can stall JSON.parse on page load.
+            if (raw.length > 350000) {
+                localStorage.removeItem(CHAT_STORAGE_KEY);
+                throw new Error('chat store too large');
+            }
+            const stored = normalizeChatStore(JSON.parse(raw || '{}'));
             if (stored) return stored;
             const legacy = JSON.parse(localStorage.getItem(LEGACY_CHAT_STORAGE_KEY) || '{}') || {};
             if (legacy.messages || legacy.context) {
@@ -1532,7 +1585,7 @@ function renderReplyHeroStrip(answer, meta) {
         try {
             localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatStore));
         } catch (_e) {}
-        renderChatPicker();
+        // renderChatPicker() is called explicitly only when needed, not here
     }
 
     function updateCurrentConversation() {
@@ -1546,7 +1599,36 @@ function renderReplyHeroStrip(answer, meta) {
     }
 
     function rememberChatMessage(entry) {
-        chatHistory.push(entry);
+        let safeEntry = entry || {};
+        if (safeEntry.kind === 'bot') {
+            const safeMeta = Object.assign({}, safeEntry.meta || {});
+            // Drop heavy visual payloads from persisted history to keep storage/lightweight restore fast.
+            delete safeMeta.visuals;
+            if (Array.isArray(safeMeta.profile_links)) {
+                safeMeta.profile_links = safeMeta.profile_links.slice(0, 3).map(function(link) {
+                    return {
+                        label: String((link || {}).label || '').slice(0, 80),
+                        url: String((link || {}).url || '').slice(0, 240),
+                    };
+                });
+            }
+            safeMeta.response_engine = String(safeMeta.response_engine || '').slice(0, 40);
+            safeEntry = {
+                kind: 'bot',
+                answer: String(safeEntry.answer || safeEntry.text || '').slice(0, 6000),
+                text: String(safeEntry.text || safeEntry.answer || '').slice(0, 6000),
+                meta: safeMeta,
+                metaText: String(safeEntry.metaText || '').slice(0, 180),
+            };
+        } else if (safeEntry.kind === 'user') {
+            safeEntry = {
+                kind: 'user',
+                text: String(safeEntry.text || '').slice(0, 2000),
+                metaText: String(safeEntry.metaText || '').slice(0, 120),
+            };
+        }
+
+        chatHistory.push(safeEntry);
         if (chatHistory.length > MAX_STORED_MESSAGES) {
             chatHistory = chatHistory.slice(-MAX_STORED_MESSAGES);
         }
@@ -1610,14 +1692,41 @@ function renderReplyHeroStrip(answer, meta) {
         if (emptyEl) emptyEl.classList.toggle('hidden', chatHistory.length > 0);
     }
 
-    function renderChatHistory() {
+    function renderChatHistory(options) {
+        options = options || {};
+        const lightweight = !!options.lightweight;
+        const forceFull = !!options.forceFull;
         clearChatLog();
-        chatHistory.forEach(function(entry) {
+        const hiddenCount = (!forceFull && chatHistory.length > CHAT_FAST_RENDER_LIMIT)
+            ? (chatHistory.length - CHAT_FAST_RENDER_LIMIT)
+            : 0;
+        const historyToRender = hiddenCount ? chatHistory.slice(-CHAT_FAST_RENDER_LIMIT) : chatHistory;
+
+        if (hiddenCount > 0 && !forceFull) {
+            const banner = document.createElement('div');
+            banner.className = 'machine-chat-msg-outer bot';
+            const bannerNode = document.createElement('div');
+            bannerNode.className = 'machine-chat-message bot';
+            bannerNode.innerHTML = '<div class="machine-agent-copy">Showing recent ' + historyToRender.length + ' messages for fast load.</div>';
+            const loadBtn = document.createElement('button');
+            loadBtn.type = 'button';
+            loadBtn.className = 'machine-chat-suggestion';
+            loadBtn.style.marginTop = '0.5rem';
+            loadBtn.textContent = 'Load full history (' + chatHistory.length + ')';
+            loadBtn.addEventListener('click', function() {
+                renderChatHistory({forceFull: true});
+            });
+            bannerNode.appendChild(loadBtn);
+            banner.appendChild(bannerNode);
+            log.appendChild(banner);
+        }
+
+        historyToRender.forEach(function(entry) {
             if (!entry) return;
             if (entry.kind === 'user') {
                 appendMessage('user', entry.text || '', entry.metaText || '', {skipPersist: true});
             } else if (entry.kind === 'bot') {
-                renderStoredBotMessage(entry);
+                renderStoredBotMessage(entry, {lightweight: lightweight && !forceFull});
             }
         });
         const emptyEl = document.getElementById('machine-chat-empty');
@@ -1666,19 +1775,22 @@ function renderReplyHeroStrip(answer, meta) {
         writeStoredChat();
     }
 
-    function renderStoredBotMessage(entry) {
+    function renderStoredBotMessage(entry, options) {
+        options = options || {};
+        const lightweight = !!options.lightweight;
         const emptyEl = document.getElementById('machine-chat-empty');
         if (emptyEl) emptyEl.classList.add('hidden');
         const outer = document.createElement('div');
         outer.className = 'machine-chat-msg-outer bot';
         const node = document.createElement('div');
         const data = {answer: entry.answer || entry.text || '', meta: entry.meta || {}};
-        const visualPanelHtml = shouldRenderAgentVisuals(data) ? renderAgentVisuals(data.meta.visuals || {}, data.meta) : '';
-        const heroStripHtml = renderReplyHeroStrip(data.answer, data.meta || {});
+        const visualPanelHtml = lightweight ? '' : (shouldRenderAgentVisuals(data) ? renderAgentVisuals(data.meta.visuals || {}, data.meta) : '');
+        const heroStripHtml = lightweight ? '' : renderReplyHeroStrip(data.answer, data.meta || {});
+        const linksHtml = lightweight ? '' : renderAgentProfileLinks(data.meta);
         const showVisuals = !!(visualPanelHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
         node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
-            + renderAgentProfileLinks(data.meta)
+            + linksHtml
             + heroStripHtml
             + visualPanelHtml;
         const metaEl = document.createElement('div');
@@ -1690,6 +1802,8 @@ function renderReplyHeroStrip(answer, meta) {
     }
 
     function restoreStoredChat() {
+        if (machineChatRestored) return;
+        machineChatRestored = true;
         chatStore = readStoredChatStore();
         loadConversation(chatStore.active_id, true);
     }
@@ -1701,13 +1815,13 @@ function renderReplyHeroStrip(answer, meta) {
         agentContext = Object.assign(defaultChatContext(), chat.context || {});
         agentPendingMessage = chat.pending_message || '';
         chatHistory = Array.isArray(chat.messages) ? chat.messages.slice(-MAX_STORED_MESSAGES) : [];
-        renderChatPicker();
         if (!skipRender) {
-            renderChatHistory();
+            renderChatPicker();
+            renderChatHistory({lightweight: true});
+            syncModeControls();
+            updateContextPanel();
+            writeStoredChat();
         }
-        syncModeControls();
-        updateContextPanel();
-        writeStoredChat();
     }
 
     function startNewConversation() {
@@ -2781,11 +2895,17 @@ function renderReplyHeroStrip(answer, meta) {
 
     document.getElementById('mtab-chat').addEventListener('click', function() {
         setMachineTab('chat');
-        // Render chat history on first tab click (was deferred on page load)
+        restoreStoredChat();
+        // Render UI on first tab click (was deferred on page load for speed)
         if (!log.querySelector('.machine-chat-msg-outer')) {
-            renderChatHistory();
+            renderChatPicker();
+            renderChatHistory({lightweight: true});
+            syncModeControls();
+            updateContextPanel();
         }
-        syncFromReasoner();
+        // Do not auto-sync from reasoner on tab switch.
+        // Sync happens right before send actions (submit/suggestion/quick-prompt)
+        // to avoid feedback loops from high-frequency UI updates.
     });
     document.getElementById('mtab-reasoner').addEventListener('click', refreshSuggestionSet);
     window.addEventListener('machine:reasoner-quick-prompt', function(evt) {
@@ -2799,25 +2919,18 @@ function renderReplyHeroStrip(answer, meta) {
         setTimeout(refreshSuggestionSet, 0);
     });
 
-    const draftBoardObserverTarget = document.getElementById('dr-board-section');
-    if (draftBoardObserverTarget && typeof MutationObserver !== 'undefined') {
-        const observer = new MutationObserver(function() {
-            refreshSuggestionSet();
-        });
-        observer.observe(draftBoardObserverTarget, {
-            subtree: true,
-            attributes: true,
-            childList: true,
-            characterData: true,
-        });
-    }
+    // MutationObserver-based refresh was removed to prevent high-frequency
+    // refresh loops on draft-board DOM churn. Suggestion refresh now occurs via
+    // explicit actions (tab clicks, analyze/reset, and send actions).
     if (newChatBtn) {
         newChatBtn.addEventListener('click', startNewConversation);
     }
     if (deleteChatBtn) {
         deleteChatBtn.addEventListener('click', deleteCurrentConversation);
     }
-    restoreStoredChat();
+    if (activeMachineTab === 'chat') {
+        restoreStoredChat();
+    }
     // Defer suggestion rendering until Agent tab is clicked or draft is initialized
     // refreshSuggestionSet();
 
@@ -2827,6 +2940,7 @@ function renderReplyHeroStrip(answer, meta) {
 //  TAB 1 · MATCHUP TREE JS
 // ═══════════════════════════════════════════════════════════════
 (function() {
+    if (activeMachineTab !== 'matchup') return;
     const teamSelA = document.getElementById('m-tree-team-a');
     const teamSelB = document.getElementById('m-tree-team-b');
     const seasonSel = document.getElementById('m-tree-season');
@@ -3070,6 +3184,7 @@ function renderReplyHeroStrip(answer, meta) {
 //  TAB 2 · DRAFT REASONER JS
 // ═══════════════════════════════════════════════════════════════
 (function() {
+    if (activeMachineTab !== 'reasoner') return;
     // --- state ---
     let drModel = null;
     let drContext = null;
@@ -3186,6 +3301,10 @@ function renderReplyHeroStrip(answer, meta) {
     const drHeroRoleLookup = new Map();
     let drModelRequestInFlight = false;
     let drPlayerRowsHydrateToken = 0;
+    let drHeroPickerLoaded = Boolean(document.querySelector('#dr-hero-picker-grid .hero-pick-btn'));
+    const drSuggestCache = new Map();
+    let drSuggestComputeQueued = false;
+    let drPendingSuggestKey = '';
 
     const analyzeBtn  = document.getElementById('dr-analyze-btn');
     const resetBtn    = document.getElementById('dr-reset-btn');
@@ -3199,8 +3318,16 @@ function renderReplyHeroStrip(answer, meta) {
     const drSideTabs = Array.from(document.querySelectorAll('#dr-side-tabs .dr-side-tab'));
     const drSideAssistantView = document.getElementById('dr-side-assistant-view');
     const drSideReasoningView = document.getElementById('dr-side-reasoning-view');
+    const drSideAiLiveView = document.getElementById('dr-side-ai-live-view');
     const drSideHeroPoolsView = document.getElementById('dr-side-hero-pools-view');
     const drSideOpenBanTargetsView = document.getElementById('dr-side-open-ban-targets-view');
+    const drLiveAiToggle = document.getElementById('dr-live-ai-toggle');
+    const drLiveAiRefreshBtn = document.getElementById('dr-live-ai-refresh');
+    const drLiveAiStatus = document.getElementById('dr-live-ai-status');
+    const drLiveAiOutput = document.getElementById('dr-live-ai-output');
+    let drLiveAiTimer = null;
+    let drLiveAiToken = 0;
+    let drLiveAiLastKey = '';
     const drHeroPoolsMeta = document.getElementById('dr-hero-pools-meta');
     const drHeroPoolsList = document.getElementById('dr-hero-pools-list');
     const drOpenHeroesMeta = document.getElementById('dr-open-heroes-meta');
@@ -3250,6 +3377,7 @@ function renderReplyHeroStrip(answer, meta) {
         const visibility = {
             assistant: drSideAssistantView,
             reasoning: drSideReasoningView,
+            'ai-live': drSideAiLiveView,
             'hero-pools': drSideHeroPoolsView,
             'open-ban-targets': drSideOpenBanTargetsView,
         };
@@ -3343,21 +3471,7 @@ function renderReplyHeroStrip(answer, meta) {
         });
     }
 
-    // Initial setup for slot actions
-    drAttachSlotQuickActions();
-    // Reattach when slots change (on hero pick, ban, etc.)
-    const boardSection = document.getElementById('dr-board-section');
-    if (boardSection) {
-        const slotObserver = new MutationObserver(function() {
-            drAttachSlotQuickActions();
-        });
-        slotObserver.observe(boardSection, {
-            subtree: true,
-            attributes: true,
-            characterData: true,
-            childList: true,
-        });
-    }
+    // Slot quick actions are attached during explicit reasoner renders.
 
     function drGetSlotElement(team, slot) {
         return document.querySelector('[data-team="' + team + '"][data-slot="' + slot + '"]');
@@ -3373,6 +3487,30 @@ function renderReplyHeroStrip(answer, meta) {
     function drHeroPoolHeroKey(heroName) {
         const rawKey = drPlayerNameKey(heroName);
         return DR_HERO_POOL_HERO_ALIASES[rawKey] || rawKey;
+    }
+
+    function heroKeySet(list) {
+        return new Set((list || []).filter(Boolean).map(drHeroPoolHeroKey));
+    }
+
+    function hasHeroByKey(list, hero) {
+        const key = drHeroPoolHeroKey(hero);
+        if (!key) return false;
+        return heroKeySet(list).has(key);
+    }
+
+    function mergeSlotLocks(slotKeys, lockedDraftSide, suggestedHeroes) {
+        const lockedValues = slotKeys.map(function(slotKey) {
+            return (lockedDraftSide && lockedDraftSide[slotKey]) ? lockedDraftSide[slotKey] : '';
+        });
+        const used = heroKeySet(lockedValues);
+        const queue = (suggestedHeroes || []).filter(function(hero) {
+            return hero && !used.has(drHeroPoolHeroKey(hero));
+        });
+        return slotKeys.map(function(slotKey, idx) {
+            if (lockedValues[idx]) return lockedValues[idx];
+            return queue.shift() || '';
+        }).filter(Boolean);
     }
 
     function drHeroPoolPlayerKey(playerName) {
@@ -3457,6 +3595,13 @@ function renderReplyHeroStrip(answer, meta) {
                 drHeroRoleLookup.set(heroName, roleKey);
             });
         });
+    }
+
+    function drEnsureHeroPickerLoaded() {
+        if (drHeroPickerLoaded) return;
+        const grid = document.getElementById('dr-hero-picker-grid');
+        if (!grid) return;
+        drHeroPickerLoaded = Boolean(grid.querySelector('.hero-pick-btn'));
     }
 
     function drGetHeroRole(heroName) {
@@ -4559,6 +4704,144 @@ function renderReplyHeroStrip(answer, meta) {
         return stepsToDescribe.map(drDescribeStep).join(' and ');
     }
 
+    function drGetCurrentPhaseSnapshot() {
+        for (let i = 0; i < DR_TURN_PHASES.length; i += 1) {
+            const phase = DR_TURN_PHASES[i];
+            const openSteps = phase.filter(function(step) {
+                return !((drDraft[step.team] || {})[step.slot]);
+            });
+            if (openSteps.length) {
+                return {
+                    phase_num: i,
+                    phase_label: 'Phase ' + (i + 1),
+                    next_team: openSteps[0].team,
+                };
+            }
+        }
+        return null;
+    }
+
+    function drBuildLiveDraftSnapshot() {
+        const openSlots = [];
+        DR_TURN_PHASES.forEach(function(phase) {
+            phase.forEach(function(step) {
+                if (!((drDraft[step.team] || {})[step.slot])) {
+                    openSlots.push((step.team === 'a' ? 'our ' : 'enemy ') + step.slot);
+                }
+            });
+        });
+        return {
+            active: Object.values(drDraft.a || {}).concat(Object.values(drDraft.b || {})).some(Boolean),
+            our_bans: ['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.a[k] || ''; }).filter(Boolean),
+            our_protects: ['protect1','protect2'].map(function(k) { return drDraft.a[k] || ''; }).filter(Boolean),
+            enemy_bans: ['ban1','ban2','ban3','ban4'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean),
+            enemy_protects: ['protect1','protect2'].map(function(k) { return drDraft.b[k] || ''; }).filter(Boolean),
+            open_slots: openSlots,
+            current_phase: drGetCurrentPhaseSnapshot(),
+        };
+    }
+
+    function drBuildLiveAiContext(snapshot) {
+        const teamA = document.getElementById('dr-team-a');
+        const teamB = document.getElementById('dr-team-b');
+        const season = document.getElementById('dr-season');
+        const map = document.getElementById('dr-map');
+        const scrims = document.getElementById('dr-include-scrims');
+        const tournaments = document.getElementById('dr-include-tournaments');
+        return {
+            team_a_id: teamA && teamA.value ? Number(teamA.value) : null,
+            team_b_id: teamB && teamB.value ? Number(teamB.value) : null,
+            team_a_name: teamA && teamA.selectedOptions && teamA.selectedOptions[0] ? String(teamA.selectedOptions[0].textContent || '').trim() : '',
+            team_b_name: teamB && teamB.selectedOptions && teamB.selectedOptions[0] ? String(teamB.selectedOptions[0].textContent || '').trim() : '',
+            season: season && season.value ? season.value : 'all',
+            map: map && map.value ? map.value : 'all',
+            include_scrims: scrims ? scrims.checked : true,
+            include_tournaments: tournaments ? tournaments.checked : true,
+            draft_live: snapshot,
+        };
+    }
+
+    function drLiveAiStateKey(snapshot) {
+        const ctx = drBuildLiveAiContext(snapshot);
+        return JSON.stringify({
+            team_a_id: ctx.team_a_id,
+            team_b_id: ctx.team_b_id,
+            season: ctx.season,
+            map: ctx.map,
+            include_scrims: ctx.include_scrims,
+            include_tournaments: ctx.include_tournaments,
+            draft_live: snapshot,
+        });
+    }
+
+    function drSetLiveAiMessage(text, isError) {
+        if (!drLiveAiOutput) return;
+        drLiveAiOutput.innerHTML = '<div class="dr-reason-card ' + (isError ? 'bad' : 'good') + '">'
+            + '<div class="dr-guide-body">' + escapeHtml(text || '') + '</div>'
+            + '</div>';
+    }
+
+    async function drRequestLiveAiAnalysis(force) {
+        if (!drLiveAiOutput || !drLiveAiStatus) return;
+        const snapshot = drBuildLiveDraftSnapshot();
+        if (!snapshot.active) {
+            drLiveAiStatus.textContent = 'Fill a draft slot to start the live read.';
+            drLiveAiOutput.innerHTML = '<p class="matchup-empty">The AI read will update as bans and protects are locked.</p>';
+            drLiveAiLastKey = '';
+            return;
+        }
+        const stateKey = drLiveAiStateKey(snapshot);
+        if (!force && stateKey === drLiveAiLastKey) return;
+        drLiveAiLastKey = stateKey;
+
+        const token = ++drLiveAiToken;
+        drLiveAiStatus.textContent = 'AI is reading the current draft...';
+        drLiveAiOutput.innerHTML = '<p class="matchup-empty">Analyzing live draft state...</p>';
+        try {
+            const resp = await fetch('/api/machine-chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                body: JSON.stringify({
+                    message: 'Analyze this live draft state. Be concise: call out the current win condition, the biggest danger, and the next best ban or protect.',
+                    context: drBuildLiveAiContext(snapshot),
+                }),
+            });
+            if (token !== drLiveAiToken) return;
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+            drLiveAiStatus.textContent = ((data.meta || {}).response_engine === 'openai') ? 'Live AI read updated.' : 'Live local read updated.';
+            drSetLiveAiMessage(data.answer || 'No analysis returned.', false);
+        } catch (e) {
+            if (token !== drLiveAiToken) return;
+            drLiveAiStatus.textContent = 'Live AI read could not finish.';
+            drSetLiveAiMessage((e && e.message) ? e.message : 'Could not analyze this draft state.', true);
+        }
+    }
+
+    function drScheduleLiveAiAnalysis(force) {
+        if (!drLiveAiOutput || !drLiveAiToggle || !drLiveAiToggle.checked) return;
+        if (drLiveAiTimer) clearTimeout(drLiveAiTimer);
+        drLiveAiTimer = setTimeout(function() {
+            drRequestLiveAiAnalysis(!!force);
+        }, force ? 0 : 1400);
+    }
+
+    if (drLiveAiRefreshBtn) {
+        drLiveAiRefreshBtn.addEventListener('click', function() {
+            drScheduleLiveAiAnalysis(true);
+            drSetSideView('ai-live');
+        });
+    }
+    if (drLiveAiToggle) {
+        drLiveAiToggle.addEventListener('change', function() {
+            if (drLiveAiToggle.checked) {
+                drScheduleLiveAiAnalysis(true);
+            } else if (drLiveAiStatus) {
+                drLiveAiStatus.textContent = 'Live AI read is paused.';
+            }
+        });
+    }
+
     function drUpdateTurnLocking() {
         const activePhase = drGetActiveTurnPhase();
         document.querySelectorAll('.draft-slot[data-team]').forEach(function(slotEl) {
@@ -4599,6 +4882,26 @@ function renderReplyHeroStrip(answer, meta) {
         }
     }
 
+    async function drFetchModelJson(url, timeoutMs) {
+        const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        const timer = controller ? setTimeout(function() { controller.abort(); }, timeoutMs) : null;
+        try {
+            const resp = await fetch(url, {
+                headers: {'X-Requested-With':'XMLHttpRequest'},
+                signal: controller ? controller.signal : undefined,
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return await resp.json();
+        } catch (e) {
+            if (e && (e.name === 'AbortError' || /aborted|abort/i.test(String(e.message || '')))) {
+                throw new Error('Request timed out. Please try again.');
+            }
+            throw e;
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
     // --- analyze / load model ---
     async function drHydratePlayerRows(requestToken, teamA, teamB, season, map, includeScrims, includeTournaments) {
         const p = new URLSearchParams({team_a: teamA, team_b: teamB, include_player_rows: '1'});
@@ -4608,40 +4911,36 @@ function renderReplyHeroStrip(answer, meta) {
         p.set('include_tournaments', includeTournaments ? '1' : '0');
 
         try {
-            const resp = await fetch('/api/draft-reasoner/model?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
-            if (!resp.ok) return;
-            const enriched = await resp.json();
+            const enriched = await drFetchModelJson('/api/draft-reasoner/model?' + p, 30000);
             if (requestToken !== drPlayerRowsHydrateToken) return;
-            if (!drModel || !Array.isArray(drModel.teams)) return;
+            drModel = enriched || drModel;
+            const teams = drModel.teams || [];
+            if (!teams.length) return;
 
-            const baseTeams = drModel.teams || [];
-            const enrichedTeams = (enriched || {}).teams || [];
-            [0, 1].forEach(function(idx) {
-                const baseTeam = baseTeams[idx] || null;
-                const enrichedTeam = enrichedTeams[idx] || null;
-                if (!baseTeam || !enrichedTeam) return;
-                baseTeam.model = baseTeam.model || {};
-                const enrichedModel = enrichedTeam.model || {};
-                if (Array.isArray(enrichedModel.player_hero_rows)) {
-                    baseTeam.model.player_hero_rows = enrichedModel.player_hero_rows;
-                }
-                if (Array.isArray(enrichedTeam.roster_players) && !Array.isArray(baseTeam.roster_players)) {
-                    baseTeam.roster_players = enrichedTeam.roster_players;
-                }
-            });
+            const nameA = (teams[0]||{}).name || drTeamNames.a || 'Our Team';
+            const nameB = (teams[1]||{}).name || drTeamNames.b || 'Enemy Team';
+            drTeamNames.a = nameA;
+            drTeamNames.b = nameB;
+            document.getElementById('dr-col-a-label').textContent = nameA;
+            document.getElementById('dr-col-b-label').textContent = nameB;
+            drBuildHeroHints('a', teams[0] || {});
+            drBuildHeroHints('b', teams[1] || {});
+            drBuildLineupUI((teams[0] || {}).roster_players || []);
 
-            drBuildHeroHints('a', baseTeams[0] || {});
-            drBuildHeroHints('b', baseTeams[1] || {});
             if (drContext) {
-                const mA = ((baseTeams[0] || {}).model) || {};
-                const mB = ((baseTeams[1] || {}).model) || {};
+                const mA = ((teams[0] || {}).model) || {};
+                const mB = ((teams[1] || {}).model) || {};
                 drContext.mA = mA;
                 drContext.mB = mB;
                 drComputeSuggestions(mA, mB, drTeamNames.a, drTeamNames.b, drContext.mapFilter || '');
                 drRender();
+                drRefreshSlotSubLabels();
             }
+            statusEl.textContent = 'Plan ready: ' + drTeamNames.a + ' vs ' + drTeamNames.b;
         } catch (_e) {
-            // Keep fast-load UX even if hydration fails.
+            if (requestToken === drPlayerRowsHydrateToken) {
+                statusEl.textContent = 'Plan ready. Background matchup enrichment did not finish.';
+            }
         }
     }
 
@@ -4665,9 +4964,7 @@ function renderReplyHeroStrip(answer, meta) {
         p.set('include_scrims', includeScrims ? '1' : '0');
         p.set('include_tournaments', includeTournaments ? '1' : '0');
         try {
-            const resp = await fetch('/api/draft-reasoner/model?' + p, {headers:{'X-Requested-With':'XMLHttpRequest'}});
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            drModel = await resp.json();
+            drModel = await drFetchModelJson('/api/draft-reasoner/model?' + p, 25000);
 
             const teams = drModel.teams || [];
             const nameA = (teams[0]||{}).name || 'Our Team';
@@ -4986,33 +5283,9 @@ function renderReplyHeroStrip(answer, meta) {
             return (heroes || []).filter(Boolean).map(drHeroPoolHeroKey).join('||');
         }
 
-        function heroKeySet(list) {
-            return new Set((list || []).filter(Boolean).map(drHeroPoolHeroKey));
-        }
-
-        function hasHeroByKey(list, hero) {
-            const key = drHeroPoolHeroKey(hero);
-            if (!key) return false;
-            return heroKeySet(list).has(key);
-        }
-
         function overlapCount(left, right) {
             const rightSet = heroKeySet(right || []);
             return (left || []).filter(function(item) { return rightSet.has(drHeroPoolHeroKey(item)); }).length;
-        }
-
-        function mergeSlotLocks(slotKeys, lockedDraftSide, suggestedHeroes) {
-            const lockedValues = slotKeys.map(function(slotKey) {
-                return (lockedDraftSide && lockedDraftSide[slotKey]) ? lockedDraftSide[slotKey] : '';
-            });
-            const used = heroKeySet(lockedValues);
-            const queue = (suggestedHeroes || []).filter(function(hero) {
-                return hero && !used.has(drHeroPoolHeroKey(hero));
-            });
-            return slotKeys.map(function(slotKey, idx) {
-                if (lockedValues[idx]) return lockedValues[idx];
-                return queue.shift() || '';
-            }).filter(Boolean);
         }
 
         function lineCompatibilityScore(pathRow, lockedBans, lockedProtects) {
@@ -5883,6 +6156,10 @@ function renderReplyHeroStrip(answer, meta) {
 
     // --- slot click ---
     function drActivateSlot(el) {
+        if (!drHeroPickerLoaded) {
+            drEnsureHeroPickerLoaded();
+        }
+        hydrateHeroImages(document.getElementById('dr-hero-picker-grid'));
         // Lazy-init hero role lookup on first slot activation
         if (!drHeroRoleLookupBuilt) {
             drBuildHeroRoleLookup();
@@ -6011,6 +6288,121 @@ function renderReplyHeroStrip(answer, meta) {
             .filter(Boolean);
     }
 
+    function drGetSuggestStateKey(nameA, nameB, mapFilter) {
+        return JSON.stringify({
+            a: drDraft.a || {},
+            b: drDraft.b || {},
+            lineup: drActiveLineup ? Array.from(drActiveLineup).sort() : [],
+            playMode: !!drPlayMode,
+            map: mapFilter || '',
+            nameA: nameA || '',
+            nameB: nameB || '',
+        });
+    }
+
+    function drCloneSuggestState() {
+        return JSON.parse(JSON.stringify(drSuggest || {a:{}, b:{}}));
+    }
+
+    function drRestoreSuggestState(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return;
+        drSuggest = snapshot;
+    }
+
+    function drScheduleFullSuggestCompute(mA, mB, nameA, nameB, mapFilter) {
+        const cacheKey = drGetSuggestStateKey(nameA, nameB, mapFilter);
+        if (drSuggestCache.has(cacheKey)) {
+            drRestoreSuggestState(drSuggestCache.get(cacheKey));
+            return true;
+        }
+        if (drSuggestComputeQueued && drPendingSuggestKey === cacheKey) {
+            return false;
+        }
+
+        drSuggestComputeQueued = true;
+        drPendingSuggestKey = cacheKey;
+        const schedule = (typeof window.requestIdleCallback === 'function')
+            ? function(cb) { window.requestIdleCallback(cb, {timeout: 250}); }
+            : function(cb) { setTimeout(cb, 0); };
+
+        schedule(function() {
+            drSuggestComputeQueued = false;
+            const liveKey = drGetSuggestStateKey(nameA, nameB, mapFilter);
+            if (liveKey !== cacheKey) return;
+            drComputeSuggestions(mA, mB, nameA, nameB, mapFilter);
+            drSuggestCache.set(cacheKey, drCloneSuggestState());
+            drRender();
+        });
+        return false;
+    }
+
+    function drSyncTeamNamesFromSelectors() {
+        const teamASel = document.getElementById('dr-team-a');
+        const teamBSel = document.getElementById('dr-team-b');
+        const teamAText = teamASel && teamASel.selectedOptions && teamASel.selectedOptions[0]
+            ? String(teamASel.selectedOptions[0].textContent || '').trim()
+            : '';
+        const teamBText = teamBSel && teamBSel.selectedOptions && teamBSel.selectedOptions[0]
+            ? String(teamBSel.selectedOptions[0].textContent || '').trim()
+            : '';
+        drTeamNames.a = teamAText || drTeamNames.a || 'Our Team';
+        drTeamNames.b = teamBText || drTeamNames.b || 'Enemy Team';
+        const colA = document.getElementById('dr-col-a-label');
+        const colB = document.getElementById('dr-col-b-label');
+        if (colA) colA.textContent = drTeamNames.a;
+        if (colB) colB.textContent = drTeamNames.b;
+    }
+
+    function drInferPoolOnlyEnemySuggestions() {
+        drSyncTeamNamesFromSelectors();
+        const ourTeamTiers = drGetTeamPoolTiers('a') || {};
+        const enemyTeamTiers = drGetTeamPoolTiers('b') || {};
+        const usedKeys = new Set(
+            Object.values(drDraft.a || {})
+                .concat(Object.values(drDraft.b || {}))
+                .filter(Boolean)
+                .map(drHeroPoolHeroKey)
+        );
+
+        function rankHeroes(teamTiers) {
+            const heroMap = new Map();
+            Object.keys(teamTiers || {}).forEach(function(playerName) {
+                const pool = teamTiers[playerName] || {};
+                Object.keys(pool).forEach(function(heroName) {
+                    const hero = String(heroName || '').trim();
+                    const tier = String(pool[heroName] || '').trim();
+                    if (!hero) return;
+                    const key = drHeroPoolHeroKey(hero);
+                    if (!key || usedKeys.has(key)) return;
+                    const prio = drTierPriority(tier);
+                    const score = (prio * 100) + (tier === 'S+' ? 20 : 0);
+                    const existing = heroMap.get(key);
+                    if (!existing || score > existing.score) {
+                        heroMap.set(key, {hero: hero, tier: tier, score: score});
+                    }
+                });
+            });
+            return Array.from(heroMap.values())
+                .sort(function(a, b) {
+                    return (b.score - a.score)
+                        || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+                })
+                .map(function(r) { return r.hero; });
+        }
+
+        const inferredEnemyBans = rankHeroes(ourTeamTiers).slice(0, 4);
+        const inferredEnemyProtects = rankHeroes(enemyTeamTiers)
+            .filter(function(hero) { return !hasHeroByKey(inferredEnemyBans, hero); })
+            .slice(0, 2);
+        const inferredEnemyComp = rankHeroes(enemyTeamTiers)
+            .filter(function(hero) { return !hasHeroByKey(inferredEnemyBans, hero); })
+            .slice(0, 6);
+
+        drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, inferredEnemyBans);
+        drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, inferredEnemyProtects);
+        drSuggest.b.comp = inferredEnemyComp;
+    }
+
     function drUpdateHeroAvailability() {
         const buttons = document.querySelectorAll('#dr-hero-picker-grid .hero-pick-btn');
         if (!drActiveSlot) {
@@ -6095,16 +6487,23 @@ function renderReplyHeroStrip(answer, meta) {
     function drRender() {
         const stream = document.getElementById('dr-reason-stream');
         if (!drModel) {
-            document.getElementById('dr-overview-setup').textContent = 'Simulator mode (no imported matchup yet).';
+            drInferPoolOnlyEnemySuggestions();
+            document.getElementById('dr-overview-setup').textContent = 'No matchup loaded yet.';
             document.getElementById('dr-overview-target').innerHTML = '<span class="dr-overview-empty">Open Settings to import target comp data.</span>';
             document.getElementById('dr-overview-open-core').innerHTML = '<span class="dr-overview-empty">Open Settings to import comfort-core context.</span>';
             document.getElementById('dr-overview-contested').innerHTML = '<span class="dr-overview-empty">Open Settings to import contested priorities.</span>';
-            stream.innerHTML = '<p class="matchup-empty">Draft freely now, then open Settings and click Apply Settings to import matchup intelligence.</p>';
+            const inferredBanText = (drSuggest.b.bans || []).slice(0, 4).join(', ') || 'not enough hero-pool data yet';
+            const inferredProtectText = (drSuggest.b.protects || []).slice(0, 2).join(', ') || 'none';
+            stream.innerHTML = '<p class="matchup-empty">Choose teams and build a draft plan to import matchup intelligence.</p>'
+                + '<p class="matchup-empty"><strong>Likely enemy bans:</strong> ' + escapeHtml(inferredBanText) + '</p>'
+                + '<p class="matchup-empty"><strong>Likely enemy protects:</strong> ' + escapeHtml(inferredProtectText) + '</p>';
             if (drOpenHeroesMeta) drOpenHeroesMeta.textContent = 'Build a plan to see what is still open.';
             if (drOpenHeroesList) drOpenHeroesList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
             if (drOpenBanMeta) drOpenBanMeta.textContent = 'Build a plan to see useful ban targets.';
             if (drOpenBanTargetsList) drOpenBanTargetsList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
             drRenderHeroPools('Our Team', 'Enemy Team');
+            if (drPlayBtn) drPlayBtn.style.display = '';
+            drScheduleLiveAiAnalysis(false);
             return;
         }
         const teams = drModel.teams || [];
@@ -6116,9 +6515,14 @@ function renderReplyHeroStrip(answer, meta) {
         const mB = (teams[1]||{}).model || {};
         drRenderHeroPools(nameA, nameB);
 
-        // Re-run simulator recommendations whenever draft inputs change.
+        // Keep interactions responsive: reuse cached suggestions when available,
+        // otherwise render a lightweight inference immediately and compute the
+        // full model suggestion after paint.
         if (drContext) {
-            drComputeSuggestions(mA, mB, nameA, nameB, drContext.mapFilter || '');
+            const usedCachedSuggestions = drScheduleFullSuggestCompute(mA, mB, nameA, nameB, drContext.mapFilter || '');
+            if (!usedCachedSuggestions) {
+                drInferPoolOnlyEnemySuggestions();
+            }
         }
         drUpdateTurnLocking();
 
@@ -6750,14 +7154,24 @@ function renderReplyHeroStrip(answer, meta) {
             + renderNotesSection('Comp Path Analysis', pathAnalysisCards)
             + renderNotesSection('Watch List', watchCards)
             + '</div>';
+        drScheduleLiveAiAnalysis(false);
     }
 
-    // Simulator-first default: show board/picker without requiring data import.
-    if (workspaceSec) workspaceSec.style.display = '';
-    if (pickerSec) pickerSec.style.display = '';
-    drRenderUsed();
-    // Skip initial drRender() since drModel is null on page load (drRender() called after model loads)
-    drAutoFocusNextStep();
+    let drBooted = false;
+    function drBootIfNeeded() {
+        if (drBooted) return;
+        drBooted = true;
+        // Simulator-first default: show board/picker without requiring data import.
+        if (workspaceSec) workspaceSec.style.display = '';
+        if (pickerSec) pickerSec.style.display = '';
+        hydrateHeroImages(document.getElementById('dr-hero-picker-grid'));
+        drRenderUsed();
+        drAutoFocusNextStep();
+    }
+    window.drEnsureReasonerBoot = drBootIfNeeded;
+    if (activeMachineTab === 'reasoner') {
+        drBootIfNeeded();
+    }
 })();
 </script>
 {% endblock %}

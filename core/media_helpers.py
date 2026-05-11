@@ -346,6 +346,7 @@ def _hero_image_candidate_urls(hero_name: str) -> list[str]:
         if images:
             filename = Path(images[0]).name
             dotgg_filename = re.sub(r"-\d+(?=\.webp$)", "", filename)
+            candidates.append(f"https://marvelrivalsapi.com/rivals{images[0]}")
             candidates.append(f"https://static.dotgg.gg/rivals/characters/{dotgg_filename}")
 
     return candidates
@@ -379,7 +380,7 @@ def hero_image_proxy(hero_name: str):
     for image_url in _hero_image_candidate_urls(requested):
         try:
             remote_request = Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
-            with urlopen(remote_request, timeout=4) as remote_response:
+            with urlopen(remote_request, timeout=1.25) as remote_response:
                 content_type = remote_response.headers.get_content_type() or "image/webp"
                 if not content_type.startswith("image/"):
                     continue
@@ -396,6 +397,7 @@ def hero_image_proxy(hero_name: str):
             continue
 
     placeholder = _hero_image_placeholder_svg(requested).encode("utf-8")
+    _HERO_IMAGE_CACHE[cache_key] = (now, placeholder, "image/svg+xml")
     return Response(
         placeholder,
         mimetype="image/svg+xml",
