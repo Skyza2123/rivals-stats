@@ -322,6 +322,19 @@ def _canonical_map_name(map_name: str) -> str:
 
 def _map_image_source_url(map_name: str) -> str:
     canonical_name = _canonical_map_name(map_name)
+    if canonical_name:
+        local_slug = re.sub(r"[^a-z0-9]+", "_", canonical_name.lower()).strip("_")
+        local_candidates = [
+            f"{local_slug}.jpg",
+            f"{local_slug}.jpeg",
+            f"{local_slug}.png",
+            f"{local_slug}.webp",
+            f"{local_slug}.svg",
+        ]
+        for filename in local_candidates:
+            local_path = Path(app.static_folder) / "maps" / filename
+            if local_path.exists():
+                return f"/static/maps/{filename}"
     return MAP_IMAGES.get(canonical_name, "")
 
 
