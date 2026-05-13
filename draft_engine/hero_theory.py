@@ -809,6 +809,11 @@ def get_heroes_for_prompt(hero_names: list[str]) -> str:
 #   engage_score       : 1-10 — ability to initiate or create a fight
 #   peel_score         : 1-10 — ability to protect allies from dives/flanks
 #   execution_difficulty: 1-10 — mechanical/decision skill required to extract value
+#   pressure_type      : engage | poke | hybrid | balanced
+#   fight_pacing       : 1-10 — preferred pace, higher means faster fights
+#   stability          : 1-10 — consistency under pressure (durability + peel)
+#   execution_burden   : 1-10 — practical difficulty to execute cleanly
+#   strategic_contribution: 1-10 — macro impact from pressure, initiation, and utility
 
 HERO_SCORES: dict[str, dict] = {
 
@@ -1086,6 +1091,51 @@ HERO_SCORES: dict[str, dict] = {
         # sustain_score=7 from regen — lets him trade where other melee duelists cannot
     },
 }
+
+
+def _clamp_score(value: float, low: int = 1, high: int = 10) -> int:
+    return max(low, min(high, int(round(value))))
+
+
+def _derive_pressure_type(scores: dict) -> str:
+    engage = int(scores.get("engage_score", 0))
+    poke = int(scores.get("poke_score", 0))
+    if engage >= 7 and poke >= 7:
+        return "hybrid"
+    if engage - poke >= 3:
+        return "engage"
+    if poke - engage >= 3:
+        return "poke"
+    return "balanced"
+
+
+def _derive_extended_score_fields(scores: dict) -> dict:
+    mobility = int(scores.get("mobility_score", 0))
+    sustain = int(scores.get("sustain_score", 0))
+    poke = int(scores.get("poke_score", 0))
+    engage = int(scores.get("engage_score", 0))
+    peel = int(scores.get("peel_score", 0))
+    execution = int(scores.get("execution_difficulty", 0))
+
+    # Fight pacing skews toward engage and mobility, with poke as a smaller pacing factor.
+    fight_pacing = _clamp_score((engage * 0.55) + (mobility * 0.35) + (poke * 0.10))
+    stability = _clamp_score((sustain * 0.60) + (peel * 0.40))
+    execution_burden = _clamp_score(execution)
+    strategic_contribution = _clamp_score(
+        (engage * 0.35) + (peel * 0.25) + (poke * 0.20) + (sustain * 0.20)
+    )
+
+    return {
+        "pressure_type": _derive_pressure_type(scores),
+        "fight_pacing": fight_pacing,
+        "stability": stability,
+        "execution_burden": execution_burden,
+        "strategic_contribution": strategic_contribution,
+    }
+
+
+for _hero_name, _hero_scores in HERO_SCORES.items():
+    _hero_scores.update(_derive_extended_score_fields(_hero_scores))
 
 
 # ---------------------------------------------------------------------------

@@ -875,22 +875,14 @@ def add_map(scrim_id: int):
     }
     side1_team_id = parse_team_id(request.form.get("map_team1_team_id", ""))
 
+    map_entry["team1_id"] = participant_one.get("id")
+    map_entry["team2_id"] = participant_two.get("id")
+    map_entry["team1_name"] = participant_one.get("name", "")
+    map_entry["team2_name"] = participant_two.get("name", "")
     if side1_team_id in valid_team_ids and participant_one.get("id") and participant_two.get("id"):
-        if side1_team_id == participant_one.get("id"):
-            side1_team = participant_one
-            side2_team = participant_two
-        else:
-            side1_team = participant_two
-            side2_team = participant_one
+        map_entry["our_team_slot"] = "team1" if side1_team_id == participant_one.get("id") else "team2"
     else:
-        side1_team = participant_one
-        side2_team = participant_two
-
-    map_entry["team1_id"] = side1_team.get("id")
-    map_entry["team2_id"] = side2_team.get("id")
-    map_entry["team1_name"] = side1_team.get("name", "")
-    map_entry["team2_name"] = side2_team.get("name", "")
-    map_entry["our_team_slot"] = "team1" if side1_team.get("id") == participant_one.get("id") else "team2"
+        map_entry["our_team_slot"] = "team1"
     inferred_result = infer_result_from_score_text(map_entry.get("score", ""), slot=map_entry["our_team_slot"])
     if inferred_result:
         map_entry["result"] = inferred_result

@@ -559,39 +559,12 @@ def update_map_info(scrim_id: int, map_id: int):
         )
         if inferred in RESULTS:
             map_entry["result"] = inferred
-    
-    if side1_team_id in valid_team_ids and participant_one.get("id") and participant_two.get("id"):
-        if side1_team_id == participant_one.get("id"):
-            side1_team = participant_one
-            side2_team = participant_two
-        else:
-            side1_team = participant_two
-            side2_team = participant_one
-        map_entry["team1_id"] = side1_team.get("id")
-        map_entry["team2_id"] = side2_team.get("id")
-        map_entry["team1_name"] = side1_team.get("name", "")
-        map_entry["team2_name"] = side2_team.get("name", "")
 
-    # Final side-name sync from ids so "Team on Side 1" stays authoritative.
-    if map_entry.get("team1_id"):
-        row = get_db().execute("SELECT name FROM teams WHERE id = ?", (map_entry["team1_id"],)).fetchone()
-        if row is not None:
-            map_entry["team1_name"] = row["name"]
-    if map_entry.get("team2_id"):
-        row = get_db().execute("SELECT name FROM teams WHERE id = ?", (map_entry["team2_id"],)).fetchone()
-        if row is not None:
-            map_entry["team2_name"] = row["name"]
-
-    if (
-        (map_entry.get("team1_name", "") or "").strip().lower() != (map_entry.get("team2_name", "") or "").strip().lower()
-        and map_entry.get("team1_id")
-        and map_entry.get("team1_id") == map_entry.get("team2_id")
-    ):
-        map_entry["team2_id"] = participant_two.get("id") if side1_team_id == participant_one.get("id") else participant_one.get("id")
-        if map_entry.get("team2_id"):
-            row = get_db().execute("SELECT name FROM teams WHERE id = ?", (map_entry["team2_id"],)).fetchone()
-            if row is not None:
-                map_entry["team2_name"] = row["name"]
+    # Keep map team identity in scrim order; side selection is tracked via our_team_slot.
+    map_entry["team1_id"] = participant_one.get("id")
+    map_entry["team2_id"] = participant_two.get("id")
+    map_entry["team1_name"] = participant_one.get("name", "")
+    map_entry["team2_name"] = participant_two.get("name", "")
     has_submaps = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), []))
     if has_submaps:
         map_entry["side"] = request.form.get("side", map_entry.get("side", "")).strip()

@@ -402,43 +402,12 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         participant_one_label, participant_two_label = get_scrim_participant_labels(match_record)
         participant_one_id = participant_one.get("id")
         participant_two_id = participant_two.get("id")
-        if not map_entry.get("team1_id") and participant_one_id:
-            map_entry["team1_id"] = participant_one_id
-        if not map_entry.get("team2_id") and participant_two_id:
-            map_entry["team2_id"] = participant_two_id
-        if not (map_entry.get("team1_name") or "").strip():
-            map_entry["team1_name"] = participant_one_label
-        if not (map_entry.get("team2_name") or "").strip():
-            map_entry["team2_name"] = participant_two_label
-        team1_label = (map_entry.get("team1_name") or "").strip() or participant_one_label
-        team2_label = (map_entry.get("team2_name") or "").strip() or participant_two_label
-
-        # Canonicalize side IDs by team names so each side resolves to the
-        # correct roster even when legacy ids drift after migrations.
-        team1_row = db.execute(
-            "SELECT id FROM teams WHERE lower(name) = lower(?)",
-            (team1_label,),
-        ).fetchone() if team1_label else None
-        team2_row = db.execute(
-            "SELECT id FROM teams WHERE lower(name) = lower(?)",
-            (team2_label,),
-        ).fetchone() if team2_label else None
-
-        if team1_row:
-            map_entry["team1_id"] = team1_row["id"]
-        if team2_row:
-            map_entry["team2_id"] = team2_row["id"]
-
-        # If labels are different, never allow both sides to share the same id.
-        if (
-            (team1_label or "").strip().lower() != (team2_label or "").strip().lower()
-            and map_entry.get("team1_id")
-            and map_entry.get("team1_id") == map_entry.get("team2_id")
-        ):
-            if team2_row:
-                map_entry["team2_id"] = team2_row["id"]
-            elif team1_row:
-                map_entry["team1_id"] = team1_row["id"]
+        map_entry["team1_id"] = participant_one_id
+        map_entry["team2_id"] = participant_two_id
+        map_entry["team1_name"] = participant_one_label
+        map_entry["team2_name"] = participant_two_label
+        team1_label = participant_one_label or "Team 1"
+        team2_label = participant_two_label or "Team 2"
 
         team_id = match_record.get("team_id")
         player_rows = []

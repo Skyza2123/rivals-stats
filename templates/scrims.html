@@ -67,7 +67,19 @@
             {% for scrim in scrims %}
                 <a class="scrim-box-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
                     <div class="scrim-box-head">
-                        <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
+                        <div class="list-title">
+                            {% if scrim.team1_name and scrim.team2_name %}
+                                {{ scrim.team1_name }} vs {{ scrim.team2_name }}
+                            {% elif scrim.team_name and (scrim.enemy_team or scrim.opponent) %}
+                                {{ scrim.team_name }} vs {{ scrim.enemy_team or scrim.opponent }}
+                            {% elif scrim.team_name %}
+                                {{ scrim.team_name }}
+                            {% elif scrim.enemy_team or scrim.opponent %}
+                                vs {{ scrim.enemy_team or scrim.opponent }}
+                            {% else %}
+                                Scrim
+                            {% endif %}
+                        </div>
                         <span class="scrim-box-maps">{{ scrim.maps|length }} maps</span>
                     </div>
                     <div class="list-subtitle">
