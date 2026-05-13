@@ -183,6 +183,7 @@
     font-size:0.83rem;
     color:#cbd5e1;
     line-height:1.5;
+    white-space:pre-wrap;
 }
 .dr-guide-meta {
     font-size:0.8rem;
@@ -4802,7 +4803,7 @@ function renderReplyHeroStrip(answer, meta) {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
                 body: JSON.stringify({
-                    message: 'Analyze this live draft state. Be concise: call out the current win condition, the biggest danger, and the next best ban or protect.',
+                    message: 'Analyze this live draft as a strategic system, not isolated heroes. First explain current strategic pressure, pressure that disappears after likely changes, identity each team is preserving, draft trajectory, pacing, stability, pressure conversion, recovery after failed engages, and adaptation windows. Separate theoretical strength, execution burden, comfort, draft structure, and adaptation success. Only after that, give the recommended strategic objective with tradeoffs, risks, and confidence.',
                     context: drBuildLiveAiContext(snapshot),
                 }),
             });

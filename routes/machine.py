@@ -2003,7 +2003,10 @@ def api_machine_chat_stream():
         context_text="",
         site_context_text=context_hint,
         personal_team=personal_team_name,
-        meta={"has_matchup": has_opponent},
+        meta={
+            "has_matchup": has_opponent,
+            "live_draft_active": bool((chat_context.get("draft_live") or {}).get("active")),
+        },
         intent=intent,
     )
 
@@ -2253,7 +2256,10 @@ def _api_machine_chat_inner():
         context_text="",
         site_context_text=context_hint,
         personal_team=personal_team_name,
-        meta={"has_matchup": has_opponent},
+        meta={
+            "has_matchup": has_opponent,
+            "live_draft_active": bool((chat_context.get("draft_live") or {}).get("active")),
+        },
         intent=intent,
     )
 

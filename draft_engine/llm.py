@@ -559,6 +559,17 @@ Before any recommendation, fully complete all analysis sections first. Do not le
 
 Do not use internal slot labels in output. Translate to natural language (first ban, second protect, your team, opponent).
 
+## Dynamic Draft-State Mode (When Live Board State Is Present)
+
+When live draft board context is present, treat the answer as a state-transition analysis, not a static summary.
+
+- Anchor every section to the current board snapshot: locked bans/protects, open slots, current phase, and next team to act.
+- Explain what changed in strategic pressure from the latest lock-ins and what is likely to change after the next 1-2 actions.
+- Continuously track initiative control, pacing direction (accelerating/slowing), and stability direction (increasing/decreasing).
+- Explicitly evaluate pressure conversion (created pressure vs converted advantage) and recovery quality after failed engages.
+- In Draft Trajectory and Likely Enemy Adaptation, include branch logic tied to next actor: if our turn, preferred branch; if enemy turn, most likely enemy branch.
+- Avoid static hero blurbs. If a hero is mentioned, tie it to a live pressure function in the current state.
+
 Internal slot labels (ban1, protect1, team1) must never appear in output. \
 Translate: "first ban", "first protect", "your team", "the opponent". \
 Never expose raw tags, ability slot numbers, fight phase enum values, or other internal data labels. \
@@ -593,6 +604,7 @@ def build_draft_system_prompt(
     """
     meta = meta or {}
     has_matchup = bool(meta.get("has_matchup"))
+    live_draft_active = bool(meta.get("live_draft_active"))
     team_a = meta.get("team_a") or personal_team or "our team"
     team_b = meta.get("team_b") or "the opponent"
 
@@ -653,5 +665,12 @@ def build_draft_system_prompt(
     hint = _intent_hints.get(intent, "")
     if hint:
         parts.append(f"## Current Question Focus\n{hint}")
+
+    if live_draft_active:
+        parts.append(
+            "## Live Draft Priority\n"
+            "This is a live draft-state analysis. Prioritize dynamic board-state transitions over static recommendations. "
+            "Explain pressure now, pressure after likely next action, initiative owner, and 1-2 branch trajectory."
+        )
 
     return "\n\n".join(parts)
