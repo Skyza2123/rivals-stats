@@ -5,6 +5,8 @@
 {% block content %}
 {% set team1_draft_slots = [('ban1','Ban 1'),('ban2','Ban 2'),('protect1','Protect 1'),('ban3','Ban 3'),('protect2','Protect 2'),('ban4','Ban 4')] %}
 {% set team2_draft_slots = [('ban1','Ban 1'),('protect1','Protect 1'),('ban2','Ban 2'),('ban3','Ban 3'),('ban4','Ban 4'),('protect2','Protect 2')] %}
+{% set display_team1_slot = display_team1_slot|default('team1') %}
+{% set display_team2_slot = display_team2_slot|default('team2') %}
 {% set section_scores = [] %}
 {% for sec in map_entry.comp %}
     {% if sec.score %}
@@ -17,8 +19,13 @@
 {% endfor %}
 {% set summary_score = map_entry.score if map_entry.score else (' | '.join(section_scores) if section_scores else '') %}
 {% set score_pair = split_score_pair(map_entry.score or '') %}
-{% set team1_score_raw = score_pair[0] | trim %}
-{% set team2_score_raw = score_pair[1] | trim %}
+{% if display_team1_slot == 'team2' %}
+    {% set team1_score_raw = score_pair[1] | trim %}
+    {% set team2_score_raw = score_pair[0] | trim %}
+{% else %}
+    {% set team1_score_raw = score_pair[0] | trim %}
+    {% set team2_score_raw = score_pair[1] | trim %}
+{% endif %}
 {% set winner_label = 'Not Set' %}
 {% if team1_score_raw.isdigit() and team2_score_raw.isdigit() %}
     {% set team1_score = team1_score_raw | int %}
@@ -78,7 +85,7 @@
             <h4>{{ team1_label }}</h4>
             <div class="draft-slots">
                 {% for slot in team1_draft_slots %}
-                {% set hero = map_entry.draft.team1[slot[0]] %}
+                {% set hero = map_entry.draft[display_team1_slot][slot[0]] %}
                 <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
                     <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
                     {% if hero and hero in hero_transformations %}
@@ -93,7 +100,7 @@
             <h4>{{ team2_label }}</h4>
             <div class="draft-slots">
                 {% for slot in team2_draft_slots %}
-                {% set hero = map_entry.draft.team2[slot[0]] %}
+                {% set hero = map_entry.draft[display_team2_slot][slot[0]] %}
                 <div class="draft-slot slot-display {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot[0] else '' }}">
                     <span class="slot-label {{ 'protect-label' if 'protect' in slot[0] else 'ban-label' }}">{{ slot[1] }}</span>
                     {% if hero and hero in hero_transformations %}
@@ -130,7 +137,7 @@
             <div class="comp-team">
                 <h4 class="comp-team-label team1-label">{{ team1_label }}</h4>
                 <div class="comp-slots">
-                    {% for entry in sec.team1 %}
+                    {% for entry in sec[display_team1_slot] %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
                         {% if entry.hero and entry.hero in hero_transformations %}
                         <div class="comp-hero-img"><img src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}"></div>
@@ -148,7 +155,7 @@
             <div class="comp-team">
                 <h4 class="comp-team-label team2-label">{{ team2_label }}</h4>
                 <div class="comp-slots">
-                    {% for entry in sec.team2 %}
+                    {% for entry in sec[display_team2_slot] %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
                         {% if entry.hero and entry.hero in hero_transformations %}
                         <div class="comp-hero-img"><img src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}"></div>
@@ -392,19 +399,19 @@
                     <h4 class="team-label team1-label">{{ team1_label }}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
-                        {% set entry = sec.team1[i] %}
-                            {% set team1_selected_player = sec.team1[i].player or ((team1_default_players[i] if i < (team1_default_players|length) else '') if (team1_player_options|length) else '') %}
+                        {% set entry = sec[display_team1_slot][i] %}
+                            {% set team1_selected_player = sec[display_team1_slot][i].player or ((team1_default_players[i] if i < (team1_default_players|length) else '') if (team1_player_options|length) else '') %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
-                             data-player-slot="team1_player_{{ i }}"
+                             data-player-slot="{{ display_team1_slot }}_player_{{ i }}"
                              onclick="activateCompSlot(this)">
                             {% if entry.hero and entry.hero in hero_transformations %}
                             <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
                             <span class="slot-hero-sub {{ 'show' if team1_selected_player else '' }}">{{ team1_selected_player or 'Click slot to assign player' }}</span>
-                            <input type="hidden" name="team1_hero_{{ i }}" value="{{ entry.hero or '' }}">
-                            <input type="hidden" name="team1_player_{{ i }}" value="{{ team1_selected_player }}">
+                            <input type="hidden" name="{{ display_team1_slot }}_hero_{{ i }}" value="{{ entry.hero or '' }}">
+                            <input type="hidden" name="{{ display_team1_slot }}_player_{{ i }}" value="{{ team1_selected_player }}">
                         </div>
                         {% endfor %}
                     </div>
@@ -413,19 +420,19 @@
                     <h4 class="team-label team2-label">{{ team2_label }}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
-                        {% set entry = sec.team2[i] %}
-                            {% set team2_selected_player = sec.team2[i].player or ((team2_default_players[i] if i < (team2_default_players|length) else '') if (team2_player_options|length) else '') %}
+                        {% set entry = sec[display_team2_slot][i] %}
+                            {% set team2_selected_player = sec[display_team2_slot][i].player or ((team2_default_players[i] if i < (team2_default_players|length) else '') if (team2_player_options|length) else '') %}
                         <div class="comp-pick-slot draft-slot {{ 'slot-filled' if entry.hero else '' }}"
                              data-comp-modal="{{ s }}"
-                             data-player-slot="team2_player_{{ i }}"
+                             data-player-slot="{{ display_team2_slot }}_player_{{ i }}"
                              onclick="activateCompSlot(this)">
                             {% if entry.hero and entry.hero in hero_transformations %}
                             <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy"></div>
                             {% endif %}
                             <span class="slot-hero">{{ entry.hero or '\u2014' }}</span>
                             <span class="slot-hero-sub {{ 'show' if team2_selected_player else '' }}">{{ team2_selected_player or 'Click slot to assign player' }}</span>
-                            <input type="hidden" name="team2_hero_{{ i }}" value="{{ entry.hero or '' }}">
-                            <input type="hidden" name="team2_player_{{ i }}" value="{{ team2_selected_player }}">
+                            <input type="hidden" name="{{ display_team2_slot }}_hero_{{ i }}" value="{{ entry.hero or '' }}">
+                            <input type="hidden" name="{{ display_team2_slot }}_player_{{ i }}" value="{{ team2_selected_player }}">
                         </div>
                         {% endfor %}
                     </div>
@@ -505,14 +512,14 @@
                     <h4 class="team-label team1-label">{{ team1_label }}</h4>
                     <div class="draft-slots">
                         {% for slot_key, slot_label in team1_draft_slots %}
-                        {% set hero = map_entry.draft.team1[slot_key] %}
-                        <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="team1_{{ slot_key }}" onclick="activateDraftSlot(this)">
+                        {% set hero = map_entry.draft[display_team1_slot][slot_key] %}
+                        <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="{{ display_team1_slot }}_{{ slot_key }}" onclick="activateDraftSlot(this)">
                             <span class="slot-label {{ 'protect-label' if 'protect' in slot_key else 'ban-label' }}">{{ slot_label }}</span>
                             {% if hero and hero in hero_transformations %}
                             <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
                             {% endif %}
                             <span class="slot-hero">{{ hero or '—' }}</span>
-                            <input type="hidden" name="team1_{{ slot_key }}" value="{{ hero }}">
+                            <input type="hidden" name="{{ display_team1_slot }}_{{ slot_key }}" value="{{ hero }}">
                         </div>
                         {% endfor %}
                     </div>
@@ -521,14 +528,14 @@
                     <h4 class="team-label team2-label">{{ team2_label }}</h4>
                     <div class="draft-slots">
                         {% for slot_key, slot_label in team2_draft_slots %}
-                        {% set hero = map_entry.draft.team2[slot_key] %}
-                        <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="team2_{{ slot_key }}" onclick="activateDraftSlot(this)">
+                        {% set hero = map_entry.draft[display_team2_slot][slot_key] %}
+                        <div class="draft-slot draft-pick-slot {{ 'slot-filled' if hero else '' }} {{ 'slot-protect' if 'protect' in slot_key else '' }}" data-slot="{{ display_team2_slot }}_{{ slot_key }}" onclick="activateDraftSlot(this)">
                             <span class="slot-label {{ 'protect-label' if 'protect' in slot_key else 'ban-label' }}">{{ slot_label }}</span>
                             {% if hero and hero in hero_transformations %}
                             <div class="slot-img-wrap"><img class="slot-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}"></div>
                             {% endif %}
                             <span class="slot-hero">{{ hero or '—' }}</span>
-                            <input type="hidden" name="team2_{{ slot_key }}" value="{{ hero }}">
+                            <input type="hidden" name="{{ display_team2_slot }}_{{ slot_key }}" value="{{ hero }}">
                         </div>
                         {% endfor %}
                     </div>
@@ -646,7 +653,7 @@
 {% endif %}
 
 <script id="compPlayerOptionsData" type="application/json">
-{{ {'team1': team1_player_options, 'team2': team2_player_options}|tojson }}
+{{ comp_player_options_by_slot|tojson }}
 </script>
 
 <script id="mapDraftBanHeroesData" type="application/json">
@@ -969,6 +976,10 @@ const MAP_DRAFT_BAN_HEROES_BY_TEAM = (() => {
         team2: new Set((payload.team2 || []).map((hero) => (hero || '').trim()).filter(Boolean))
     };
 })();
+const MAP_SLOT_LABELS = {
+    "{{ display_team1_slot }}": "{{ team1_label|e }}",
+    "{{ display_team2_slot }}": "{{ team2_label|e }}"
+};
 function getCompTeamFromSlotName(slotName) {
     if (!slotName) return '';
     if (slotName.startsWith('team1_')) return 'team1';
@@ -1012,7 +1023,8 @@ function applyPlayerValueToControls(form, slotName, value) {
 
 function getCompSlotLabel(slotName) {
     if (!slotName) return 'Slot';
-    var teamText = slotName.startsWith('team1_') ? '{{ team1_label|e }}' : '{{ team2_label|e }}';
+    var teamKey = getCompTeamFromSlotName(slotName);
+    var teamText = MAP_SLOT_LABELS[teamKey] || (teamKey === 'team1' ? '{{ team1_label|e }}' : '{{ team2_label|e }}');
     var idxPart = slotName.split('_').pop();
     var idx = Number(idxPart);
     if (Number.isFinite(idx)) {

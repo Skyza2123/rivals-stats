@@ -1999,13 +1999,14 @@ def api_machine_chat_stream():
         context_hint += "\n\n" + draft_live_hint
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
+    live_draft_active = bool((chat_context.get("draft_live") or {}).get("active"))
     system_prompt = build_draft_system_prompt(
         context_text="",
         site_context_text=context_hint,
         personal_team=personal_team_name,
         meta={
             "has_matchup": has_opponent,
-            "live_draft_active": bool((chat_context.get("draft_live") or {}).get("active")),
+            "live_draft_active": live_draft_active,
         },
         intent=intent,
     )
@@ -2018,6 +2019,11 @@ def api_machine_chat_stream():
             system_prompt=system_prompt,
             tools=_AGENT_TOOLS,
             tool_executor=tool_executor,
+            temperature=0.25 if live_draft_active else 0.7,
+            max_tokens=650 if live_draft_active else None,
+            max_steps=2 if live_draft_active else 5,
+            timeout=10 if live_draft_active else 30,
+            deadline_seconds=9.5 if live_draft_active else None,
         ):
             etype = event.get("type")
             if etype in ("tool_start", "tool_end"):
@@ -2252,13 +2258,14 @@ def _api_machine_chat_inner():
         context_hint += "\n\n" + draft_live_hint
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
+    live_draft_active = bool((chat_context.get("draft_live") or {}).get("active"))
     system_prompt = build_draft_system_prompt(
         context_text="",
         site_context_text=context_hint,
         personal_team=personal_team_name,
         meta={
             "has_matchup": has_opponent,
-            "live_draft_active": bool((chat_context.get("draft_live") or {}).get("active")),
+            "live_draft_active": live_draft_active,
         },
         intent=intent,
     )
@@ -2268,6 +2275,11 @@ def _api_machine_chat_inner():
         system_prompt=system_prompt,
         tools=_AGENT_TOOLS,
         tool_executor=tool_executor,
+        temperature=0.25 if live_draft_active else 0.7,
+        max_tokens=650 if live_draft_active else None,
+        max_steps=2 if live_draft_active else 5,
+        timeout=10 if live_draft_active else 30,
+        deadline_seconds=9.5 if live_draft_active else None,
     )
 
     # Retrieve state captured during tool calls

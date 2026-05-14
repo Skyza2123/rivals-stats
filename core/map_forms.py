@@ -331,6 +331,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     participant_two_id = None
     participant_one_label = ""
     participant_two_label = ""
+    display_team1_slot = "team1"
+    display_team2_slot = "team2"
     picked_by_label = ""
 
     db = get_db()
@@ -402,12 +404,34 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         participant_one_label, participant_two_label = get_scrim_participant_labels(match_record)
         participant_one_id = participant_one.get("id")
         participant_two_id = participant_two.get("id")
-        map_entry["team1_id"] = participant_one_id
-        map_entry["team2_id"] = participant_two_id
-        map_entry["team1_name"] = participant_one_label
-        map_entry["team2_name"] = participant_two_label
-        team1_label = participant_one_label or "Team 1"
-        team2_label = participant_two_label or "Team 2"
+        map_team1_id = map_entry.get("team1_id")
+        map_team2_id = map_entry.get("team2_id")
+        map_team1_name = (map_entry.get("team1_name") or "").strip()
+        map_team2_name = (map_entry.get("team2_name") or "").strip()
+        map_slot = map_entry.get("our_team_slot", "team1")
+        if map_slot not in TEAM_SLOTS:
+            map_slot = "team1"
+        display_team1_slot = map_slot
+        display_team2_slot = "team2" if display_team1_slot == "team1" else "team1"
+
+        if not map_team1_name and not map_team2_name and participant_one_label and participant_two_label:
+            if map_slot == "team2":
+                map_team1_id = participant_two_id
+                map_team2_id = participant_one_id
+                map_team1_name = participant_two_label
+                map_team2_name = participant_one_label
+            else:
+                map_team1_id = participant_one_id
+                map_team2_id = participant_two_id
+                map_team1_name = participant_one_label
+                map_team2_name = participant_two_label
+            map_entry["team1_id"] = map_team1_id
+            map_entry["team2_id"] = map_team2_id
+            map_entry["team1_name"] = map_team1_name
+            map_entry["team2_name"] = map_team2_name
+
+        team1_label = participant_one_label or map_team1_name or "Team 1"
+        team2_label = participant_two_label or map_team2_name or "Team 2"
 
         team_id = match_record.get("team_id")
         player_rows = []
@@ -456,7 +480,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
             player_rows = player_options
             team_players = [row["name"] for row in player_options]
 
-        enemy_team_id = map_entry.get("team2_id") or match_record.get("team2_id") or match_record.get("enemy_team_id")
+        enemy_team_id = participant_two_id or match_record.get("team2_id") or match_record.get("enemy_team_id")
         if enemy_team_id:
             enemy_team_rows = db.execute(
                 "SELECT id, name, notes FROM teams WHERE id = ?",
@@ -470,10 +494,10 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 ).fetchall()
                 enemy_players = [dict(row) for row in enemy_player_rows if not is_staff_role(row["role"])]
 
-        our_team_id = map_entry.get("team1_id") or match_record.get("team1_id") or match_record.get("team_id")
-        enemy_team_id = map_entry.get("team2_id") or match_record.get("team2_id") or match_record.get("enemy_team_id")
-        our_team_name = (map_entry.get("team1_name") or match_record.get("team1_name") or match_record.get("team_name") or "").strip().lower()
-        enemy_team_name = (map_entry.get("team2_name") or match_record.get("team2_name") or match_record.get("enemy_team") or match_record.get("opponent") or "").strip().lower()
+        our_team_id = participant_one_id or match_record.get("team1_id") or match_record.get("team_id")
+        enemy_team_id = participant_two_id or match_record.get("team2_id") or match_record.get("enemy_team_id")
+        our_team_name = (participant_one_label or match_record.get("team1_name") or match_record.get("team_name") or "").strip().lower()
+        enemy_team_name = (participant_two_label or match_record.get("team2_name") or match_record.get("enemy_team") or match_record.get("opponent") or "").strip().lower()
 
         our_player_options = [dict(row) for row in player_rows]
         if not our_player_options:
@@ -543,8 +567,14 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 return list(known_enemy_player_options)
             return []
 
-        team1_player_options = _resolve_side_player_options(map_entry.get("team1_id"), map_entry.get("team1_name", ""))
-        team2_player_options = _resolve_side_player_options(map_entry.get("team2_id"), map_entry.get("team2_name", ""))
+        side1_player_options = _resolve_side_player_options(map_team1_id, map_team1_name or team1_label)
+        side2_player_options = _resolve_side_player_options(map_team2_id, map_team2_name or team2_label)
+        side_player_options = {
+            "team1": side1_player_options,
+            "team2": side2_player_options,
+        }
+        team1_player_options = side_player_options.get(display_team1_slot, [])
+        team2_player_options = side_player_options.get(display_team2_slot, [])
 
     def _extract_comp_players(slot_key: str) -> list[dict]:
         seen: set[str] = set()
@@ -566,9 +596,13 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         return extracted
 
     if not team1_player_options:
-        team1_player_options = _extract_comp_players("team1")
+        team1_player_options = _extract_comp_players(display_team1_slot)
     if not team2_player_options:
-        team2_player_options = _extract_comp_players("team2")
+        team2_player_options = _extract_comp_players(display_team2_slot)
+
+    comp_player_options_by_slot = {"team1": [], "team2": []}
+    comp_player_options_by_slot[display_team1_slot] = team1_player_options
+    comp_player_options_by_slot[display_team2_slot] = team2_player_options
 
     team1_default_players = _build_default_player_slots(team1_player_options)
     team2_default_players = _build_default_player_slots(team2_player_options)
@@ -622,6 +656,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "enemy_players": enemy_players,
         "team1_player_options": team1_player_options,
         "team2_player_options": team2_player_options,
+        "comp_player_options_by_slot": comp_player_options_by_slot,
         "team1_default_players": team1_default_players,
         "team2_default_players": team2_default_players,
         "team1_label": team1_label,
@@ -630,6 +665,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "participant_two_id": participant_two_id,
         "participant_one_label": participant_one_label,
         "participant_two_label": participant_two_label,
+        "display_team1_slot": display_team1_slot,
+        "display_team2_slot": display_team2_slot,
         "picked_by_label": picked_by_label,
         "map_draft_timeline_row": map_draft_timeline_row,
         "split_score_pair": split_score_pair,

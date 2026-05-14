@@ -2904,6 +2904,8 @@ function renderReplyHeroStrip(answer, meta) {
             syncModeControls();
             updateContextPanel();
         }
+        // Ensure default Scout prompt buttons are interactive whenever chat opens.
+        refreshSuggestionSet();
         // Do not auto-sync from reasoner on tab switch.
         // Sync happens right before send actions (submit/suggestion/quick-prompt)
         // to avoid feedback loops from high-frequency UI updates.
@@ -2931,9 +2933,10 @@ function renderReplyHeroStrip(answer, meta) {
     }
     if (activeMachineTab === 'chat') {
         restoreStoredChat();
+        // Bind default Scout prompt button handlers on initial chat load.
+        refreshSuggestionSet();
     }
-    // Defer suggestion rendering until Agent tab is clicked or draft is initialized
-    // refreshSuggestionSet();
+    // Defer heavier refresh loops, but keep one-time prompt binding on startup.
 
     // Search mode removed: reasoning mode is always on.
 })();
@@ -4803,7 +4806,7 @@ function renderReplyHeroStrip(answer, meta) {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
                 body: JSON.stringify({
-                    message: 'Analyze this live draft as a strategic system, not isolated heroes. First explain current strategic pressure, pressure that disappears after likely changes, identity each team is preserving, draft trajectory, pacing, stability, pressure conversion, recovery after failed engages, and adaptation windows. Separate theoretical strength, execution burden, comfort, draft structure, and adaptation success. Only after that, give the recommended strategic objective with tradeoffs, risks, and confidence.',
+                    message: 'Live draft read: keep it brief and high-signal. Analyze each locked ban/protect slot as comp-path denial or preservation, call out which comps are banned out vs left open, then give pressure, trajectory, and one recommended strategic objective with risks/confidence.',
                     context: drBuildLiveAiContext(snapshot),
                 }),
             });

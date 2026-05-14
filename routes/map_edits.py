@@ -500,7 +500,8 @@ def update_map_info(scrim_id: int, map_id: int):
     side1_team_id = parse_team_id(request.form.get("map_team1_team_id", ""))
     updated_our_team_slot = map_entry.get("our_team_slot", "team1")
     if side1_team_id in valid_team_ids and participant_one.get("id") and participant_two.get("id"):
-        updated_our_team_slot = "team1" if side1_team_id == participant_one.get("id") else "team2"
+        side1_is_participant_one = side1_team_id == participant_one.get("id")
+        updated_our_team_slot = "team1" if side1_is_participant_one else "team2"
         map_entry["our_team_slot"] = updated_our_team_slot
     
     # Get team-specific scores and build combined score
@@ -560,11 +561,17 @@ def update_map_info(scrim_id: int, map_id: int):
         if inferred in RESULTS:
             map_entry["result"] = inferred
 
-    # Keep map team identity in scrim order; side selection is tracked via our_team_slot.
-    map_entry["team1_id"] = participant_one.get("id")
-    map_entry["team2_id"] = participant_two.get("id")
-    map_entry["team1_name"] = participant_one.get("name", "")
-    map_entry["team2_name"] = participant_two.get("name", "")
+    # Keep map team identity in map-side order so draft/comp team1/team2 stay aligned.
+    if updated_our_team_slot == "team2":
+        map_entry["team1_id"] = participant_two.get("id")
+        map_entry["team2_id"] = participant_one.get("id")
+        map_entry["team1_name"] = participant_two.get("name", "")
+        map_entry["team2_name"] = participant_one.get("name", "")
+    else:
+        map_entry["team1_id"] = participant_one.get("id")
+        map_entry["team2_id"] = participant_two.get("id")
+        map_entry["team1_name"] = participant_one.get("name", "")
+        map_entry["team2_name"] = participant_two.get("name", "")
     has_submaps = bool(MAP_SUBMAPS.get(map_entry.get("map_name", ""), []))
     if has_submaps:
         map_entry["side"] = request.form.get("side", map_entry.get("side", "")).strip()

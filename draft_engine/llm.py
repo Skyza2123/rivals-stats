@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -122,6 +123,7 @@ def run_agent_loop(
     max_tokens: int | None = None,
     max_steps: int = 5,
     timeout: int = _TIMEOUT_SECONDS,
+    deadline_seconds: float | None = None,
 ) -> str | None:
     """
     Agentic tool-calling loop (mirrors Parsertime's stopWhen: stepCountIs(5) pattern).
@@ -138,8 +140,16 @@ def run_agent_loop(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
     ]
+    deadline_at = time.monotonic() + deadline_seconds if deadline_seconds else None
 
     for _step in range(max_steps):
+        request_timeout = timeout
+        if deadline_at is not None:
+            remaining = deadline_at - time.monotonic()
+            if remaining <= 0:
+                return None
+            request_timeout = max(0.1, min(float(timeout), remaining))
+
         payload: dict = {
             "model": model or _get_model(),
             "messages": messages,
@@ -161,7 +171,7 @@ def run_agent_loop(
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=request_timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             try:
@@ -191,6 +201,8 @@ def run_agent_loop(
         # Model wants to call tools — execute and loop
         messages.append(asst_msg)
         for call in tool_calls:
+            if deadline_at is not None and time.monotonic() >= deadline_at:
+                return None
             call_id = call.get("id", "")
             fn = call.get("function") or {}
             fn_name = fn.get("name", "")
@@ -221,6 +233,7 @@ def stream_agent_loop(
     max_tokens: int | None = None,
     max_steps: int = 5,
     timeout: int = _TIMEOUT_SECONDS,
+    deadline_seconds: float | None = None,
 ):
     """
     Agentic tool-calling loop that yields SSE event dicts (mirrors Parsertime's stepCountIs(5)).
@@ -243,8 +256,17 @@ def stream_agent_loop(
     ]
 
     _tool_labels = TOOL_LABELS
+    deadline_at = time.monotonic() + deadline_seconds if deadline_seconds else None
 
     for _step in range(max_steps):
+        request_timeout = timeout
+        if deadline_at is not None:
+            remaining = deadline_at - time.monotonic()
+            if remaining <= 0:
+                yield {"type": "error", "text": "LLM deadline exceeded."}
+                return
+            request_timeout = max(0.1, min(float(timeout), remaining))
+
         payload: dict = {
             "model": model or _get_model(),
             "messages": messages,
@@ -266,7 +288,7 @@ def stream_agent_loop(
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=request_timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             try:
@@ -299,6 +321,9 @@ def stream_agent_loop(
         # Execute each tool call, yielding start/end events in real time
         messages.append(asst_msg)
         for call in tool_calls:
+            if deadline_at is not None and time.monotonic() >= deadline_at:
+                yield {"type": "error", "text": "LLM deadline exceeded."}
+                return
             call_id = call.get("id", "")
             fn = call.get("function") or {}
             fn_name = fn.get("name", "")
@@ -512,11 +537,17 @@ Every recommendation must be one of:
 
 For strategic draft responses, structure the answer around these exact headings in this exact order:
 
+Live brevity rules:
+- Keep it brief and effective: target 9-14 lines total.
+- Use short, high-signal statements (no filler or repeated caveats).
+- Prefer one clear sentence per heading; two only when necessary.
+
 Before any recommendation, fully complete all analysis sections first. Do not lead with a hero or ban call.
 
 **Current Draft State:**
 - Briefly summarize map, phase, locked bans/protects, open hero pool, and whose turn it is.
 - Include current strategic identity for both sides.
+- Include a compact **Slot Impact** read: for each locked ban/protect slot, state which comp path it bans out or leaves open.
 
 **Strategic Pressure:**
 - Identify the primary pressure being created right now (comfort denial, comp-core break, map leverage, tempo race, etc.).
@@ -536,6 +567,7 @@ Before any recommendation, fully complete all analysis sections first. Do not le
 - Describe where this draft is trending over the next 1-2 moves if both teams stay rational.
 - Include one explicit branch: "If they do X, we shift to Y."
 - State whether trajectory is increasing or reducing volatility.
+- Explicitly name which comp routes are being closed and which remain open after each likely next slot.
 
 **Recommended Strategic Objective:**
 - Provide one clear objective (ban/protect/pick direction), include one numeric evidence line, and label it using one of the Recommendation Labels.
@@ -569,11 +601,32 @@ When live draft board context is present, treat the answer as a state-transition
 - Explicitly evaluate pressure conversion (created pressure vs converted advantage) and recovery quality after failed engages.
 - In Draft Trajectory and Likely Enemy Adaptation, include branch logic tied to next actor: if our turn, preferred branch; if enemy turn, most likely enemy branch.
 - Avoid static hero blurbs. If a hero is mentioned, tie it to a live pressure function in the current state.
+- Analyze hero slots directly: each ban/protect slot should be interpreted as comp-path denial, comp-path preservation, or tempo manipulation.
 
 Internal slot labels (ban1, protect1, team1) must never appear in output. \
 Translate: "first ban", "first protect", "your team", "the opponent". \
 Never expose raw tags, ability slot numbers, fight phase enum values, or other internal data labels. \
 Translate everything into natural language.
+"""
+
+
+_LIVE_DRAFT_PERSONA_BLOCK = """\
+You are the Analyst -- a live Marvel Rivals draft advisor.
+
+This request is happening during a 20-second draft clock. Finish in under 10 seconds.
+Use the provided board and matchup data directly. Do not do long chain-of-thought,
+do not enumerate every possible branch, and do not expose internal slot labels.
+
+Output 6-9 short lines with these headings:
+
+**Current Draft State:** map, locked bans/protects, next actor.
+**Strategic Pressure:** the main pressure carrier and what it threatens.
+**Trajectory:** where the next 1-2 moves are pushing the draft.
+**Recommended Objective:** one ban/protect/pick direction, with the strategic function.
+**Risk:** the biggest failure point or enemy adaptation.
+**Confidence:** High / Medium / Low with sample-size note.
+
+Prefer one decisive call over a broad essay. Mention only the evidence needed to act now.
 """
 
 
@@ -608,7 +661,7 @@ def build_draft_system_prompt(
     team_a = meta.get("team_a") or personal_team or "our team"
     team_b = meta.get("team_b") or "the opponent"
 
-    parts = [_PERSONA_BLOCK]
+    parts = [_LIVE_DRAFT_PERSONA_BLOCK if live_draft_active else _PERSONA_BLOCK]
 
     if personal_team:
         parts.append(
