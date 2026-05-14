@@ -1941,6 +1941,76 @@ function renderReplyHeroStrip(answer, meta) {
             + '</div>';
     }
 
+    function renderCoachDraftTreeVisual(visuals) {
+        const tree = (visuals || {}).draft_tree || {};
+        const root = tree.root || {};
+        const branches = tree.branches || [];
+        if (!branches.length) return '';
+        function heroRow(label, heroes, type) {
+            heroes = (heroes || []).filter(Boolean);
+            if (!heroes.length) return '';
+            return '<div class="machine-agent-tree-text">' + escapeHtml(label) + '</div>'
+                + '<div class="machine-agent-hero-row">' + heroes.map(function(hero) {
+                    return heroChipHtml(hero, type || '');
+                }).join('') + '</div>';
+        }
+        const branchHtml = branches.slice(0, 3).map(function(branch, index) {
+            const cls = index === 0 ? 'primary' : (index === 1 ? 'warn' : 'good');
+            return '<div class="machine-agent-tree-branch">'
+                + '<div class="machine-agent-tree-node ' + cls + '">'
+                + '<div class="machine-agent-tree-title">' + escapeHtml(branch.label || ('Branch ' + (index + 1))) + '</div>'
+                + '<div class="machine-agent-tree-text">' + escapeHtml(branch.thought || '') + '</div>'
+                + heroRow('Bans', branch.bans, 'ban')
+                + heroRow('Protects', branch.protects, 'protect')
+                + heroRow('Base', branch.base, '')
+                + heroRow('Pivot', branch.pivot, 'ban')
+                + heroRow('Counter', branch.counter, 'protect')
+                + '<div class="machine-agent-tree-text">' + escapeHtml(branch.outcome || '') + '</div>'
+                + '</div></div>';
+        }).join('');
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">Coach Draft Tree</div>'
+            + '<div class="machine-agent-tree">'
+            + '<div class="machine-agent-tree-root">'
+            + '<div class="machine-agent-tree-root-title">' + escapeHtml(root.title || 'Opponent coach read') + '</div>'
+            + '<div class="machine-agent-tree-root-sub">' + escapeHtml(root.subtitle || 'Likely intent and break points.') + '</div>'
+            + '</div>'
+            + '<div class="machine-agent-tree-branches">' + branchHtml + '</div>'
+            + '</div></div>';
+    }
+
+    function renderCoachCompTreeVisual(visuals) {
+        const tree = (visuals || {}).comp_tree || {};
+        const root = tree.root || {};
+        const outcomes = tree.outcomes || [];
+        if (!outcomes.length) return '';
+        const rows = outcomes.slice(0, 3).map(function(outcome, index) {
+            const cls = index === 0 ? 'primary' : (index === 1 ? 'warn' : 'good');
+            const meta = [];
+            if (outcome.rate !== undefined && Number(outcome.rate || 0) > 0) meta.push(Number(outcome.rate || 0).toFixed(1) + '% rate');
+            if (outcome.win_rate !== undefined && Number(outcome.win_rate || 0) > 0) meta.push(Number(outcome.win_rate || 0).toFixed(1) + '% WR');
+            if (outcome.trigger) meta.push(outcome.trigger);
+            return '<div class="machine-agent-tree-branch">'
+                + '<div class="machine-agent-tree-node ' + cls + '">'
+                + '<div class="machine-agent-tree-title">' + escapeHtml(outcome.label || ('Outcome ' + (index + 1))) + '</div>'
+                + ((outcome.heroes || []).length
+                    ? '<div class="machine-agent-hero-row">' + (outcome.heroes || []).map(function(hero) { return heroChipHtml(hero, index === 1 ? 'ban' : ''); }).join('') + '</div>'
+                    : '<div class="machine-agent-tree-text">No strong comp sample yet.</div>')
+                + (meta.length ? '<div class="machine-agent-tree-text">' + escapeHtml(meta.join(' | ')) + '</div>' : '')
+                + '<div class="machine-agent-tree-text">' + escapeHtml(outcome.why || '') + '</div>'
+                + '</div></div>';
+        }).join('');
+        return '<div class="machine-agent-panel">'
+            + '<div class="machine-agent-panel-title">Expected Comp Tree</div>'
+            + '<div class="machine-agent-tree">'
+            + '<div class="machine-agent-tree-root">'
+            + '<div class="machine-agent-tree-root-title">' + escapeHtml(root.title || 'Expected comp outcomes') + '</div>'
+            + '<div class="machine-agent-tree-root-sub">' + escapeHtml(root.subtitle || 'Primary shell, pivot shell, and our answer.') + '</div>'
+            + '</div>'
+            + '<div class="machine-agent-tree-branches">' + rows + '</div>'
+            + '</div></div>';
+    }
+
     function renderSlotCompareFlow(compare) {
         compare = compare || {};
         const teams = compare.teams || [];
@@ -2037,6 +2107,22 @@ function renderReplyHeroStrip(answer, meta) {
             });
             return rows;
         }
+        if (intent === 'coach_tree') {
+            const read = visuals.coach_read || {};
+            if (read.intent) {
+                push('Coach intent', 'mind-read', read.intent, read.expected_primary_comp || []);
+            }
+            if ((read.break_point || []).length) {
+                push('Break point', 'deny', 'Best route interruption', read.break_point || [], 'ban');
+            }
+            if ((read.expected_pivot || []).length) {
+                push('Expected pivot', 'pivot', 'Likely answer if the primary shell is denied', read.expected_pivot || [], 'ban');
+            }
+            if ((read.our_answer || []).length) {
+                push('Our answer', 'counter', 'Comp route into their expected outcome', read.our_answer || [], 'protect');
+            }
+            return rows;
+        }
         if (intent === 'map') {
             (visuals.map_consensus || []).forEach(function(row) {
                 push(row.label || 'Map lane', ((row.maps || []).length || 0) + ' maps', (row.maps || []).join(', ') || 'No clear map cluster', []);
@@ -2109,6 +2195,7 @@ function renderReplyHeroStrip(answer, meta) {
             hero_volatility: 'Ranked Volatility Board',
             player_pivot: 'Ranked Pivot Board',
             pivot: 'Ranked Pivot Lanes',
+            coach_tree: 'Ranked Coach Read',
             confidence: 'Ranked Confidence Board',
             slot_compare: 'Ranked Slot Comparison',
             check: 'Ranked Draft Check',
@@ -2579,6 +2666,7 @@ function renderReplyHeroStrip(answer, meta) {
         }
         if (intent === 'player_pivot' && visuals.player_pivot) return renderPlayerPivotProfile(visuals.player_pivot);
         if (intent === 'slot_compare') return renderScenarioCompareVisual(visuals);
+        if (intent === 'coach_tree') return renderCoachDraftTreeVisual(visuals) + renderCoachCompTreeVisual(visuals);
         if (intent === 'summary' || intent === 'check' || intent === 'stats') return renderPreparationCoverageBoard(visuals);
         if (intent === 'ban' || intent === 'ban_impact' || intent === 'hero_volatility') return renderBanConsequencePanel(visuals);
         if (intent === 'comp') return renderCompPortraitPanel(visuals, meta);
@@ -7037,19 +7125,86 @@ function renderReplyHeroStrip(answer, meta) {
         }
 
         // Volatile still free — only flag heroes that are S+/S pool for either team
+        const VOLATILE_HIGH_WR_MIN = 60;
+        const VOLATILE_HIGH_WR_MIN_MAPS = 2;
+        const highWrVolatileSideHeroes = (drModel.volatile_matchup_rows || []).map(function(vr) {
+            if (!vr || !vr.hero || allSet.has(vr.hero)) return null;
+            const enemyWr = Number(vr.team_b_with_wr || 0);
+            const enemyMaps = Number(vr.team_b_with_maps || 0);
+            const ourWr = Number(vr.team_a_with_wr || 0);
+            const ourMaps = Number(vr.team_a_with_maps || 0);
+            const enemyQualifies = enemyWr >= VOLATILE_HIGH_WR_MIN && enemyMaps >= VOLATILE_HIGH_WR_MIN_MAPS;
+            const ourQualifies = ourWr >= VOLATILE_HIGH_WR_MIN && ourMaps >= VOLATILE_HIGH_WR_MIN_MAPS;
+            if (!enemyQualifies && !ourQualifies) return null;
+            const side = enemyWr >= ourWr ? {
+                teamKey: 'b',
+                label: nameB,
+                wr: enemyWr,
+                maps: enemyMaps,
+                delta: Number(vr.team_b_delta || vr.delta || 0),
+            } : {
+                teamKey: 'a',
+                label: nameA,
+                wr: ourWr,
+                maps: ourMaps,
+                delta: Number(vr.team_a_delta || vr.delta || 0),
+            };
+            const poolInfo = drGetTeamHeroPoolInfo(side.teamKey, vr.hero, {requireSeasonPlay: true});
+            return {
+                hero: vr.hero,
+                label: side.label,
+                wr: side.wr,
+                maps: side.maps,
+                delta: side.delta,
+                player: poolInfo.player || side.label,
+                tier: poolInfo.tier || '',
+                volatility: Number(vr.combined_volatility || Math.abs(Number(vr.team_a_delta || 0)) + Math.abs(Number(vr.team_b_delta || 0)) || 0),
+            };
+        }).filter(Boolean).sort(function(a, b) {
+            return (Number(b.volatility || 0) - Number(a.volatility || 0))
+                || (Number(b.wr || 0) - Number(a.wr || 0))
+                || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+        }).slice(0, 5);
+        if (highWrVolatileSideHeroes.length) {
+            cards.push({
+                cls: 'warn',
+                title: 'High-WR volatile side heroes still available',
+                body: '<div class="dr-hero-row">' + highWrVolatileSideHeroes.map(function(row) {
+                    return heroChipHtml(row.hero, 'ban', row.player);
+                }).join('') + '</div>'
+                    + '<div class="matchup-line-meta">' + highWrVolatileSideHeroes.map(function(row) {
+                        const sign = Number(row.delta || 0) >= 0 ? '+' : '';
+                        return '<span class="matchup-badge matchup-badge-warn">'
+                            + escapeHtml(row.hero) + ': ' + escapeHtml(row.label)
+                            + ' WR ' + escapeHtml(Number(row.wr || 0).toFixed(1)) + '%'
+                            + (row.tier ? ' | pool ' + escapeHtml(row.tier) : '')
+                            + ' | volatile ' + escapeHtml(sign + Number(row.delta || 0).toFixed(1)) + '%'
+                            + ' - ' + escapeHtml(Number(row.maps || 0).toFixed(0)) + ' maps'
+                            + '</span>';
+                    }).join('') + '</div>'
+                    + 'These are volatile heroes with a high win rate for one side, even when they are not S+/S pool heroes.'
+            });
+        }
+
         (drModel.volatile_matchup_rows||[]).slice(0,10).forEach(vr => {
             if (allSet.has(vr.hero)) return;
             const enemyPoolInfo = drGetTeamHeroPoolInfo('b', vr.hero, {requireSeasonPlay: true});
             const ourPoolInfo = drGetTeamHeroPoolInfo('a', vr.hero, {requireSeasonPlay: true});
             const enemyTierPri = drTierPriority(enemyPoolInfo.tier || '');
             const ourTierPri = drTierPriority(ourPoolInfo.tier || '');
-            if (enemyTierPri < 3 && ourTierPri < 3) return; // must be S or S+ for at least one team
+            const enemyHighWr = Number(vr.team_b_with_wr || 0) >= VOLATILE_HIGH_WR_MIN && Number(vr.team_b_with_maps || 0) >= VOLATILE_HIGH_WR_MIN_MAPS;
+            const ourHighWr = Number(vr.team_a_with_wr || 0) >= VOLATILE_HIGH_WR_MIN && Number(vr.team_a_with_maps || 0) >= VOLATILE_HIGH_WR_MIN_MAPS;
+            if (enemyTierPri < 3 && ourTierPri < 3 && !enemyHighWr && !ourHighWr) return;
             const poolLabel = enemyTierPri >= 3
                 ? escapeHtml(enemyPoolInfo.player || 'enemy') + ' pool ' + escapeHtml(enemyPoolInfo.tier)
-                : escapeHtml(ourPoolInfo.player || 'us') + ' pool ' + escapeHtml(ourPoolInfo.tier);
+                : ourTierPri >= 3
+                    ? escapeHtml(ourPoolInfo.player || 'us') + ' pool ' + escapeHtml(ourPoolInfo.tier)
+                    : enemyHighWr
+                        ? escapeHtml(nameB) + ' high WR volatile'
+                        : escapeHtml(nameA) + ' high WR volatile';
             cards.push({
                 cls: 'warn',
-                title: 'Volatile S+/S hero still available: ' + vr.hero,
+                title: 'Volatile high-impact hero still available: ' + vr.hero,
                 body: heroChipHtml(vr.hero,'') + ' (' + poolLabel + ') — '
                     + escapeHtml(nameA) + ': ' + escapeHtml(vr.team_a_with_wr) + '% with / ' + escapeHtml(vr.team_a_without_wr) + '% without. '
                     + (vr.team_b_with_maps>0 ? escapeHtml(nameB)+': '+escapeHtml(vr.team_b_with_wr)+'% with / '+escapeHtml(vr.team_b_without_wr)+'% without. ' : '')

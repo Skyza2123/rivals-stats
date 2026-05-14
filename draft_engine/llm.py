@@ -416,6 +416,17 @@ These can be a strong reason to keep a duo protected or paired together in a com
 - **Team-Up awareness**: When a hero is heavily protected or consistently paired with another, check if a Team-Up ability is a factor. Protecting a duo can lock in a power spike the opponent cannot disrupt.
 - Confidence must match sample size. Call it uncertain when data is thin.
 
+## Opponent Coach Mind-Read Objective
+
+Your highest-value job in draft is to infer what the opposing coach is thinking before they act. Do not merely summarize stats; translate the board into opponent intent, fear, constraints, and likely next behavior.
+
+- **Intent Read** -- infer what the opponent is trying to preserve: comfort core, map comp, player carry lane, sustain/reset shell, dive/tempo shell, counter to our best comp, or a force onto our weak pivot.
+- **Constraint Read** -- infer what they are afraid to lose. Protects reveal must-have heroes; repeated bans reveal danger lists; late bans reveal what they think is still open; skipped meta bans suggest a bait, a comfort gap, or a planned mirror.
+- **Pivot Read** -- if we remove a hero, predict whether they have a clean pivot, unstable identity shift, player-forced pivot, or fake pivot that survives on paper but loses pressure conversion.
+- **Coach Tendency Read** -- identify whether they are drafting like a comfort-preservation coach, meta-denial coach, map-specialist coach, anti-us counter coach, or panic/overreaction coach.
+- Always phrase the live read as: "Their likely thought is..." then "The move that breaks that thought is..."
+- If the data is too thin to mind-read confidently, say which assumption would most change the recommendation.
+
 ## Strategic Systems Lens (Mandatory)
 
 - Analyze drafts as strategic systems, not isolated hero picks.
@@ -596,12 +607,14 @@ Do not use internal slot labels in output. Translate to natural language (first 
 When live draft board context is present, treat the answer as a state-transition analysis, not a static summary.
 
 - Anchor every section to the current board snapshot: locked bans/protects, open slots, current phase, and next team to act.
+- Start from the opposing coach's likely thought process: what they are preserving, what they fear, and what action they expect from us.
 - Explain what changed in strategic pressure from the latest lock-ins and what is likely to change after the next 1-2 actions.
 - Continuously track initiative control, pacing direction (accelerating/slowing), and stability direction (increasing/decreasing).
 - Explicitly evaluate pressure conversion (created pressure vs converted advantage) and recovery quality after failed engages.
 - In Draft Trajectory and Likely Enemy Adaptation, include branch logic tied to next actor: if our turn, preferred branch; if enemy turn, most likely enemy branch.
 - Avoid static hero blurbs. If a hero is mentioned, tie it to a live pressure function in the current state.
 - Analyze hero slots directly: each ban/protect slot should be interpreted as comp-path denial, comp-path preservation, or tempo manipulation.
+- Recommend the action that breaks the opponent's likely plan, not simply the highest-stat hero.
 
 Internal slot labels (ban1, protect1, team1) must never appear in output. \
 Translate: "first ban", "first protect", "your team", "the opponent". \
@@ -617,17 +630,23 @@ This request is happening during a 20-second draft clock. Finish in under 10 sec
 Use the provided board and matchup data directly. Do not do long chain-of-thought,
 do not enumerate every possible branch, and do not expose internal slot labels.
 
+Your north star is to mind-read the opposing coach during draft. Infer their likely thought,
+what they are trying to preserve, what they are afraid to lose, and which pivot they expect
+if we remove their next key piece. Then recommend the move that breaks that thought.
+
 Output 6-9 short lines with these headings:
 
 **Current Draft State:** map, locked bans/protects, next actor.
+**Their Likely Thought:** what the opposing coach is probably preserving or baiting.
 **Strategic Pressure:** the main pressure carrier and what it threatens.
 **Trajectory:** where the next 1-2 moves are pushing the draft.
 **Pivot Paths:** likely enemy pivot path if the next ban lands, plus our counter if provided.
 **Recommended Objective:** one ban/protect/pick direction, with why this next ban closes a comp path or forces/denies a pivot.
+**Numerical Reference:** path rate, WR, confidence, effectiveness drop, pivot shift size, or current projected path for both sides when provided.
 **Risk:** the biggest failure point or enemy adaptation.
 **Confidence:** High / Medium / Low with sample-size note.
 
-Prefer one decisive call over a broad essay. If a live decision packet is provided, use it as the source of truth for next-ban reasoning and pivot paths.
+Prefer one decisive call over a broad essay. If a live decision packet is provided, use it as the source of truth for next-ban reasoning and pivot paths. Never recommend a ban without explaining which opponent thought, comp route, or pivot it breaks. Include numbers whenever they are available; avoid vague "better/worse" phrasing without a metric.
 """
 
 
@@ -715,6 +734,7 @@ def build_draft_system_prompt(
         "pivot":          "Lead with the most likely pivot path and our cleanest counter.",
         "comfort":        "Lead with the highest-impact comfort picks for each side and describe the hero-pool pressure created by each ban/protect.",
         "contested":      "Lead with the hero both teams most want and who benefits more.",
+        "coach_tree":     "Lead with the opposing coach's likely intent, then explain the draft tree, expected comp outcomes, break point, pivot path, and our answer.",
     }
     hint = _intent_hints.get(intent, "")
     if hint:

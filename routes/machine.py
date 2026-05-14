@@ -589,6 +589,85 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         }
         for row in model.get("pivot_pressure_rows", [])[:4]
     ]
+
+    top_enemy_comp = enemy_comps[0] if enemy_comps else {}
+    top_pivot = pivot_predictions[0] if pivot_predictions else {}
+    top_force = (model.get("force_matchup_rows") or [{}])[0]
+    coach_intent = "preserve their highest-comfort comp route"
+    if top_enemy_comp.get("heroes"):
+        coach_intent = f"preserve {_machine_chat_join(top_enemy_comp.get('heroes', []), 4)} as the main comp shell"
+    elif top_pivot.get("base"):
+        coach_intent = f"start on {_machine_chat_join(top_pivot.get('base', []), 4)} and keep the pivot open"
+
+    draft_tree = {
+        "root": {
+            "title": "Opponent coach read",
+            "subtitle": f"Likely trying to {coach_intent}.",
+        },
+        "branches": [
+            {
+                "label": "Primary line",
+                "thought": coach_intent,
+                "bans": recommended_bans[:3],
+                "protects": [
+                    hero for hero in (top_enemy_comp.get("heroes", []) or [])[:2]
+                    if hero not in recommended_bans[:3]
+                ],
+                "outcome": "If unbroken, they keep their preferred fight shape and force us to answer on comp quality.",
+            },
+            {
+                "label": "Our break point",
+                "thought": "Remove the piece that collapses the route instead of only banning a name.",
+                "bans": recommended_bans[:2],
+                "protects": recommended_protects[:2],
+                "outcome": (
+                    f"Best interruption is {_machine_chat_join(recommended_bans[:1], 1)}."
+                    if recommended_bans else "No single clean interruption yet."
+                ),
+            },
+            {
+                "label": "Expected pivot",
+                "thought": "If the primary route is denied, they try to preserve identity through a pivot.",
+                "base": top_pivot.get("base", [])[:6],
+                "pivot": top_pivot.get("pivot", [])[:6],
+                "counter": top_pivot.get("counter", [])[:6],
+                "outcome": (
+                    f"{top_pivot.get('diff_count', 0)} hero shift."
+                    if top_pivot else "No strong pivot sample yet."
+                ),
+            },
+        ],
+    }
+
+    comp_tree = {
+        "root": {
+            "title": "Expected comp outcomes",
+            "subtitle": "Most likely enemy shell, pivot shell, and our answer.",
+        },
+        "outcomes": [
+            {
+                "label": "Primary enemy comp",
+                "heroes": top_enemy_comp.get("heroes", [])[:6],
+                "rate": top_enemy_comp.get("rate", 0),
+                "win_rate": top_enemy_comp.get("win_rate", 0),
+                "why": "Default outcome if their coach preserves the current route.",
+            },
+            {
+                "label": "Pivot outcome",
+                "heroes": top_pivot.get("pivot", [])[:6],
+                "trigger": (
+                    "Triggered when we remove " + _machine_chat_join(recommended_bans[:1], 1)
+                    if recommended_bans else "Triggered if their primary shell is denied."
+                ),
+                "why": "Keeps their identity alive if the base route gets broken.",
+            },
+            {
+                "label": "Our answer",
+                "heroes": (top_pivot.get("counter", []) or top_force.get("our_comp", []) or target_comp)[:6],
+                "why": "Counter-pivot or target comp path into their expected outcome.",
+            },
+        ],
+    }
     comp_confidence = 0
     comp_wr = 0
     for row in a_model.get("comp_rows", []):
@@ -638,6 +717,19 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             4,
         )
         + ".",
+        f"Opponent coach read: likely trying to {coach_intent}.",
+        "Draft tree: "
+        + "; ".join(
+            f"{branch.get('label')}: {branch.get('thought')} -> {branch.get('outcome')}"
+            for branch in draft_tree.get("branches", [])
+        )
+        + ".",
+        "Comp tree outcomes: "
+        + "; ".join(
+            f"{outcome.get('label')}: {_machine_chat_join(outcome.get('heroes', []), 6)}"
+            for outcome in comp_tree.get("outcomes", [])
+        )
+        + ".",
     ]
     return "\n".join(context_lines), {
         "has_matchup": True,
@@ -684,6 +776,15 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             ],
             "enemy_comps": enemy_comps,
             "pivot_predictions": pivot_predictions,
+            "coach_read": {
+                "intent": coach_intent,
+                "break_point": recommended_bans[:1],
+                "expected_primary_comp": top_enemy_comp.get("heroes", [])[:6],
+                "expected_pivot": top_pivot.get("pivot", [])[:6],
+                "our_answer": (top_pivot.get("counter", []) or top_force.get("our_comp", []) or target_comp)[:6],
+            },
+            "draft_tree": draft_tree,
+            "comp_tree": comp_tree,
             "our_comp_rows": [
                 {
                     "heroes": row.get("heroes", [])[:6],
@@ -1269,6 +1370,23 @@ def _machine_agent_intent(message: str) -> str:
         return "ban_impact"
     if any(phrase in q for phrase in ("pivot", "pivot prediction", "swap to")):
         return "pivot"
+    if any(
+        phrase in q
+        for phrase in (
+            "what is their coach trying",
+            "what are they trying to draft",
+            "what is he trying to draft",
+            "what is she trying to draft",
+            "coach trying",
+            "expected comp outcome",
+            "expected comp outcomes",
+            "draft tree",
+            "comp tree",
+            "coach read",
+            "mind read",
+        )
+    ):
+        return "coach_tree"
 
     # Strategic analysis taxonomy (identity / matchup theory / tradeoffs / failure / coaching).
     if any(
@@ -1374,6 +1492,7 @@ def _machine_agent_filter_visuals(intent: str, visuals: dict) -> dict:
         "ban_impact": ("hero_focus", "recommended_bans", "likely_next_pick", "target_comp", "enemy_comfort", "our_comfort", "volatile_rows"),
         "player_pivot": ("player_pivot",),
         "pivot": ("pivot_predictions", "recommended_bans"),
+        "coach_tree": ("coach_read", "draft_tree", "comp_tree", "enemy_comps", "pivot_predictions", "recommended_bans"),
         "confidence": ("confidence", "target_comp", "recommended_bans"),
         "hero_volatility": ("hero_focus", "volatile_rows"),
         "check": ("recommended_bans", "recommended_protects", "target_comp", "enemy_comfort", "contested", "volatile"),
@@ -1407,6 +1526,9 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
     ) or _machine_chat_join(visuals.get("volatile", []), 3)
     enemy_comps = visuals.get("enemy_comps", []) or []
     pivot_predictions = visuals.get("pivot_predictions", []) or []
+    coach_read = visuals.get("coach_read") or {}
+    draft_tree = visuals.get("draft_tree") or {}
+    comp_tree = visuals.get("comp_tree") or {}
     confidence = visuals.get("confidence") or {}
     map_rows = visuals.get("map_consensus", []) or []
 
@@ -1471,6 +1593,31 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
         return (
             f"The real fight is over {contested_line or 'the shared core'}.\n\n"
             f"If you do not want to fight there, ban {ban_line or 'the shared core'} and keep {comp_line or 'our route'} open."
+        )
+    elif intent == "coach_tree":
+        intent_line = coach_read.get("intent") or "preserve their strongest available comp route"
+        break_point = _machine_chat_join(coach_read.get("break_point", []), 1) or ban_line or "their route anchor"
+        primary = _machine_chat_join(coach_read.get("expected_primary_comp", []), 6)
+        pivot = _machine_chat_join(coach_read.get("expected_pivot", []), 6)
+        answer = _machine_chat_join(coach_read.get("our_answer", []), 6)
+        tree_branches = draft_tree.get("branches") or []
+        outcome_rows = comp_tree.get("outcomes") or []
+        branch_line = "; ".join(
+            f"{row.get('label')}: {row.get('outcome')}"
+            for row in tree_branches[:3]
+            if row.get("label") or row.get("outcome")
+        )
+        outcome_line = "; ".join(
+            f"{row.get('label')}: {_machine_chat_join(row.get('heroes', []), 6)}"
+            for row in outcome_rows[:3]
+            if row.get("label") or row.get("heroes")
+        )
+        return (
+            f"Their coach is most likely trying to {intent_line}.\n\n"
+            f"Break point: {break_point}.\n\n"
+            f"Expected comp outcomes: primary {primary or 'unclear'}, pivot {pivot or 'no strong pivot sample'}, our answer {answer or comp_line or 'target comp not clear'}.\n\n"
+            f"Draft tree: {branch_line or 'not enough data for branching'}.\n\n"
+            f"Comp tree: {outcome_line or 'not enough comp data'}."
         )
     elif intent == "check":
         return (
@@ -1914,6 +2061,7 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                     "heroes": heroes,
                     "rate": comp.get("rate", 0),
                     "win_rate": comp.get("win_rate", 0),
+                    "confidence": comp.get("confidence", 0),
                 })
 
         pivot_hits = []
@@ -1955,11 +2103,14 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
             )
         if pivot_hits:
             hit = pivot_hits[0]
-            verb = "forces" if hit["type"] == "forces_pivot" else "denies"
-            reasons.append(
-                f"{verb} pivot {_machine_chat_join(hit.get('from', []), 3)}"
-                f" -> {_machine_chat_join(hit.get('to', []), 3)}"
-            )
+            if hit["type"] == "forces_pivot":
+                reasons.append(
+                    f"breaks their starting shell and pushes them toward {_machine_chat_join(hit.get('to', []), 3)}"
+                )
+            else:
+                reasons.append(
+                    f"blocks their fallback into {_machine_chat_join(hit.get('to', []), 3)}"
+                )
         if not reasons:
             reasons.append("keeps pressure on the highest ranked remaining ban target")
 
@@ -2009,11 +2160,15 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 f" -> {_machine_chat_join(row['pivot'], 4)}"
                 f" ({row.get('diff_count', 0)} hero shift{pressure_text}{counter_text})"
             )
-    lines.append("Explain the recommended next ban by comp path closed, pivot forced/denied, remaining risk, and confidence.")
+    lines.append("Explain the recommended next ban by what route it blocks, what fallback it leaves, remaining risk, and confidence.")
 
     return "\n".join(lines), {
         "next_bans": next_ban_rows,
         "possible_pivots": possible_pivots,
+        "our_projected_path": _clean_heroes(visuals.get("target_comp"), 6),
+        "their_projected_path": _clean_heroes((enemy_comp_rows[0] or {}).get("heroes"), 6) if enemy_comp_rows else [],
+        "their_projected_rate": (enemy_comp_rows[0] or {}).get("rate", 0) if enemy_comp_rows else 0,
+        "their_projected_wr": (enemy_comp_rows[0] or {}).get("win_rate", 0) if enemy_comp_rows else 0,
         "team_a": team_a,
         "team_b": team_b,
     }
@@ -2024,33 +2179,80 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         return ""
     next_bans = decision_data.get("next_bans") or []
     pivots = decision_data.get("possible_pivots") or []
+    our_path = decision_data.get("our_projected_path") or []
+    their_path = decision_data.get("their_projected_path") or []
+    their_rate = decision_data.get("their_projected_rate") or 0
+    their_wr = decision_data.get("their_projected_wr") or 0
     if not next_bans and not pivots:
         return ""
 
     lines = ["Live draft read:"]
+    explained_pivot = ""
+    if our_path or their_path:
+        path_bits = []
+        if our_path:
+            path_bits.append(f"our projected path: {_machine_chat_join(our_path, 6)}")
+        if their_path:
+            metrics = []
+            if their_rate:
+                metrics.append(f"{float(their_rate):.1f}% path rate")
+            if their_wr:
+                metrics.append(f"{float(their_wr):.1f}% WR")
+            metric_text = f" ({', '.join(metrics)})" if metrics else ""
+            path_bits.append(f"their projected path: {_machine_chat_join(their_path, 6)}{metric_text}")
+        lines.append("Current projection: " + " | ".join(path_bits) + ".")
     if next_bans:
         top = next_bans[0]
-        lines.append(f"Recommended next ban: {top.get('hero', 'the top remaining target')}.")
-        reasons = top.get("reasons") or []
+        top_hero = top.get("hero", "the top remaining target")
+        lines.append(f"Recommended next ban: {top_hero}.")
+        reasons = list(top.get("reasons") or [])
+        paths = top.get("pivot_paths") or []
+        closes = top.get("closes") or []
+        if closes:
+            close = closes[0]
+            metric_bits = []
+            if close.get("rate"):
+                metric_bits.append(f"{float(close.get('rate') or 0):.1f}% path rate")
+            if close.get("win_rate"):
+                metric_bits.append(f"{float(close.get('win_rate') or 0):.1f}% WR")
+            if close.get("confidence"):
+                metric_bits.append(f"{float(close.get('confidence') or 0):.1f}% confidence")
+            if metric_bits:
+                lines.append(f"Numerical reference: this touches their {_machine_chat_join(close.get('heroes', []), 4)} path ({', '.join(metric_bits)}).")
+                reasons = [
+                    reason for reason in reasons
+                    if not reason.startswith("hits enemy comp path ")
+                ]
         if reasons:
             lines.append("Why: " + "; ".join(reasons[:3]) + ".")
-        paths = top.get("pivot_paths") or []
         if paths:
             path = paths[0]
-            verb = "forces" if path.get("type") == "forces_pivot" else "denies"
-            lines.append(
-                f"Pivot impact: this {verb} {_machine_chat_join(path.get('from', []), 3)}"
-                f" -> {_machine_chat_join(path.get('to', []), 3)}."
-            )
+            base_text = _machine_chat_join(path.get("from", []), 4)
+            pivot_text = _machine_chat_join(path.get("to", []), 4)
+            explained_pivot = pivot_text
+            shift = int(path.get("diff_count") or 0)
+            shift_text = f" ({shift}-hero shift)" if shift else ""
+            if path.get("type") == "forces_pivot":
+                lines.append(
+                    f"Pivot impact: banning {top_hero} attacks their base shell ({base_text}) and likely pushes them toward {pivot_text}{shift_text}."
+                )
+            else:
+                lines.append(
+                    f"Pivot impact: banning {top_hero} blocks their likely fallback into {pivot_text}{shift_text}; if they stay on {base_text}, that route is less flexible."
+                )
     if pivots:
         row = pivots[0]
-        lines.append(
-            f"Most likely pivot path: {_machine_chat_join(row.get('base', []), 4)}"
-            f" -> {_machine_chat_join(row.get('pivot', []), 4)}."
-        )
+        base_text = _machine_chat_join(row.get("base", []), 4)
+        pivot_text = _machine_chat_join(row.get("pivot", []), 4)
+        if pivot_text and pivot_text != explained_pivot:
+            shift = int(row.get("diff_count") or 0)
+            shift_text = f" ({shift}-hero shift)" if shift else ""
+            lines.append(f"Expected fallback if their base is pressured: {pivot_text}{shift_text}.")
+        elif base_text:
+            lines.append(f"Current base shell to watch: {base_text}.")
         if row.get("counter"):
             lines.append(f"Our answer: {_machine_chat_join(row.get('counter', []), 4)}.")
-    lines.append("Risk: if the ban only removes comfort without closing a comp path, they can still pivot cleanly.")
+    lines.append("Risk: if this does not remove a core route piece, they may still reach a clean fallback comp.")
     lines.append("Confidence: Medium unless this board has a repeated sample in the selected filters.")
     return "\n".join(lines)
 
