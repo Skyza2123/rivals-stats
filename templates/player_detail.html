@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ player.name }}{% endblock %}
 
@@ -6,9 +6,9 @@
 <div class="team-hero gap-lg">
     <div class="team-hero-left">
         {% if player_insights.primary_hero %}
-            <img class="team-avatar" src="{{ hero_image_url(player_insights.primary_hero.hero) }}" alt="{{ player_insights.primary_hero.hero }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=140'">
+            <img class="team-avatar" src="{{ hero_image_url(player_insights.primary_hero.hero) }}" alt="{{ player_insights.primary_hero.hero }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ player.name | urlencode }}&size=140'">
         {% else %}
-            <img class="team-avatar" src="https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=140" alt="{{ player.name }}">
+            <img class="team-avatar" src="https://api.dicebear.com/9.x/initials/png?seed={{ player.name | urlencode }}&size=140" alt="{{ player.name }}">
         {% endif %}
         <div>
             <h2>{{ player.name }}</h2>
@@ -70,11 +70,11 @@
         <section class="stat-card"><strong>Win Rate</strong><span>{{ player_stats.win_rate }}%</span></section>
         <section class="stat-card"><strong>Event Mentions</strong><span>{{ player_stats.events_mentioned }}</span></section>
         <section class="stat-card"><strong>Unique Heroes</strong><span>{{ player_insights.unique_heroes }}</span></section>
-        <section class="stat-card"><strong>Most Played Hero</strong><span>{{ hero_display_name(player_insights.primary_hero.hero) if player_insights.primary_hero else '—' }}</span></section>
+        <section class="stat-card"><strong>Most Played Hero</strong><span>{{ hero_display_name(player_insights.primary_hero.hero) if player_insights.primary_hero else '�' }}</span></section>
         <section class="stat-card"><strong>Round/Submap Swaps</strong><span>{{ player_swap_summary.swap_count }}</span></section>
         <section class="stat-card"><strong>Swap Rate</strong><span>{{ player_swap_summary.swap_rate }}%</span></section>
-        <section class="stat-card"><strong>Best Map</strong><span>{{ player_insights.best_map.map_name if player_insights.best_map else '—' }}</span></section>
-        <section class="stat-card"><strong>Worst Map</strong><span>{{ player_insights.worst_map.map_name if player_insights.worst_map else '—' }}</span></section>
+        <section class="stat-card"><strong>Best Map</strong><span>{{ player_insights.best_map.map_name if player_insights.best_map else '�' }}</span></section>
+        <section class="stat-card"><strong>Worst Map</strong><span>{{ player_insights.worst_map.map_name if player_insights.worst_map else '�' }}</span></section>
     </div>
 </section>
 
@@ -93,7 +93,7 @@
 <section class="panel panel-soft-blue top-gap">
     <h3>Hero Pool</h3>
     {% if player_hero_rows %}
-        {# Portrait grid — top 12 heroes #}
+        {# Portrait grid � top 12 heroes #}
         <div class="player-hero-grid">
             {% for row in player_hero_rows[:12] %}
                 {% set wr = row.win_rate %}
@@ -184,7 +184,7 @@
                                 <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
                                 <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
                             </div>
-                            <span class="ban-count-badge">Banned {{ row.times_banned }}×</span>
+                            <span class="ban-count-badge">Banned {{ row.times_banned }}�</span>
                         </div>
 
                         <div class="player-ban-stats">
@@ -193,7 +193,7 @@
                                 {% if row.hero_wr is not none %}
                                     <strong class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</strong>
                                 {% else %}
-                                    <strong>—</strong>
+                                    <strong>�</strong>
                                 {% endif %}
                             </div>
                             <div class="player-ban-stat">
@@ -201,7 +201,7 @@
                                 {% if row.wr_when_banned is not none %}
                                     <strong class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</strong>
                                 {% else %}
-                                    <strong>—</strong>
+                                    <strong>�</strong>
                                 {% endif %}
                             </div>
                             {% if row.wr_delta is not none %}
@@ -220,7 +220,7 @@
                                         <div class="player-ban-pivot-chip">
                                             <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" data-hero="{{ pvt.hero }}" onerror="this.style.display='none'">
                                             <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
-                                            <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
+                                            <span class="player-ban-count">{{ pvt.count }}�{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -242,7 +242,7 @@
         {% endif %}
 
         {# Full hero pool ban exposure table #}
-        <h4 class="player-subsection-title">Full Hero Pool — Ban Exposure</h4>
+        <h4 class="player-subsection-title">Full Hero Pool � Ban Exposure</h4>
         <div class="table-wrap">
             <table class="stats-table">
                 <thead>
@@ -266,29 +266,29 @@
                                 </div>
                             </td>
                             <td>{{ row.hero_maps }}</td>
-                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
+                            <td>{{ row.times_banned if row.times_banned else '�' }}</td>
                             <td>
                                 {% if row.hero_wr is not none %}
                                     <span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                             <td>
                                 {% if row.wr_when_banned is not none %}
                                     <span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                             <td>
                                 {% if row.wr_delta is not none %}
                                     <span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                             <td>
                                 {% if row.top_pivot %}
                                     <div class="player-inline-hero">
                                         <img src="{{ hero_image_url(row.top_pivot.hero) }}" alt="{{ hero_display_name(row.top_pivot.hero) }}" onerror="this.style.display='none'">
-                                        <span>{{ hero_display_name(row.top_pivot.hero) }} ({{ row.top_pivot.count }}×)</span>
+                                        <span>{{ hero_display_name(row.top_pivot.hero) }} ({{ row.top_pivot.count }}�)</span>
                                     </div>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                         </tr>
                     {% endfor %}
@@ -327,11 +327,11 @@
                     <tbody>
                         {% for row in player_recent_maps %}
                             <tr>
-                                <td>{{ row.scrim_date or '—' }}</td>
-                                <td>{{ row.map_name or '—' }}</td>
-                                <td>{{ row.opponent or '—' }}</td>
-                                <td>{{ row.result or '—' }}</td>
-                                <td>{{ row.heroes | join(', ') if row.heroes else '—' }}</td>
+                                <td>{{ row.scrim_date or '�' }}</td>
+                                <td>{{ row.map_name or '�' }}</td>
+                                <td>{{ row.opponent or '�' }}</td>
+                                <td>{{ row.result or '�' }}</td>
+                                <td>{{ row.heroes | join(', ') if row.heroes else '�' }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -363,11 +363,11 @@
                     <tbody>
                         {% for row in player_swap_summary.swap_events %}
                             <tr>
-                                <td>{{ row.scrim_date or '—' }}</td>
-                                <td>{{ row.map_name or '—' }}</td>
-                                <td>{{ row.from_label }} → {{ row.to_label }}</td>
-                                <td>{{ row.from_heroes | join(', ') if row.from_heroes else '—' }}</td>
-                                <td>{{ row.to_heroes | join(', ') if row.to_heroes else '—' }}</td>
+                                <td>{{ row.scrim_date or '�' }}</td>
+                                <td>{{ row.map_name or '�' }}</td>
+                                <td>{{ row.from_label }} ? {{ row.to_label }}</td>
+                                <td>{{ row.from_heroes | join(', ') if row.from_heroes else '�' }}</td>
+                                <td>{{ row.to_heroes | join(', ') if row.to_heroes else '�' }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -461,7 +461,7 @@
         try { return JSON.parse(el.textContent); } catch(e) { return null; }
     }
 
-    /* ── Hero pool stacked bar chart ────────────────────── */
+    /* -- Hero pool stacked bar chart ---------------------- */
     (function () {
         var rows = parseJson('playerHeroData');
         if (!rows || !rows.length) return;
@@ -509,7 +509,7 @@
                         callbacks: {
                             title: function (items) {
                                 var r = rows[items[0].dataIndex];
-                                return r.hero + '  ·  ' + r.maps + ' maps  ·  ' + r.win_rate + '% WR';
+                                return r.hero + '  �  ' + r.maps + ' maps  �  ' + r.win_rate + '% WR';
                             },
                             label: function (ctx) {
                                 if (ctx.raw === 0) return null;
@@ -535,7 +535,7 @@
         });
     })();
 
-    /* ── Map WR bar chart ───────────────────────────────── */
+    /* -- Map WR bar chart --------------------------------- */
     (function () {
         var rows = parseJson('playerMapData');
         if (!rows || !rows.length) return;
@@ -573,7 +573,7 @@
                         callbacks: {
                             label: function (ctx) {
                                 var r = rows[ctx.dataIndex];
-                                return ' ' + ctx.raw + '% WR  (' + r.wins + 'W–' + r.losses + 'L, ' + r.maps + ' maps)';
+                                return ' ' + ctx.raw + '% WR  (' + r.wins + 'W�' + r.losses + 'L, ' + r.maps + ' maps)';
                             }
                         }
                     }
@@ -586,7 +586,7 @@
         });
     })();
 
-    /* ── Cumulative WR trend chart ──────────────────────── */
+    /* -- Cumulative WR trend chart ------------------------ */
     (function () {
         var rows = parseJson('playerRecentData');
         if (!rows || !rows.length) return;
@@ -635,7 +635,7 @@
                             label: function (ctx) {
                                 var r = ordered[ctx.dataIndex];
                                 return [
-                                    ' Result: ' + (r.result || '—'),
+                                    ' Result: ' + (r.result || '�'),
                                     ' Cumulative WR: ' + ctx.raw + '%'
                                 ];
                             }
@@ -650,7 +650,7 @@
         });
     })();
 
-    /* ── Role breakdown donut ───────────────────────────── */
+    /* -- Role breakdown donut ----------------------------- */
     (function () {
         var rows = parseJson('playerHeroData');
         if (!rows || !rows.length) return;
@@ -716,7 +716,7 @@
         });
     })();
 
-    /* ── Ban impact grouped bar chart ──────────────────── */    (function () {
+    /* -- Ban impact grouped bar chart -------------------- */    (function () {
         var rows = parseJson('playerBanData');
         if (!rows || !rows.length) return;
         var canvas = document.getElementById('playerBanChart');

@@ -1,4 +1,4 @@
-ï»¿{% extends "base.html" %}
+{% extends "base.html" %}
 {% from "_table_macros.html" import stats_table %}
 
 {% block title %}{{ tournament_team.name }}{% endblock %}
@@ -6,7 +6,7 @@
 {% block content %}
 <div class="team-hero">
     <div class="team-hero-left">
-        <img class="team-avatar" src="{{ team_logo_url(source_team.logo_path) if source_team and source_team.logo_path else 'https://avatar.vercel.sh/' ~ (tournament_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ tournament_team.name }}">
+        <img class="team-avatar" src="{{ team_logo_url(source_team.logo_path) if source_team and source_team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (tournament_team.name | urlencode) ~ '&size=140' }}" alt="{{ tournament_team.name }}">
         <div>
             <h2>{{ tournament_team.name }}</h2>
             <p class="team-record-line">
@@ -80,7 +80,7 @@
                                 <span>{{ row.map_name }}</span>
                                 <strong>{{ row.win_rate }}%</strong>
                             </div>
-                            <small>{{ row.mode }} â€¢ {{ row.maps }} picks â€¢ {{ row.wins }}W - {{ row.losses }}L</small>
+                            <small>{{ row.mode }} • {{ row.maps }} picks • {{ row.wins }}W - {{ row.losses }}L</small>
                         </div>
                     {% endfor %}
                 </div>
@@ -92,7 +92,7 @@
                                 <span>{{ row.map_name }}</span>
                                 <strong>{{ row.win_rate }}%</strong>
                             </div>
-                            <small>{{ row.mode }} â€¢ {{ row.maps }} maps â€¢ {{ row.wins }}W - {{ row.losses }}L</small>
+                            <small>{{ row.mode }} • {{ row.maps }} maps • {{ row.wins }}W - {{ row.losses }}L</small>
                         </div>
                     {% endfor %}
                 </div>
@@ -119,7 +119,7 @@
                                 </span>
                                 <strong>{{ row.usage_rate }}%</strong>
                             </div>
-                            <small>{{ row.appearances }} instances â€¢ {{ row.win_rate }}% win rate</small>
+                            <small>{{ row.appearances }} instances • {{ row.win_rate }}% win rate</small>
                         </div>
                     {% endfor %}
                 </div>
@@ -143,7 +143,7 @@
                         <a class="list-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=row.id) }}">
                             <div>
                                 <div class="list-title">vs {{ row.opponent_name }}</div>
-                                <div class="list-subtitle">{{ row.scrim_date or 'No date set' }} â€¢ {{ row.maps }} maps â€¢ {{ row.wins }}W - {{ row.losses }}L</div>
+                                <div class="list-subtitle">{{ row.scrim_date or 'No date set' }} • {{ row.maps }} maps • {{ row.wins }}W - {{ row.losses }}L</div>
                             </div>
                             <div class="list-meta">{{ row.win_rate }}%</div>
                         </a>
@@ -166,7 +166,7 @@
                     {% for player in players[:8] %}
                         <div class="overview-player-bubble-card">
                             <strong>{{ player.name }}</strong>
-                            <small>{{ player.stats.maps_played }} maps â€¢ {{ player.stats.win_rate }}% WR</small>
+                            <small>{{ player.stats.maps_played }} maps • {{ player.stats.win_rate }}% WR</small>
                         </div>
                     {% endfor %}
                 </div>
@@ -194,7 +194,7 @@
                             <div class="list-title">{{ map_row.map_name }}</div>
                             <span class="scrim-box-maps">{{ map_row.maps }} maps</span>
                         </div>
-                        <div class="list-subtitle">{{ map_row.mode }} â€¢ {{ map_row.wins }}W - {{ map_row.losses }}L â€¢ {{ map_row.win_rate }}%</div>
+                        <div class="list-subtitle">{{ map_row.mode }} • {{ map_row.wins }}W - {{ map_row.losses }}L • {{ map_row.win_rate }}%</div>
                     </a>
                     {% else %}
                     <article class="scrim-box-card">
@@ -202,7 +202,7 @@
                             <div class="list-title">{{ map_row.map_name }}</div>
                             <span class="scrim-box-maps">{{ map_row.maps }} maps</span>
                         </div>
-                        <div class="list-subtitle">{{ map_row.mode }} â€¢ {{ map_row.wins }}W - {{ map_row.losses }}L â€¢ {{ map_row.win_rate }}%</div>
+                        <div class="list-subtitle">{{ map_row.mode }} • {{ map_row.wins }}W - {{ map_row.losses }}L • {{ map_row.win_rate }}%</div>
                     </article>
                     {% endif %}
                 {% endfor %}
@@ -280,9 +280,9 @@
                     <a class="list-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=row.id) }}">
                         <div>
                             <div class="list-title">vs {{ row.opponent_name }}</div>
-                            <div class="list-subtitle">{{ row.scrim_date or 'No date set' }} â€¢ {{ row.maps }} maps â€¢ {{ row.wins }}W - {{ row.losses }}L</div>
+                            <div class="list-subtitle">{{ row.scrim_date or 'No date set' }} • {{ row.maps }} maps • {{ row.wins }}W - {{ row.losses }}L</div>
                         </div>
-                        <div class="list-meta">Open â†’</div>
+                        <div class="list-meta">Open ?</div>
                     </a>
                 {% endfor %}
             </div>
@@ -307,12 +307,12 @@
                         <td>
                             {% if source_team and player.id %}
                                 <a href="{{ url_for('player_detail', team_id=source_team.id, player_id=player.id) }}" class="player-inline-hero">
-                                    <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://avatar.vercel.sh/' ~ (player.name | urlencode) ~ '.png?size=64' }}" alt="{{ player.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=64'">
+                                    <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (player.name | urlencode) ~ '&size=64' }}" alt="{{ player.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ player.name | urlencode }}&size=64'">
                                     <span>{{ player.name }}</span>
                                 </a>
                             {% else %}
                                 <span class="player-inline-hero">
-                                    <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://avatar.vercel.sh/' ~ (player.name | urlencode) ~ '.png?size=64' }}" alt="{{ player.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=64'">
+                                    <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (player.name | urlencode) ~ '&size=64' }}" alt="{{ player.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ player.name | urlencode }}&size=64'">
                                     <span>{{ player.name }}</span>
                                 </span>
                             {% endif %}
@@ -360,7 +360,7 @@
                     <tr>
                         <td>
                             <span class="player-inline-hero">
-                                <img src="{{ hero_image_url(staffer.main_hero) if staffer.main_hero else 'https://avatar.vercel.sh/' ~ (staffer.name | urlencode) ~ '.png?size=64' }}" alt="{{ staffer.name }}" onerror="this.src='https://avatar.vercel.sh/{{ staffer.name | urlencode }}.png?size=64'">
+                                <img src="{{ hero_image_url(staffer.main_hero) if staffer.main_hero else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (staffer.name | urlencode) ~ '&size=64' }}" alt="{{ staffer.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ staffer.name | urlencode }}&size=64'">
                                 <span>{{ staffer.name }}</span>
                             </span>
                         </td>

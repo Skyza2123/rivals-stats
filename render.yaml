@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: rivals-stats
+    env: python
+    plan: starter
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:${PORT} --workers ${WEB_CONCURRENCY:-1} --timeout 120
+    envVars:
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: RENDER
+        value: "true"
+      - key: RENDER_DISK_MOUNT_PATH
+        value: /var/data
+    disk:
+      name: rivals-stats-data
+      mountPath: /var/data
+      sizeGB: 5

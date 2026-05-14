@@ -7,7 +7,7 @@
 
 <div class="team-hero gap-lg">
     <div class="team-hero-left">
-        <img class="team-avatar" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
+        <img class="team-avatar" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (team.name | urlencode) ~ '&size=140' }}" alt="{{ team.name }}">
         <div>
             <h2>{{ team.name }}</h2>
             <div class="team-kpi-chips gap-md">
@@ -63,6 +63,7 @@
 <div class="team-page-tabs">
     <div class="tab-bar tab-bar-group">
         <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
+        <button class="tab-btn" data-tab="scrimcore" type="button">ScrimCore Exp</button>
         <button class="tab-btn" data-tab="prep" type="button">Prep</button>
         <button class="tab-btn" data-tab="scrims" type="button">Scrims</button>
         <button class="tab-btn" data-tab="maps" type="button">Maps</button>
@@ -221,7 +222,7 @@
                                 <div class="quick-bar-track">
                                     <span class="quick-bar-fill" style="--share: {{ ((row.maps / top_maps_max) * 100) if top_maps_max else 0 }}%"></span>
                                 </div>
-                                <small>{{ row.win_rate }}% WR • {{ row.mode }}</small>
+                                <small>{{ row.win_rate }}% WR � {{ row.mode }}</small>
                             </article>
                         {% endfor %}
                     </div>
@@ -274,7 +275,7 @@
                                     </div>
                                     <div class="pool-player-text">
                                         <span class="pool-player-name">{{ player.name }}</span>
-                                        <span class="pool-player-role">{{ player.role or '—' }}</span>
+                                        <span class="pool-player-role">{{ player.role or '�' }}</span>
                                     </div>
                                 </a>
                                 <div class="pool-hero-strip">
@@ -337,18 +338,18 @@
                 </article>
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Top Banned Hero</span>
-                    <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else '—' }}</strong>
-                    <span class="ban-kpi-sub">{{ top_ban.count if top_ban else 0 }} bans • {{ top_ban.ban_rate if top_ban else 0 }}%</span>
+                    <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else '�' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_ban.count if top_ban else 0 }} bans � {{ top_ban.ban_rate if top_ban else 0 }}%</span>
                 </article>
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Top Protected Hero</span>
-                    <strong class="ban-kpi-value">{{ top_protect.hero if top_protect else '—' }}</strong>
-                    <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects • {{ top_protect.protect_rate if top_protect else 0 }}%</span>
+                    <strong class="ban-kpi-value">{{ top_protect.hero if top_protect else '�' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects � {{ top_protect.protect_rate if top_protect else 0 }}%</span>
                 </article>
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Unique Draft Heroes</span>
                     <strong class="ban-kpi-value">{{ team_analytics.summary.unique_bans + team_analytics.summary.unique_protects }}</strong>
-                    <span class="ban-kpi-sub">{{ team_analytics.summary.unique_bans }} banned • {{ team_analytics.summary.unique_protects }} protected</span>
+                    <span class="ban-kpi-sub">{{ team_analytics.summary.unique_bans }} banned � {{ team_analytics.summary.unique_protects }} protected</span>
                 </article>
             </div>
 
@@ -487,7 +488,7 @@
                 <div class="dense-collapsible-body">
             <section class="panel panel-soft-gold top-gap">
                 <div class="section-kicker">Flow Board</div>
-                <h3>Draft Flowboard (Ban → Response → Protect)</h3>
+                <h3>Draft Flowboard (Ban ? Response ? Protect)</h3>
                 <p class="panel-intro">Visual chain of the most likely draft reactions from your sample.</p>
                 {% if team_analytics.ban_next_rows and team_analytics.ban_to_protect_rows %}
                     <div class="draft-flow-stack top-gap">
@@ -503,13 +504,13 @@
                                     <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                     <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
                                 </span>
-                                <span class="prep-flow-arrow">→</span>
+                                <span class="prep-flow-arrow">?</span>
                                 <span class="hero-inline-cell">
                                     <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
                                     <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
                                 </span>
                                 {% if linked_protect and linked_protect.top_protect %}
-                                    <span class="prep-flow-arrow">→</span>
+                                    <span class="prep-flow-arrow">?</span>
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(linked_protect.top_protect) }}" alt="{{ linked_protect.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ linked_protect.top_protect | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(linked_protect.top_protect) }}</span>{% if hero_pool_label(linked_protect.top_protect) %}<small class="hero-sub-label">{{ hero_pool_label(linked_protect.top_protect) }}</small>{% endif %}</span>
@@ -536,7 +537,7 @@
                                         <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
                                     </span>
-                                    <span class="prep-flow-arrow">→</span>
+                                    <span class="prep-flow-arrow">?</span>
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span></span>
@@ -561,7 +562,7 @@
                                         <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
                                     </span>
-                                    <span class="prep-flow-arrow">→</span>
+                                    <span class="prep-flow-arrow">?</span>
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span></span>
@@ -585,20 +586,20 @@
                                 <div class="draft-flow-card draft-flow-card-wide">
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(start_node.hero) }}" alt="{{ start_node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ start_node.hero | urlencode }}'">
-                                        <span class="hero-inline-meta"><span>{{ hero_display_name(start_node.hero) }}</span><small class="prep-chip-meta">{{ start_node.label }} · {{ start_node.rate }}%</small></span>
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(start_node.hero) }}</span><small class="prep-chip-meta">{{ start_node.label }} � {{ start_node.rate }}%</small></span>
                                     </span>
                                     {% for node in row.source_nodes[1:] %}
-                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="prep-flow-arrow">?</span>
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(node.hero) }}" alt="{{ node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ node.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} · {{ node.rate }}%</small></span>
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} � {{ node.rate }}%</small></span>
                                         </span>
                                     {% endfor %}
                                     {% for node in row.next_nodes %}
-                                        <span class="prep-flow-arrow">→</span>
+                                        <span class="prep-flow-arrow">?</span>
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(node.hero) }}" alt="{{ node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ node.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} · {{ node.rate }}%</small></span>
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} � {{ node.rate }}%</small></span>
                                         </span>
                                     {% endfor %}
                                 </div>
@@ -643,7 +644,7 @@
                                         <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
                                         <span>{{ slot.top_hero }}</span>
                                     </strong>
-                                    <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
+                                    <span>{{ slot.top_count }} picks � {{ slot.top_rate }}%</span>
                                 </div>
                                 <div class="ban-position-analysis">
                                     {% if slot.insight_hero %}
@@ -666,7 +667,7 @@
                                                     <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                                     <span>{{ hero_display_name(row.hero) }}</span>
                                                 </span>
-                                                <span>{{ row.count }} • {{ row.rate }}%</span>
+                                                <span>{{ row.count }} � {{ row.rate }}%</span>
                                             </div>
                                         {% endfor %}
                                     {% else %}
@@ -710,7 +711,7 @@
                                         <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
                                         <span>{{ slot.top_hero }}</span>
                                     </strong>
-                                    <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
+                                    <span>{{ slot.top_count }} picks � {{ slot.top_rate }}%</span>
                                 </div>
                                 <div class="ban-position-analysis">
                                     {% if slot.insight_hero %}
@@ -733,7 +734,7 @@
                                                     <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                                     <span>{{ hero_display_name(row.hero) }}</span>
                                                 </span>
-                                                <span>{{ row.count }} • {{ row.rate }}%</span>
+                                                <span>{{ row.count }} � {{ row.rate }}%</span>
                                             </div>
                                         {% endfor %}
                                     {% else %}
@@ -862,13 +863,13 @@
                 {% endif %}
             </div>
 
-            {# ── Team Ban Impact ──────────────────────────────── #}
+            {# -- Team Ban Impact -------------------------------- #}
             {% set team_banned_rows = team_ban_impact | selectattr("times_banned") | list %}
             {% if team_ban_impact %}
             <div class="panel panel-soft-orange top-gap">
                 <div class="section-kicker">Ban Impact</div>
-                <h3>{{ team.name }} — Ban Impact</h3>
-                <p class="panel-intro">How the team performs when the enemy targets heroes from their pool (≥5 maps played), and what they pivot to.</p>
+                <h3>{{ team.name }} � Ban Impact</h3>
+                <p class="panel-intro">How the team performs when the enemy targets heroes from their pool (=5 maps played), and what they pivot to.</p>
 
                 {% if team_banned_rows %}
                     <div class="player-ban-grid">
@@ -880,7 +881,7 @@
                                         <div class="player-ban-card-hero-name">{{ hero_display_name(row.hero) }}</div>
                                         <div class="player-ban-count">{{ row.hero_maps }} maps played</div>
                                     </div>
-                                    <span class="ban-count-badge">Banned {{ row.times_banned }}×</span>
+                                    <span class="ban-count-badge">Banned {{ row.times_banned }}�</span>
                                 </div>
 
                                 <div class="player-ban-stats">
@@ -888,13 +889,13 @@
                                         <span class="player-ban-stat-label">WR when available</span>
                                         {% if row.hero_wr is not none %}
                                             <strong class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</strong>
-                                        {% else %}<strong>—</strong>{% endif %}
+                                        {% else %}<strong>�</strong>{% endif %}
                                     </div>
                                     <div class="player-ban-stat">
                                         <span class="player-ban-stat-label">WR when banned</span>
                                         {% if row.wr_when_banned is not none %}
                                             <strong class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</strong>
-                                        {% else %}<strong>—</strong>{% endif %}
+                                        {% else %}<strong>�</strong>{% endif %}
                                     </div>
                                     {% if row.wr_delta is not none %}
                                         <div class="player-ban-stat">
@@ -912,7 +913,7 @@
                                                 <div class="player-ban-pivot-chip">
                                                     <img src="{{ hero_image_url(pvt.hero) }}" alt="{{ hero_display_name(pvt.hero) }}" data-hero="{{ pvt.hero }}" onerror="this.style.display='none'">
                                                     <span class="player-ban-pivot-name">{{ hero_display_name(pvt.hero) }}</span>
-                                                    <span class="player-ban-count">{{ pvt.count }}×{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
+                                                    <span class="player-ban-count">{{ pvt.count }}�{% if pvt.wr is not none %} &bull; {{ pvt.wr }}%{% endif %}</span>
                                                 </div>
                                             {% endfor %}
                                         </div>
@@ -929,7 +930,7 @@
                         <canvas id="teamBanImpactChart"></canvas>
                     </div>
                 {% else %}
-                    <p class="empty-text">None of {{ team.name }}'s heroes have been banned in recorded scrims (with ≥5 maps played).</p>
+                    <p class="empty-text">None of {{ team.name }}'s heroes have been banned in recorded scrims (with =5 maps played).</p>
                 {% endif %}
 
                 <h4 style="margin: 20px 0 8px; font-size: 0.9rem; color: var(--muted);">Full Hero Pool - Ban Exposure</h4>
@@ -943,29 +944,29 @@
                                 </div>
                             </td>
                             <td>{{ row.hero_maps }}</td>
-                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
+                            <td>{{ row.times_banned if row.times_banned else '�' }}</td>
                             <td>
                                 {% if row.hero_wr is not none %}
                                     <span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                             <td>
                                 {% if row.wr_when_banned is not none %}
                                     <span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                             <td>
                                 {% if row.wr_delta is not none %}
                                     <span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                             <td>
                                 {% if row.top_pivot %}
                                     <div class="player-inline-hero">
                                         <img src="{{ hero_image_url(row.top_pivot.hero) }}" alt="{{ hero_display_name(row.top_pivot.hero) }}" onerror="this.style.display='none'">
-                                        <span>{{ hero_display_name(row.top_pivot.hero) }} ({{ row.top_pivot.count }}×)</span>
+                                        <span>{{ hero_display_name(row.top_pivot.hero) }} ({{ row.top_pivot.count }}�)</span>
                                     </div>
-                                {% else %}—{% endif %}
+                                {% else %}�{% endif %}
                             </td>
                         </tr>
                     {% endfor %}
@@ -977,6 +978,72 @@
             <p class="empty-text">No scrim maps recorded for this team yet.</p>
         {% endif %}
     </section>
+</div>
+
+<div class="tab-content tab-hidden" id="tab-scrimcore">
+    <section class="panel panel-soft-blue">
+        <div class="section-kicker">ScrimCore-Inspired</div>
+        <h3>Team Timeline Analytics (Experiment)</h3>
+        <p class="panel-intro">Presentation and calculations inspired by Parsertime/ScrimCore, computed from Rivals Stats timeline data.</p>
+        <div class="summary-grid top-gap">
+            <section class="stat-card">
+                <strong>Total Fights</strong>
+                <span>{{ scrimcore_team_metrics.summary.fights }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>First Death Rate</strong>
+                <span>{{ scrimcore_team_metrics.summary.first_death_rate }}%</span>
+            </section>
+            <section class="stat-card">
+                <strong>Objectives / Map</strong>
+                <span>{{ scrimcore_team_metrics.summary.objectives_per_map }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Ults / Map</strong>
+                <span>{{ scrimcore_team_metrics.summary.ults_per_map }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Tempo (Events / Min)</strong>
+                <span>{{ scrimcore_team_metrics.summary.tempo_events_per_min }}</span>
+            </section>
+            <section class="stat-card">
+                <strong>Longest First-Death Streak</strong>
+                <span>{{ scrimcore_team_metrics.summary.longest_first_death_streak }}</span>
+            </section>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <h3>Fight Momentum</h3>
+            <span class="muted-label">Cumulative pick/death swing</span>
+        </div>
+        <div class="prep-chart-wrap top-gap" style="position:relative; height: 320px;">
+            <canvas id="teamScrimcoreSwingChart"></canvas>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <h3>Event Mix</h3>
+            <span class="muted-label">Top timeline event categories</span>
+        </div>
+        <div class="prep-chart-wrap top-gap" style="position:relative; height: 320px;">
+            <canvas id="teamScrimcoreEventMixChart"></canvas>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <h3>Fight Volume by Map</h3>
+            <span class="muted-label">Estimated fights per map from clustered lethal events</span>
+        </div>
+        <div class="prep-chart-wrap top-gap" style="position:relative; height: 360px;">
+            <canvas id="teamScrimcoreFightVolumeChart"></canvas>
+        </div>
+    </section>
+
+    <script id="teamScrimcoreMetricsData" type="application/json">{{ scrimcore_team_metrics | tojson }}</script>
 </div>
 
 <div class="tab-content tab-hidden" id="tab-prep">
@@ -1553,7 +1620,7 @@
     <section class="panel top-gap">
         <div class="section-kicker">Comp Difference</div>
         <h3>Comp Type Breakdown</h3>
-        <p class="panel-intro">How often each comp profile appears and performs — opponent on the left, your team on the right.</p>
+        <p class="panel-intro">How often each comp profile appears and performs � opponent on the left, your team on the right.</p>
         {% call stats_table(['Comp Type', 'Opp Maps', 'Opp Rate', 'Our Maps', 'Our Rate', 'Our Win Rate'], extra_wrap_class='top-gap') %}
             <tr>
                 <td>Triple Support</td>
@@ -1823,7 +1890,7 @@
                         <span class="hero-usage-bar-wrap">
                             <span class="hero-usage-bar" data-width="{{ width }}"></span>
                         </span>
-                        <span class="hero-usage-meta">{{ row.appearances }} instances • {{ row.usage_rate }}% usage share • {{ row.win_rate }}% WR</span>
+                        <span class="hero-usage-meta">{{ row.appearances }} instances � {{ row.usage_rate }}% usage share � {{ row.win_rate }}% WR</span>
                     </a>
                 {% endfor %}
             </div>
@@ -1898,21 +1965,21 @@
                                 <span>{{ hero_display_name(row.hero) }}</span>
                             </span>
                         </td>
-                        <td>{{ row.atk_apps if row.atk_apps else '–' }}</td>
+                        <td>{{ row.atk_apps if row.atk_apps else '�' }}</td>
                         <td>
                             {% if row.atk_win_rate is not none %}
                                 <span class="{% if row.atk_win_rate >= 60 %}wr-good{% elif row.atk_win_rate >= 40 %}wr-ok{% else %}wr-bad{% endif %}">
                                     {{ row.atk_win_rate }}%
                                 </span>
-                            {% else %}–{% endif %}
+                            {% else %}�{% endif %}
                         </td>
-                        <td>{{ row.def_apps if row.def_apps else '–' }}</td>
+                        <td>{{ row.def_apps if row.def_apps else '�' }}</td>
                         <td>
                             {% if row.def_win_rate is not none %}
                                 <span class="{% if row.def_win_rate >= 60 %}wr-good{% elif row.def_win_rate >= 40 %}wr-ok{% else %}wr-bad{% endif %}">
                                     {{ row.def_win_rate }}%
                                 </span>
-                            {% else %}–{% endif %}
+                            {% else %}�{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -1967,13 +2034,13 @@
         <details class="dense-collapsible top-gap">
             <summary>Hero Pivot Pairs</summary>
             <div>
-                <p class="panel-intro" style="margin-top:10px;">Each row is a <strong>from-hero → to-hero</strong> switch made after a lost attack round.</p>
+                <p class="panel-intro" style="margin-top:10px;">Each row is a <strong>from-hero ? to-hero</strong> switch made after a lost attack round.</p>
                 <div class="table-wrap">
                     <table class="stats-table">
                         <thead>
                             <tr>
                                 <th>From Hero</th>
-                                <th>→ To Hero</th>
+                                <th>? To Hero</th>
                                 <th>Attempts</th>
                                 <th>Wins</th>
                                 <th>Success Rate</th>
@@ -2365,9 +2432,9 @@
                     <img
                         id="teamLogoPreview"
                         class="team-logo-thumb team-logo-thumb-lg"
-                        src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+                        src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (team.name | urlencode) ~ '&size=140' }}"
                         alt="Current team logo"
-                        data-fallback="https://avatar.vercel.sh/{{ team.name | urlencode }}.png?size=140"
+                        data-fallback="https://api.dicebear.com/9.x/initials/png?seed={{ team.name | urlencode }}&size=140"
                     >
                     <div class="team-logo-picker-actions">
                         <button id="chooseTeamLogoBtn" type="button" class="button-secondary btn-muted button-small">Add / Change</button>
@@ -2396,7 +2463,7 @@
                     <tr>
                         <td>
                             <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="player-inline-hero">
-                                <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://avatar.vercel.sh/' ~ (player.name | urlencode) ~ '.png?size=64' }}" alt="{{ player.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player.name | urlencode }}.png?size=64'">
+                                <img src="{{ hero_image_url(player.top_hero) if player.top_hero else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (player.name | urlencode) ~ '&size=64' }}" alt="{{ player.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ player.name | urlencode }}&size=64'">
                                 <span>{{ player.name }}</span>
                             </a>
                         </td>
@@ -2407,7 +2474,7 @@
                                     <span>{{ hero_display_name(player.top_hero) }}</span>
                                 </span>
                             {% else %}
-                                <span class="empty-text">—</span>
+                                <span class="empty-text">�</span>
                             {% endif %}
                         </td>
                         <td>{{ 'Sub' if player.is_sub else 'Main' }}</td>
@@ -2494,7 +2561,7 @@
                     <tr>
                         <td>
                             <span class="player-inline-hero">
-                                <img src="{{ hero_image_url(staffer.main_hero) if staffer.main_hero else 'https://avatar.vercel.sh/' ~ (staffer.name | urlencode) ~ '.png?size=64' }}" alt="{{ staffer.name }}" onerror="this.src='https://avatar.vercel.sh/{{ staffer.name | urlencode }}.png?size=64'">
+                                <img src="{{ hero_image_url(staffer.main_hero) if staffer.main_hero else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (staffer.name | urlencode) ~ '&size=64' }}" alt="{{ staffer.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ staffer.name | urlencode }}&size=64'">
                                 <span>{{ staffer.name }}</span>
                             </span>
                         </td>
@@ -2578,8 +2645,8 @@
         </div>
         {% if scrim_log.rows %}
         <div class="scrim-view-toggle" aria-label="Scrim view mode">
-            <button type="button" class="btn-secondary scrim-view-btn scrim-view-btn-active" id="slDetailView" title="Detailed map view" aria-label="Detailed map view">▤</button>
-            <button type="button" class="btn-secondary scrim-view-btn" id="slHeroView" title="Heroes view" aria-label="Heroes view">▦</button>
+            <button type="button" class="btn-secondary scrim-view-btn scrim-view-btn-active" id="slDetailView" title="Detailed map view" aria-label="Detailed map view">?</button>
+            <button type="button" class="btn-secondary scrim-view-btn" id="slHeroView" title="Heroes view" aria-label="Heroes view">?</button>
         </div>
         {% endif %}
     </div>
@@ -2619,7 +2686,7 @@
             <option value="{{ s }}" {% if selected_season == s %}selected{% endif %}>Season {{ s }}</option>
             {% endfor %}
         </select>
-        <button type="button" class="btn-secondary" id="slClearFilters">Clear ×</button>
+        <button type="button" class="btn-secondary" id="slClearFilters">Clear �</button>
         <button type="button" class="btn-secondary" id="slOpenAll">Open All</button>
         <button type="button" class="btn-secondary" id="slCloseAll">Close All</button>
         <a
@@ -2641,16 +2708,16 @@
                 <span class="scrim-acc-toggle-icon"></span>
                 <span class="scrim-acc-date">
                     {% if scrim_id %}
-                    <a href="{{ url_for('scrim_detail', scrim_id=scrim_id) }}" class="subtle-link" onclick="event.stopPropagation()">{{ first_row.scrim_date or '—' }}</a>
+                    <a href="{{ url_for('scrim_detail', scrim_id=scrim_id) }}" class="subtle-link" onclick="event.stopPropagation()">{{ first_row.scrim_date or '�' }}</a>
                     {% else %}
-                    {{ first_row.scrim_date or '—' }}
+                    {{ first_row.scrim_date or '�' }}
                     {% endif %}
                 </span>
                 <span class="scrim-acc-opp">vs {{ first_row.opponent_name }}</span>
                 <span class="scrim-acc-record">
                     {% if wins %}<span class="wr-good">{{ wins }}W</span>{% endif %}
                     {% if losses %}<span class="wr-bad">{{ losses }}L</span>{% endif %}
-                    {% if draws %}<span class="wr-na">{{ draws }}—</span>{% endif %}
+                    {% if draws %}<span class="wr-na">{{ draws }}�</span>{% endif %}
                 </span>
                 <span class="scrim-acc-maps">{{ scrim_maps | length }} map{{ 's' if scrim_maps | length != 1 else '' }}</span>
                 {% if first_row.season %}<span class="scrim-acc-season">S{{ first_row.season }}</span>{% endif %}
@@ -2683,8 +2750,8 @@
                         <td class="scrim-map-result-cell">
                             {% if row.result == 'Win' %}<span class="wr-good">W</span>
                             {% elif row.result == 'Loss' %}<span class="wr-bad">L</span>
-                            {% else %}<span class="wr-na">—</span>{% endif %}
-                            <span class="scrim-map-score">{{ row.display_score or row.score or '—' }}</span>
+                            {% else %}<span class="wr-na">�</span>{% endif %}
+                            <span class="scrim-map-score">{{ row.display_score or row.score or '�' }}</span>
                         </td>
                         <td>{{ row.opponent_name }}</td>
                     </tr>
@@ -2705,7 +2772,7 @@
                                                 <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                                 {% endif %}
                                             {% else %}
-                                            <span class="dimmed-text">—</span>
+                                            <span class="dimmed-text">�</span>
                                             {% endfor %}
                                             </div>
                                             <span>Protects</span>
@@ -2717,7 +2784,7 @@
                                                 <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                                 {% endif %}
                                             {% else %}
-                                            <span class="dimmed-text">—</span>
+                                            <span class="dimmed-text">�</span>
                                             {% endfor %}
                                             </div>
                                         </div>
@@ -2727,8 +2794,8 @@
                                         <strong>
                                             {% if row.result == 'Win' %}<span class="wr-good">W</span>
                                             {% elif row.result == 'Loss' %}<span class="wr-bad">L</span>
-                                            {% else %}<span class="wr-na">—</span>{% endif %}
-                                            {{ row.display_score or row.score or '—' }}
+                                            {% else %}<span class="wr-na">�</span>{% endif %}
+                                            {{ row.display_score or row.score or '�' }}
                                         </strong>
                                     </div>
                                     <div class="scrim-sections-team-draft scrim-sections-team-draft-right">
@@ -2743,7 +2810,7 @@
                                                 <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                                 {% endif %}
                                             {% else %}
-                                            <span class="dimmed-text">—</span>
+                                            <span class="dimmed-text">�</span>
                                             {% endfor %}
                                             </div>
                                             <span>Protects</span>
@@ -2755,7 +2822,7 @@
                                                 <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                                 {% endif %}
                                             {% else %}
-                                            <span class="dimmed-text">—</span>
+                                            <span class="dimmed-text">�</span>
                                             {% endfor %}
                                             </div>
                                         </div>
@@ -2766,7 +2833,7 @@
                                     <div class="scrim-section-comp scrim-section-comp-ours">
                                         {% for slot in sec.our_slots %}
                                             {% if slot.hero and slot.hero in hero_transformations %}
-                                            <div class="scrim-section-slot" title="{{ hero_display_name(slot.hero) }}{% if slot.player %} — {{ slot.player }}{% endif %}">
+                                            <div class="scrim-section-slot" title="{{ hero_display_name(slot.hero) }}{% if slot.player %} � {{ slot.player }}{% endif %}">
                                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(slot.hero) }}" alt="{{ slot.hero }}" data-hero="{{ slot.hero }}">
                                                 {% if slot.player %}<span class="scrim-section-player">{{ slot.player }}</span>{% endif %}
                                             </div>
@@ -2777,7 +2844,7 @@
                                             </div>
                                             {% endif %}
                                         {% else %}
-                                        <span class="dimmed-text">—</span>
+                                        <span class="dimmed-text">�</span>
                                         {% endfor %}
                                     </div>
                                     <div class="scrim-section-meta">
@@ -2786,14 +2853,14 @@
                                         {% if sec.result %}
                                             {% if sec.result == 'Win' %}<span class="wr-good">W</span>
                                             {% elif sec.result == 'Loss' %}<span class="wr-bad">L</span>
-                                            {% else %}<span class="wr-na">—</span>{% endif %}
+                                            {% else %}<span class="wr-na">�</span>{% endif %}
                                         {% endif %}
                                         {% if sec.side %}<span class="scrim-section-side dimmed-text">{{ sec.side }}</span>{% endif %}
                                     </div>
                                     <div class="scrim-section-comp scrim-section-comp-enemy">
                                         {% for slot in sec.enemy_slots %}
                                             {% if slot.hero and slot.hero in hero_transformations %}
-                                            <div class="scrim-section-slot" title="{{ hero_display_name(slot.hero) }}{% if slot.player %} — {{ slot.player }}{% endif %}">
+                                            <div class="scrim-section-slot" title="{{ hero_display_name(slot.hero) }}{% if slot.player %} � {{ slot.player }}{% endif %}">
                                                 <img class="hero-inline-thumb" loading="lazy" src="{{ hero_image_url(slot.hero) }}" alt="{{ slot.hero }}" data-hero="{{ slot.hero }}">
                                                 {% if slot.player %}<span class="scrim-section-player">{{ slot.player }}</span>{% endif %}
                                             </div>
@@ -2804,7 +2871,7 @@
                                             </div>
                                             {% endif %}
                                         {% else %}
-                                        <span class="dimmed-text">—</span>
+                                        <span class="dimmed-text">�</span>
                                         {% endfor %}
                                     </div>
                                 </div>
@@ -2837,13 +2904,13 @@
                         data-duelists="{{ row.our_duelist_players | join('|') }}"
                         data-season="{{ row.season }}"
                     >
-                        <td class="nowrap">{{ row.scrim_date or '—' }}</td>
+                        <td class="nowrap">{{ row.scrim_date or '�' }}</td>
                         <td>{{ row.opponent_name }}</td>
                         <td>{{ row.map_name }}</td>
                         <td>
                             {% if row.result == 'Win' %}<span class="team-result-pill team-result-win">Win</span>
                             {% elif row.result == 'Loss' %}<span class="team-result-pill team-result-loss">Loss</span>
-                            {% else %}<span class="team-result-pill team-result-neutral">—</span>{% endif %}
+                            {% else %}<span class="team-result-pill team-result-neutral">�</span>{% endif %}
                         </td>
                         <td>
                             <div class="scrim-heroes-draft-line">
@@ -2856,7 +2923,7 @@
                                     <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                     {% endif %}
                                 {% else %}
-                                <span class="dimmed-text">—</span>
+                                <span class="dimmed-text">�</span>
                                 {% endfor %}
                                 </div>
                                 <span>P</span>
@@ -2868,7 +2935,7 @@
                                     <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                     {% endif %}
                                 {% else %}
-                                <span class="dimmed-text">—</span>
+                                <span class="dimmed-text">�</span>
                                 {% endfor %}
                                 </div>
                             </div>
@@ -2883,7 +2950,7 @@
                                     {% if slot.player %}<span class="scrim-heroes-player">{{ slot.player }}</span>{% endif %}
                                 </div>
                             {% else %}
-                            <span class="dimmed-text">—</span>
+                            <span class="dimmed-text">�</span>
                             {% endfor %}
                             </div>
                         </td>
@@ -2898,7 +2965,7 @@
                                     <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                     {% endif %}
                                 {% else %}
-                                <span class="dimmed-text">—</span>
+                                <span class="dimmed-text">�</span>
                                 {% endfor %}
                                 </div>
                                 <span>P</span>
@@ -2910,7 +2977,7 @@
                                     <span class="hero-name-inline">{{ hero_display_name(hero) }}</span>
                                     {% endif %}
                                 {% else %}
-                                <span class="dimmed-text">—</span>
+                                <span class="dimmed-text">�</span>
                                 {% endfor %}
                                 </div>
                             </div>
@@ -2925,7 +2992,7 @@
                                     {% if slot.player %}<span class="scrim-heroes-player">{{ slot.player }}</span>{% endif %}
                                 </div>
                             {% else %}
-                            <span class="dimmed-text">—</span>
+                            <span class="dimmed-text">�</span>
                             {% endfor %}
                             </div>
                         </td>
@@ -3529,7 +3596,7 @@
             moreTabsToggle.open = advancedTabs.has(nextTab);
         }
 
-        // Chart.js can't measure hidden (display:none) canvases — resize after reveal
+        // Chart.js can't measure hidden (display:none) canvases � resize after reveal
         if (nextTab === "heroes") {
             setTimeout(() => {
                 const c = typeof Chart !== 'undefined' && Chart.getChart(document.getElementById('heroUsageTimelineChart'));
@@ -3611,7 +3678,7 @@
                 return;
             }
             prepContainer.innerHTML = html;
-            // innerHTML silently drops <script> tags — re-execute them manually
+            // innerHTML silently drops <script> tags � re-execute them manually
             prepContainer.querySelectorAll('script').forEach((oldScript) => {
                 if (oldScript.type && oldScript.type !== 'text/javascript') return;
                 const s = document.createElement('script');
@@ -3717,7 +3784,7 @@
         editNotes.value = player.notes || "";
         editSelect.value = String(player.id);
         const statusLabel = editIsSub.checked ? "Sub" : "Main";
-        setEditFormState(true, `${player.name || "Selected"} • ${statusLabel}`);
+        setEditFormState(true, `${player.name || "Selected"} � ${statusLabel}`);
     };
 
     openBtn?.addEventListener("click", () => {
@@ -3783,7 +3850,7 @@
         editStaffHero.value = staffer.hero || "";
         editStaffNotes.value = staffer.notes || "";
         editStaffSelect.value = String(staffer.id);
-        setEditStaffFormState(true, `${staffer.role || "Staff"} • ${staffer.name || "Selected"}`);
+        setEditStaffFormState(true, `${staffer.role || "Staff"} � ${staffer.name || "Selected"}`);
     };
 
     editStaffSelect?.addEventListener("change", () => {
@@ -3833,7 +3900,7 @@
     editIsSub?.addEventListener("change", () => {
         const selectedName = (editName.value || "Selected").trim() || "Selected";
         const statusLabel = editIsSub.checked ? "Sub" : "Main";
-        setEditFormState(Boolean(editSelect.value), `${selectedName} • ${statusLabel}`);
+        setEditFormState(Boolean(editSelect.value), `${selectedName} � ${statusLabel}`);
     });
 
     if (editForm) {
@@ -4020,7 +4087,7 @@ if (document.readyState !== 'complete') {
     });
 })();
 
-/* ── New charts: Role Donut, Hero Pool Bar, Ban/Protect Bar, Map WR Bar ── */
+/* -- New charts: Role Donut, Hero Pool Bar, Ban/Protect Bar, Map WR Bar -- */
 (function () {
     'use strict';
     if (typeof Chart === 'undefined') return;
@@ -4106,7 +4173,7 @@ if (document.readyState !== 'complete') {
         return new Chart(canvas, config);
     }
 
-    /* ── Role Breakdown Donut ── */
+    /* -- Role Breakdown Donut -- */
     (function () {
         var rows = parseJsonEl('teamHeroGraphData');
         if (!rows || !rows.length) return;
@@ -4152,7 +4219,7 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Hero Pool Bar Chart (appearances + win rate line) ── */
+    /* -- Hero Pool Bar Chart (appearances + win rate line) -- */
     (function () {
         var rows = parseJsonEl('teamHeroGraphData');
         if (!rows || !rows.length) return;
@@ -4232,7 +4299,7 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Ban vs Protect Rate line graph ── */
+    /* -- Ban vs Protect Rate line graph -- */
     (function () {
         var rows = parseJsonEl('teamBanProtectData');
         if (!rows || !rows.length) return;
@@ -4298,7 +4365,7 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Map Win Rate line graph ── */
+    /* -- Map Win Rate line graph -- */
     (function () {
         var rows = parseJsonEl('teamMapWrData');
         if (!rows || !rows.length) return;
@@ -4358,7 +4425,7 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Ban Difference grouped horizontal bar ── */
+    /* -- Ban Difference grouped horizontal bar -- */
     (function () {
         var rows = parseJsonEl('teamBanDiffData');
         if (!rows || !rows.length) return;
@@ -4417,7 +4484,7 @@ if (document.readyState !== 'complete') {
         });
     })();
 
-    /* ── Ban Slot distribution charts (our + enemy) ── */
+    /* -- Ban Slot distribution charts (our + enemy) -- */
     (function () {
         var SLOT_COLORS = {
             'Ban 1':     chartLoss,
@@ -4491,7 +4558,7 @@ if (document.readyState !== 'complete') {
         buildBanSlotChart('teamEnemyBanSlotChart', 'teamEnemyBanSlotData');
     })();
 
-    /* ── Team Ban Impact grouped horizontal bar ── */
+    /* -- Team Ban Impact grouped horizontal bar -- */
     (function () {
         var rows = parseJsonEl('teamBanImpactData');
         if (!rows || !rows.length) return;
@@ -4540,7 +4607,7 @@ if (document.readyState !== 'complete') {
                         callbacks: {
                             title: function (items) {
                                 var r = filtered[items[0].dataIndex];
-                                return r.hero + '  ·  Banned ' + r.times_banned + '×';
+                                return r.hero + '  �  Banned ' + r.times_banned + '�';
                             },
                             label: function (ctx) {
                                 if (ctx.raw === null) return ' No data';
@@ -4562,6 +4629,136 @@ if (document.readyState !== 'complete') {
                 }
             }
         });
+    })();
+
+    /* -- ScrimCore Experiment charts -- */
+    (function () {
+        var payload = parseJsonEl('teamScrimcoreMetricsData');
+        if (!payload || !payload.charts) return;
+
+        var swingCanvas = document.getElementById('teamScrimcoreSwingChart');
+        if (swingCanvas && Array.isArray(payload.charts.fight_swing) && payload.charts.fight_swing.length) {
+            var existingSwing = Chart.getChart(swingCanvas);
+            if (existingSwing) existingSwing.destroy();
+            new Chart(swingCanvas, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Momentum Swing',
+                        data: payload.charts.fight_swing.map(function (row) {
+                            return { x: row.i, y: row.y };
+                        }),
+                        parsing: false,
+                        borderColor: chartWin,
+                        backgroundColor: chartWinSoft,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        tension: 0.2,
+                        fill: true,
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { color: labelColor } }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            grid: { color: gridColor },
+                            ticks: { color: labelColor },
+                            title: { display: true, text: 'Timeline Event Index', color: labelColor }
+                        },
+                        y: {
+                            grid: { color: gridColor },
+                            ticks: { color: labelColor },
+                            title: { display: true, text: 'Momentum', color: labelColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        var eventMixCanvas = document.getElementById('teamScrimcoreEventMixChart');
+        if (eventMixCanvas && Array.isArray(payload.charts.event_mix) && payload.charts.event_mix.length) {
+            var mixRows = payload.charts.event_mix.slice(0, 16);
+            var existingMix = Chart.getChart(eventMixCanvas);
+            if (existingMix) existingMix.destroy();
+            new Chart(eventMixCanvas, {
+                type: 'bar',
+                data: {
+                    labels: mixRows.map(function (row) { return row.label; }),
+                    datasets: [{
+                        label: 'Event Count',
+                        data: mixRows.map(function (row) { return row.value; }),
+                        backgroundColor: chartAccentSoft,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            ticks: { precision: 0, color: labelColor }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: labelColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        var fightVolCanvas = document.getElementById('teamScrimcoreFightVolumeChart');
+        if (fightVolCanvas && Array.isArray(payload.charts.fights_by_map) && payload.charts.fights_by_map.length) {
+            var fightRows = payload.charts.fights_by_map.slice().sort(function (a, b) { return (b.fights || 0) - (a.fights || 0); }).slice(0, 20);
+            fightVolCanvas.parentElement.style.height = Math.max(220, fightRows.length * 26 + 80) + 'px';
+            var existingFightVol = Chart.getChart(fightVolCanvas);
+            if (existingFightVol) existingFightVol.destroy();
+            new Chart(fightVolCanvas, {
+                type: 'bar',
+                data: {
+                    labels: fightRows.map(function (row) { return row.label; }),
+                    datasets: [{
+                        label: 'Fights',
+                        data: fightRows.map(function (row) { return row.fights; }),
+                        backgroundColor: chartMid,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            ticks: { precision: 0, color: labelColor }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: labelColor }
+                        }
+                    }
+                }
+            });
+        }
     })();
 
     // Star button for personal team

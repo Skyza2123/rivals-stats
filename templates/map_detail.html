@@ -38,6 +38,70 @@
         {% set winner_label = 'Tie' %}
     {% endif %}
 {% endif %}
+<style>
+.chart-card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.panel-nested {
+    background: rgba(15, 23, 42, 0.02);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.chart-wrap {
+    position: relative;
+    min-height: 240px;
+}
+.chart-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-text, #64748b);
+    margin-bottom: 0.35rem;
+}
+.chart-title {
+    margin: 0;
+}
+.chart-subtitle {
+    margin: 0.35rem 0 0.8rem;
+    color: var(--muted-text, #64748b);
+    font-size: 0.9rem;
+}
+.map-section-rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+.map-section-chip {
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.03);
+    color: inherit;
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+.analysis-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.analysis-box {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.02);
+    border-radius: 0.75rem;
+    padding: 0.9rem;
+}
+.analysis-box h4 {
+    margin: 0 0 0.4rem;
+}
+.analysis-subtext {
+    margin: 0;
+    color: var(--muted-text, #64748b);
+    font-size: 0.9rem;
+}
+</style>
 <!-- Header with map image banner -->
 <div class="map-banner" {% if map_image_url(map_entry.map_name) %}style="background-image: url('{{ map_image_url(map_entry.map_name) }}');"{% endif %}>
     <div class="map-banner-overlay">
@@ -58,9 +122,19 @@
     </div>
 </div>
 
+<nav class="map-section-rail" aria-label="Map sections">
+    <a class="map-section-chip" href="#tab-comp">Overview</a>
+    <a class="map-section-chip" href="#tab-timeline">Charts</a>
+    <a class="map-section-chip" href="#map-analysis">Analysis</a>
+    <a class="map-section-chip" href="#tab-vods">Replay</a>
+    <a class="map-section-chip" href="#tab-notes">Notes</a>
+</nav>
+
 <div class="summary-grid">
     <section class="stat-card"><strong>Winner</strong><span>{{ winner_label }}</span></section>
     <section class="stat-card"><strong>Map Type</strong><span>{{ map_mode }}</span></section>
+    <section class="stat-card"><strong>Score</strong><span>{{ map_entry.score or '—' }}</span></section>
+    <section class="stat-card"><strong>Total Events</strong><span>{{ map_entry.events|length }}</span></section>
 </div>
 
 <!-- Tabs -->
@@ -206,6 +280,121 @@
         <p class="empty-text">No events added yet.</p>
     {% endif %}
 </section>
+
+<section class="panel top-gap" aria-label="ScrimCore-inspired charts">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">ScrimCore-Inspired</div>
+            <h3>Map Event Charts (Experiment)</h3>
+            <p class="panel-intro">Chart presentation pattern adapted from ScrimCore map analytics and applied to this map's event log.</p>
+        </div>
+        <span class="compare-tag compare-tag-neutral">Experiment</span>
+    </div>
+    <div class="summary-grid top-gap">
+        <section class="stat-card">
+            <strong>Total Timeline Events</strong>
+            <span>{{ map_entry.events|length }}</span>
+        </section>
+        <section class="stat-card">
+            <strong>Detected Picks</strong>
+            <span>{{ map_entry.events|selectattr('event_type', 'equalto', 'Pick')|list|length }}</span>
+        </section>
+        <section class="stat-card">
+            <strong>Objective Events</strong>
+            <span>{{ map_entry.events|selectattr('event_type', 'equalto', 'Objective Taken')|list|length }}</span>
+        </section>
+    </div>
+    <div class="chart-card-grid top-gap">
+        <section class="panel panel-nested">
+            <div class="chart-eyebrow">Fight Tempo</div>
+            <h4 class="chart-title">Cumulative Fight Swing</h4>
+            <p class="chart-subtitle">Uses Pick and Death events to show positive/negative momentum over time.</p>
+            <div class="chart-wrap">
+                <canvas id="scrimcoreFightSwingChart"></canvas>
+            </div>
+        </section>
+        <section class="panel panel-nested">
+            <div class="chart-eyebrow">Event Mix</div>
+            <h4 class="chart-title">Event Type Distribution</h4>
+            <p class="chart-subtitle">High-level shape of the map timeline categories.</p>
+            <div class="chart-wrap">
+                <canvas id="scrimcoreEventMixChart"></canvas>
+            </div>
+        </section>
+    </div>
+</section>
+
+<section class="panel top-gap" id="map-analysis">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Analysis</div>
+            <h3>Fight and Event Insights</h3>
+            <p class="panel-intro">ScrimCore-style expanded analysis cards generated from this map timeline.</p>
+        </div>
+    </div>
+    <div class="analysis-grid top-gap">
+        <article class="analysis-box">
+            <h4>First Deaths</h4>
+            <p class="analysis-subtext" id="analysisFirstDeathSummary">Calculating...</p>
+        </article>
+        <article class="analysis-box">
+            <h4>Ultimates</h4>
+            <p class="analysis-subtext" id="analysisUltSummary">Calculating...</p>
+        </article>
+        <article class="analysis-box">
+            <h4>Objective Timing</h4>
+            <p class="analysis-subtext" id="analysisObjectiveSummary">Calculating...</p>
+        </article>
+        <article class="analysis-box">
+            <h4>Tempo</h4>
+            <p class="analysis-subtext" id="analysisTempoSummary">Calculating...</p>
+        </article>
+    </div>
+</section>
+
+{% if map_entry.get('parser_summary') %}
+<section class="panel top-gap">
+    <div class="panel-header-row">
+        <h3>Parser Summary (Experiment)</h3>
+        <span class="compare-tag compare-tag-neutral">{{ map_entry.get('parser_source') or 'log-parser' }}</span>
+    </div>
+    <div class="summary-grid">
+        <section class="stat-card">
+            <strong>Parsed Rows</strong>
+            <span>{{ map_entry.parser_summary.get('total_rows', 0) }}</span>
+        </section>
+        <section class="stat-card">
+            <strong>Event Types</strong>
+            <span>{{ map_entry.parser_summary.get('event_type_count', 0) }}</span>
+        </section>
+        <section class="stat-card">
+            <strong>Detected Map</strong>
+            <span>{{ map_entry.parser_summary.get('map_name') or 'Unknown' }}</span>
+        </section>
+    </div>
+    {% set parser_counts = map_entry.parser_summary.get('event_counts', {}) %}
+    {% if parser_counts %}
+    <div class="table-wrap top-gap">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Raw Event</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event_name, count in parser_counts.items() %}
+                <tr>
+                    <td>{{ event_name }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</section>
+{% endif %}
 </div>
 
 <!-- VODS TAB -->
@@ -673,6 +862,14 @@
 }|tojson }}
 </script>
 
+<script id="mapTimelineEventsData" type="application/json">
+{{ map_entry.events|tojson }}
+</script>
+
+<script id="mapParserSummaryData" type="application/json">
+{{ map_entry.get('parser_summary', {})|tojson }}
+</script>
+
 <script>
 /* ── Tab Switching ── */
 function switchTab(tab) {
@@ -829,6 +1026,229 @@ function applyMapMetricHighlights() {
     }
 }
 
+function parseMatchTimestamp(raw) {
+    var text = String(raw || '').trim();
+    if (!text) return null;
+
+    var mmss = text.match(/^(\d{1,2}):(\d{2})(?:\.(\d+))?$/);
+    if (mmss) {
+        var minutes = Number(mmss[1] || 0);
+        var seconds = Number(mmss[2] || 0);
+        var fractional = Number('0.' + (mmss[3] || '0'));
+        return minutes * 60 + seconds + fractional;
+    }
+
+    var numeric = Number(text);
+    if (!Number.isNaN(numeric)) {
+        return numeric;
+    }
+
+    return null;
+}
+
+function initScrimcoreExperimentCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    var eventsDataEl = document.getElementById('mapTimelineEventsData');
+    var parserSummaryEl = document.getElementById('mapParserSummaryData');
+    if (!eventsDataEl) return;
+
+    var timelineEvents = [];
+    var parserSummary = {};
+
+    try {
+        timelineEvents = JSON.parse(eventsDataEl.textContent || '[]') || [];
+    } catch (err) {
+        timelineEvents = [];
+    }
+    try {
+        parserSummary = JSON.parse(parserSummaryEl?.textContent || '{}') || {};
+    } catch (err) {
+        parserSummary = {};
+    }
+
+    var sortedEvents = timelineEvents
+        .map(function(event, index) {
+            return {
+                index: index,
+                timestamp: parseMatchTimestamp(event.timestamp),
+                event_type: String(event.event_type || 'Other'),
+            };
+        })
+        .sort(function(a, b) {
+            if (a.timestamp == null && b.timestamp == null) return a.index - b.index;
+            if (a.timestamp == null) return 1;
+            if (b.timestamp == null) return -1;
+            return a.timestamp - b.timestamp;
+        });
+
+    var swing = 0;
+    var swingPoints = [];
+    sortedEvents.forEach(function(event, idx) {
+        var type = event.event_type.toLowerCase();
+        if (type === 'pick' || type === 'first kill') {
+            swing += 1;
+        } else if (type === 'death' || type === 'first death') {
+            swing -= 1;
+        }
+
+        var xValue = event.timestamp != null ? event.timestamp : idx;
+        swingPoints.push({ x: xValue, y: swing });
+    });
+
+    var fightCanvas = document.getElementById('scrimcoreFightSwingChart');
+    if (fightCanvas) {
+        var existingFight = Chart.getChart(fightCanvas);
+        if (existingFight) existingFight.destroy();
+
+        new Chart(fightCanvas, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Fight Swing',
+                        data: swingPoints,
+                        parsing: false,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.18)',
+                        tension: 0.2,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderWidth: 2,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: 'Time (seconds)' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Momentum' }
+                    }
+                },
+                plugins: {
+                    legend: { display: true }
+                }
+            }
+        });
+    }
+
+    var eventCounts = parserSummary.event_counts || {};
+    if (!Object.keys(eventCounts).length) {
+        sortedEvents.forEach(function(event) {
+            var key = event.event_type || 'Other';
+            eventCounts[key] = (eventCounts[key] || 0) + 1;
+        });
+    }
+
+    var mixLabels = Object.keys(eventCounts);
+    var mixValues = mixLabels.map(function(label) { return Number(eventCounts[label] || 0); });
+
+    var mixCanvas = document.getElementById('scrimcoreEventMixChart');
+    if (mixCanvas) {
+        var existingMix = Chart.getChart(mixCanvas);
+        if (existingMix) existingMix.destroy();
+
+        new Chart(mixCanvas, {
+            type: 'bar',
+            data: {
+                labels: mixLabels,
+                datasets: [
+                    {
+                        label: 'Events',
+                        data: mixValues,
+                        borderRadius: 6,
+                        backgroundColor: '#38bdf8'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function initScrimcoreAnalysisCards() {
+    var eventsDataEl = document.getElementById('mapTimelineEventsData');
+    if (!eventsDataEl) return;
+
+    var timelineEvents = [];
+    try {
+        timelineEvents = JSON.parse(eventsDataEl.textContent || '[]') || [];
+    } catch (err) {
+        timelineEvents = [];
+    }
+
+    var firstDeathCount = 0;
+    var firstKillCount = 0;
+    var ultCount = 0;
+    var objectiveCount = 0;
+    var pickCount = 0;
+    var deathCount = 0;
+
+    var timestamps = [];
+    timelineEvents.forEach(function(event) {
+        var type = String(event.event_type || '').toLowerCase();
+        if (type === 'first death') firstDeathCount += 1;
+        if (type === 'first kill') firstKillCount += 1;
+        if (type === 'ult used') ultCount += 1;
+        if (type === 'objective taken' || type === 'objective lost') objectiveCount += 1;
+        if (type === 'pick') pickCount += 1;
+        if (type === 'death') deathCount += 1;
+
+        var parsedTs = parseMatchTimestamp(event.timestamp);
+        if (parsedTs != null) timestamps.push(parsedTs);
+    });
+
+    var spanSeconds = 0;
+    if (timestamps.length > 1) {
+        spanSeconds = Math.max.apply(null, timestamps) - Math.min.apply(null, timestamps);
+    }
+    var spanMinutes = spanSeconds > 0 ? (spanSeconds / 60) : 0;
+
+    var firstDeathEl = document.getElementById('analysisFirstDeathSummary');
+    var ultEl = document.getElementById('analysisUltSummary');
+    var objectiveEl = document.getElementById('analysisObjectiveSummary');
+    var tempoEl = document.getElementById('analysisTempoSummary');
+
+    if (firstDeathEl) {
+        if (firstDeathCount || firstKillCount) {
+            firstDeathEl.textContent = firstDeathCount + ' first deaths and ' + firstKillCount + ' first kills recorded in timeline events.';
+        } else {
+            firstDeathEl.textContent = 'No explicit first-death markers found yet. Add First Kill/First Death tags for better fight diagnostics.';
+        }
+    }
+
+    if (ultEl) {
+        ultEl.textContent = ultCount + ' ultimate-use events detected. Use this to compare ult layering and fight conversion windows.';
+    }
+
+    if (objectiveEl) {
+        objectiveEl.textContent = objectiveCount + ' objective events logged (taken/lost). Higher objective density usually means tighter objective-phase tracking.';
+    }
+
+    if (tempoEl) {
+        var tempoRate = spanMinutes > 0 ? ((pickCount + deathCount) / spanMinutes) : 0;
+        tempoEl.textContent = 'Tempo rate: ' + tempoRate.toFixed(2) + ' pick/death events per minute across ' + Math.max(0, spanMinutes).toFixed(1) + ' tracked minutes.';
+    }
+}
+
 /* ── Delete Map ── */
 function confirmDeleteMap() {
     if (confirm('Delete this map? This cannot be undone.')) {
@@ -856,6 +1276,8 @@ document.getElementById('edit_map_team1_team_id')?.addEventListener('change', sy
 syncTournamentEditMapTeams();
 syncScrimEditMapTeams();
 applyMapMetricHighlights();
+initScrimcoreExperimentCharts();
+initScrimcoreAnalysisCards();
 
 /* ══════════════════════════════════════
    DRAFT EDITOR — click-slot-then-pick

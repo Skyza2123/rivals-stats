@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Team Comparison{% endblock %}
 
@@ -48,28 +48,28 @@
 
 {% if team_a and team_b %}
 
-{# ── VS Header ──────────────────────────────────────────── #}
+{# -- VS Header -------------------------------------------- #}
 <section class="panel top-gap tc-vs-panel">
     <div class="tc-vs-side">
         <img class="tc-team-logo"
-             src="{{ team_logo_url(team_a.team.logo_path) if team_a.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_a.team.name | urlencode) ~ '.png?size=120' }}"
+             src="{{ team_logo_url(team_a.team.logo_path) if team_a.team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (team_a.team.name | urlencode) ~ '&size=120' }}"
              alt="{{ team_a.team.name }}"
-             onerror="this.src='https://avatar.vercel.sh/{{ team_a.team.name | urlencode }}.png?size=120'">
+             onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ team_a.team.name | urlencode }}&size=120'">
         <div class="tc-team-name">{{ team_a.team.name }}</div>
         <div class="tc-team-season">{{ team_a.latest_season if team_a.latest_season != 'all' else 'All Seasons' }}</div>
     </div>
     <div class="tc-vs-badge">VS</div>
     <div class="tc-vs-side tc-vs-side-b">
         <img class="tc-team-logo"
-             src="{{ team_logo_url(team_b.team.logo_path) if team_b.team.logo_path else 'https://avatar.vercel.sh/' ~ (team_b.team.name | urlencode) ~ '.png?size=120' }}"
+             src="{{ team_logo_url(team_b.team.logo_path) if team_b.team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (team_b.team.name | urlencode) ~ '&size=120' }}"
              alt="{{ team_b.team.name }}"
-             onerror="this.src='https://avatar.vercel.sh/{{ team_b.team.name | urlencode }}.png?size=120'">
+             onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ team_b.team.name | urlencode }}&size=120'">
         <div class="tc-team-name">{{ team_b.team.name }}</div>
         <div class="tc-team-season">{{ team_b.latest_season if team_b.latest_season != 'all' else 'All Seasons' }}</div>
     </div>
 </section>
 
-{# ── Key Stat Face-Off ──────────────────────────────────── #}
+{# -- Key Stat Face-Off ------------------------------------ #}
 <section class="panel panel-soft-blue top-gap">
     <h3>Key Stats</h3>
     {% set a = team_a.analytics.summary %}
@@ -176,7 +176,7 @@
     } | tojson }}</script>
 </section>
 
-{# ── Hero Pools ─────────────────────────────────────────── #}
+{# -- Hero Pools ------------------------------------------- #}
 <section class="panel panel-soft-green top-gap">
     <h3>Hero Pools</h3>
     <div class="tc-pools-grid">
@@ -224,10 +224,10 @@
     {% endif %}
 </section>
 
-{# ── Shared Hero Detail Table ───────────────────────────── #}
+{# -- Shared Hero Detail Table ----------------------------- #}
 {% if shared_heroes_rows %}
 <section class="panel top-gap">
-    <h3>Shared Heroes — WR Breakdown</h3>
+    <h3>Shared Heroes � WR Breakdown</h3>
     <p class="panel-intro">Heroes played by both teams, sorted by combined maps.</p>
     <div class="table-wrap">
         <table class="stats-table stats-table-compare">
@@ -271,7 +271,7 @@
 </section>
 {% endif %}
 
-{# ── Top Maps with Banners ──────────────────────────────── #}
+{# -- Top Maps with Banners -------------------------------- #}
 <section class="panel panel-soft-violet top-gap">
     <h3>Top Maps</h3>
     <div class="tc-pools-grid">
@@ -326,10 +326,10 @@
     </div>
 </section>
 
-{# ── Shared Maps ────────────────────────────────────────── #}
+{# -- Shared Maps ------------------------------------------ #}
 {% if shared_maps_rows %}
 <section class="panel panel-soft-blue top-gap">
-    <h3>Shared Maps — WR Comparison</h3>
+    <h3>Shared Maps � WR Comparison</h3>
     <p class="panel-intro">Maps played by both teams.</p>
     <div class="player-chart-wrap" style="height:{{ [180, ([shared_maps_rows|length, 10]|min) * 36 + 40]|max }}px">
         <canvas id="tcSharedMapChart"></canvas>
@@ -380,7 +380,7 @@
 </section>
 {% endif %}
 
-{# ── Ban Matchup Matrix ─────────────────────────────────── #}
+{# -- Ban Matchup Matrix ----------------------------------- #}
 <section class="panel panel-soft-gold top-gap">
     <h3>Ban Matchup Matrix</h3>
     <p class="panel-intro">Compare ban pressure, protect preference, and open-vs-banned outcomes on shared priority heroes.</p>
@@ -441,7 +441,7 @@
     {% endif %}
 </section>
 
-{# ── Draft Response Flow ────────────────────────────────── #}
+{# -- Draft Response Flow ---------------------------------- #}
 <section class="panel panel-soft-blue top-gap">
     <h3>Draft Response Flow</h3>
     <p class="panel-intro">Most common first response patterns when each team bans a hero.</p>
@@ -456,7 +456,7 @@
                                 <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                 <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
                             </span>
-                            <span class="prep-flow-arrow">→</span>
+                            <span class="prep-flow-arrow">?</span>
                             <span class="hero-inline-cell">
                                 <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
                                 <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
@@ -480,7 +480,7 @@
                                 <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                 <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span>{% if hero_pool_label(row.ban_hero) %}<small class="hero-sub-label">{{ hero_pool_label(row.ban_hero) }}</small>{% endif %}</span>
                             </span>
-                            <span class="prep-flow-arrow">→</span>
+                            <span class="prep-flow-arrow">?</span>
                             <span class="hero-inline-cell">
                                 <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
                                 <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span>{% if hero_pool_label(row.top_enemy_ban) %}<small class="hero-sub-label">{{ hero_pool_label(row.top_enemy_ban) }}</small>{% endif %}</span>
@@ -496,7 +496,7 @@
     </div>
 </section>
 
-{# ── Charts ─────────────────────────────────────────────── #}
+{# -- Charts ----------------------------------------------- #}
 <script>
 (function () {
     var COL_A = 'rgba(96,165,250,0.8)';
@@ -513,7 +513,7 @@
     }
     if (typeof Chart === 'undefined') return;
 
-    /* ── Overview grouped bar ── */
+    /* -- Overview grouped bar -- */
     (function () {
         var d = parseJson('tcOverviewData');
         if (!d) return;
@@ -539,7 +539,7 @@
         });
     })();
 
-    /* ── Shared Hero WR grouped horizontal bar ── */
+    /* -- Shared Hero WR grouped horizontal bar -- */
     (function () {
         var rows = parseJson('tcSharedHeroData');
         if (!rows || !rows.length) return;
@@ -565,7 +565,7 @@
         });
     })();
 
-    /* ── Shared Map WR grouped horizontal bar ── */
+    /* -- Shared Map WR grouped horizontal bar -- */
     (function () {
         var rows = parseJson('tcSharedMapData');
         if (!rows || !rows.length) return;
@@ -596,7 +596,7 @@
 {% endif %}
 
 <style>
-/* ── VS Header ── */
+/* -- VS Header -- */
 .tc-vs-panel { display:flex; align-items:center; justify-content:center; gap:32px; padding:28px 24px; text-align:center; }
 .tc-vs-side { display:flex; flex-direction:column; align-items:center; gap:8px; flex:1; }
 .tc-team-logo { width:90px; height:90px; border-radius:14px; object-fit:contain; background:var(--panel-2); border:1px solid var(--border); padding:4px; }
@@ -604,7 +604,7 @@
 .tc-team-season { font-size:0.75rem; color:var(--muted); }
 .tc-vs-badge { font-size:1.8rem; font-weight:900; color:color-mix(in srgb, var(--muted) 50%, transparent); letter-spacing:2px; flex-shrink:0; }
 
-/* ── Stat face-off ── */
+/* -- Stat face-off -- */
 .tc-stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
 .tc-stat-card { background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; }
 .tc-stat-label { font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
@@ -619,7 +619,7 @@
 .tc-green  { color:#4ade80 !important; }
 .tc-red    { color:#f87171 !important; }
 
-/* ── Hero / Map pool grids ── */
+/* -- Hero / Map pool grids -- */
 .tc-pools-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .tc-pool-heading { font-size:0.85rem; font-weight:700; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; }
 .tc-color-a { color:#60a5fa; }
@@ -631,7 +631,7 @@
 .tc-hero-card-meta { display:flex; align-items:center; gap:4px; font-size:0.65rem; }
 .tc-hero-card-maps { color:var(--muted); }
 
-/* ── Map cards ── */
+/* -- Map cards -- */
 .tc-map-list { display:flex; flex-direction:column; gap:6px; }
 .tc-map-card { display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
 .tc-map-banner { width:80px; height:48px; object-fit:cover; flex-shrink:0; }

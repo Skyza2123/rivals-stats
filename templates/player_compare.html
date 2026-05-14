@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Player Comparison{% endblock %}
 
@@ -148,34 +148,34 @@
 
 {% if player_a and player_b %}
 
-{# ── Hero portrait header ─────────────────────────── #}
+{# -- Hero portrait header --------------------------- #}
 <div class="cmp-player-header top-gap">
     <div class="cmp-player-side">
         {% if player_a.primary_hero %}
-            <img class="cmp-avatar" src="{{ hero_image_url(player_a.primary_hero.hero) }}" alt="{{ player_a.profile.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player_a.profile.name | urlencode }}.png?size=120'">
+            <img class="cmp-avatar" src="{{ hero_image_url(player_a.primary_hero.hero) }}" alt="{{ player_a.profile.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ player_a.profile.name | urlencode }}&size=120'">
         {% else %}
-            <img class="cmp-avatar" src="https://avatar.vercel.sh/{{ player_a.profile.name | urlencode }}.png?size=120" alt="{{ player_a.profile.name }}">
+            <img class="cmp-avatar" src="https://api.dicebear.com/9.x/initials/png?seed={{ player_a.profile.name | urlencode }}&size=120" alt="{{ player_a.profile.name }}">
         {% endif %}
         <div>
             <div class="cmp-player-name">{{ player_a.profile.name }}</div>
-            <div class="cmp-player-sub">{{ player_a.profile.team_name }} &bull; {{ player_a.profile.role or '—' }}</div>
+            <div class="cmp-player-sub">{{ player_a.profile.team_name }} &bull; {{ player_a.profile.role or '�' }}</div>
         </div>
     </div>
     <div class="cmp-vs">VS</div>
     <div class="cmp-player-side cmp-player-side-right">
         <div style="text-align:right">
             <div class="cmp-player-name">{{ player_b.profile.name }}</div>
-            <div class="cmp-player-sub">{{ player_b.profile.team_name }} &bull; {{ player_b.profile.role or '—' }}</div>
+            <div class="cmp-player-sub">{{ player_b.profile.team_name }} &bull; {{ player_b.profile.role or '�' }}</div>
         </div>
         {% if player_b.primary_hero %}
-            <img class="cmp-avatar" src="{{ hero_image_url(player_b.primary_hero.hero) }}" alt="{{ player_b.profile.name }}" onerror="this.src='https://avatar.vercel.sh/{{ player_b.profile.name | urlencode }}.png?size=120'">
+            <img class="cmp-avatar" src="{{ hero_image_url(player_b.primary_hero.hero) }}" alt="{{ player_b.profile.name }}" onerror="this.src='https://api.dicebear.com/9.x/initials/png?seed={{ player_b.profile.name | urlencode }}&size=120'">
         {% else %}
-            <img class="cmp-avatar" src="https://avatar.vercel.sh/{{ player_b.profile.name | urlencode }}.png?size=120" alt="{{ player_b.profile.name }}">
+            <img class="cmp-avatar" src="https://api.dicebear.com/9.x/initials/png?seed={{ player_b.profile.name | urlencode }}&size=120" alt="{{ player_b.profile.name }}">
         {% endif %}
     </div>
 </div>
 
-{# ── Key stat cards side-by-side ─────────────────── #}
+{# -- Key stat cards side-by-side ------------------- #}
 <div class="cmp-stat-row top-gap">
     {% set metrics = [
         ("Maps Played", player_a.stats.maps_played, player_b.stats.maps_played, false),
@@ -199,7 +199,7 @@
     {% endfor %}
 </div>
 
-{# ── Win Rate + Maps chart ────────────────────────── #}
+{# -- Win Rate + Maps chart -------------------------- #}
 <section class="panel panel-soft-blue top-gap">
     <h3>Overall Comparison</h3>
     <div class="player-chart-wrap" style="height:200px">
@@ -214,10 +214,10 @@
     } | tojson }}</script>
 </section>
 
-{# ── Hero Pool grids ──────────────────────────────── #}
+{# -- Hero Pool grids -------------------------------- #}
 <div class="player-side-by-side top-gap">
 <section class="panel panel-soft-blue">
-    <h3>{{ player_a.profile.name }} — Hero Pool</h3>
+    <h3>{{ player_a.profile.name }} � Hero Pool</h3>
     {% if player_a.hero_rows %}
         <div class="player-hero-grid">
             {% for row in player_a.hero_rows %}
@@ -237,7 +237,7 @@
     {% endif %}
 </section>
 <section class="panel panel-soft-violet">
-    <h3>{{ player_b.profile.name }} — Hero Pool</h3>
+    <h3>{{ player_b.profile.name }} � Hero Pool</h3>
     {% if player_b.hero_rows %}
         <div class="player-hero-grid">
             {% for row in player_b.hero_rows %}
@@ -258,7 +258,7 @@
 </section>
 </div>
 
-{# ── Hero WR comparison chart ─────────────────────── #}
+{# -- Hero WR comparison chart ----------------------- #}
 {% if hero_winrate_differences %}
 <section class="panel panel-soft-green top-gap">
     <h3>Hero Win Rate Comparison</h3>
@@ -303,7 +303,7 @@
 </section>
 {% endif %}
 
-{# ── Map WR comparison chart ──────────────────────── #}
+{# -- Map WR comparison chart ------------------------ #}
 {% if map_winrate_differences %}
 <section class="panel panel-soft-violet top-gap">
     <h3>Map Win Rate Comparison</h3>
@@ -342,7 +342,7 @@
 </section>
 {% endif %}
 
-{# ── Shared heroes ────────────────────────────────── #}
+{# -- Shared heroes ---------------------------------- #}
 {% if shared_heroes %}
 <section class="panel panel-soft-gold top-gap">
     <h3>Shared Hero Pool</h3>
@@ -361,17 +361,17 @@
 </section>
 {% endif %}
 
-{# ── Ban impact side-by-side ──────────────────────── #}
+{# -- Ban impact side-by-side ------------------------ #}
 {% set a_banned = player_a.ban_impact | selectattr("times_banned") | list %}
 {% set b_banned = player_b.ban_impact | selectattr("times_banned") | list %}
 {% if a_banned or b_banned %}
 <div class="player-side-by-side top-gap">
 <section class="panel panel-soft-orange">
-    <h3>{{ player_a.profile.name }} — Ban Impact</h3>
+    <h3>{{ player_a.profile.name }} � Ban Impact</h3>
     {% if a_banned %}
         <div class="table-wrap">
             <table class="stats-table">
-                <thead><tr><th>Hero</th><th>Banned</th><th>WR Avail</th><th>WR Banned</th><th>Δ</th></tr></thead>
+                <thead><tr><th>Hero</th><th>Banned</th><th>WR Avail</th><th>WR Banned</th><th>?</th></tr></thead>
                 <tbody>
                     {% for row in player_a.ban_impact %}
                         <tr>
@@ -381,10 +381,10 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </div>
                             </td>
-                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
-                            <td>{% if row.hero_wr is not none %}<span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>{% else %}—{% endif %}</td>
-                            <td>{% if row.wr_when_banned is not none %}<span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>{% else %}—{% endif %}</td>
-                            <td>{% if row.wr_delta is not none %}<span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>{% else %}—{% endif %}</td>
+                            <td>{{ row.times_banned if row.times_banned else '�' }}</td>
+                            <td>{% if row.hero_wr is not none %}<span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>{% else %}�{% endif %}</td>
+                            <td>{% if row.wr_when_banned is not none %}<span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>{% else %}�{% endif %}</td>
+                            <td>{% if row.wr_delta is not none %}<span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>{% else %}�{% endif %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -395,11 +395,11 @@
     {% endif %}
 </section>
 <section class="panel panel-soft-orange">
-    <h3>{{ player_b.profile.name }} — Ban Impact</h3>
+    <h3>{{ player_b.profile.name }} � Ban Impact</h3>
     {% if b_banned %}
         <div class="table-wrap">
             <table class="stats-table">
-                <thead><tr><th>Hero</th><th>Banned</th><th>WR Avail</th><th>WR Banned</th><th>Δ</th></tr></thead>
+                <thead><tr><th>Hero</th><th>Banned</th><th>WR Avail</th><th>WR Banned</th><th>?</th></tr></thead>
                 <tbody>
                     {% for row in player_b.ban_impact %}
                         <tr>
@@ -409,10 +409,10 @@
                                     <span>{{ hero_display_name(row.hero) }}</span>
                                 </div>
                             </td>
-                            <td>{{ row.times_banned if row.times_banned else '—' }}</td>
-                            <td>{% if row.hero_wr is not none %}<span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>{% else %}—{% endif %}</td>
-                            <td>{% if row.wr_when_banned is not none %}<span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>{% else %}—{% endif %}</td>
-                            <td>{% if row.wr_delta is not none %}<span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>{% else %}—{% endif %}</td>
+                            <td>{{ row.times_banned if row.times_banned else '�' }}</td>
+                            <td>{% if row.hero_wr is not none %}<span class="{{ 'wr-good' if row.hero_wr >= 55 else ('wr-ok' if row.hero_wr >= 45 else 'wr-bad') }}">{{ row.hero_wr }}%</span>{% else %}�{% endif %}</td>
+                            <td>{% if row.wr_when_banned is not none %}<span class="{{ 'wr-good' if row.wr_when_banned >= 55 else ('wr-ok' if row.wr_when_banned >= 45 else 'wr-bad') }}">{{ row.wr_when_banned }}%</span>{% else %}�{% endif %}</td>
+                            <td>{% if row.wr_delta is not none %}<span class="{{ 'wr-bad' if row.wr_delta < -5 else ('wr-ok' if row.wr_delta < 5 else 'wr-good') }}">{{ '+' if row.wr_delta > 0 else '' }}{{ row.wr_delta }}%</span>{% else %}�{% endif %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -438,7 +438,7 @@
         try { return JSON.parse(el.textContent); } catch(e) { return null; }
     }
 
-    /* ── Overall stat chart ─────────────────────── */
+    /* -- Overall stat chart ----------------------- */
     (function () {
         var d = parseJson('cmpOverallData');
         if (!d || typeof Chart === 'undefined') return;
@@ -464,7 +464,7 @@
         });
     })();
 
-    /* ── Hero WR comparison chart ───────────────── */
+    /* -- Hero WR comparison chart ----------------- */
     (function () {
         var rows = parseJson('cmpHeroWrData');
         if (!rows || !rows.length || typeof Chart === 'undefined') return;
@@ -500,7 +500,7 @@
         });
     })();
 
-    /* ── Map WR comparison chart ────────────────── */
+    /* -- Map WR comparison chart ------------------ */
     (function () {
         var rows = parseJson('cmpMapWrData');
         if (!rows || !rows.length || typeof Chart === 'undefined') return;
@@ -544,7 +544,7 @@
 .diff-positive { color: #4ade80; font-weight: 700; }
 .diff-negative { color: #f87171; font-weight: 700; }
 
-/* ── Compare header ──────────────────────────── */
+/* -- Compare header ---------------------------- */
 .cmp-player-header {
     display: flex;
     align-items: center;
@@ -593,7 +593,7 @@
     margin-top: 2px;
 }
 
-/* ── Stat row ────────────────────────────────── */
+/* -- Stat row ---------------------------------- */
 .cmp-stat-row {
     display: flex;
     gap: 10px;

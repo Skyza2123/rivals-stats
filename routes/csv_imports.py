@@ -4,6 +4,178 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
+
+def _parse_text_payload(file_bytes: bytes) -> str:
+    try:
+        return file_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return file_bytes.decode("latin-1")
+
+
+def _extract_csv_text_from_xlsx(file_bytes: bytes) -> str:
+    try:
+        from openpyxl import load_workbook
+    except Exception as exc:  # pragma: no cover - dependency/runtime guard
+        raise ValueError("XLSX import requires openpyxl to be installed.") from exc
+
+    workbook = load_workbook(filename=io.BytesIO(file_bytes), data_only=True, read_only=True)
+    worksheet = workbook.active
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    for row in worksheet.iter_rows(values_only=True):
+        writer.writerow(["" if value is None else str(value) for value in row])
+
+    workbook.close()
+    return output.getvalue()
+
+
+_SCRIMCORE_LOG_EVENT_MAP = {
+    "kill": "Pick",
+    "ultimate_start": "Ult Used",
+    "ultimate_end": "Ult Used",
+    "ultimate_charged": "Ult Used",
+    "objective_captured": "Objective Taken",
+    "payload_progress": "Objective Taken",
+    "point_progress": "Objective Taken",
+}
+
+
+def split_line_preserving_coords(line: str) -> list[str]:
+    """Split a CSV-ish line while preserving commas inside coordinate tuples."""
+    fields: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in line:
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth > 0:
+            depth -= 1
+
+        if char == "," and depth == 0:
+            fields.append("".join(current).strip())
+            current = []
+            continue
+
+        current.append(char)
+
+    fields.append("".join(current).strip())
+    return fields
+
+
+def _coerce_scrimcore_field(value: str) -> str:
+    cleaned = (value or "").strip()
+    if "*" in cleaned:
+        return "0"
+    return cleaned
+
+
+def _clean_scrimcore_log_rows(rows: list[list[str]]) -> list[list[str]]:
+    cleaned_rows: list[list[str]] = []
+    for row in rows:
+        if not row:
+            continue
+
+        if len(row) >= 2:
+            event_type = (row[1] or "").strip().lower()
+        else:
+            event_type = (row[0] or "").strip().lower()
+
+        if event_type == "mercy_rez":
+            tail = row[2:] if len(row) >= 2 else row[1:]
+            if any((field or "").strip() == "" for field in tail):
+                continue
+
+        normalized = [_coerce_scrimcore_field(field) for field in row]
+        if normalized and normalized[0] == "****":
+            normalized[0] = "kill"
+        if len(normalized) > 1 and normalized[1] == "****":
+            normalized[1] = "kill"
+        cleaned_rows.append(normalized)
+
+    return cleaned_rows
+
+
+def parse_scrimcore_log_text(raw_text: str) -> tuple[dict[str, list[list[str]]], dict]:
+    """Parse raw ScrimCore-style log text into categorized rows and summary metadata."""
+    raw_rows = [split_line_preserving_coords(line) for line in (raw_text or "").splitlines() if (line or "").strip()]
+    cleaned_rows = _clean_scrimcore_log_rows(raw_rows)
+
+    categorized: dict[str, list[list[str]]] = defaultdict(list)
+    for row in cleaned_rows:
+        if len(row) < 2:
+            continue
+
+        timestamp = row[0]
+        event_type = (row[1] or "").strip().lower()
+        payload = row[2:]
+        if not event_type:
+            continue
+
+        normalized_row = [timestamp, *payload]
+        categorized[event_type].append(normalized_row)
+
+    event_counts = {event_type: len(rows) for event_type, rows in categorized.items()}
+    map_name = ""
+    team1_name = ""
+    team2_name = ""
+    match_start_rows = categorized.get("match_start", [])
+    if match_start_rows:
+        first_start = match_start_rows[0]
+        if len(first_start) > 3:
+            map_name = str(first_start[3]).strip()
+        if len(first_start) > 5:
+            team1_name = str(first_start[5]).strip()
+        if len(first_start) > 6:
+            team2_name = str(first_start[6]).strip()
+
+    summary = {
+        "total_rows": len(cleaned_rows),
+        "event_type_count": len(event_counts),
+        "event_counts": dict(sorted(event_counts.items(), key=lambda item: (-item[1], item[0]))),
+        "map_name": map_name,
+        "team1_name": team1_name,
+        "team2_name": team2_name,
+    }
+    return categorized, summary
+
+
+def _build_scrimcore_timeline_events(parsed_rows: dict[str, list[list[str]]], *, max_events: int = 200) -> list[dict]:
+    timeline_events: list[dict] = []
+
+    for event_name, rows in parsed_rows.items():
+        for row in rows:
+            timestamp = str(row[0] if row else "").strip()
+            payload = row[1:] if len(row) > 1 else []
+            mapped_event_type = _SCRIMCORE_LOG_EVENT_MAP.get(event_name, "Other")
+
+            if event_name == "kill":
+                attacker = payload[1] if len(payload) > 1 else "Unknown"
+                attacker_hero = payload[2] if len(payload) > 2 else ""
+                victim = payload[4] if len(payload) > 4 else "Unknown"
+                victim_hero = payload[5] if len(payload) > 5 else ""
+                description = f"{attacker} ({attacker_hero or 'Unknown'}) eliminated {victim} ({victim_hero or 'Unknown'})."
+            elif event_name in {"match_start", "round_start"}:
+                description = "Match/round start event parsed from log."
+            elif event_name in {"match_end", "round_end"}:
+                description = "Match/round end event parsed from log."
+            else:
+                description = f"{event_name.replace('_', ' ').title()} event parsed from log."
+
+            timeline_events.append(
+                {
+                    "id": 0,
+                    "timestamp": timestamp,
+                    "event_type": mapped_event_type,
+                    "description": description,
+                }
+            )
+
+    if timeline_events:
+        timeline_events[0]["event_type"] = "First Kill" if timeline_events[0]["event_type"] == "Pick" else timeline_events[0]["event_type"]
+
+    return timeline_events[:max_events]
+
 def _canonicalize_submap_name(parent_map: str, raw_submap: str) -> str:
     """Normalize imported submap text to a canonical submap for the parent map."""
     clean = (raw_submap or "").strip()
@@ -667,19 +839,22 @@ def import_csv_scrims():
         return redirect(url_for("scrims"))
 
     ext = Path(file.filename).suffix.lower()
-    if ext not in {".csv", ".txt"}:
-        flash("Only .csv files are supported.", "error")
+    if ext not in {".csv", ".txt", ".xlsx"}:
+        flash("Only .csv, .txt, or .xlsx files are supported.", "error")
         return redirect(url_for("scrims"))
 
     try:
-        raw_text = file.read().decode("utf-8-sig")  # handle BOM
-    except UnicodeDecodeError:
-        try:
-            file.seek(0)
-            raw_text = file.read().decode("latin-1")
-        except Exception:
-            flash("Could not decode the CSV file. Make sure it is UTF-8 encoded.", "error")
-            return redirect(url_for("scrims"))
+        file_bytes = file.read()
+        if ext == ".xlsx":
+            raw_text = _extract_csv_text_from_xlsx(file_bytes)
+        else:
+            raw_text = _parse_text_payload(file_bytes)
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("scrims"))
+    except Exception:
+        flash("Could not parse the import file. Make sure the file is a valid CSV/TXT/XLSX export.", "error")
+        return redirect(url_for("scrims"))
 
     parsed_scrims, warnings = parse_csv_into_scrims(raw_text, team_id, team_name)
 
@@ -736,5 +911,134 @@ def import_csv_scrims():
         msg += " Warnings: " + summarize_import_warnings(warnings)
     flash(msg, "success")
     return redirect(url_for("scrims"))
+
+
+@app.route("/scrims/import-log", methods=["POST"])
+def import_scrimcore_log_scrim():
+    global NEXT_SCRIM_ID
+
+    team_id = parse_team_id(request.form.get("team_id", ""))
+    team_name = get_team_name_by_id(team_id)
+    season = normalize_season_value(request.form.get("season", ""))
+    if not team_name:
+        flash("Please select your team before importing a log.", "error")
+        return redirect(url_for("scrims"))
+    if not season:
+        flash("Please set a season for this import.", "error")
+        return redirect(url_for("scrims"))
+
+    scrim_date = (request.form.get("scrim_date", "") or "").strip() or date.today().isoformat()
+    enemy_name_input = (request.form.get("enemy_name", "") or "").strip()
+
+    file = request.files.get("log_file")
+    if not file or not file.filename:
+        flash("No log file selected.", "error")
+        return redirect(url_for("scrims"))
+
+    ext = Path(file.filename).suffix.lower()
+    if ext not in {".txt", ".csv", ".log", ".xlsx"}:
+        flash("Only .txt, .csv, .log, or .xlsx files are supported for log import.", "error")
+        return redirect(url_for("scrims"))
+
+    try:
+        file_bytes = file.read()
+        if ext == ".xlsx":
+            raw_text = _extract_csv_text_from_xlsx(file_bytes)
+        else:
+            raw_text = _parse_text_payload(file_bytes)
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("scrims"))
+    except Exception:
+        flash("Could not read the log file. Make sure it is valid text/XLSX.", "error")
+        return redirect(url_for("scrims"))
+
+    parsed_rows, parser_summary = parse_scrimcore_log_text(raw_text)
+    if not parsed_rows:
+        flash("No parseable events were found in this log file.", "error")
+        return redirect(url_for("scrims"))
+
+    parsed_team1 = (parser_summary.get("team1_name") or "").strip()
+    parsed_team2 = (parser_summary.get("team2_name") or "").strip()
+    our_team_slot = "team1"
+    if parsed_team2 and _team_names_match(parsed_team2, team_name):
+        our_team_slot = "team2"
+
+    inferred_enemy = enemy_name_input
+    if not inferred_enemy:
+        if our_team_slot == "team1":
+            inferred_enemy = parsed_team2 or "Unknown Opponent"
+        else:
+            inferred_enemy = parsed_team1 or "Unknown Opponent"
+
+    parsed_map_name = (parser_summary.get("map_name") or "").strip()
+    map_name = _match_map_name(parsed_map_name) if parsed_map_name else "Unknown Map"
+    timeline_events = _build_scrimcore_timeline_events(parsed_rows)
+
+    map_entry = {
+        "map_name": map_name,
+        "map_type": DEFAULT_MAP_TYPE,
+        "side": "",
+        "our_team_slot": our_team_slot,
+        "result": "",
+        "score": "",
+        "draft": {
+            "team1": {"ban1": "", "ban2": "", "protect1": "", "ban3": "", "protect2": "", "ban4": ""},
+            "team2": {"ban1": "", "ban2": "", "protect1": "", "ban3": "", "protect2": "", "ban4": ""},
+        },
+        "comp": build_default_comp_sections(map_name),
+        "notes": "",
+        "vod_url": "",
+        "events": timeline_events,
+        "parser_summary": parser_summary,
+        "parser_source": "scrimcore-log-experiment",
+        "team1_name": team_name if our_team_slot == "team1" else inferred_enemy,
+        "team2_name": inferred_enemy if our_team_slot == "team1" else team_name,
+    }
+
+    scrim = {
+        "opponent": inferred_enemy,
+        "enemy_team": inferred_enemy,
+        "enemy_team_id": None,
+        "scrim_date": scrim_date,
+        "season": season,
+        "team_id": team_id,
+        "team_name": team_name,
+        "team_slot": our_team_slot,
+        "notes": f"Imported from ScrimCore-style raw log parser experiment. Parsed {parser_summary.get('total_rows', 0)} rows across {parser_summary.get('event_type_count', 0)} event types.",
+        "maps": [map_entry],
+    }
+
+    normalize_scrim_record(scrim)
+
+    db = get_db()
+    migrate_enemy_teams_to_team_database(db)
+    enemy_rows = db.execute(
+        "SELECT id, name FROM teams WHERE id != ?", (team_id,)
+    ).fetchall() if team_id else []
+    enemy_lookup: dict[str, int] = {}
+    for row in enemy_rows:
+        for key in _team_name_match_keys(row["name"]):
+            enemy_lookup.setdefault(key, row["id"])
+
+    _prepare_imported_scrim_context(scrim, team_id, team_name, enemy_lookup)
+    _sync_scrim_rosters_with_database(scrim)
+
+    existing_scrim = _find_duplicate_scrim_for_import(scrim)
+    if existing_scrim is not None:
+        _merge_imported_scrim(existing_scrim, scrim)
+        _assign_missing_scrim_ids(existing_scrim)
+        save_app_state()
+        flash("Updated existing duplicate scrim with parsed log data.", "success")
+        return redirect(url_for("scrim_detail", scrim_id=existing_scrim.get("id")))
+
+    scrim["id"] = NEXT_SCRIM_ID
+    NEXT_SCRIM_ID += 1
+    _assign_missing_scrim_ids(scrim)
+    SCRIMS.append(scrim)
+    save_app_state()
+
+    flash("Imported ScrimCore-style log into a new experimental scrim.", "success")
+    return redirect(url_for("scrim_detail", scrim_id=scrim["id"]))
 
 

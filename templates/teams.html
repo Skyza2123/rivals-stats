@@ -58,7 +58,7 @@
     <a class="team-dash-main" href="{{ url_for('team_detail', team_id=team.id) }}">
         <img
             class="team-dash-logo"
-            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (team.name | urlencode) ~ '&size=140' }}"
             alt="{{ team.name }} logo"
             loading="lazy"
             decoding="async"
@@ -145,7 +145,7 @@
     <a class="team-row-main" href="{{ url_for('team_detail', team_id=team.id) }}">
         <img
             class="team-row-logo"
-            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}"
+            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (team.name | urlencode) ~ '&size=140' }}"
             alt="{{ team.name }} logo"
             loading="lazy"
             decoding="async"
@@ -351,7 +351,7 @@
                 <label for="modal_team_logo">Team Logo</label>
                 <input id="modal_team_logo" name="logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" hidden>
                 <div class="team-logo-picker">
-                    <img id="modalTeamLogoPreview" class="team-logo-thumb team-logo-thumb-lg" src="https://avatar.vercel.sh/Team.png?size=140" alt="Team logo preview">
+                    <img id="modalTeamLogoPreview" class="team-logo-thumb team-logo-thumb-lg" src="https://api.dicebear.com/9.x/initials/png?seed=Team&size=140" alt="Team logo preview">
                     <div class="team-logo-picker-actions">
                         <button id="modalChooseLogoBtn" type="button" class="button-secondary btn-muted btn-sm">Add / Change</button>
                         <button id="modalClearLogoBtn" type="button" class="button-secondary btn-muted btn-sm">Clear</button>
@@ -381,7 +381,7 @@
 
     const fallbackLogo = () => {
         const baseName = (nameInput.value || "Team").trim() || "Team";
-        return `https://avatar.vercel.sh/${encodeURIComponent(baseName)}.png?size=140`;
+        return `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(baseName)}&size=140`;
     };
 
     const resetLogoPreview = () => {
