@@ -176,6 +176,16 @@ def _build_scrimcore_timeline_events(parsed_rows: dict[str, list[list[str]]], *,
 
     return timeline_events[:max_events]
 
+
+def _cache_only_log_import_mode() -> bool:
+    """Return True when experiment log imports should skip DB persistence."""
+    raw = (
+        os.environ.get("PREVIEW_CACHE_ONLY_LOG_IMPORT")
+        or os.environ.get("PREVIEW_CACHE_ONLY")
+        or ""
+    )
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
 def _canonicalize_submap_name(parent_map: str, raw_submap: str) -> str:
     """Normalize imported submap text to a canonical submap for the parent map."""
     clean = (raw_submap or "").strip()
@@ -1025,20 +1035,26 @@ def import_scrimcore_log_scrim():
     _sync_scrim_rosters_with_database(scrim)
 
     existing_scrim = _find_duplicate_scrim_for_import(scrim)
+    cache_only_mode = _cache_only_log_import_mode()
     if existing_scrim is not None:
         _merge_imported_scrim(existing_scrim, scrim)
         _assign_missing_scrim_ids(existing_scrim)
-        save_app_state()
-        flash("Updated existing duplicate scrim with parsed log data.", "success")
+        if not cache_only_mode:
+            save_app_state()
+            flash("Updated existing duplicate scrim with parsed log data.", "success")
+        else:
+            flash("Updated duplicate scrim in preview cache-only mode (not saved to DB).", "success")
         return redirect(url_for("scrim_detail", scrim_id=existing_scrim.get("id")))
 
     scrim["id"] = NEXT_SCRIM_ID
     NEXT_SCRIM_ID += 1
     _assign_missing_scrim_ids(scrim)
     SCRIMS.append(scrim)
-    save_app_state()
-
-    flash("Imported ScrimCore-style log into a new experimental scrim.", "success")
+    if not cache_only_mode:
+        save_app_state()
+        flash("Imported ScrimCore-style log into a new experimental scrim.", "success")
+    else:
+        flash("Imported ScrimCore-style log in preview cache-only mode (not saved to DB).", "success")
     return redirect(url_for("scrim_detail", scrim_id=scrim["id"]))
 
 

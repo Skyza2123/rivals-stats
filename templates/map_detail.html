@@ -82,6 +82,10 @@
     font-size: 0.8rem;
     text-decoration: none;
 }
+.map-section-chip-active {
+    border-color: rgba(96, 165, 250, 0.7);
+    background: rgba(59, 130, 246, 0.14);
+}
 .analysis-grid {
     display: grid;
     gap: 1rem;
@@ -100,6 +104,46 @@
     margin: 0;
     color: var(--muted-text, #64748b);
     font-size: 0.9rem;
+}
+.killfeed-timeline {
+    display: grid;
+    gap: 0.65rem;
+}
+.killfeed-row {
+    display: grid;
+    grid-template-columns: 96px 140px 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0.65rem;
+    background: rgba(15, 23, 42, 0.02);
+}
+.killfeed-time {
+    font-family: monospace;
+    font-size: 0.83rem;
+    color: var(--muted-text, #64748b);
+}
+.killfeed-type {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: rgba(15, 23, 42, 0.04);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.killfeed-desc {
+    font-size: 0.92rem;
+}
+@media (max-width: 760px) {
+    .killfeed-row {
+        grid-template-columns: 1fr;
+        gap: 0.45rem;
+    }
 }
 </style>
 <!-- Header with map image banner -->
@@ -123,11 +167,11 @@
 </div>
 
 <nav class="map-section-rail" aria-label="Map sections">
-    <a class="map-section-chip" href="#tab-comp">Overview</a>
-    <a class="map-section-chip" href="#tab-timeline">Charts</a>
-    <a class="map-section-chip" href="#map-analysis">Analysis</a>
-    <a class="map-section-chip" href="#tab-vods">Replay</a>
-    <a class="map-section-chip" href="#tab-notes">Notes</a>
+    <a class="map-section-chip map-section-chip-active" href="#tab-comp" data-tab="comp">Overview</a>
+    <a class="map-section-chip" href="#tab-timeline" data-tab="timeline">Charts</a>
+    <a class="map-section-chip" href="#map-analysis" data-tab="timeline" data-scroll-target="map-analysis">Analysis</a>
+    <a class="map-section-chip" href="#tab-vods" data-tab="vods">Replay</a>
+    <a class="map-section-chip" href="#tab-notes" data-tab="notes">Notes</a>
 </nav>
 
 <div class="summary-grid">
@@ -328,27 +372,28 @@
     <div class="panel-header-row">
         <div>
             <div class="section-kicker">Analysis</div>
-            <h3>Fight and Event Insights</h3>
-            <p class="panel-intro">ScrimCore-style expanded analysis cards generated from this map timeline.</p>
+            <h3>Killfeed Timeline</h3>
+            <p class="panel-intro">Chronological elimination feed from this map's timeline events.</p>
         </div>
     </div>
-    <div class="analysis-grid top-gap">
-        <article class="analysis-box">
-            <h4>First Deaths</h4>
-            <p class="analysis-subtext" id="analysisFirstDeathSummary">Calculating...</p>
-        </article>
-        <article class="analysis-box">
-            <h4>Ultimates</h4>
-            <p class="analysis-subtext" id="analysisUltSummary">Calculating...</p>
-        </article>
-        <article class="analysis-box">
-            <h4>Objective Timing</h4>
-            <p class="analysis-subtext" id="analysisObjectiveSummary">Calculating...</p>
-        </article>
-        <article class="analysis-box">
-            <h4>Tempo</h4>
-            <p class="analysis-subtext" id="analysisTempoSummary">Calculating...</p>
-        </article>
+    <div class="killfeed-timeline top-gap">
+        {% set killfeed_count = namespace(value=0) %}
+        {% for event in map_entry.events %}
+            {% set event_type_lc = (event.event_type or '')|lower %}
+            {% set description_lc = (event.description or '')|lower %}
+            {% if event_type_lc in ['pick', 'first kill', 'death'] or 'eliminated' in description_lc %}
+                {% set killfeed_count.value = killfeed_count.value + 1 %}
+                <article class="killfeed-row">
+                    <div class="killfeed-time">{{ event.timestamp or '---' }}</div>
+                    <div><span class="killfeed-type">{{ event.event_type or 'Kill' }}</span></div>
+                    <div class="killfeed-desc">{{ event.description or 'No event description provided.' }}</div>
+                </article>
+            {% endif %}
+        {% endfor %}
+
+        {% if killfeed_count.value == 0 %}
+            <p class="empty-text">No killfeed events detected yet. Add Pick/Death events to populate this timeline.</p>
+        {% endif %}
     </div>
 </section>
 
@@ -879,7 +924,40 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(c => {
         c.classList.toggle('tab-hidden', c.id !== 'tab-' + tab);
     });
+
+    const defaultChip = document.querySelector('.map-section-chip[data-tab="' + tab + '"]:not([data-scroll-target])');
+    if (defaultChip) {
+        document.querySelectorAll('.map-section-chip').forEach(chip => {
+            chip.classList.toggle('map-section-chip-active', chip === defaultChip);
+        });
+    }
 }
+
+document.querySelectorAll('.map-section-chip[data-tab]').forEach(function (chip) {
+    chip.addEventListener('click', function (event) {
+        event.preventDefault();
+        const nextTab = chip.dataset.tab;
+        if (!nextTab) return;
+
+        switchTab(nextTab);
+        document.querySelectorAll('.map-section-chip').forEach(function (item) {
+            item.classList.toggle('map-section-chip-active', item === chip);
+        });
+
+        const scrollTargetId = chip.dataset.scrollTarget;
+        const destination = scrollTargetId
+            ? document.getElementById(scrollTargetId)
+            : document.getElementById('tab-' + nextTab);
+        if (destination) {
+            destination.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        const hash = chip.getAttribute('href');
+        if (hash && hash.startsWith('#')) {
+            window.history.replaceState(null, '', hash);
+        }
+    });
+});
 
 /* ── Modal open/close ── */
 function openModal(id) {

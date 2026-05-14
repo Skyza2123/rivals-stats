@@ -295,6 +295,94 @@ def scrim_detail(scrim_id: int):
     elif team2_score > team1_score:
         winner_label = participant_two_label
 
+    total_maps = len(scrim.get("maps", []))
+    win_rate = round((team1_score / total_maps) * 100, 1) if total_maps else 0.0
+    close_maps = 0
+    unique_heroes: set[str] = set()
+    draft_data_maps = 0
+
+    for map_entry in scrim.get("maps", []):
+        left_raw, right_raw = split_score_pair(map_entry.get("score", ""))
+        try:
+            left_score = float(left_raw) if left_raw else None
+            right_score = float(right_raw) if right_raw else None
+            if left_score is not None and right_score is not None and abs(left_score - right_score) <= 1:
+                close_maps += 1
+        except ValueError:
+            pass
+
+        participant_slot = map_entry.get("participant_one_slot") or "team1"
+        draft = map_entry.get("draft") or {}
+        slot_draft = draft.get(participant_slot) if isinstance(draft, dict) else None
+        if isinstance(slot_draft, dict) and any((slot_draft.get(key) or "").strip() for key in ("ban1", "ban2", "ban3", "ban4", "protect1", "protect2")):
+            draft_data_maps += 1
+
+        for section in map_entry.get("comp") or []:
+            if not isinstance(section, dict):
+                continue
+            for hero in section.get(participant_slot) or []:
+                hero_name = str(hero or "").strip()
+                if hero_name:
+                    unique_heroes.add(hero_name)
+
+    close_map_rate = round((close_maps / total_maps) * 100, 1) if total_maps else 0.0
+    draft_coverage = round((draft_data_maps / total_maps) * 100, 1) if total_maps else 0.0
+    hero_depth_score = min(100, len(unique_heroes) * 5)
+    map_performance_score = round(win_rate)
+    clutch_score = round(close_map_rate)
+    draft_score = round(draft_coverage)
+
+    scrim_core_score = round((map_performance_score * 0.45) + (clutch_score * 0.2) + (hero_depth_score * 0.2) + (draft_score * 0.15))
+    if scrim_core_score >= 75:
+        scrim_core_tier = "High Confidence"
+    elif scrim_core_score >= 60:
+        scrim_core_tier = "Competitive"
+    else:
+        scrim_core_tier = "Needs Review"
+
+    scrim_core_actions: list[str] = []
+    if win_rate < 50:
+        scrim_core_actions.append("Improve map conversion: review opening fight plans on your lowest-win maps.")
+    if draft_coverage < 60:
+        scrim_core_actions.append("Capture fuller draft data (bans/protects) for cleaner prep reads.")
+    if len(unique_heroes) < 10:
+        scrim_core_actions.append("Expand hero depth in scrim reps to avoid predictable draft patterns.")
+    if not scrim_core_actions:
+        scrim_core_actions.append("Keep current structure and focus on matchup-specific refinements.")
+
+    scrim_core = {
+        "score": scrim_core_score,
+        "tier": scrim_core_tier,
+        "win_rate": round(win_rate, 1),
+        "wins": team1_score,
+        "losses": team2_score,
+        "close_map_rate": close_map_rate,
+        "unique_heroes": len(unique_heroes),
+        "components": [
+            {
+                "name": "Map Performance",
+                "score": map_performance_score,
+                "detail": f"{team1_score}W-{team2_score}L across {total_maps} map(s).",
+            },
+            {
+                "name": "Close-Map Control",
+                "score": clutch_score,
+                "detail": f"{close_maps} close map(s), {close_map_rate}% of sample.",
+            },
+            {
+                "name": "Hero Depth",
+                "score": hero_depth_score,
+                "detail": f"{len(unique_heroes)} unique hero picks captured.",
+            },
+            {
+                "name": "Draft Coverage",
+                "score": draft_score,
+                "detail": f"Draft fields present on {draft_data_maps}/{total_maps} maps.",
+            },
+        ],
+        "priority_actions": scrim_core_actions,
+    }
+
     return render_template(
         "scrim_detail.html",
         scrim=scrim,
@@ -328,6 +416,7 @@ def scrim_detail(scrim_id: int):
         opponent_field_label="Enemy Team",
         show_team_selector=True,
         attack_defense_maps=sorted(ATTACK_DEFENSE_MAPS),
+        scrim_core=scrim_core,
     )
 
 

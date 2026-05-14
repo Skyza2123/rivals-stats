@@ -2618,6 +2618,10 @@
                     <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
                     <button type="submit" class="button-secondary">DB Dump JSON</button>
                 </form>
+                <form method="post" action="{{ url_for('db_dump_json_download') }}">
+                    <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
+                    <button type="submit" class="button-secondary">Download JSON Backup</button>
+                </form>
                 <form method="post" action="{{ url_for('db_restore_json') }}" enctype="multipart/form-data">
                     <input type="hidden" name="next" value="{{ request.full_path if request.full_path else request.path }}">
                     <input type="file" name="dump_file" accept=".json" required>
@@ -3575,7 +3579,7 @@
 (() => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-content");
-    const validTabs = new Set(["overview", "prep", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster", "summary", "scrims"]);
+    const validTabs = new Set(["overview", "scrimcore", "prep", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster", "summary", "scrims"]);
 
     const switchTeamTab = (tabName) => {
         const nextTab = validTabs.has(tabName) ? tabName : "overview";

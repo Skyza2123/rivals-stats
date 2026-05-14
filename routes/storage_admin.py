@@ -184,6 +184,30 @@ def db_dump_json():
     return redirect(next_url)
 
 
+@app.route("/db/dump-json/download", methods=["POST"])
+def db_dump_json_download():
+    """Create a fresh JSON dump and return it as a downloadable file."""
+    try:
+        save_app_state()
+        dump_path = create_manual_json_dump()
+        payload = dump_path.read_bytes()
+    except Exception as exc:
+        next_url = (request.form.get("next") or "").strip()
+        if not next_url.startswith("/"):
+            next_url = url_for("teams")
+        flash(f"Database dump download failed: {exc}", "error")
+        return redirect(next_url)
+
+    return Response(
+        payload,
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{dump_path.name}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @app.route("/db/restore-json", methods=["POST"])
 def db_restore_json():
     next_url = (request.form.get("next") or "").strip()
