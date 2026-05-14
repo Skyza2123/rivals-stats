@@ -94,7 +94,7 @@ def _hero_impact(profile: dict) -> AbilityImpact:
 def _ability_tags(ability_type: str) -> list[str]:
     normalized = ability_type.strip().lower() or "normal"
     tags = [normalized]
-    if normalized == "ultimate":
+    if normalized.startswith("ultimate"):
         tags.append("ultimate")
     return tags
 
@@ -103,7 +103,9 @@ def _ability_type(source_type: str, is_teamup: bool) -> str:
     if is_teamup:
         return "teamUpAbility"
     normalized = source_type.strip().lower() or "normal"
-    if normalized == "ultimate":
+    if normalized.startswith("teamup"):
+        return "teamUpAbility"
+    if normalized.startswith("ultimate"):
         return "ultimateAbility"
     return "ability"
 
@@ -120,7 +122,32 @@ def _normalize_keybind(keybind: str) -> str:
 
 
 def _ability_label(ability_type: str, keybind: str, index: int, is_teamup: bool) -> str:
+    normalized_source = str(keybind or "").strip().lower()
     normalized_keybind = _normalize_keybind(keybind)
+    if normalized_source == "ability_1":
+        return "Ability 1"
+    if normalized_source == "ability_2":
+        return "Ability 2"
+    if normalized_source == "ability_3":
+        return "Ability 3"
+    if normalized_source == "ultimate_ability":
+        return "Ultimate"
+    if normalized_source == "melee_attack":
+        return "Melee Attack"
+    if normalized_source == "primary_attack":
+        return "Primary Attack"
+    if normalized_source == "secondary_attack":
+        return "Secondary Attack"
+    if normalized_source == "passive":
+        return "Passive"
+    if normalized_source == "teamup_ability_1":
+        return "Team-Up Ability 1"
+    if normalized_source == "teamup_ability_2":
+        return "Team-Up Ability 2"
+    if normalized_source == "teamup_ability_3":
+        return "Team-Up Ability 3"
+    if normalized_source.startswith("teamup"):
+        return "Team-Up Ability"
     if is_teamup or ability_type == "teamUpAbility":
         return "Team-Up"
     if ability_type == "ultimateAbility":
@@ -167,6 +194,9 @@ def build_hero(hero_name: str, role: RoleName) -> Hero:
                 "LEFTCLICK",
                 "MOUSE1",
                 "LMB",
+                "PRIMARY_ATTACK",
+                "SECONDARY_ATTACK",
+                "MELEE_ATTACK",
                 "",
             }:
                 default_ability_index += 1
@@ -182,7 +212,7 @@ def build_hero(hero_name: str, role: RoleName) -> Hero:
             )
             abilities.append(
                 {
-                    "label": _ability_label(ability_type, keybind, default_ability_index, is_teamup),
+                    "label": _ability_label(ability_type, source_type, default_ability_index, is_teamup),
                     "keybind": keybind,
                     "name": str(ability["name"]),
                     "description": _clean_text(str(ability["description"])),
@@ -202,13 +232,13 @@ def build_hero(hero_name: str, role: RoleName) -> Hero:
             default_ability_index += 1
             abilities.append(
                 {
-                    "label": _ability_label("ability", "", default_ability_index, False),
-                    "keybind": "",
+                    "label": _ability_label("ability", f"ability_{default_ability_index}", default_ability_index, False),
+                    "keybind": f"ability_{default_ability_index}",
                     "name": name,
                     "description": _clean_text(f"{hero_name} ability: {name}."),
                     "cooldown": 0,
                     "abilityType": "ability",
-                    "sourceType": "Unknown",
+                    "sourceType": f"ability_{default_ability_index}",
                     "isTeamup": False,
                     "tags": tags + ["ability"],
                     "impact": impact,
@@ -226,15 +256,15 @@ def build_hero(hero_name: str, role: RoleName) -> Hero:
             known_teamups.add(teamup_name)
             abilities.append(
                 {
-                    "label": _ability_label("teamUpAbility", "", default_ability_index, True),
-                    "keybind": "",
+                    "label": _ability_label("teamUpAbility", "teamup_ability", default_ability_index, True),
+                    "keybind": "teamup_ability",
                     "name": teamup_name,
                     "description": _clean_text(
                         f"Team-Up ability for {hero_name}: {teamup_name}."
                     ),
                     "cooldown": 0,
                     "abilityType": "teamUpAbility",
-                    "sourceType": "HeroTheory",
+                    "sourceType": "teamup_ability",
                     "isTeamup": True,
                     "tags": tags + ["teamup"],
                     "impact": impact,

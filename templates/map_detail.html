@@ -19,6 +19,12 @@
 {% endfor %}
 {% set summary_score = map_entry.score if map_entry.score else (' | '.join(section_scores) if section_scores else '') %}
 {% set score_pair = split_score_pair(map_entry.score or '') %}
+{% set parser_analysis_root = (map_entry.parser_summary or {}).get('analysis', {}) %}
+{% set parser_timing = parser_analysis_root.get('timing', {}) %}
+{% set parser_player_stats = parser_analysis_root.get('player_stats', {}) %}
+{% set parser_team_totals = parser_player_stats.get('team_totals', {}) %}
+{% set parser_team1_totals = parser_team_totals.get('team1', {}) %}
+{% set parser_team2_totals = parser_team_totals.get('team2', {}) %}
 {% if display_team1_slot == 'team2' %}
     {% set team1_score_raw = score_pair[1] | trim %}
     {% set team2_score_raw = score_pair[0] | trim %}
@@ -91,6 +97,50 @@
     gap: 1rem;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
+.pt-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.15rem 1.5rem;
+}
+.pt-stat-cell {
+    min-width: 0;
+}
+.pt-stat-label {
+    display: block;
+    color: var(--muted-text, #64748b);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.pt-stat-value {
+    display: block;
+    margin-top: 0.28rem;
+    font-size: clamp(1.35rem, 2vw, 2rem);
+    font-weight: 800;
+    line-height: 1.05;
+}
+.pt-stat-sub {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--muted-text, #64748b);
+    font-size: 0.82rem;
+}
+.pt-section-divider {
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+    margin: 1.25rem 0;
+}
+.pt-player-table th,
+.pt-player-table td {
+    white-space: nowrap;
+}
+.pt-player-name {
+    font-weight: 800;
+}
+.pt-hero-name {
+    color: var(--muted-text, #64748b);
+    font-size: 0.82rem;
+}
 .analysis-box {
     border: 1px solid rgba(148, 163, 184, 0.35);
     background: rgba(15, 23, 42, 0.02);
@@ -111,7 +161,7 @@
 }
 .killfeed-row {
     display: grid;
-    grid-template-columns: 96px 140px 1fr;
+    grid-template-columns: 74px 82px 1fr auto 1fr;
     gap: 0.75rem;
     align-items: center;
     padding: 0.55rem 0.7rem;
@@ -139,10 +189,321 @@
 .killfeed-desc {
     font-size: 0.92rem;
 }
+.killfeed-player {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+.killfeed-hero {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.08);
+    flex-shrink: 0;
+}
+.killfeed-player-text {
+    min-width: 0;
+}
+.killfeed-name {
+    display: block;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.killfeed-hero-name {
+    display: block;
+    color: var(--muted-text, #64748b);
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.killfeed-action {
+    color: var(--muted-text, #64748b);
+    font-size: 0.78rem;
+    text-align: center;
+}
+.round-summary-grid {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.round-summary-card {
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+    background: rgba(15, 23, 42, 0.02);
+}
+.round-summary-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.65rem;
+    font-weight: 700;
+}
+.round-hero-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+.round-hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    padding: 0.2rem 0.45rem;
+    background: rgba(15, 23, 42, 0.03);
+    font-size: 0.78rem;
+}
+.round-hero-pill img {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    object-fit: cover;
+}
+.analysis-subtab-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+}
+.analysis-subtab-btn {
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.03);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.analysis-subtab-btn-active {
+    border-color: rgba(96, 165, 250, 0.7);
+    background: rgba(59, 130, 246, 0.14);
+}
+.analysis-pane {
+    margin-top: 1rem;
+}
+.analysis-pane-hidden {
+    display: none;
+}
+.analysis-stack {
+    display: grid;
+    gap: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+.analysis-row {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    padding: 0.85rem 0;
+}
+.analysis-row summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    font-weight: 800;
+    list-style: none;
+}
+.analysis-row summary::-webkit-details-marker {
+    display: none;
+}
+.analysis-row summary::after {
+    content: "⌄";
+    color: var(--muted-text, #64748b);
+    font-size: 1rem;
+}
+.analysis-row[open] summary::after {
+    transform: rotate(180deg);
+}
+.analysis-row-body {
+    padding-top: 0.85rem;
+}
+.analysis-chart-wrap {
+    position: relative;
+    min-height: 210px;
+    margin-top: 0.9rem;
+}
+.ability-timing-team {
+    margin-top: 1rem;
+}
+.ability-timing-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 800;
+    margin-bottom: 0.8rem;
+}
+.ability-team-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #06b6d4;
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+}
+.ability-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 0.7rem;
+    margin-bottom: 0.9rem;
+}
+.ability-insight-card {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0.7rem;
+    padding: 0.75rem 0.9rem;
+    background: rgba(15, 23, 42, 0.22);
+    font-size: 0.96rem;
+}
+.ability-insight-card strong {
+    color: #10b981;
+}
+.ability-matrix-wrap {
+    overflow-x: auto;
+}
+.ability-matrix {
+    width: 100%;
+    min-width: 880px;
+    border-collapse: separate;
+    border-spacing: 6px;
+}
+.ability-matrix th {
+    color: var(--muted-text, #94a3b8);
+    font-size: 0.8rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-align: center;
+    padding-bottom: 0.25rem;
+}
+.ability-matrix th:first-child {
+    text-align: left;
+}
+.ability-matrix td {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 0.45rem;
+    text-align: center;
+    font-weight: 800;
+    padding: 0.72rem 0.45rem;
+    background: rgba(15, 23, 42, 0.28);
+}
+.ability-matrix td:first-child {
+    text-align: left;
+    font-weight: 700;
+    min-width: 190px;
+    background: transparent;
+    border: 0;
+    padding-left: 0;
+}
+.ability-matrix-cell-good {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.18) !important;
+    border-color: rgba(16, 185, 129, 0.55) !important;
+}
+.ability-matrix-cell-bad {
+    color: #f87171;
+    background: rgba(127, 29, 29, 0.26) !important;
+    border-color: rgba(239, 68, 68, 0.36) !important;
+}
+.ability-matrix-cell-mid {
+    color: #94a3b8;
+}
+.ability-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+.ability-label img {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+.events-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    padding-top: 0.8rem;
+}
+.events-filter-pill {
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 0.45rem;
+    padding: 0.25rem 0.55rem;
+    color: var(--muted-text, #64748b);
+    font-family: monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.events-timeline {
+    display: grid;
+    gap: 1rem;
+}
+.event-row {
+    display: grid;
+    grid-template-columns: 5rem 7rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.8rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 0.6rem 0;
+}
+.event-row:first-child {
+    border-top: 0;
+}
+.event-time {
+    color: var(--muted-text, #64748b);
+    font-family: monospace;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+.event-type {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 0.4rem;
+    padding: 0.22rem 0.45rem;
+    color: var(--muted-text, #64748b);
+    font-family: monospace;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.event-main {
+    min-width: 0;
+}
+.event-description {
+    font-weight: 700;
+}
+.event-meta {
+    color: var(--muted-text, #64748b);
+    font-size: 0.78rem;
+    margin-top: 0.15rem;
+}
+.team-accent-team1 {
+    border-left: 3px solid #60a5fa;
+    padding-left: 0.65rem;
+}
+.team-accent-team2 {
+    border-left: 3px solid #f87171;
+    padding-left: 0.65rem;
+}
 @media (max-width: 760px) {
     .killfeed-row {
         grid-template-columns: 1fr;
         gap: 0.45rem;
+    }
+    .killfeed-action {
+        text-align: left;
+    }
+    .event-row {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
     }
 }
 </style>
@@ -168,8 +529,11 @@
 
 <nav class="map-section-rail" aria-label="Map sections">
     <a class="map-section-chip map-section-chip-active" href="#tab-comp" data-tab="comp">Overview</a>
+    <a class="map-section-chip" href="#tab-killfeed" data-tab="killfeed">Killfeed</a>
     <a class="map-section-chip" href="#tab-timeline" data-tab="timeline">Charts</a>
-    <a class="map-section-chip" href="#map-analysis" data-tab="timeline" data-scroll-target="map-analysis">Analysis</a>
+    <a class="map-section-chip" href="#tab-events" data-tab="events">Events</a>
+    <a class="map-section-chip" href="#tab-compare" data-tab="compare">Compare</a>
+    <a class="map-section-chip" href="#tab-analysis" data-tab="analysis">Analysis</a>
     <a class="map-section-chip" href="#tab-vods" data-tab="vods">Replay</a>
     <a class="map-section-chip" href="#tab-notes" data-tab="notes">Notes</a>
 </nav>
@@ -178,19 +542,78 @@
     <section class="stat-card"><strong>Winner</strong><span>{{ winner_label }}</span></section>
     <section class="stat-card"><strong>Map Type</strong><span>{{ map_mode }}</span></section>
     <section class="stat-card"><strong>Score</strong><span>{{ map_entry.score or '—' }}</span></section>
-    <section class="stat-card"><strong>Total Events</strong><span>{{ map_entry.events|length }}</span></section>
+    <section class="stat-card"><strong>Match Time</strong><span>{{ parser_timing.get('last_kill_time') or '—' }}</span></section>
 </div>
 
 <!-- Tabs -->
 <div class="tab-bar">
-    <button class="tab-btn tab-active" data-tab="comp" onclick="switchTab('comp')">Comp</button>
-    <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Timeline</button>
+    <button class="tab-btn tab-active" data-tab="comp" onclick="switchTab('comp')">Overview</button>
+    <button class="tab-btn" data-tab="killfeed" onclick="switchTab('killfeed')">Killfeed</button>
+    <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Charts</button>
+    <button class="tab-btn" data-tab="events" onclick="switchTab('events')">Events</button>
+    <button class="tab-btn" data-tab="compare" onclick="switchTab('compare')">Compare</button>
+    <button class="tab-btn" data-tab="analysis" onclick="switchTab('analysis')">Analysis</button>
     <button class="tab-btn" data-tab="vods" onclick="switchTab('vods')">VODs</button>
     <button class="tab-btn" data-tab="notes" onclick="switchTab('notes')">Notes</button>
 </div>
 
 <!-- COMP TAB -->
 <div class="tab-content" id="tab-comp">
+
+{% if parser_player_stats %}
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Basic Stats</div>
+            <h3>Map Overview</h3>
+        </div>
+    </div>
+    <div class="pt-stat-grid top-gap">
+        <div class="pt-stat-cell">
+            <span class="pt-stat-label">Total Match Time</span>
+            <span class="pt-stat-value">{{ parser_timing.get('last_kill_time') or '—' }}</span>
+        </div>
+        <div class="pt-stat-cell">
+            <span class="pt-stat-label">Final Score</span>
+            <span class="pt-stat-value">{{ map_entry.score or '—' }}</span>
+            <span class="pt-stat-sub">{{ team1_label }} vs {{ team2_label }}</span>
+        </div>
+        <div class="pt-stat-cell">
+            <span class="pt-stat-label">Hero Damage Dealt</span>
+            <span class="pt-stat-value">{{ parser_team1_totals.get('hero_damage', 0)|round|int }} - {{ parser_team2_totals.get('hero_damage', 0)|round|int }}</span>
+            <span class="pt-stat-sub">{{ team1_label }} - {{ team2_label }}</span>
+        </div>
+        <div class="pt-stat-cell">
+            <span class="pt-stat-label">Team Healing Dealt</span>
+            <span class="pt-stat-value">{{ parser_team1_totals.get('healing', 0)|round|int }} - {{ parser_team2_totals.get('healing', 0)|round|int }}</span>
+            <span class="pt-stat-sub">{{ team1_label }} - {{ team2_label }}</span>
+        </div>
+    </div>
+    <div class="pt-section-divider"></div>
+    {% if parser_player_stats.get('top_damage') %}
+    <div class="table-wrap top-gap">
+        <table class="stats-table pt-player-table">
+            <thead><tr><th>Player</th><th>Team</th><th>Time</th><th>Elims</th><th>Deaths</th><th>K/D</th><th>Hero Damage</th><th>Healing</th><th>Ults</th></tr></thead>
+            <tbody>
+            {% for row in parser_player_stats.top_damage %}
+                <tr>
+                    <td><span class="pt-player-name">{{ row.player }}</span><br><span class="pt-hero-name">{{ hero_display_name(row.hero) }}</span></td>
+                    <td>{{ team1_label if row.team == 'team1' else team2_label }}</td>
+                    <td>{{ row.hero_time_played|round|int }}s</td>
+                    <td>{{ row.eliminations }}</td>
+                    <td>{{ row.deaths }}</td>
+                    <td>{{ (row.eliminations / row.deaths)|round(2) if row.deaths else row.eliminations }}</td>
+                    <td>{{ row.hero_damage|round|int }}</td>
+                    <td>{{ row.healing|round|int }}</td>
+                    <td>{{ row.ultimates_used }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</section>
+{% endif %}
 
 <!-- Draft Section -->
 <section class="panel">
@@ -299,40 +722,14 @@
 
 <!-- TIMELINE TAB -->
 <div class="tab-content tab-hidden" id="tab-timeline">
-<section class="panel">
-    <div class="panel-header-row">
-        <h3>Event Log</h3>
-        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addEventModal')">Add Event</button>{% endif %}
-    </div>
-    {% if map_entry.events %}
-        <div class="list-stack">
-            {% for event in map_entry.events %}
-                <div class="list-card static-card">
-                    <div>
-                        <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
-                        <div class="list-subtitle">{{ event.description or "No description" }}</div>
-                    </div>
-                    {% if session.get('access_level') == 'edit' %}
-                    <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
-                        <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
-                    </form>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="empty-text">No events added yet.</p>
-    {% endif %}
-</section>
-
-<section class="panel top-gap" aria-label="ScrimCore-inspired charts">
+<section class="panel" aria-label="ScrimCore-inspired charts">
     <div class="panel-header-row">
         <div>
-            <div class="section-kicker">ScrimCore-Inspired</div>
-            <h3>Map Event Charts (Experiment)</h3>
-            <p class="panel-intro">Chart presentation pattern adapted from ScrimCore map analytics and applied to this map's event log.</p>
+            <div class="section-kicker">ParserTime-Inspired</div>
+            <h3>Map Charts</h3>
+            <p class="panel-intro">Kills by fight, final blows by role, and cumulative hero damage by round.</p>
         </div>
-        <span class="compare-tag compare-tag-neutral">Experiment</span>
+        <span class="compare-tag compare-tag-neutral">Charts</span>
     </div>
     <div class="summary-grid top-gap">
         <section class="stat-card">
@@ -350,50 +747,29 @@
     </div>
     <div class="chart-card-grid top-gap">
         <section class="panel panel-nested">
-            <div class="chart-eyebrow">Fight Tempo</div>
-            <h4 class="chart-title">Cumulative Fight Swing</h4>
-            <p class="chart-subtitle">Uses Pick and Death events to show positive/negative momentum over time.</p>
+            <div class="chart-eyebrow">Fight Flow</div>
+            <h4 class="chart-title">Kills By Fight</h4>
+            <p class="chart-subtitle">Kills are grouped into fights with a 15-second split window. Team 1 is positive and Team 2 is negative.</p>
             <div class="chart-wrap">
                 <canvas id="scrimcoreFightSwingChart"></canvas>
             </div>
         </section>
         <section class="panel panel-nested">
-            <div class="chart-eyebrow">Event Mix</div>
-            <h4 class="chart-title">Event Type Distribution</h4>
-            <p class="chart-subtitle">High-level shape of the map timeline categories.</p>
+            <div class="chart-eyebrow">Role Impact</div>
+            <h4 class="chart-title">Final Blows By Role</h4>
+            <p class="chart-subtitle">Role totals split by team across Vanguard, Duelist, and Strategist.</p>
             <div class="chart-wrap">
                 <canvas id="scrimcoreEventMixChart"></canvas>
             </div>
         </section>
-    </div>
-</section>
-
-<section class="panel top-gap" id="map-analysis">
-    <div class="panel-header-row">
-        <div>
-            <div class="section-kicker">Analysis</div>
-            <h3>Killfeed Timeline</h3>
-            <p class="panel-intro">Chronological elimination feed from this map's timeline events.</p>
-        </div>
-    </div>
-    <div class="killfeed-timeline top-gap">
-        {% set killfeed_count = namespace(value=0) %}
-        {% for event in map_entry.events %}
-            {% set event_type_lc = (event.event_type or '')|lower %}
-            {% set description_lc = (event.description or '')|lower %}
-            {% if event_type_lc in ['pick', 'first kill', 'death'] or 'eliminated' in description_lc %}
-                {% set killfeed_count.value = killfeed_count.value + 1 %}
-                <article class="killfeed-row">
-                    <div class="killfeed-time">{{ event.timestamp or '---' }}</div>
-                    <div><span class="killfeed-type">{{ event.event_type or 'Kill' }}</span></div>
-                    <div class="killfeed-desc">{{ event.description or 'No event description provided.' }}</div>
-                </article>
-            {% endif %}
-        {% endfor %}
-
-        {% if killfeed_count.value == 0 %}
-            <p class="empty-text">No killfeed events detected yet. Add Pick/Death events to populate this timeline.</p>
-        {% endif %}
+        <section class="panel panel-nested">
+            <div class="chart-eyebrow">Pressure</div>
+            <h4 class="chart-title">Cumulative Hero Damage By Round</h4>
+            <p class="chart-subtitle">Cumulative round-by-round hero damage from parsed player stats.</p>
+            <div class="chart-wrap">
+                <canvas id="scrimcoreDamageByRoundChart"></canvas>
+            </div>
+        </section>
     </div>
 </section>
 
@@ -440,6 +816,489 @@
     {% endif %}
 </section>
 {% endif %}
+</div>
+
+<!-- KILLFEED TAB -->
+<div class="tab-content tab-hidden" id="tab-killfeed">
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Killfeed</div>
+            <h3>Killfeed Timeline</h3>
+            <p class="panel-intro">Chronological elimination feed parsed from ScrimCore kill rows. Fights split after 15 seconds without a kill.</p>
+        </div>
+    </div>
+    {% set killfeed_summary = (map_entry.parser_summary or {}).get('killfeed', {}) %}
+    {% set killfeed_events = map_entry.events|selectattr('event_source', 'equalto', 'scrimcore_killfeed')|list %}
+    {% if not killfeed_events %}
+        {% set killfeed_events = map_entry.events|selectattr('event_type', 'equalto', 'Pick')|list %}
+    {% endif %}
+    {% set killfeed_fights = killfeed_summary.get('fights', []) %}
+    {% set killfeed_fight_map = namespace(value={}) %}
+    {% for fight in killfeed_fights %}
+        {% set _ = killfeed_fight_map.value.update({fight.fight_number: fight}) %}
+    {% endfor %}
+    {% set kill_totals = namespace(team1_kills=0, team2_kills=0, team1_deaths=0, team2_deaths=0) %}
+    {% for event in killfeed_events %}
+        {% if event.attacker_team == 'team1' %}{% set kill_totals.team1_kills = kill_totals.team1_kills + 1 %}{% endif %}
+        {% if event.attacker_team == 'team2' %}{% set kill_totals.team2_kills = kill_totals.team2_kills + 1 %}{% endif %}
+        {% if event.victim_team == 'team1' %}{% set kill_totals.team1_deaths = kill_totals.team1_deaths + 1 %}{% endif %}
+        {% if event.victim_team == 'team2' %}{% set kill_totals.team2_deaths = kill_totals.team2_deaths + 1 %}{% endif %}
+    {% endfor %}
+    {% if killfeed_summary %}
+    <div class="summary-grid top-gap">
+        <section class="stat-card"><strong>Total Match Time</strong><span>{{ killfeed_events[-1].timestamp if killfeed_events else '—' }}</span></section>
+        <section class="stat-card"><strong>{{ team1_label }} Kills / Deaths</strong><span>{{ kill_totals.team1_kills }} / {{ kill_totals.team1_deaths }}</span></section>
+        <section class="stat-card"><strong>{{ team2_label }} Kills / Deaths</strong><span>{{ kill_totals.team2_kills }} / {{ kill_totals.team2_deaths }}</span></section>
+        <section class="stat-card"><strong>Fights</strong><span>{{ killfeed_summary.get('fight_count', 0) }}</span></section>
+        <section class="stat-card"><strong>{{ team1_label }} Fight Wins</strong><span>{{ killfeed_summary.get('team1_fight_wins', 0) }}</span></section>
+        <section class="stat-card"><strong>{{ team2_label }} Fight Wins</strong><span>{{ killfeed_summary.get('team2_fight_wins', 0) }}</span></section>
+    </div>
+    {% endif %}
+
+    {% if map_entry.get('round_hero_summary') %}
+    <div class="round-summary-grid top-gap">
+        {% for round_row in map_entry.round_hero_summary %}
+        <article class="round-summary-card">
+            <div class="round-summary-title">
+                <span>{{ round_row.round_label }}</span>
+                {% if round_row.side %}<span class="compare-tag compare-tag-neutral">{{ round_row.side }}</span>{% endif %}
+            </div>
+            <div class="round-hero-strip">
+                {% for hero_row in round_row.top_heroes[:8] %}
+                <span class="round-hero-pill">
+                    <img src="{{ hero_image_url(hero_row.hero) }}" alt="{{ hero_row.hero }}" onerror="this.style.display='none'">
+                    <span>{{ hero_display_name(hero_row.hero) }}</span>
+                    {% if hero_row.count > 1 %}<strong>x{{ hero_row.count }}</strong>{% endif %}
+                </span>
+                {% endfor %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="killfeed-timeline top-gap">
+        {% set killfeed_count = namespace(value=0) %}
+        {% set fight_tracker = namespace(current=-1) %}
+        {% for event in killfeed_events %}
+                {% set killfeed_count.value = killfeed_count.value + 1 %}
+                {% set fight_number = event.fight_number or 0 %}
+                {% set fight_meta = killfeed_fight_map.value.get(fight_number, {}) %}
+                {% if fight_number != fight_tracker.current %}
+                    {% if fight_tracker.current != -1 %}</div>{% endif %}
+                    <div class="round-summary-card top-gap {% if fight_meta.get('winner') == 'team1' %}team-accent-team1{% elif fight_meta.get('winner') == 'team2' %}team-accent-team2{% endif %}">
+                        <div class="round-summary-title">
+                            <span>Fight {{ fight_number or killfeed_count.value }}</span>
+                            <span class="compare-tag compare-tag-neutral">
+                                Winner:
+                                {% if fight_meta.get('winner') == 'team1' %}{{ team1_label }}
+                                {% elif fight_meta.get('winner') == 'team2' %}{{ team2_label }}
+                                {% else %}Even{% endif %}
+                            </span>
+                        </div>
+                        <div class="summary-box" style="margin-bottom:0.65rem;">
+                            Start {{ fight_meta.get('start_label') or event.timestamp or '—' }}
+                            &bull;
+                            End {{ fight_meta.get('end_label') or event.timestamp or '—' }}
+                            &bull;
+                            {{ team1_label }} {{ fight_meta.get('team1_kills', 0) }} - {{ fight_meta.get('team2_kills', 0) }} {{ team2_label }}
+                        </div>
+                    {% set fight_tracker.current = fight_number %}
+                {% endif %}
+                <article class="killfeed-row {% if event.attacker_team == 'team1' %}team-accent-team1{% elif event.attacker_team == 'team2' %}team-accent-team2{% endif %}">
+                    <div class="killfeed-time">{{ event.timestamp or '---' }}</div>
+                    <div><span class="killfeed-type">{{ event.event_type or 'Kill' }}</span></div>
+                    <div class="killfeed-player">
+                        <img class="killfeed-hero" src="{{ hero_image_url(event.attacker_hero) }}" alt="{{ event.attacker_hero }}" onerror="this.style.display='none'">
+                        <div class="killfeed-player-text">
+                            <span class="killfeed-name">{{ event.attacker_name or 'Unknown' }}</span>
+                            <span class="killfeed-hero-name">{{ hero_display_name(event.attacker_hero) if event.attacker_hero else 'Unknown' }}</span>
+                        </div>
+                    </div>
+                    <div class="killfeed-action">
+                        {{ event.ability or 'eliminated' }}
+                        {% if event.round_label %}<br><span>{{ event.round_label }}</span>{% endif %}
+                    </div>
+                    <div class="killfeed-player">
+                        <img class="killfeed-hero" src="{{ hero_image_url(event.victim_hero) }}" alt="{{ event.victim_hero }}" onerror="this.style.display='none'">
+                        <div class="killfeed-player-text">
+                            <span class="killfeed-name">{{ event.victim_name or 'Unknown' }}</span>
+                            <span class="killfeed-hero-name">{{ hero_display_name(event.victim_hero) if event.victim_hero else 'Unknown' }}</span>
+                        </div>
+                    </div>
+                </article>
+        {% endfor %}
+        {% if killfeed_count.value > 0 %}</div>{% endif %}
+
+        {% if killfeed_count.value == 0 %}
+            <p class="empty-text">No killfeed events detected yet. Re-import a ScrimCore log with kill rows to populate this timeline.</p>
+        {% endif %}
+    </div>
+
+</section>
+</div>
+
+<!-- EVENTS TAB -->
+<div class="tab-content tab-hidden" id="tab-events">
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Events</div>
+            <h3>Event Log</h3>
+            <p class="panel-intro">Chronological ScrimCore events, including killfeed, ultimates, swaps, objectives, and round markers.</p>
+        </div>
+    </div>
+    {% if map_entry.events %}
+        <div class="pt-stat-grid top-gap">
+            <div class="pt-stat-cell"><span class="pt-stat-label">Rounds</span><span class="pt-stat-value">{{ map_entry.comp|length }}</span></div>
+            <div class="pt-stat-cell"><span class="pt-stat-label">Fights</span><span class="pt-stat-value">{{ (map_entry.parser_summary or {}).get('analysis', {}).get('timing', {}).get('fight_count', 0) }}</span></div>
+            <div class="pt-stat-cell"><span class="pt-stat-label">Ultimates</span><span class="pt-stat-value">{{ (map_entry.parser_summary or {}).get('analysis', {}).get('ultimates', {}).get('total', 0) }}</span></div>
+            <div class="pt-stat-cell"><span class="pt-stat-label">Swaps</span><span class="pt-stat-value">{{ (map_entry.parser_summary or {}).get('analysis', {}).get('swaps', {}).get('total', 0) }}</span></div>
+        </div>
+        <div class="events-filter-row">
+            <span class="events-filter-pill">All</span>
+            <span class="events-filter-pill">Highlights</span>
+            <span class="events-filter-pill">Ultimates</span>
+            <span class="events-filter-pill">Swaps</span>
+            <span class="events-filter-pill">Objectives</span>
+        </div>
+        <div class="pt-section-divider"></div>
+        <div class="events-timeline">
+            {% for event in map_entry.events %}
+                <div class="event-row">
+                    <span class="event-time">{{ event.timestamp or "---" }}</span>
+                    <span class="event-type">{{ event.event_type or "Event" }}</span>
+                    <div class="event-main {% if event.team == 'team1' or event.attacker_team == 'team1' or event.victim_team == 'team1' %}team-accent-team1{% elif event.team == 'team2' or event.attacker_team == 'team2' or event.victim_team == 'team2' %}team-accent-team2{% endif %}">
+                        <div class="event-description">{{ event.description or "No description" }}</div>
+                        <div class="event-meta">
+                            {% if event.round_label %}{{ event.round_label }}{% endif %}
+                            {% if event.fight_number %}{% if event.round_label %} &bull; {% endif %}Fight {{ event.fight_number }}{% endif %}
+                            {% if event.player_name %}{% if event.round_label or event.fight_number %} &bull; {% endif %}{{ event.player_name }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No events added yet.</p>
+    {% endif %}
+</section>
+</div>
+
+<!-- COMPARE TAB -->
+<div class="tab-content tab-hidden" id="tab-compare">
+<section class="panel">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Compare</div>
+            <h3>Team Comparison</h3>
+            <p class="panel-intro">Side-by-side map summary using the imported score, draft, comps, and killfeed first deaths.</p>
+        </div>
+    </div>
+    {% set killfeed_summary = (map_entry.parser_summary or {}).get('killfeed', {}) %}
+    <div class="summary-grid top-gap">
+        <section class="stat-card"><strong>{{ team1_label }} Score</strong><span>{{ score_pair[0] or '—' }}</span></section>
+        <section class="stat-card"><strong>{{ team2_label }} Score</strong><span>{{ score_pair[1] or '—' }}</span></section>
+        <section class="stat-card"><strong>{{ team1_label }} Fight Wins</strong><span>{{ killfeed_summary.get('team1_fight_wins', 0) }}</span></section>
+        <section class="stat-card"><strong>{{ team2_label }} Fight Wins</strong><span>{{ killfeed_summary.get('team2_fight_wins', 0) }}</span></section>
+    </div>
+    {% if map_entry.get('round_hero_summary') %}
+    <div class="round-summary-grid top-gap">
+        {% for round_row in map_entry.round_hero_summary %}
+        <article class="round-summary-card">
+            <div class="round-summary-title">
+                <span>{{ round_row.round_label }}</span>
+                {% if round_row.side %}<span class="compare-tag compare-tag-neutral">{{ round_row.side }}</span>{% endif %}
+            </div>
+            <div class="draft-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                <div>
+                    <h4 class="team-label team1-label">{{ team1_label }}</h4>
+                    <div class="round-hero-strip">
+                        {% for hero_row in round_row.team1_heroes %}
+                        <span class="round-hero-pill">
+                            <img src="{{ hero_image_url(hero_row.hero) }}" alt="{{ hero_row.hero }}" onerror="this.style.display='none'">
+                            <span>{{ hero_display_name(hero_row.hero) }}</span>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <h4 class="team-label team2-label">{{ team2_label }}</h4>
+                    <div class="round-hero-strip">
+                        {% for hero_row in round_row.team2_heroes %}
+                        <span class="round-hero-pill">
+                            <img src="{{ hero_image_url(hero_row.hero) }}" alt="{{ hero_row.hero }}" onerror="this.style.display='none'">
+                            <span>{{ hero_display_name(hero_row.hero) }}</span>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="empty-text top-gap">No imported round comparison data yet.</p>
+    {% endif %}
+</section>
+</div>
+
+<!-- ANALYSIS TAB -->
+<div class="tab-content tab-hidden" id="tab-analysis">
+<section class="panel">
+    {% set scrimcore_analysis = (map_entry.parser_summary or {}).get('analysis', {}) %}
+    {% set analysis_first_deaths = scrimcore_analysis.get('first_deaths', {}) %}
+    {% set analysis_ultimates = scrimcore_analysis.get('ultimates', {}) %}
+    {% set analysis_timing = scrimcore_analysis.get('timing', {}) %}
+    {% set analysis_efficiency = scrimcore_analysis.get('efficiency', {}) %}
+    {% set analysis_swaps = scrimcore_analysis.get('swaps', {}) %}
+    {% set analysis_rotation_deaths = scrimcore_analysis.get('rotation_deaths', {}) %}
+    {% set analysis_objectives = scrimcore_analysis.get('objectives', {}) %}
+    {% set analysis_abilities = scrimcore_analysis.get('ability_timing', {}) %}
+    {% set analysis_ability_labels = analysis_abilities.get('phase_labels', {}) %}
+    {% set ability_phase_columns = [
+        ('pre_fight', analysis_ability_labels.get('pre_fight', 'Pre-Fight')),
+        ('early', analysis_ability_labels.get('early', 'Early')),
+        ('mid', analysis_ability_labels.get('mid', 'Mid')),
+        ('late', analysis_ability_labels.get('late', 'Late')),
+        ('cleanup', analysis_ability_labels.get('cleanup', 'Cleanup')),
+    ] %}
+    {% set analysis_ability_tables = analysis_abilities.get('team_tables', {}) %}
+    {% set analysis_ability_insights = analysis_abilities.get('insights', {}) %}
+    {% set analysis_player_stats = scrimcore_analysis.get('player_stats', {}) %}
+    {% set analysis_totals = analysis_player_stats.get('team_totals', {}) %}
+    {% set analysis_team1_totals = analysis_totals.get('team1', {}) %}
+    {% set analysis_team2_totals = analysis_totals.get('team2', {}) %}
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Analysis</div>
+            <h3>Map Analysis</h3>
+            <p class="panel-intro">ScrimCore-style parsed analysis from killfeed, ultimate, swap, objective, and ability rows.</p>
+        </div>
+    </div>
+
+    <div class="pt-stat-grid top-gap">
+        <div class="pt-stat-cell"><span class="pt-stat-label">Fights</span><span class="pt-stat-value">{{ analysis_timing.get('fight_count', 0) }}</span></div>
+        <div class="pt-stat-cell"><span class="pt-stat-label">Kills</span><span class="pt-stat-value">{{ analysis_timing.get('kill_count', 0) }}</span></div>
+        <div class="pt-stat-cell"><span class="pt-stat-label">Ultimate Value</span><span class="pt-stat-value">{{ analysis_ultimates.get('team1_value_kills', 0) }} - {{ analysis_ultimates.get('team2_value_kills', 0) }}</span><span class="pt-stat-sub">{{ team1_label }} - {{ team2_label }}</span></div>
+        <div class="pt-stat-cell"><span class="pt-stat-label">Rotation Deaths</span><span class="pt-stat-value">{{ analysis_rotation_deaths.get('total', 0) }}</span><span class="pt-stat-sub">Isolated pick deaths</span></div>
+    </div>
+
+    <div class="analysis-stack top-gap">
+        <details class="analysis-row" open>
+            <summary>First Deaths</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }}</span><span class="pt-stat-value">{{ analysis_first_deaths.get('team1_first_deaths', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }}</span><span class="pt-stat-value">{{ analysis_first_deaths.get('team2_first_deaths', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} FD%</span><span class="pt-stat-value">{{ ((analysis_first_deaths.get('team2_first_deaths', 0) / analysis_first_deaths.get('fight_count', 1)) * 100)|round(1) if analysis_first_deaths.get('fight_count', 0) else 0 }}%</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">First Kill Time</span><span class="pt-stat-value">{{ analysis_timing.get('first_kill_time') or '—' }}</span></div>
+            </div>
+            {% if analysis_first_deaths.get('top_first_deaths') %}
+            <div class="table-wrap top-gap">
+                <table class="stats-table">
+                    <thead><tr><th>Player</th><th>First Deaths</th></tr></thead>
+                    <tbody>
+                    {% for row in analysis_first_deaths.top_first_deaths %}
+                        <tr><td>{{ row.player }}</td><td>{{ row.count }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            <div class="analysis-chart-wrap">
+                <canvas id="analysisFirstDeathsChart"></canvas>
+            </div>
+            </div>
+        </details>
+
+        <details class="analysis-row" open>
+            <summary>Ultimates</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }} Uses</span><span class="pt-stat-value">{{ analysis_ultimates.get('team1_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} Uses</span><span class="pt-stat-value">{{ analysis_ultimates.get('team2_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }} Value Kills</span><span class="pt-stat-value">{{ analysis_ultimates.get('team1_value_kills', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} Value Kills</span><span class="pt-stat-value">{{ analysis_ultimates.get('team2_value_kills', 0) }}</span></div>
+            </div>
+            {% if analysis_ultimates.get('top_value_players') or analysis_ultimates.get('top_players') %}
+            <div class="table-wrap top-gap">
+                <table class="stats-table">
+                    <thead><tr><th>Player</th><th>Ultimate Value Kills</th></tr></thead>
+                    <tbody>
+                    {% for row in analysis_ultimates.get('top_value_players', []) %}
+                        <tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            <div class="analysis-chart-wrap">
+                <canvas id="analysisUltimateValueChart"></canvas>
+            </div>
+            </div>
+        </details>
+
+        <details class="analysis-row">
+            <summary>Timing</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">First Kill</span><span class="pt-stat-value">{{ analysis_timing.get('first_kill_time') or '—' }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">Last Kill</span><span class="pt-stat-value">{{ analysis_timing.get('last_kill_time') or '—' }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">Objectives</span><span class="pt-stat-value">{{ analysis_objectives.get('total', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">Ability Uses</span><span class="pt-stat-value">{{ analysis_abilities.get('total', 0) }}</span></div>
+            </div>
+            </div>
+        </details>
+
+        <details class="analysis-row">
+            <summary>Efficiency</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }} K/D</span><span class="pt-stat-value">{{ analysis_efficiency.get('team1_kills', 0) }} / {{ analysis_efficiency.get('team1_deaths', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} K/D</span><span class="pt-stat-value">{{ analysis_efficiency.get('team2_kills', 0) }} / {{ analysis_efficiency.get('team2_deaths', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }} Diff</span><span class="pt-stat-value">{{ analysis_efficiency.get('team1_diff', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} Diff</span><span class="pt-stat-value">{{ analysis_efficiency.get('team2_diff', 0) }}</span></div>
+            </div>
+            <div class="pt-stat-grid top-gap">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }} Hero Damage</span><span class="pt-stat-value">{{ analysis_team1_totals.get('hero_damage', 0)|round|int }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} Hero Damage</span><span class="pt-stat-value">{{ analysis_team2_totals.get('hero_damage', 0)|round|int }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }} Healing</span><span class="pt-stat-value">{{ analysis_team1_totals.get('healing', 0)|round|int }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }} Healing</span><span class="pt-stat-value">{{ analysis_team2_totals.get('healing', 0)|round|int }}</span></div>
+            </div>
+            </div>
+        </details>
+
+        <details class="analysis-row">
+            <summary>Swaps</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }}</span><span class="pt-stat-value">{{ analysis_swaps.get('team1_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }}</span><span class="pt-stat-value">{{ analysis_swaps.get('team2_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">Total</span><span class="pt-stat-value">{{ analysis_swaps.get('total', 0) }}</span></div>
+            </div>
+            {% if analysis_swaps.get('top_pairs') %}
+            <div class="table-wrap top-gap">
+                <table class="stats-table">
+                    <thead><tr><th>Swap Pair</th><th>Count</th></tr></thead>
+                    <tbody>
+                    {% for row in analysis_swaps.top_pairs %}
+                        <tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            <div class="analysis-chart-wrap">
+                <canvas id="analysisSwapsChart"></canvas>
+            </div>
+            </div>
+        </details>
+
+        <details class="analysis-row" open>
+            <summary>Rotation Deaths</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }}</span><span class="pt-stat-value">{{ analysis_rotation_deaths.get('team1_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }}</span><span class="pt-stat-value">{{ analysis_rotation_deaths.get('team2_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">Total</span><span class="pt-stat-value">{{ analysis_rotation_deaths.get('total', 0) }}</span></div>
+            </div>
+            {% if analysis_rotation_deaths.get('events') %}
+            <div class="table-wrap top-gap">
+                <table class="stats-table">
+                    <thead><tr><th>Time</th><th>Victim</th><th>Eliminated By</th><th>Round</th></tr></thead>
+                    <tbody>
+                    {% for row in analysis_rotation_deaths.events %}
+                        <tr>
+                            <td>{{ row.timestamp or '—' }}</td>
+                            <td>{{ row.victim_name or 'Unknown' }}{% if row.victim_hero %} ({{ hero_display_name(row.victim_hero) }}){% endif %}</td>
+                            <td>{{ row.attacker_name or 'Unknown' }}{% if row.attacker_hero %} ({{ hero_display_name(row.attacker_hero) }}){% endif %}</td>
+                            <td>{{ row.round_label or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="empty-text top-gap">No rotation deaths detected on this map.</p>
+            {% endif %}
+            <div class="analysis-chart-wrap">
+                <canvas id="analysisRotationDeathsChart"></canvas>
+            </div>
+            </div>
+        </details>
+
+        <details class="analysis-row">
+            <summary>Ability Timing</summary>
+            <div class="analysis-row-body">
+            <div class="pt-stat-grid">
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team1_label }}</span><span class="pt-stat-value">{{ analysis_abilities.get('team1_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">{{ team2_label }}</span><span class="pt-stat-value">{{ analysis_abilities.get('team2_count', 0) }}</span></div>
+                <div class="pt-stat-cell"><span class="pt-stat-label">Total</span><span class="pt-stat-value">{{ analysis_abilities.get('total', 0) }}</span></div>
+            </div>
+            {% for team_slot, team_label in [('team1', team1_label), ('team2', team2_label)] %}
+            {% set team_rows = analysis_ability_tables.get(team_slot, []) %}
+            {% set team_insights = analysis_ability_insights.get(team_slot, []) %}
+            <div class="ability-timing-team">
+                <div class="ability-timing-heading">
+                    <span class="ability-team-dot"></span>
+                    <span>{{ team_label }}</span>
+                </div>
+                {% if team_insights %}
+                <div class="ability-insights-grid">
+                    {% for insight in team_insights %}
+                    <div class="ability-insight-card">
+                        {{ insight.ability }} in {{ insight.phase|lower }} correlates with <strong>{{ insight.winrate }}% winrate</strong>: {{ insight.pattern }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="ability-matrix-wrap">
+                    <table class="ability-matrix">
+                        <thead>
+                            <tr>
+                                <th>Ability</th>
+                                {% for phase_key, phase_label in ability_phase_columns %}
+                                <th>{{ phase_label }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in team_rows %}
+                            <tr>
+                                <td>
+                                    <span class="ability-label">
+                                        {% if row.hero %}<img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" onerror="this.style.display='none'">{% endif %}
+                                        <span>{{ row.ability }}</span>
+                                    </span>
+                                </td>
+                                {% for phase_key, phase_label in ability_phase_columns %}
+                                    {% set pct = row.phase_winrate.get(phase_key) %}
+                                    {% set count = row.phase_counts.get(phase_key, 0) %}
+                                    <td class="{% if pct is not none and pct >= 60 %}ability-matrix-cell-good{% elif pct is not none and pct <= 40 %}ability-matrix-cell-bad{% else %}ability-matrix-cell-mid{% endif %}" title="{{ count }} samples">
+                                        {% if pct is not none %}{{ pct }}%{% else %}-{% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                            {% if not team_rows %}
+                            <tr>
+                                <td colspan="6" class="ability-matrix-cell-mid">No phase timing data yet.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="analysis-chart-wrap">
+                <canvas id="analysisAbilityTimingChart"></canvas>
+            </div>
+            </div>
+        </details>
+    </div>
+</section>
 </div>
 
 <!-- VODS TAB -->
@@ -915,6 +1774,16 @@
 {{ map_entry.get('parser_summary', {})|tojson }}
 </script>
 
+{% set hero_role_map = namespace(value={}) %}
+{% for role_name, heroes in (hero_roles or {}).items() %}
+    {% for hero_name in heroes %}
+        {% set _ = hero_role_map.value.update({hero_name: role_name}) %}
+    {% endfor %}
+{% endfor %}
+<script id="mapHeroRoleData" type="application/json">
+{{ hero_role_map.value|tojson }}
+</script>
+
 <script>
 /* ── Tab Switching ── */
 function switchTab(tab) {
@@ -932,6 +1801,23 @@ function switchTab(tab) {
         });
     }
 }
+
+function switchAnalysisTab(tab) {
+    document.querySelectorAll('.analysis-subtab-btn').forEach(function (btn) {
+        btn.classList.toggle('analysis-subtab-btn-active', btn.dataset.analysisTab === tab);
+    });
+    document.querySelectorAll('.analysis-pane').forEach(function (pane) {
+        pane.classList.toggle('analysis-pane-hidden', pane.id !== 'analysis-pane-' + tab);
+    });
+}
+
+document.querySelectorAll('.analysis-subtab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        const tab = btn.dataset.analysisTab;
+        if (!tab) return;
+        switchAnalysisTab(tab);
+    });
+});
 
 document.querySelectorAll('.map-section-chip[data-tab]').forEach(function (chip) {
     chip.addEventListener('click', function (event) {
@@ -1151,6 +2037,9 @@ function initScrimcoreExperimentCharts() {
                 index: index,
                 timestamp: parseMatchTimestamp(event.timestamp),
                 event_type: String(event.event_type || 'Other'),
+                event_source: String(event.event_source || ''),
+                attacker_team: String(event.attacker_team || ''),
+                fight_number: Number(event.fight_number || 0),
             };
         })
         .sort(function(a, b) {
@@ -1160,18 +2049,37 @@ function initScrimcoreExperimentCharts() {
             return a.timestamp - b.timestamp;
         });
 
-    var swing = 0;
-    var swingPoints = [];
-    sortedEvents.forEach(function(event, idx) {
-        var type = event.event_type.toLowerCase();
-        if (type === 'pick' || type === 'first kill') {
-            swing += 1;
-        } else if (type === 'death' || type === 'first death') {
-            swing -= 1;
-        }
+    var killEvents = sortedEvents.filter(function(event) {
+        return event.event_source === 'scrimcore_killfeed' || event.event_type.toLowerCase() === 'pick' || event.event_type.toLowerCase() === 'first kill';
+    });
 
+    var team1FightPoints = [];
+    var team2FightPoints = [];
+    var currentFight = null;
+    var team1InFight = 0;
+    var team2InFight = 0;
+
+    killEvents.forEach(function(event, idx) {
+        var fightNumber = event.fight_number || 0;
         var xValue = event.timestamp != null ? event.timestamp : idx;
-        swingPoints.push({ x: xValue, y: swing });
+        if (currentFight === null || fightNumber !== currentFight) {
+            if (currentFight !== null) {
+                team1FightPoints.push({ x: xValue, y: null });
+                team2FightPoints.push({ x: xValue, y: null });
+            }
+            currentFight = fightNumber;
+            team1InFight = 0;
+            team2InFight = 0;
+            team1FightPoints.push({ x: xValue, y: 0 });
+            team2FightPoints.push({ x: xValue, y: 0 });
+        }
+        if (event.attacker_team === 'team1') {
+            team1InFight += 1;
+        } else if (event.attacker_team === 'team2') {
+            team2InFight += 1;
+        }
+        team1FightPoints.push({ x: xValue, y: team1InFight });
+        team2FightPoints.push({ x: xValue, y: -team2InFight });
     });
 
     var fightCanvas = document.getElementById('scrimcoreFightSwingChart');
@@ -1184,13 +2092,27 @@ function initScrimcoreExperimentCharts() {
             data: {
                 datasets: [
                     {
-                        label: 'Fight Swing',
-                        data: swingPoints,
+                        label: '{{ team1_label|e }}',
+                        data: team1FightPoints,
                         parsing: false,
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34, 197, 94, 0.18)',
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        tension: 0.08,
+                        fill: false,
+                        spanGaps: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderWidth: 2,
+                    },
+                    {
+                        label: '{{ team2_label|e }}',
+                        data: team2FightPoints,
+                        parsing: false,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.12)',
                         tension: 0.2,
-                        fill: true,
+                        fill: false,
+                        spanGaps: false,
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         borderWidth: 2,
@@ -1206,7 +2128,8 @@ function initScrimcoreExperimentCharts() {
                         title: { display: true, text: 'Time (seconds)' }
                     },
                     y: {
-                        title: { display: true, text: 'Momentum' }
+                        title: { display: true, text: 'Kills By Fight (+Team1 / -Team2)' },
+                        ticks: { precision: 0 }
                     }
                 },
                 plugins: {
@@ -1216,16 +2139,46 @@ function initScrimcoreExperimentCharts() {
         });
     }
 
-    var eventCounts = parserSummary.event_counts || {};
-    if (!Object.keys(eventCounts).length) {
-        sortedEvents.forEach(function(event) {
-            var key = event.event_type || 'Other';
-            eventCounts[key] = (eventCounts[key] || 0) + 1;
-        });
+    var analysis = parserSummary.analysis || {};
+    var playerRows = ((analysis.player_stats || {}).rows || []).filter(function(row) {
+        return row && row.hero;
+    });
+
+    var heroRoleMap = {};
+    try {
+        heroRoleMap = JSON.parse((document.getElementById('mapHeroRoleData') || {}).textContent || '{}') || {};
+    } catch (err) {
+        heroRoleMap = {};
     }
 
-    var mixLabels = Object.keys(eventCounts);
-    var mixValues = mixLabels.map(function(label) { return Number(eventCounts[label] || 0); });
+    function normalizeHeroKey(value) {
+        return String(value || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
+    var normalizedHeroRoleMap = {};
+    Object.keys(heroRoleMap).forEach(function(heroName) {
+        var role = heroRoleMap[heroName];
+        var compact = normalizeHeroKey(heroName);
+        if (compact) {
+            normalizedHeroRoleMap[compact] = role;
+        }
+    });
+
+    var roleBuckets = {
+        team1: { Vanguard: 0, Duelist: 0, Strategist: 0 },
+        team2: { Vanguard: 0, Duelist: 0, Strategist: 0 }
+    };
+
+    playerRows.forEach(function(row) {
+        var team = String(row.team || '');
+        if (team !== 'team1' && team !== 'team2') return;
+        var hero = String(row.hero || '').trim();
+        var role = heroRoleMap[hero] || normalizedHeroRoleMap[normalizeHeroKey(hero)] || 'Duelist';
+        if (!roleBuckets[team][role] && roleBuckets[team][role] !== 0) return;
+        roleBuckets[team][role] += Number(row.final_blows || 0);
+    });
 
     var mixCanvas = document.getElementById('scrimcoreEventMixChart');
     if (mixCanvas) {
@@ -1235,26 +2188,90 @@ function initScrimcoreExperimentCharts() {
         new Chart(mixCanvas, {
             type: 'bar',
             data: {
-                labels: mixLabels,
+                labels: ['Vanguard', 'Duelist', 'Strategist'],
                 datasets: [
                     {
-                        label: 'Events',
-                        data: mixValues,
+                        label: '{{ team1_label|e }}',
+                        data: [roleBuckets.team1.Vanguard, roleBuckets.team1.Duelist, roleBuckets.team1.Strategist],
                         borderRadius: 6,
-                        backgroundColor: '#38bdf8'
+                        backgroundColor: 'rgba(59, 130, 246, 0.85)'
+                    },
+                    {
+                        label: '{{ team2_label|e }}',
+                        data: [roleBuckets.team2.Vanguard, roleBuckets.team2.Duelist, roleBuckets.team2.Strategist],
+                        borderRadius: 6,
+                        backgroundColor: 'rgba(239, 68, 68, 0.82)'
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: 'y',
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: true }
                 },
                 scales: {
-                    x: {
+                    y: {
                         ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+    var damageCanvas = document.getElementById('scrimcoreDamageByRoundChart');
+    if (damageCanvas) {
+        var existingDamage = Chart.getChart(damageCanvas);
+        if (existingDamage) existingDamage.destroy();
+
+        var roundRows = ((analysis.damage_by_round || {}).rows || []);
+        var roundLabels = roundRows.map(function(row) {
+            return String(row.round_label || ('Round ' + row.round_number));
+        });
+        var team1Damage = roundRows.map(function(row) {
+            return Number(row.team1_cumulative || 0);
+        });
+        var team2Damage = roundRows.map(function(row) {
+            return Number(row.team2_cumulative || 0);
+        });
+
+        new Chart(damageCanvas, {
+            type: 'line',
+            data: {
+                labels: roundLabels.length ? roundLabels : ['Round 1'],
+                datasets: [
+                    {
+                        label: '{{ team1_label|e }}',
+                        data: team1Damage.length ? team1Damage : [0],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        fill: false,
+                        tension: 0.2,
+                        pointRadius: 3,
+                    },
+                    {
+                        label: '{{ team2_label|e }}',
+                        data: team2Damage.length ? team2Damage : [0],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        fill: false,
+                        tension: 0.2,
+                        pointRadius: 3,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return Number(value).toLocaleString();
+                            }
+                        }
                     }
                 }
             }
@@ -1327,6 +2344,145 @@ function initScrimcoreAnalysisCards() {
     }
 }
 
+function initScrimcoreAnalysisCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    var parserSummaryEl = document.getElementById('mapParserSummaryData');
+    if (!parserSummaryEl) return;
+
+    var parserSummary = {};
+    try {
+        parserSummary = JSON.parse(parserSummaryEl.textContent || '{}') || {};
+    } catch (err) {
+        parserSummary = {};
+    }
+
+    var analysis = parserSummary.analysis || {};
+    var firstDeaths = analysis.first_deaths || {};
+    var ultimates = analysis.ultimates || {};
+    var swaps = analysis.swaps || {};
+    var rotationDeaths = analysis.rotation_deaths || {};
+    var abilities = analysis.ability_timing || {};
+
+    function renderBarChart(canvasId, config) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        var existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+        new Chart(canvas, config);
+    }
+
+    renderBarChart('analysisFirstDeathsChart', {
+        type: 'bar',
+        data: {
+            labels: ['{{ team1_label|e }}', '{{ team2_label|e }}'],
+            datasets: [{
+                label: 'First Deaths',
+                data: [
+                    Number(firstDeaths.team1_first_deaths || 0),
+                    Number(firstDeaths.team2_first_deaths || 0)
+                ],
+                borderRadius: 8,
+                backgroundColor: ['rgba(56, 189, 248, 0.85)', 'rgba(248, 113, 113, 0.85)']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    renderBarChart('analysisUltimateValueChart', {
+        type: 'bar',
+        data: {
+            labels: ['{{ team1_label|e }}', '{{ team2_label|e }}'],
+            datasets: [
+                {
+                    label: 'Ult Uses',
+                    data: [Number(ultimates.team1_count || 0), Number(ultimates.team2_count || 0)],
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(99, 102, 241, 0.75)'
+                },
+                {
+                    label: 'Value Kills',
+                    data: [Number(ultimates.team1_value_kills || 0), Number(ultimates.team2_value_kills || 0)],
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(34, 197, 94, 0.75)'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    renderBarChart('analysisSwapsChart', {
+        type: 'bar',
+        data: {
+            labels: ['{{ team1_label|e }}', '{{ team2_label|e }}'],
+            datasets: [{
+                label: 'Hero Swaps',
+                data: [Number(swaps.team1_count || 0), Number(swaps.team2_count || 0)],
+                borderRadius: 8,
+                backgroundColor: ['rgba(14, 165, 233, 0.82)', 'rgba(217, 70, 239, 0.75)']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    renderBarChart('analysisRotationDeathsChart', {
+        type: 'bar',
+        data: {
+            labels: ['{{ team1_label|e }}', '{{ team2_label|e }}'],
+            datasets: [{
+                label: 'Rotation Deaths',
+                data: [Number(rotationDeaths.team1_count || 0), Number(rotationDeaths.team2_count || 0)],
+                borderRadius: 8,
+                backgroundColor: ['rgba(251, 146, 60, 0.85)', 'rgba(244, 63, 94, 0.82)']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    var topAbilityPlayers = Array.isArray(abilities.top_players) ? abilities.top_players.slice(0, 8) : [];
+    var abilityLabels = topAbilityPlayers.map(function(item) { return String(item.label || 'Unknown'); });
+    var abilityCounts = topAbilityPlayers.map(function(item) { return Number(item.count || 0); });
+
+    renderBarChart('analysisAbilityTimingChart', {
+        type: 'bar',
+        data: {
+            labels: abilityLabels.length ? abilityLabels : ['No ability data'],
+            datasets: [{
+                label: 'Ability Uses',
+                data: abilityCounts.length ? abilityCounts : [0],
+                borderRadius: 6,
+                backgroundColor: 'rgba(16, 185, 129, 0.8)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+}
+
 /* ── Delete Map ── */
 function confirmDeleteMap() {
     if (confirm('Delete this map? This cannot be undone.')) {
@@ -1356,6 +2512,7 @@ syncScrimEditMapTeams();
 applyMapMetricHighlights();
 initScrimcoreExperimentCharts();
 initScrimcoreAnalysisCards();
+initScrimcoreAnalysisCharts();
 
 /* ══════════════════════════════════════
    DRAFT EDITOR — click-slot-then-pick

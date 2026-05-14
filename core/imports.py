@@ -360,13 +360,18 @@ def _merge_imported_map(existing_map: dict, imported_map: dict) -> dict:
         merged_map["notes"] = existing_map.get("notes", "")
     if not merged_map.get("vod_url"):
         merged_map["vod_url"] = existing_map.get("vod_url", "")
-    if not merged_map.get("events"):
+    if not merged_map.get("events") and merged_map.get("parser_source") not in {"scrimcore-log-structured-import", "scrimcore-log-killfeed-import"}:
         merged_map["events"] = copy.deepcopy(existing_map.get("events", []))
     return merged_map
 
 
 def _merge_imported_scrim(existing_scrim: dict, imported_scrim: dict) -> None:
     existing_maps = list(existing_scrim.get("maps", []))
+    imported_maps = [map_entry for map_entry in imported_scrim.get("maps", []) if isinstance(map_entry, dict)]
+    append_unmatched_maps = any(
+        map_entry.get("parser_source") in {"scrimcore-log-structured-import", "scrimcore-log-killfeed-import"}
+        for map_entry in imported_maps
+    )
     indexed_existing_maps: dict[str, list[int]] = defaultdict(list)
     for idx, map_entry in enumerate(existing_maps):
         if not isinstance(map_entry, dict):
@@ -378,12 +383,12 @@ def _merge_imported_scrim(existing_scrim: dict, imported_scrim: dict) -> None:
     if not merged_scrim.get("notes"):
         merged_scrim["notes"] = existing_scrim.get("notes", "")
 
-    merged_maps: list[dict] = []
+    merged_maps: list[dict] = [copy.deepcopy(map_entry) for map_entry in existing_maps] if append_unmatched_maps else []
     used_indexes: set[int] = set()
-    for map_index, imported_map in enumerate(imported_scrim.get("maps", [])):
+    for map_index, imported_map in enumerate(imported_maps):
         map_key = _compact_text(imported_map.get("map_name", ""))
         match_index = next((idx for idx in indexed_existing_maps.get(map_key, []) if idx not in used_indexes), None)
-        if match_index is None and map_index < len(existing_maps) and map_index not in used_indexes:
+        if not append_unmatched_maps and match_index is None and map_index < len(existing_maps) and map_index not in used_indexes:
             match_index = map_index
 
         if match_index is None:
@@ -391,7 +396,15 @@ def _merge_imported_scrim(existing_scrim: dict, imported_scrim: dict) -> None:
             continue
 
         used_indexes.add(match_index)
-        merged_maps.append(_merge_imported_map(existing_maps[match_index], imported_map))
+        merged_map = _merge_imported_map(existing_maps[match_index], imported_map)
+        if append_unmatched_maps and match_index < len(merged_maps):
+            merged_maps[match_index] = merged_map
+        else:
+            merged_maps.append(merged_map)
+
+    for existing_index, existing_map in enumerate(existing_maps):
+        if not append_unmatched_maps and existing_index not in used_indexes:
+            merged_maps.append(copy.deepcopy(existing_map))
 
     merged_scrim["maps"] = merged_maps
     existing_scrim.clear()

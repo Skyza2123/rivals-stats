@@ -921,6 +921,61 @@ def team_detail(team_id: int):
                 map_name = str(map_entry.get("map_name") or "Unknown Map").strip() or "Unknown Map"
                 raw_events = [event for event in map_entry.get("events", []) if isinstance(event, dict)]
                 total_events += len(raw_events)
+                parser_analysis = (map_entry.get("parser_summary") or {}).get("analysis", {})
+                if parser_analysis:
+                    for event in raw_events:
+                        event_type_raw = str(event.get("event_type") or "Other").strip()
+                        event_counts[event_type_raw] += 1
+
+                    map_team_slot = "team1"
+                    target_name = str(team["name"] or "").strip().lower()
+                    if map_entry.get("team2_id") == team["id"] or str(map_entry.get("team2_name") or "").strip().lower() == target_name:
+                        map_team_slot = "team2"
+                    elif map_entry.get("team1_id") == team["id"] or str(map_entry.get("team1_name") or "").strip().lower() == target_name:
+                        map_team_slot = "team1"
+                    elif scrim.get("enemy_team_id") == team["id"] or str(scrim.get("enemy_team") or "").strip().lower() == target_name:
+                        map_team_slot = "team2"
+
+                    other_slot = "team2" if map_team_slot == "team1" else "team1"
+                    first_death_data = parser_analysis.get("first_deaths", {})
+                    timing_data = parser_analysis.get("timing", {})
+                    efficiency_data = parser_analysis.get("efficiency", {})
+                    ultimate_data = parser_analysis.get("ultimates", {})
+                    objective_data = parser_analysis.get("objectives", {})
+
+                    map_fights = int(timing_data.get("fight_count") or first_death_data.get("fight_count") or 0)
+                    map_first_deaths = int(first_death_data.get(f"{map_team_slot}_first_deaths") or 0)
+                    map_first_kills = int(first_death_data.get(f"{other_slot}_first_deaths") or 0)
+
+                    total_fights += map_fights
+                    total_first_death += map_first_deaths
+                    total_first_kill += map_first_kills
+                    total_pick_events += int(efficiency_data.get(f"{map_team_slot}_kills") or 0)
+                    total_death_events += int(efficiency_data.get(f"{map_team_slot}_deaths") or 0)
+                    total_objective_events += int(objective_data.get(f"{map_team_slot}_count") or 0)
+                    total_ult_events += int(ultimate_data.get(f"{map_team_slot}_count") or 0)
+
+                    if map_first_deaths:
+                        current_first_death_streak += map_first_deaths
+                        longest_first_death_streak = max(longest_first_death_streak, current_first_death_streak)
+                    elif map_first_kills:
+                        current_first_death_streak = 0
+
+                    first_time = _parse_timeline_seconds(timing_data.get("first_kill_time"))
+                    last_time = _parse_timeline_seconds(timing_data.get("last_kill_time"))
+                    if first_time is not None and last_time is not None and last_time > first_time:
+                        total_tempo_minutes += (last_time - first_time) / 60.0
+
+                    swing += int(efficiency_data.get(f"{map_team_slot}_diff") or 0)
+                    fight_swing_points.append({"x": last_time if last_time is not None else point_index, "y": swing, "i": point_index})
+                    point_index += 1
+                    fights_by_map_rows.append(
+                        {
+                            "label": f"{scrim_date} - {map_name}" if scrim_date else map_name,
+                            "fights": map_fights,
+                        }
+                    )
+                    continue
 
                 parsed_events = []
                 for idx, event in enumerate(raw_events):

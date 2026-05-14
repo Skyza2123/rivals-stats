@@ -198,18 +198,18 @@
             </div>
 
             <div class="field">
-                <label for="log_import_file">Log File <span class="required-mark">*</span></label>
+                <label for="log_import_file">Log Files <span class="required-mark">*</span></label>
                 <div class="csv-file-picker">
-                    <button type="button" id="logPickBtn" class="button-secondary">Choose File</button>
-                    <span id="logFileName" class="csv-file-name">No file chosen</span>
-                    <input id="log_import_file" name="log_file" type="file" accept=".txt,.csv,.log,.xlsx" required style="display:none;">
+                    <button type="button" id="logPickBtn" class="button-secondary">Choose Files</button>
+                    <span id="logFileName" class="csv-file-name">No files chosen</span>
+                    <input id="log_import_file" name="log_file" type="file" accept=".txt,.csv,.log,.xlsx" multiple required style="display:none;">
                 </div>
             </div>
 
             <div class="csv-format-hint panel">
-                <strong>Experimental mode:</strong>
-                <p class="csv-hint-note">This parser imports raw event logs and maps them into Rivals Stats timeline events.</p>
-                <p class="csv-hint-note">Parser metadata is shown on the map page so you can compare ScrimCore-style outputs with existing workflows.</p>
+                <strong>ScrimCore log import:</strong>
+                <p class="csv-hint-note">Imports bans, protects, round comps, player names, and killfeed fight data from one or more raw logs.</p>
+                <p class="csv-hint-note">Upload several map logs at once to build or update multiple maps.</p>
             </div>
 
             <div class="button-row top-gap">
@@ -362,7 +362,14 @@
     logPickBtn?.addEventListener("click", () => logInput?.click());
     logInput?.addEventListener("change", () => {
         if (logFileName) {
-            logFileName.textContent = logInput?.files?.[0]?.name || "No file chosen";
+            const files = Array.from(logInput?.files || []);
+            if (!files.length) {
+                logFileName.textContent = "No files chosen";
+            } else if (files.length === 1) {
+                logFileName.textContent = files[0].name;
+            } else {
+                logFileName.textContent = files.length + " files selected";
+            }
         }
     });
 

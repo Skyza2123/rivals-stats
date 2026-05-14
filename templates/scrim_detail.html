@@ -66,7 +66,7 @@
         <strong>{% if show_team_selector %}Team{% elif scrim.tournament_name %}Tournament Teams{% else %}Matchup{% endif %}</strong>
         <span>
             {% if show_team_selector %}
-                {{ participant_one_label }} vs {{ participant_two_label }}
+                {{ participant_one_label }}
             {% elif scrim.tournament_teams %}
                 {{ scrim.tournament_teams|length }} teams added
             {% else %}

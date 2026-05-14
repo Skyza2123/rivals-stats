@@ -229,9 +229,20 @@ def _match_map_name(raw: str) -> str:
     alias_lookup = {
         "hellsheaven": "Hell's Haven",
         "hellshaven": "Hell's Haven",
+        "hydracharterisbasehellsheaven": "Hell's Haven",
+        "hydracharterisbasehellshaven": "Hell's Haven",
         "birnintchalla": "Birin T'Challa",
         "birintchalla": "Birin T'Challa",
+        "intergalacticempireofwakandabirnintchalla": "Birin T'Challa",
+        "intergalacticempireofwakandabirintchalla": "Birin T'Challa",
         "celestialhusk": "Celestial",
+        "yggsgardroyalpalace": "Royal Palace",
+        "yggsgardyggdrasillpath": "Yggdrasill Path",
+        "tokyo2099spiderislands": "Spider-Islands",
+        "tokyo2099shinshibuya": "Shin-Shibuya",
+        "hellfiregalakrakoa": "Krakoa",
+        "empireofeternalnightmidtown": "Midtown",
+        "symbioticsurfaceklyntar": "Symbiotic Surface",
     }
     aliased = alias_lookup.get(compact)
     if aliased:
