@@ -330,11 +330,42 @@ _POOL_HERO_ROLE_ICONS: dict[str, str] = {
 
 def _hero_image_url(hero_name: str) -> str:
     safe_name = (hero_name or "Hero").strip() or "Hero"
-    return f"/hero-image/{quote(safe_name[:80], safe='')}"
+    return f"/hero-image/{quote(safe_name[:80], safe='')}?v=20260514a"
 
 
 HERO_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24
 _HERO_IMAGE_CACHE: dict[str, tuple[float, bytes, str]] = {}
+
+
+def _hero_image_local_file(hero_name: str) -> Path | None:
+    hero_dir = Path(app.static_folder) / "heroes"
+    if not hero_dir.exists() or not hero_dir.is_dir():
+        return None
+
+    transform_key = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
+    compact_key = _compact_text(transform_key)
+    if not compact_key:
+        return None
+
+    # Explicit mapping for locally curated portrait files with non-standard names.
+    explicit_local_files = {
+        "Devil Dinosaur": "Devil_Dinosaur_Full_Hero_Portrait.webp",
+    }
+    explicit_name = explicit_local_files.get(transform_key)
+    if explicit_name:
+        explicit_path = hero_dir / explicit_name
+        if explicit_path.exists() and explicit_path.is_file():
+            return explicit_path
+
+    image_suffixes = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"}
+    for file_path in hero_dir.iterdir():
+        if not file_path.is_file() or file_path.suffix.lower() not in image_suffixes:
+            continue
+        compact_stem = _compact_text(file_path.stem)
+        if compact_key in compact_stem or compact_stem in compact_key:
+            return file_path
+
+    return None
 
 
 def _hero_image_candidate_urls(hero_name: str) -> list[str]:
@@ -370,12 +401,34 @@ def hero_image_proxy(hero_name: str):
     cache_key = _resolve_hero_transform_key(requested) or requested
     now = time.time()
     cached = _HERO_IMAGE_CACHE.get(cache_key)
-    if cached and (now - cached[0]) < HERO_IMAGE_CACHE_TTL_SECONDS:
+    if cached and (now - cached[0]) < HERO_IMAGE_CACHE_TTL_SECONDS and cached[2] != "image/svg+xml":
         return Response(
             cached[1],
             mimetype=cached[2],
             headers={"Cache-Control": "public, max-age=86400"},
         )
+
+    local_file = _hero_image_local_file(requested)
+    if local_file is not None:
+        try:
+            payload = local_file.read_bytes()
+            suffix = local_file.suffix.lower()
+            content_type = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+                ".gif": "image/gif",
+                ".avif": "image/avif",
+            }.get(suffix, "image/webp")
+            _HERO_IMAGE_CACHE[cache_key] = (now, payload, content_type)
+            return Response(
+                payload,
+                mimetype=content_type,
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+        except OSError:
+            pass
 
     for image_url in _hero_image_candidate_urls(requested):
         try:

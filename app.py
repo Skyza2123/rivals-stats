@@ -258,6 +258,8 @@ HERO_NAME_ALIASES = {
     "dpss": "SupportPool",
     "daredevil": "Daredevil",
     "devil": "Daredevil",
+    "devildino": "Devil Dinosaur",
+    "devildinosaur": "Devil Dinosaur",
     "doctorstrange": "Dr. Strange",
     "drstrange": "Dr. Strange",
     "emma": "Emma Frost",

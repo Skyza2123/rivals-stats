@@ -481,11 +481,10 @@
 <script>
 (function() {
     const HEROES = {{ hero_roles | tojson }};
-    const HERO_IMAGE_BASE = '{{ url_for("static", filename="heroes/") }}';
 
     function heroImageUrl(hero) {
-        const slug = hero.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-        return HERO_IMAGE_BASE + slug + '.png';
+        const safeHero = encodeURIComponent(String(hero || '').trim() || 'Hero');
+        return '/hero-image/' + safeHero + '?v=20260514a';
     }
 
     function heroChipHtml(hero, type) {
