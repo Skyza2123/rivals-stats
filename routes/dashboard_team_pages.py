@@ -876,6 +876,175 @@ def team_detail(team_id: int):
         compare_map_b_raw=request.args.get("compare_map_b", ""),
     )
 
+    def _parse_timeline_seconds(raw_value) -> float | None:
+        text = str(raw_value or "").strip()
+        if not text:
+            return None
+        match = re.match(r"^(\d{1,2}):(\d{2})(?:\.(\d+))?$", text)
+        if match:
+            minutes = int(match.group(1) or 0)
+            seconds = int(match.group(2) or 0)
+            fractional = float(f"0.{match.group(3)}") if match.group(3) else 0.0
+            return (minutes * 60) + seconds + fractional
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+    def _build_scrimcore_team_metrics(scrims: list[dict]) -> dict:
+        event_counts: Counter[str] = Counter()
+        fight_swing_points: list[dict] = []
+        fights_by_map_rows: list[dict] = []
+
+        total_maps = 0
+        total_events = 0
+        total_fights = 0
+        total_objective_events = 0
+        total_ult_events = 0
+        total_first_death = 0
+        total_first_kill = 0
+        total_pick_events = 0
+        total_death_events = 0
+        total_tempo_minutes = 0.0
+        longest_first_death_streak = 0
+        current_first_death_streak = 0
+        swing = 0
+        point_index = 0
+
+        for scrim in scrims:
+            scrim_date = str(scrim.get("scrim_date", "")).strip()
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+
+                total_maps += 1
+                map_name = str(map_entry.get("map_name") or "Unknown Map").strip() or "Unknown Map"
+                raw_events = [event for event in map_entry.get("events", []) if isinstance(event, dict)]
+                total_events += len(raw_events)
+
+                parsed_events = []
+                for idx, event in enumerate(raw_events):
+                    event_type_raw = str(event.get("event_type") or "Other").strip()
+                    event_type = event_type_raw.lower()
+                    event_counts[event_type_raw] += 1
+
+                    timestamp = _parse_timeline_seconds(event.get("timestamp"))
+                    parsed_events.append(
+                        {
+                            "idx": idx,
+                            "timestamp": timestamp,
+                            "event_type": event_type,
+                        }
+                    )
+
+                parsed_events.sort(
+                    key=lambda row: (
+                        row["timestamp"] is None,
+                        row["timestamp"] if row["timestamp"] is not None else row["idx"],
+                        row["idx"],
+                    )
+                )
+
+                lethal_events = [
+                    event
+                    for event in parsed_events
+                    if event["event_type"] in {"pick", "death", "first kill", "first death"}
+                    and event["timestamp"] is not None
+                ]
+
+                if parsed_events:
+                    timestamps = [event["timestamp"] for event in parsed_events if event["timestamp"] is not None]
+                    if len(timestamps) >= 2:
+                        duration_seconds = max(timestamps) - min(timestamps)
+                        if duration_seconds > 0:
+                            total_tempo_minutes += duration_seconds / 60.0
+
+                map_fights = 0
+                if lethal_events:
+                    current_cluster: list[dict] = [lethal_events[0]]
+                    for event in lethal_events[1:]:
+                        prev = current_cluster[-1]
+                        if (event["timestamp"] - prev["timestamp"]) <= 15:
+                            current_cluster.append(event)
+                        else:
+                            map_fights += 1
+                            first_event_type = current_cluster[0]["event_type"]
+                            if first_event_type in {"first death", "death"}:
+                                total_first_death += 1
+                                current_first_death_streak += 1
+                                longest_first_death_streak = max(longest_first_death_streak, current_first_death_streak)
+                            elif first_event_type in {"first kill", "pick"}:
+                                total_first_kill += 1
+                                current_first_death_streak = 0
+                            current_cluster = [event]
+
+                    if current_cluster:
+                        map_fights += 1
+                        first_event_type = current_cluster[0]["event_type"]
+                        if first_event_type in {"first death", "death"}:
+                            total_first_death += 1
+                            current_first_death_streak += 1
+                            longest_first_death_streak = max(longest_first_death_streak, current_first_death_streak)
+                        elif first_event_type in {"first kill", "pick"}:
+                            total_first_kill += 1
+                            current_first_death_streak = 0
+
+                total_fights += map_fights
+
+                for event in parsed_events:
+                    event_type = event["event_type"]
+                    if event_type in {"pick", "first kill"}:
+                        total_pick_events += 1
+                        swing += 1
+                    elif event_type in {"death", "first death"}:
+                        total_death_events += 1
+                        swing -= 1
+                    elif event_type in {"objective taken", "objective lost"}:
+                        total_objective_events += 1
+                    elif event_type == "ult used":
+                        total_ult_events += 1
+
+                    x_value = event["timestamp"] if event["timestamp"] is not None else point_index
+                    fight_swing_points.append({"x": x_value, "y": swing, "i": point_index})
+                    point_index += 1
+
+                fights_by_map_rows.append(
+                    {
+                        "label": f"{scrim_date} • {map_name}" if scrim_date else map_name,
+                        "fights": map_fights,
+                    }
+                )
+
+        first_death_rate = round((total_first_death / total_fights) * 100, 1) if total_fights else 0.0
+        first_kill_rate = round((total_first_kill / total_fights) * 100, 1) if total_fights else 0.0
+        objectives_per_map = round((total_objective_events / total_maps), 2) if total_maps else 0.0
+        ults_per_map = round((total_ult_events / total_maps), 2) if total_maps else 0.0
+        tempo_events_per_min = round(((total_pick_events + total_death_events) / total_tempo_minutes), 2) if total_tempo_minutes > 0 else 0.0
+
+        return {
+            "summary": {
+                "maps": total_maps,
+                "events": total_events,
+                "fights": total_fights,
+                "first_death_rate": first_death_rate,
+                "first_kill_rate": first_kill_rate,
+                "objectives_per_map": objectives_per_map,
+                "ults_per_map": ults_per_map,
+                "tempo_events_per_min": tempo_events_per_min,
+                "longest_first_death_streak": longest_first_death_streak,
+            },
+            "charts": {
+                "fight_swing": fight_swing_points,
+                "event_mix": [
+                    {"label": label, "value": count}
+                    for label, count in sorted(event_counts.items(), key=lambda item: (-item[1], item[0]))
+                ],
+                "fights_by_map": fights_by_map_rows,
+            },
+        }
+
+    scrimcore_team_metrics = _build_scrimcore_team_metrics(team_scrims)
+
     return render_template(
         "team_detail.html",
         team=team,
@@ -916,6 +1085,7 @@ def team_detail(team_id: int):
         heroes=HEROES,
         hero_roles=HERO_ROLES,
         team_ban_impact=team_ban_impact,
+        scrimcore_team_metrics=scrimcore_team_metrics,
         atk_def_wr=atk_def_wr,
         pivot_wr=pivot_wr,
         scrim_log=scrim_log,

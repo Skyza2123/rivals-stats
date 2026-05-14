@@ -6,3 +6,4 @@ mlxtend
 scikit-learn
 xgboost
 python-dotenv
+openpyxl

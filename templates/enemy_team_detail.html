@@ -1,4 +1,4 @@
-ï»¿{% extends "base.html" %}
+{% extends "base.html" %}
 {% from "_table_macros.html" import stats_table %}
 
 {% block title %}{{ enemy_team.name }}{% endblock %}
@@ -6,7 +6,7 @@
 {% block content %}
 <div class="team-hero gap-lg">
     <div class="team-hero-left">
-        <img class="team-avatar" src="{{ team_logo_url(enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}" alt="{{ enemy_team.name }}">
+        <img class="team-avatar" src="{{ team_logo_url(enemy_team.logo_path) if enemy_team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (enemy_team.name | urlencode) ~ '&size=140' }}" alt="{{ enemy_team.name }}">
         <div>
             <h2>{{ enemy_team.name }}</h2>
             <div class="team-kpi-chips gap-md">
@@ -105,13 +105,13 @@
             <div class="ban-kpi-grid">
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Top Banned Hero</span>
-                    <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else 'â€”' }}</strong>
-                    <span class="ban-kpi-sub">{{ top_ban.count if top_ban else 0 }} bans â€¢ {{ top_ban.ban_rate if top_ban else 0 }}%</span>
+                    <strong class="ban-kpi-value">{{ top_ban.hero if top_ban else '—' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_ban.count if top_ban else 0 }} bans • {{ top_ban.ban_rate if top_ban else 0 }}%</span>
                 </article>
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Top Protected Hero</span>
-                    <strong class="ban-kpi-value">{{ top_protect.hero if top_protect else 'â€”' }}</strong>
-                    <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects â€¢ {{ top_protect.protect_rate if top_protect else 0 }}%</span>
+                    <strong class="ban-kpi-value">{{ top_protect.hero if top_protect else '—' }}</strong>
+                    <span class="ban-kpi-sub">{{ top_protect.count if top_protect else 0 }} protects • {{ top_protect.protect_rate if top_protect else 0 }}%</span>
                 </article>
                 <article class="ban-kpi-card">
                     <span class="ban-kpi-label">Draft Heroes Touched</span>
@@ -263,7 +263,7 @@
                                         <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
                                     </span>
-                                    <span class="prep-flow-arrow">â†’</span>
+                                    <span class="prep-flow-arrow">?</span>
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(row.top_enemy_ban) }}" alt="{{ row.top_enemy_ban }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_enemy_ban | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_enemy_ban) }}</span></span>
@@ -288,7 +288,7 @@
                                         <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.ban_hero) }}</span></span>
                                     </span>
-                                    <span class="prep-flow-arrow">â†’</span>
+                                    <span class="prep-flow-arrow">?</span>
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(row.top_protect) }}" alt="{{ row.top_protect }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_protect | urlencode }}'">
                                         <span class="hero-inline-meta"><span>{{ hero_display_name(row.top_protect) }}</span></span>
@@ -314,20 +314,20 @@
                                 <div class="draft-flow-card draft-flow-card-wide">
                                     <span class="hero-inline-cell">
                                         <img src="{{ hero_image_url(start_node.hero) }}" alt="{{ start_node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ start_node.hero | urlencode }}'">
-                                        <span class="hero-inline-meta"><span>{{ hero_display_name(start_node.hero) }}</span><small class="prep-chip-meta">{{ start_node.label }} Â· {{ start_node.rate }}%</small></span>
+                                        <span class="hero-inline-meta"><span>{{ hero_display_name(start_node.hero) }}</span><small class="prep-chip-meta">{{ start_node.label }} · {{ start_node.rate }}%</small></span>
                                     </span>
                                     {% for node in row.source_nodes[1:] %}
-                                        <span class="prep-flow-arrow">â†’</span>
+                                        <span class="prep-flow-arrow">?</span>
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(node.hero) }}" alt="{{ node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ node.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} Â· {{ node.rate }}%</small></span>
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} · {{ node.rate }}%</small></span>
                                         </span>
                                     {% endfor %}
                                     {% for node in row.next_nodes %}
-                                        <span class="prep-flow-arrow">â†’</span>
+                                        <span class="prep-flow-arrow">?</span>
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(node.hero) }}" alt="{{ node.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ node.hero | urlencode }}'">
-                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} Â· {{ node.rate }}%</small></span>
+                                            <span class="hero-inline-meta"><span>{{ hero_display_name(node.hero) }}</span><small class="prep-chip-meta">{{ node.label }} · {{ node.rate }}%</small></span>
                                         </span>
                                     {% endfor %}
                                 </div>
@@ -885,7 +885,7 @@
                                     <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
                                     <span>{{ slot.top_hero }}</span>
                                 </strong>
-                                <span>{{ slot.top_count }} picks â€¢ {{ slot.top_rate }}%</span>
+                                <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
                             </div>
                             <div class="ban-position-analysis">
                                 {% if slot.insight_hero %}
@@ -908,7 +908,7 @@
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                                 <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
-                                            <span>{{ row.count }} â€¢ {{ row.rate }}%</span>
+                                            <span>{{ row.count }} • {{ row.rate }}%</span>
                                         </div>
                                     {% endfor %}
                                 {% else %}
@@ -952,7 +952,7 @@
                                     <img src="{{ hero_image_url(slot.top_hero) }}" alt="{{ slot.top_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ slot.top_hero | urlencode }}'">
                                     <span>{{ slot.top_hero }}</span>
                                 </strong>
-                                <span>{{ slot.top_count }} picks â€¢ {{ slot.top_rate }}%</span>
+                                <span>{{ slot.top_count }} picks • {{ slot.top_rate }}%</span>
                             </div>
                             <div class="ban-position-analysis">
                                 {% if slot.insight_hero %}
@@ -975,7 +975,7 @@
                                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                                 <span>{{ hero_display_name(row.hero) }}</span>
                                             </span>
-                                            <span>{{ row.count }} â€¢ {{ row.rate }}%</span>
+                                            <span>{{ row.count }} • {{ row.rate }}%</span>
                                         </div>
                                     {% endfor %}
                                 {% else %}
@@ -1123,7 +1123,7 @@
             <section class="panel">
                 <div class="section-kicker">Comp Difference</div>
                 <h3>Comp Type Breakdown</h3>
-                <p class="panel-intro">How often each comp profile appears and performs â€” enemy team on the left, your team on the right.</p>
+                <p class="panel-intro">How often each comp profile appears and performs — enemy team on the left, your team on the right.</p>
                 {% call stats_table(['Comp Type', 'Enemy Maps', 'Enemy Rate', 'Our Maps', 'Our Rate', 'Our Win Rate'], extra_wrap_class='top-gap') %}
                     <tr>
                         <td>Triple Support</td>
@@ -1350,9 +1350,9 @@
                     <img
                         id="enemyTeamLogoPreview"
                         class="team-logo-thumb team-logo-thumb-lg"
-                        src="{{ team_logo_url(enemy_team.logo_path) if enemy_team.logo_path else 'https://avatar.vercel.sh/' ~ (enemy_team.name | urlencode) ~ '.png?size=140' }}"
+                        src="{{ team_logo_url(enemy_team.logo_path) if enemy_team.logo_path else 'https://api.dicebear.com/9.x/initials/png?seed=' ~ (enemy_team.name | urlencode) ~ '&size=140' }}"
                         alt="Current enemy team logo"
-                        data-fallback="https://avatar.vercel.sh/{{ enemy_team.name | urlencode }}.png?size=140"
+                        data-fallback="https://api.dicebear.com/9.x/initials/png?seed={{ enemy_team.name | urlencode }}&size=140"
                     >
                     <div class="team-logo-picker-actions">
                         <button id="chooseEnemyTeamLogoBtn" type="button" class="button-secondary button-small">Add / Change</button>
@@ -1568,7 +1568,7 @@
                 tooltip.innerHTML = `
                     <div class="tt-label">${pt.label}</div>
                     <div class="tt-row"><span>Maps</span><span>${pt.maps}</span></div>
-                    <div class="tt-row"><span>Wâ€“L</span><span class="${winClass}">${pt.wins}â€“${pt.losses}</span></div>
+                    <div class="tt-row"><span>W–L</span><span class="${winClass}">${pt.wins}–${pt.losses}</span></div>
                     <div class="tt-row"><span>Scrim WR</span><span style="color:#60a5fa">${pt.scrim_win_rate}%</span></div>
                     <div class="tt-row"><span>Cumulative WR</span><span style="color:#fa4454">${pt.cumulative_win_rate}%</span></div>
                 `;

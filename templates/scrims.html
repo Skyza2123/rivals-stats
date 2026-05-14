@@ -35,6 +35,7 @@
                 <button class="button-secondary" type="submit">Clear Duplicates</button>
             </form>
             <button id="openImportModal" class="button-secondary" type="button">Import CSV</button>
+            <button id="openLogImportModal" class="button-secondary" type="button">Import Log (Exp)</button>
             <button id="openScrimModal" class="button-link" type="button">+ New Scrim</button>
         </div>
         {% endif %}
@@ -157,14 +158,77 @@
 </div>
 {% endif %}
 
+{# ── Experimental ScrimCore Log Import Modal ─────────────────────────── #}
+{% if session.get('access_level') == 'edit' %}
+<div id="logImportModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="logImportModalTitle">
+    <div class="modal-card import-modal-card">
+        <div class="modal-header">
+            <div>
+                <h3 id="logImportModalTitle">Import ScrimCore Log (Experiment)</h3>
+                <p>Uses a ScrimCore-inspired parser to convert raw logs into timeline events and parser summaries.</p>
+            </div>
+            <button id="closeLogImportModal" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <form id="importLogForm" method="post" action="{{ url_for('import_scrimcore_log_scrim') }}" enctype="multipart/form-data">
+            <div class="field top-gap">
+                <label for="log_import_team_id">Your Team <span class="required-mark">*</span></label>
+                <select id="log_import_team_id" name="team_id" required>
+                    <option value="">Select your team…</option>
+                    {% for team in teams %}
+                        <option value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="log_import_enemy_name">Enemy Team (optional)</label>
+                <input id="log_import_enemy_name" name="enemy_name" type="text" placeholder="Leave blank to infer from log data">
+            </div>
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="log_import_date">Date</label>
+                    <input id="log_import_date" name="scrim_date" type="date" value="{{ today }}">
+                </div>
+                <div class="field">
+                    <label for="log_import_season">Season <span class="required-mark">*</span></label>
+                    <input id="log_import_season" name="season" type="text" placeholder="e.g. 7 or 7.5" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="log_import_file">Log File <span class="required-mark">*</span></label>
+                <div class="csv-file-picker">
+                    <button type="button" id="logPickBtn" class="button-secondary">Choose File</button>
+                    <span id="logFileName" class="csv-file-name">No file chosen</span>
+                    <input id="log_import_file" name="log_file" type="file" accept=".txt,.csv,.log,.xlsx" required style="display:none;">
+                </div>
+            </div>
+
+            <div class="csv-format-hint panel">
+                <strong>Experimental mode:</strong>
+                <p class="csv-hint-note">This parser imports raw event logs and maps them into Rivals Stats timeline events.</p>
+                <p class="csv-hint-note">Parser metadata is shown on the map page so you can compare ScrimCore-style outputs with existing workflows.</p>
+            </div>
+
+            <div class="button-row top-gap">
+                <button type="submit">Import Log</button>
+                <button type="button" id="cancelLogImportBtn" class="button-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 {# ── CSV Import Modal ─────────────────────────────────────────────────── #}
 {% if session.get('access_level') == 'edit' %}
 <div id="importModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="importModalTitle">
     <div class="modal-card import-modal-card">
         <div class="modal-header">
             <div>
-                <h3 id="importModalTitle">Import Scrims from CSV</h3>
-                <p>Upload an analyst CSV to bulk-import scrim data.</p>
+                <h3 id="importModalTitle">Import Scrims from File</h3>
+                <p>Upload an analyst CSV, TXT, or XLSX export to bulk-import scrim data.</p>
             </div>
             <button id="closeImportModal" class="modal-close" type="button" aria-label="Close">&times;</button>
         </div>
@@ -186,11 +250,11 @@
             </div>
 
             <div class="field">
-                <label for="import_csv_file">CSV File <span class="required-mark">*</span></label>
+                <label for="import_csv_file">Import File <span class="required-mark">*</span></label>
                 <div class="csv-file-picker">
                     <button type="button" id="csvPickBtn" class="button-secondary">Choose File</button>
                     <span id="csvFileName" class="csv-file-name">No file chosen</span>
-                    <input id="import_csv_file" name="csv_file" type="file" accept=".csv,.txt" required style="display:none;">
+                    <input id="import_csv_file" name="csv_file" type="file" accept=".csv,.txt,.xlsx" required style="display:none;">
                 </div>
             </div>
 
@@ -240,6 +304,13 @@
     const fileInput = document.getElementById("import_csv_file");
     const pickBtn  = document.getElementById("csvPickBtn");
     const fileName = document.getElementById("csvFileName");
+    const logModal = document.getElementById("logImportModal");
+    const openLogBtn = document.getElementById("openLogImportModal");
+    const closeLogBtn = document.getElementById("closeLogImportModal");
+    const cancelLogBtn = document.getElementById("cancelLogImportBtn");
+    const logInput = document.getElementById("log_import_file");
+    const logPickBtn = document.getElementById("logPickBtn");
+    const logFileName = document.getElementById("logFileName");
 
     const openScrimModal = () => {
         scrimModal.classList.add('show');
@@ -265,11 +336,17 @@
 
     const openModal  = () => { modal.classList.add("show"); modal.setAttribute("aria-hidden","false"); };
     const closeModal = () => { modal.classList.remove("show"); modal.setAttribute("aria-hidden","true"); };
+    const openLogModal  = () => { logModal?.classList.add("show"); logModal?.setAttribute("aria-hidden","false"); };
+    const closeLogModal = () => { logModal?.classList.remove("show"); logModal?.setAttribute("aria-hidden","true"); };
 
     openBtn?.addEventListener("click", openModal);
     closeBtn?.addEventListener("click", closeModal);
     cancelBtn?.addEventListener("click", closeModal);
     modal?.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+    openLogBtn?.addEventListener("click", openLogModal);
+    closeLogBtn?.addEventListener("click", closeLogModal);
+    cancelLogBtn?.addEventListener("click", closeLogModal);
+    logModal?.addEventListener("click", (e) => { if (e.target === logModal) closeLogModal(); });
     openScrimButton?.addEventListener('click', openScrimModal);
     closeScrimButton?.addEventListener('click', closeScrimModal);
     scrimModal?.addEventListener('click', (event) => {
@@ -281,6 +358,12 @@
     pickBtn?.addEventListener("click", () => fileInput.click());
     fileInput?.addEventListener("change", () => {
         fileName.textContent = fileInput.files[0]?.name || "No file chosen";
+    });
+    logPickBtn?.addEventListener("click", () => logInput?.click());
+    logInput?.addEventListener("change", () => {
+        if (logFileName) {
+            logFileName.textContent = logInput?.files?.[0]?.name || "No file chosen";
+        }
     });
 
     team1Select?.addEventListener('change', syncScrimTeamOptions);
@@ -308,6 +391,8 @@
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closeScrimModal();
+            closeModal();
+            closeLogModal();
         }
     });
 })();
