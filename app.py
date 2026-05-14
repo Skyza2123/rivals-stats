@@ -166,15 +166,36 @@ if _whitenoise_module is not None:
 # ProxyFix must wrap the outermost middleware layer.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
+
+def _is_writable_directory(path: Path) -> bool:
+    """Return True when *path* exists and is writable, or can be created."""
+    try:
+        if path.exists():
+            return path.is_dir() and os.access(path, os.W_OK | os.X_OK)
+
+        anchor = path
+        while not anchor.exists() and anchor != anchor.parent:
+            anchor = anchor.parent
+
+        return anchor.exists() and os.access(anchor, os.W_OK | os.X_OK)
+    except OSError:
+        return False
+
 def _default_database_path() -> Path:
     configured = (os.environ.get("DATABASE_PATH") or "").strip()
     if configured:
-        return Path(configured)
+        configured_path = Path(configured)
+        if _is_writable_directory(configured_path.parent):
+            return configured_path
+        app.logger.warning("DATABASE_PATH parent is not writable; falling back to local app path.")
 
     # Render filesystem is ephemeral unless writing to mounted disk.
     render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
     if render_mount:
-        return Path(render_mount) / "rivals_stats.db"
+        render_mount_path = Path(render_mount)
+        if _is_writable_directory(render_mount_path):
+            return render_mount_path / "rivals_stats.db"
+        app.logger.warning("RENDER_DISK_MOUNT_PATH is not writable; falling back to local app path.")
 
     if (os.environ.get("RENDER") or "").strip().lower() == "true":
         render_default_mount = Path("/var/data")
@@ -196,17 +217,24 @@ def _default_logo_dir() -> Path:
     """
     configured = (os.environ.get("LOGO_DIR") or "").strip()
     if configured:
-        return Path(configured)
+        configured_logo_path = Path(configured)
+        if _is_writable_directory(configured_logo_path.parent):
+            return configured_logo_path
+        app.logger.warning("LOGO_DIR parent is not writable; using static uploads directory.")
 
     # If the database path is explicitly configured, keep logos next to it so
     # both data sets share the same persistence behavior across redeploys.
     configured_db = (os.environ.get("DATABASE_PATH") or "").strip()
     if configured_db and configured_db != ":memory:":
-        return Path(configured_db).parent / "team_logos"
+        configured_db_parent = Path(configured_db).parent
+        if _is_writable_directory(configured_db_parent):
+            return configured_db_parent / "team_logos"
 
     render_mount = (os.environ.get("RENDER_DISK_MOUNT_PATH") or "").strip()
     if render_mount:
-        return Path(render_mount) / "team_logos"
+        render_mount_path = Path(render_mount)
+        if _is_writable_directory(render_mount_path):
+            return render_mount_path / "team_logos"
 
     if (os.environ.get("RENDER") or "").strip().lower() == "true":
         render_default_mount = Path("/var/data")
