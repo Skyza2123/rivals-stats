@@ -8,6 +8,7 @@ HEROES = sorted([
     "Captain America",
     "Cloak & Dagger",
     "Daredevil",
+    "Devil Dinosaur",
     "DpsPool",
     "Dr. Strange",
     "Elsa Bloodstone",
@@ -178,7 +179,7 @@ MAP_IMAGES = {
 
 HERO_ROLES = {
     "Vanguard": sorted([
-        "Angela","Captain America", "Dr. Strange", "Emma Frost", "Groot", "Hulk",
+        "Angela","Captain America", "Devil Dinosaur", "Dr. Strange", "Emma Frost", "Groot", "Hulk",
         "Magneto", "Rogue", "Peni Parker", "Tankpool", "Thing", "Thor", "Venom",
     ]),
     "Duelist": sorted([
@@ -210,6 +211,7 @@ HERO_TRANSFORMATIONS = {
         "/heroes/transformations/cloak-dagger-headbig-2.webp",
     ],
     "Daredevil": ["/heroes/transformations/daredevil-headbig-0.webp"],
+    "Devil Dinosaur": ["/heroes/transformations/devil-dinosaur-headbig-0.webp"],
     "DpsPool": ["/heroes/transformations/deadpool-headbig-0.webp"],
     "Dr. Strange": ["/heroes/transformations/doctor-strange-headbig-0.webp"],
     "Elsa Bloodstone": ["/heroes/transformations/elsa-bloodstone-headbig-0.webp"],
