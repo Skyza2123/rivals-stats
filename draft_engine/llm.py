@@ -622,11 +622,12 @@ Output 6-9 short lines with these headings:
 **Current Draft State:** map, locked bans/protects, next actor.
 **Strategic Pressure:** the main pressure carrier and what it threatens.
 **Trajectory:** where the next 1-2 moves are pushing the draft.
-**Recommended Objective:** one ban/protect/pick direction, with the strategic function.
+**Pivot Paths:** likely enemy pivot path if the next ban lands, plus our counter if provided.
+**Recommended Objective:** one ban/protect/pick direction, with why this next ban closes a comp path or forces/denies a pivot.
 **Risk:** the biggest failure point or enemy adaptation.
 **Confidence:** High / Medium / Low with sample-size note.
 
-Prefer one decisive call over a broad essay. Mention only the evidence needed to act now.
+Prefer one decisive call over a broad essay. If a live decision packet is provided, use it as the source of truth for next-ban reasoning and pivot paths.
 """
 
 

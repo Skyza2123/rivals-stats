@@ -1380,6 +1380,8 @@ def _machine_agent_filter_visuals(intent: str, visuals: dict) -> dict:
         "summary": ("recommended_bans", "target_comp", "enemy_comfort"),
     }
     selected = {key: visuals.get(key, []) for key in keys_by_intent.get(intent, ()) if visuals.get(key)}
+    if visuals.get("live_decision"):
+        selected["live_decision"] = visuals["live_decision"]
     if intent == "map":
         selected["map_consensus"] = visuals.get("map_consensus", [])
     return selected
@@ -1844,6 +1846,215 @@ def _machine_agent_draft_live_context_hint(chat_context: dict) -> str:
     return "\n".join(lines)
 
 
+def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None) -> tuple[str, dict]:
+    """Build a compact local read for live draft ban reasoning and pivot paths."""
+    visuals = visuals or {}
+    draft_live = chat_context.get("draft_live")
+    if not isinstance(draft_live, dict) or not draft_live.get("active"):
+        return "", {}
+
+    team_a = chat_context.get("team_a_name") or "our team"
+    team_b = chat_context.get("team_b_name") or "the enemy"
+    current_phase = draft_live.get("current_phase") or {}
+    next_team = current_phase.get("next_team")
+    locked = {
+        _canonical_draft_hero(str(hero or "").strip()).lower()
+        for hero in (
+            list(draft_live.get("our_bans") or [])
+            + list(draft_live.get("our_protects") or [])
+            + list(draft_live.get("enemy_bans") or [])
+            + list(draft_live.get("enemy_protects") or [])
+        )
+        if str(hero or "").strip()
+    }
+
+    def _clean_heroes(values, limit: int = 6) -> list[str]:
+        heroes = []
+        seen = set()
+        for value in values or []:
+            hero = _canonical_draft_hero(str(value or "").strip())
+            key = hero.lower()
+            if hero and key not in seen:
+                heroes.append(hero)
+                seen.add(key)
+            if len(heroes) >= limit:
+                break
+        return heroes
+
+    candidate_bans = [
+        hero for hero in _clean_heroes(visuals.get("recommended_bans"), 8)
+        if hero.lower() not in locked
+    ]
+    enemy_comfort_list = _clean_heroes(visuals.get("enemy_comfort"), 10)
+    enemy_comfort = set(enemy_comfort_list)
+    volatile_rows = {
+        (row.get("hero") or "").strip(): row
+        for row in visuals.get("volatile_rows", [])
+        if (row.get("hero") or "").strip()
+    }
+    enemy_comp_rows = visuals.get("enemy_comps") or []
+    pivot_rows = visuals.get("pivot_predictions") or []
+    if not candidate_bans:
+        fallback_pool = enemy_comfort_list + [
+            hero for hero in volatile_rows
+            if (volatile_rows.get(hero) or {}).get("favored_side") == team_b
+        ]
+        candidate_bans = [
+            hero for hero in _clean_heroes(fallback_pool, 8)
+            if hero.lower() not in locked
+        ]
+
+    next_ban_rows = []
+    for hero in candidate_bans[:4]:
+        closes = []
+        for comp in enemy_comp_rows[:5]:
+            heroes = _clean_heroes(comp.get("heroes"), 6)
+            if hero in heroes:
+                closes.append({
+                    "heroes": heroes,
+                    "rate": comp.get("rate", 0),
+                    "win_rate": comp.get("win_rate", 0),
+                })
+
+        pivot_hits = []
+        for row in pivot_rows[:6]:
+            base = _clean_heroes(row.get("base"), 6)
+            pivot = _clean_heroes(row.get("pivot"), 6)
+            counter = _clean_heroes(row.get("counter"), 6)
+            if hero in base:
+                pivot_hits.append({
+                    "type": "forces_pivot",
+                    "from": base,
+                    "to": pivot,
+                    "counter": counter,
+                    "diff_count": row.get("diff_count", 0),
+                })
+            elif hero in pivot:
+                pivot_hits.append({
+                    "type": "denies_pivot",
+                    "from": base,
+                    "to": pivot,
+                    "counter": counter,
+                    "diff_count": row.get("diff_count", 0),
+                })
+
+        reasons = []
+        if closes:
+            top = closes[0]
+            reasons.append(
+                f"hits enemy comp path {_machine_chat_join(top['heroes'], 4)}"
+                + (f" ({top.get('rate', 0)}% rate)" if top.get("rate") else "")
+            )
+        if hero in enemy_comfort:
+            reasons.append("removes enemy comfort/core access")
+        volatile = volatile_rows.get(hero)
+        if volatile:
+            reasons.append(
+                f"controls volatility favoring {volatile.get('favored_side', 'unknown')}"
+                f" (delta {volatile.get('delta', 0)})"
+            )
+        if pivot_hits:
+            hit = pivot_hits[0]
+            verb = "forces" if hit["type"] == "forces_pivot" else "denies"
+            reasons.append(
+                f"{verb} pivot {_machine_chat_join(hit.get('from', []), 3)}"
+                f" -> {_machine_chat_join(hit.get('to', []), 3)}"
+            )
+        if not reasons:
+            reasons.append("keeps pressure on the highest ranked remaining ban target")
+
+        next_ban_rows.append({
+            "hero": hero,
+            "reasons": reasons[:3],
+            "closes": closes[:2],
+            "pivot_paths": pivot_hits[:2],
+        })
+
+    possible_pivots = []
+    for row in pivot_rows[:4]:
+        base = _clean_heroes(row.get("base"), 6)
+        pivot = _clean_heroes(row.get("pivot"), 6)
+        counter = _clean_heroes(row.get("counter"), 6)
+        if not base or not pivot:
+            continue
+        blocked_base = [hero for hero in base if hero.lower() in locked]
+        pressure_bans = [hero for hero in candidate_bans if hero in base or hero in pivot]
+        possible_pivots.append({
+            "base": base,
+            "pivot": pivot,
+            "counter": counter,
+            "blocked_base": blocked_base,
+            "pressure_bans": pressure_bans[:3],
+            "diff_count": row.get("diff_count", 0),
+        })
+
+    lines = ["Live decision packet:"]
+    if next_team == "a":
+        lines.append("- It is our action; prioritize the next ban if the active slot is a ban, otherwise preserve the comp route.")
+    elif next_team == "b":
+        lines.append("- Enemy acts next; predict which of these paths they protect or which of our pieces they remove.")
+    if next_ban_rows:
+        lines.append("- Next ban candidates:")
+        for row in next_ban_rows[:3]:
+            lines.append(f"  - {row['hero']}: " + "; ".join(row["reasons"]))
+    if possible_pivots:
+        lines.append("- Possible pivot paths:")
+        for row in possible_pivots[:3]:
+            pressure = _machine_chat_join(row.get("pressure_bans", []), 3)
+            pressure_text = f"; pressure bans: {pressure}" if pressure else ""
+            counter = _machine_chat_join(row.get("counter", []), 3)
+            counter_text = f"; our answer: {counter}" if counter else ""
+            lines.append(
+                f"  - {team_b} {_machine_chat_join(row['base'], 4)}"
+                f" -> {_machine_chat_join(row['pivot'], 4)}"
+                f" ({row.get('diff_count', 0)} hero shift{pressure_text}{counter_text})"
+            )
+    lines.append("Explain the recommended next ban by comp path closed, pivot forced/denied, remaining risk, and confidence.")
+
+    return "\n".join(lines), {
+        "next_bans": next_ban_rows,
+        "possible_pivots": possible_pivots,
+        "team_a": team_a,
+        "team_b": team_b,
+    }
+
+
+def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
+    if not decision_data:
+        return ""
+    next_bans = decision_data.get("next_bans") or []
+    pivots = decision_data.get("possible_pivots") or []
+    if not next_bans and not pivots:
+        return ""
+
+    lines = ["Live draft read:"]
+    if next_bans:
+        top = next_bans[0]
+        lines.append(f"Recommended next ban: {top.get('hero', 'the top remaining target')}.")
+        reasons = top.get("reasons") or []
+        if reasons:
+            lines.append("Why: " + "; ".join(reasons[:3]) + ".")
+        paths = top.get("pivot_paths") or []
+        if paths:
+            path = paths[0]
+            verb = "forces" if path.get("type") == "forces_pivot" else "denies"
+            lines.append(
+                f"Pivot impact: this {verb} {_machine_chat_join(path.get('from', []), 3)}"
+                f" -> {_machine_chat_join(path.get('to', []), 3)}."
+            )
+    if pivots:
+        row = pivots[0]
+        lines.append(
+            f"Most likely pivot path: {_machine_chat_join(row.get('base', []), 4)}"
+            f" -> {_machine_chat_join(row.get('pivot', []), 4)}."
+        )
+        if row.get("counter"):
+            lines.append(f"Our answer: {_machine_chat_join(row.get('counter', []), 4)}.")
+    lines.append("Risk: if the ban only removes comfort without closing a comp path, they can still pivot cleanly.")
+    lines.append("Confidence: Medium unless this board has a repeated sample in the selected filters.")
+    return "\n".join(lines)
+
+
 def _machine_agent_live_draft_fallback(chat_context: dict) -> str:
     draft_live = chat_context.get("draft_live")
     if not isinstance(draft_live, dict) or not draft_live.get("active"):
@@ -2000,6 +2211,29 @@ def api_machine_chat_stream():
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
     live_draft_active = bool((chat_context.get("draft_live") or {}).get("active"))
+    live_tools = _AGENT_TOOLS
+    live_decision_data = {}
+    if live_draft_active and chat_context.get("team_a_id") and chat_context.get("team_b_id"):
+        live_context_text, live_meta = _machine_chat_build_context(
+            chat_context.get("team_a_id"),
+            chat_context.get("team_b_id"),
+            season_value,
+            selected_map_name,
+            include_scrims,
+            include_tournaments,
+        )
+        captured_meta[0] = live_meta
+        captured_visuals[0] = dict((live_meta.get("visuals") or {}))
+        captured_team_a_id[0] = chat_context.get("team_a_id")
+        captured_team_b_id[0] = chat_context.get("team_b_id")
+        live_packet_text, live_decision_data = _machine_agent_live_decision_packet(
+            chat_context,
+            captured_visuals[0],
+        )
+        context_hint += "\n\nPreloaded matchup data:\n" + live_context_text
+        if live_packet_text:
+            context_hint += "\n\n" + live_packet_text
+        live_tools = []
     system_prompt = build_draft_system_prompt(
         context_text="",
         site_context_text=context_hint,
@@ -2017,11 +2251,11 @@ def api_machine_chat_stream():
         for event in stream_agent_loop(
             user_message=intent_message,
             system_prompt=system_prompt,
-            tools=_AGENT_TOOLS,
+            tools=live_tools,
             tool_executor=tool_executor,
             temperature=0.25 if live_draft_active else 0.7,
             max_tokens=650 if live_draft_active else None,
-            max_steps=2 if live_draft_active else 5,
+            max_steps=1 if live_draft_active and not live_tools else (2 if live_draft_active else 5),
             timeout=10 if live_draft_active else 30,
             deadline_seconds=9.5 if live_draft_active else None,
         ):
@@ -2044,9 +2278,14 @@ def api_machine_chat_stream():
                 player_pivot_request = _machine_agent_parse_player_pivot(intent_message, chat_context) if meta.get("has_matchup") else None
                 hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
 
-                live_draft_fallback = _machine_agent_live_draft_fallback(chat_context)
+                live_draft_fallback = (
+                    _machine_agent_live_decision_fallback(live_decision_data)
+                    or _machine_agent_live_draft_fallback(chat_context)
+                )
                 fallback_text = live_draft_fallback or _machine_agent_answer_for_intent(intent_message, "", meta, intent)
                 final_answer = _machine_agent_humanize_answer(agent_answer or prefetched_site_answer or fallback_text)
+                if live_decision_data:
+                    all_visuals["live_decision"] = live_decision_data
 
                 if intent == "player_pivot" and not player_pivot_request:
                     final_answer = _machine_agent_humanize_answer(
@@ -2259,6 +2498,29 @@ def _api_machine_chat_inner():
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
     live_draft_active = bool((chat_context.get("draft_live") or {}).get("active"))
+    live_tools = _AGENT_TOOLS
+    live_decision_data = {}
+    if live_draft_active and chat_context.get("team_a_id") and chat_context.get("team_b_id"):
+        live_context_text, live_meta = _machine_chat_build_context(
+            chat_context.get("team_a_id"),
+            chat_context.get("team_b_id"),
+            season_value,
+            selected_map_name,
+            include_scrims,
+            include_tournaments,
+        )
+        captured_meta[0] = live_meta
+        captured_visuals[0] = dict((live_meta.get("visuals") or {}))
+        captured_team_a_id[0] = chat_context.get("team_a_id")
+        captured_team_b_id[0] = chat_context.get("team_b_id")
+        live_packet_text, live_decision_data = _machine_agent_live_decision_packet(
+            chat_context,
+            captured_visuals[0],
+        )
+        context_hint += "\n\nPreloaded matchup data:\n" + live_context_text
+        if live_packet_text:
+            context_hint += "\n\n" + live_packet_text
+        live_tools = []
     system_prompt = build_draft_system_prompt(
         context_text="",
         site_context_text=context_hint,
@@ -2273,11 +2535,11 @@ def _api_machine_chat_inner():
     agent_answer = run_agent_loop(
         user_message=intent_message,
         system_prompt=system_prompt,
-        tools=_AGENT_TOOLS,
+        tools=live_tools,
         tool_executor=tool_executor,
         temperature=0.25 if live_draft_active else 0.7,
         max_tokens=650 if live_draft_active else None,
-        max_steps=2 if live_draft_active else 5,
+        max_steps=1 if live_draft_active and not live_tools else (2 if live_draft_active else 5),
         timeout=10 if live_draft_active else 30,
         deadline_seconds=9.5 if live_draft_active else None,
     )
@@ -2293,9 +2555,14 @@ def _api_machine_chat_inner():
     player_pivot_request = _machine_agent_parse_player_pivot(intent_message, chat_context) if meta.get("has_matchup") else None
     hero_focus = _machine_agent_parse_hero(intent_message) if meta.get("has_matchup") else ""
 
-    live_draft_fallback = _machine_agent_live_draft_fallback(chat_context)
+    live_draft_fallback = (
+        _machine_agent_live_decision_fallback(live_decision_data)
+        or _machine_agent_live_draft_fallback(chat_context)
+    )
     fallback_text = live_draft_fallback or _machine_agent_answer_for_intent(intent_message, "", meta, intent)
     final_answer = _machine_agent_humanize_answer(agent_answer or prefetched_site_answer or fallback_text)
+    if live_decision_data:
+        all_visuals["live_decision"] = live_decision_data
 
     if intent == "player_pivot" and not player_pivot_request:
         final_answer = _machine_agent_humanize_answer(
