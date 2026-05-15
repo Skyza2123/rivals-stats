@@ -448,7 +448,17 @@ def _load_map_records(db) -> tuple[list, list]:
     for r in action_rows:
         picks_by_map[r["de_map_id"]][r["team_slot"]].append(r["hero"])
 
-    our_team_rows = db.execute("SELECT id, name FROM teams WHERE is_personal=1 LIMIT 1").fetchall() if db else []
+    our_team_rows = db.execute(
+        """
+        SELECT id, name
+        FROM teams
+        WHERE COALESCE(quality_tag, '') = 'Preferred'
+        ORDER BY COALESCE(sort_order, 0), name COLLATE NOCASE
+        LIMIT 1
+        """
+    ).fetchall() if db else []
+    if not our_team_rows and db:
+        our_team_rows = db.execute("SELECT id, name FROM teams WHERE is_personal=1 LIMIT 1").fetchall()
     our_team_name = our_team_rows[0]["name"].lower() if our_team_rows else ""
 
     X, y = [], []

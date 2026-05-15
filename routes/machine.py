@@ -1876,6 +1876,18 @@ def _machine_agent_find_mentioned_teams(message: str) -> list[dict]:
 
 
 def _machine_agent_get_personal_team() -> dict | None:
+    preferred_row = get_db().execute(
+        """
+        SELECT id, name
+        FROM teams
+        WHERE COALESCE(quality_tag, '') = 'Preferred'
+        ORDER BY COALESCE(sort_order, 0), name COLLATE NOCASE
+        LIMIT 1
+        """
+    ).fetchone()
+    if preferred_row:
+        return dict(preferred_row)
+
     row = get_db().execute(
         "SELECT id, name FROM teams WHERE is_personal = 1 ORDER BY id LIMIT 1"
     ).fetchone()

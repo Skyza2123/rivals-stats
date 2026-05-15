@@ -139,7 +139,19 @@ def _all_tourney_map_records(tourney_matches: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def get_personal_team(conn: sqlite3.Connection) -> dict:
-    """Return the team row where is_personal = 1."""
+    """Return preferred team row (quality_tag Preferred, then is_personal fallback)."""
+    row = conn.execute(
+        """
+        SELECT id, name, notes, quality_tag
+        FROM teams
+        WHERE COALESCE(quality_tag, '') = 'Preferred'
+        ORDER BY COALESCE(sort_order, 0), name COLLATE NOCASE
+        LIMIT 1
+        """
+    ).fetchone()
+    if row:
+        return dict(row)
+
     row = conn.execute(
         "SELECT id, name, notes, quality_tag FROM teams WHERE is_personal = 1 LIMIT 1"
     ).fetchone()
