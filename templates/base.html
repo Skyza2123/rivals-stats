@@ -130,6 +130,7 @@
             <a href="{{ url_for('dashboard') }}" class="top-nav-item {% if request.path == '/' %}active{% endif %}">Dashboard</a>
             <a href="{{ url_for('scrims') }}" class="top-nav-item {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
             <a href="{{ url_for('teams') }}" class="top-nav-item {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
+            <a href="{{ url_for('team_scouting') }}" class="top-nav-item {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
             <a href="{{ url_for('tournaments') }}" class="top-nav-item {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
             <a href="{{ url_for('machine', tab='chat') }}" class="top-nav-item {% if request.path == '/machine' and request.args.get('tab') == 'chat' %}active{% endif %}">Agent</a>
             
@@ -178,6 +179,7 @@
             <a href="{{ url_for('dashboard') }}" class="nav-drawer-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
             <a href="{{ url_for('scrims') }}" class="nav-drawer-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
             <a href="{{ url_for('teams') }}" class="nav-drawer-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
+            <a href="{{ url_for('team_scouting') }}" class="nav-drawer-link {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
             <a href="{{ url_for('tournaments') }}" class="nav-drawer-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
             <a href="{{ url_for('machine', tab='chat') }}" class="nav-drawer-link {% if request.path == '/machine' and request.args.get('tab') == 'chat' %}active{% endif %}">Agent</a>
             <div class="nav-drawer-group-label">Machine</div>

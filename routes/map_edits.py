@@ -81,8 +81,7 @@ def update_tournament_match_map_info(tournament_id: int, match_id: int, map_id: 
         map_entry["score"] = score
     
     # Manual result selection (no auto-calculation from score)
-    result = request.form.get("result", "").strip()
-    map_entry["result"] = result if result in RESULTS else ""
+    map_entry["result"] = normalize_result_value(request.form.get("result", ""))
     if not map_entry["result"] and map_entry.get("score"):
         inferred = infer_result_from_score_text(
             map_entry.get("score", ""),
@@ -205,7 +204,7 @@ def update_tournament_match_comp_section(tournament_id: int, match_id: int, map_
     section["side"] = side_value
     
     # Store section result (submap/round), or infer from score text.
-    section_result = request.form.get("section_result", "").strip()
+    section_result = normalize_result_value(request.form.get("section_result", ""))
     if section_result in RESULTS:
         section["result"] = section_result
     else:
@@ -534,8 +533,7 @@ def update_map_info(scrim_id: int, map_id: int):
         map_entry["score"] = score
     
     # Manual result selection (no auto-calculation from score)
-    result = request.form.get("result", "").strip()
-    map_entry["result"] = result if result in RESULTS else ""
+    map_entry["result"] = normalize_result_value(request.form.get("result", ""))
 
     # If result is left blank, infer from attack-defense scores directly (most reliable).
     if not map_entry["result"] and (our_atk or enemy_atk):
@@ -587,9 +585,7 @@ def update_tournament_map_info(tournament_id: int, map_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     map_entry = get_map_or_404(tournament_match, map_id)
     update_map_type_from_form(map_entry)
-    map_entry["result"] = request.form.get("result", map_entry["result"]).strip()
-    if map_entry["result"] not in RESULTS:
-        map_entry["result"] = ""
+    map_entry["result"] = normalize_result_value(request.form.get("result", map_entry.get("result", "")))
     map_entry["score"] = request.form.get("score", map_entry.get("score", "")).strip()
     if not map_entry["result"] and map_entry.get("score"):
         inferred = infer_result_from_score_text(
@@ -735,7 +731,7 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
         )
     
     # Store section result (submap/round), or infer from score text.
-    section_result = request.form.get("section_result", "").strip()
+    section_result = normalize_result_value(request.form.get("section_result", ""))
     if section_result in RESULTS:
         section["result"] = section_result
     else:
@@ -791,7 +787,7 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
         )
     
     # Store section result (submap/round), or infer from score text.
-    section_result = request.form.get("section_result", "").strip()
+    section_result = normalize_result_value(request.form.get("section_result", ""))
     if section_result in RESULTS:
         section["result"] = section_result
     else:

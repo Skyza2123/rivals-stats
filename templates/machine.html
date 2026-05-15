@@ -540,6 +540,16 @@
 .machine-agent-tree-text { color:#cbd5e1; font-size:0.82rem; line-height:1.48; }
 .machine-agent-copy { white-space:pre-wrap; color:#cbd5e1; }
 .machine-agent-copy.machine-agent-copy-leading { margin-bottom:0.65rem; color:#94a3b8; font-size:0.8rem; line-height:1.45; }
+.machine-agent-summary { display:grid; gap:0.75rem; margin-bottom:0.2rem; }
+.machine-agent-summary-head { display:grid; gap:0.2rem; }
+.machine-agent-summary-kicker { color:#64748b; font-size:0.68rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; }
+.machine-agent-summary-title { color:#f8fafc; font-size:1rem; font-weight:850; letter-spacing:-0.01em; }
+.machine-agent-summary-body { color:#cbd5e1; font-size:0.84rem; line-height:1.55; }
+.machine-agent-summary-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.7rem; }
+.machine-agent-summary-card { background:rgba(15,23,42,0.52); border:1px solid rgba(148,163,184,0.14); border-radius:0.7rem; padding:0.8rem 0.9rem; min-width:0; }
+.machine-agent-summary-label { color:#93c5fd; font-size:0.7rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem; }
+.machine-agent-summary-value { color:#e2e8f0; font-size:0.84rem; line-height:1.55; }
+.machine-agent-summary-tail { color:#94a3b8; font-size:0.8rem; line-height:1.5; }
 .machine-agent-profile-links { display:flex; flex-wrap:wrap; gap:0.45rem; margin:0.25rem 0 0.65rem; }
 .machine-agent-profile-link {
     display:inline-flex;
@@ -677,6 +687,7 @@
     .machine-agent-tree-branch::before { top:1.1rem; left:-0.75rem; width:0.75rem; height:1px; }
     .machine-agent-visual-grid.cols-2,
     .machine-agent-visual-grid.cols-3,
+    .machine-agent-summary-grid,
     .machine-agent-comp-card-stack,
     .machine-agent-heatmap-row,
     .machine-agent-ladder-step { grid-template-columns:1fr; }
@@ -1155,7 +1166,8 @@ document.getElementById('mtab-chat').addEventListener('click', function() {
     window.location.href = '/machine?tab=chat';
 });
 
-const initialMachineTab = new URLSearchParams(window.location.search).get('tab');
+const MACHINE_QUERY_PARAMS = new URLSearchParams(window.location.search);
+const initialMachineTab = MACHINE_QUERY_PARAMS.get('tab');
 const activeMachineTab = ['matchup', 'reasoner', 'chat'].includes(initialMachineTab) ? initialMachineTab : 'matchup';
 setMachineTab(activeMachineTab);
 
@@ -1171,6 +1183,119 @@ function formatAgentCopy(v) {
     html = html.replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
     html = html.replace(/\n/g, '<br>');
     return html;
+}
+function cleanAgentInsightText(value) {
+    return String(value || '')
+        .replace(/^[-*\s]+/, '')
+        .replace(/\*\*/g, '')
+        .replace(/^:+|:+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function renderAgentLead(answer) {
+    const parsed = parseAgentInsightSummary(answer);
+    if (!parsed) return formatAgentCopy(answer || '');
+    let html = '<div class="machine-agent-summary">';
+    if (parsed.title || parsed.intro) {
+        html += '<div class="machine-agent-summary-head">';
+        if (parsed.title) {
+            html += '<div class="machine-agent-summary-kicker">Scout Read</div>'
+                + '<div class="machine-agent-summary-title">' + escapeHtml(parsed.title) + '</div>';
+        }
+        if (parsed.intro) {
+            html += '<div class="machine-agent-summary-body">' + formatAgentCopy(parsed.intro) + '</div>';
+        }
+        html += '</div>';
+    }
+    html += '<div class="machine-agent-summary-grid">'
+        + parsed.cards.map(function(card) {
+            return '<div class="machine-agent-summary-card">'
+                + '<div class="machine-agent-summary-label">' + escapeHtml(card.label) + '</div>'
+                + '<div class="machine-agent-summary-value">' + formatAgentCopy(card.value) + '</div>'
+                + '</div>';
+        }).join('')
+        + '</div>';
+    if (parsed.tail) {
+        html += '<div class="machine-agent-summary-tail">' + formatAgentCopy(parsed.tail) + '</div>';
+    }
+    html += '</div>';
+    return html;
+}
+function parseAgentInsightSummary(answer) {
+    const raw = String(answer || '').replace(/\r/g, '').trim();
+    if (!raw) return null;
+    const sections = raw.split(/\n\s*\n/).map(function(part) { return part.trim(); }).filter(Boolean);
+    let title = '';
+    let intro = '';
+    let tail = '';
+    let cards = [];
+
+    function parseCardLine(line) {
+        const normalized = cleanAgentInsightText(line);
+        if (!normalized) return null;
+        const match = normalized.match(/^([^:]{2,60}):\s*(.+)$/);
+        if (!match) return null;
+        const label = cleanAgentInsightText(match[1]);
+        const value = cleanAgentInsightText(match[2]);
+        if (!label || !value) return null;
+        return {label: label, value: value};
+    }
+
+    function parseHeadingLine(line) {
+        const normalized = cleanAgentInsightText(line);
+        if (!normalized) return '';
+        if (!/:$/.test(String(line || '').trim()) && !/(overview|insights?|prep read|scout read|game plan|contingency)/i.test(normalized)) {
+            return '';
+        }
+        return normalized.replace(/\s*:\s*$/, '');
+    }
+
+    sections.forEach(function(section) {
+        const lines = section.split('\n').map(function(line) { return line.trim(); }).filter(Boolean);
+        if (!lines.length) return;
+        if (!title && lines.length === 1) {
+            const heading = parseHeadingLine(lines[0]);
+            if (heading) {
+                title = heading;
+                return;
+            }
+        }
+        if (!title) {
+            const firstHeading = parseHeadingLine(lines[0]);
+            if (firstHeading && lines.length > 1) {
+                title = firstHeading;
+                lines.shift();
+            }
+        }
+        const sectionCards = lines.map(parseCardLine).filter(Boolean);
+        if (sectionCards.length && !cards.length) {
+            cards = sectionCards;
+            return;
+        }
+        if (sectionCards.length && cards.length) {
+            cards = cards.concat(sectionCards);
+            return;
+        }
+        if (!cards.length && !intro) {
+            intro = lines.map(cleanAgentInsightText).filter(Boolean).join(' ');
+            return;
+        }
+        const cleanedSection = lines.map(cleanAgentInsightText).filter(Boolean).join('\n');
+        tail += (tail ? '\n\n' : '') + cleanedSection;
+    });
+
+    if (!cards.length) {
+        const bulletLines = raw.split('\n').map(parseCardLine).filter(Boolean);
+        if (bulletLines.length >= 2) cards = bulletLines;
+    }
+
+    if (cards.length < 2) return null;
+    return {
+        title: title,
+        intro: intro,
+        cards: cards.slice(0, 6),
+        tail: tail,
+    };
 }
 function heroPlaceholderUrl(hero) {
     const label = String(hero || 'Hero').trim().slice(0, 18) || 'Hero';
@@ -1316,6 +1441,13 @@ function renderReplyHeroStrip(answer, meta) {
     if (!form || !input || !log || !sendBtn) return;
     const _agentSeed = JSON.parse(document.getElementById('machine-agent-seed').textContent);
     const teamNames = _agentSeed.teamNames;
+    const urlPrompt = String(MACHINE_QUERY_PARAMS.get('prompt') || '').trim();
+    const urlTeamAName = String(MACHINE_QUERY_PARAMS.get('team_a_name') || '').trim();
+    const urlTeamBName = String(MACHINE_QUERY_PARAMS.get('team_b_name') || '').trim();
+    const parsedUrlTeamAId = Number(MACHINE_QUERY_PARAMS.get('team_a_id') || '');
+    const parsedUrlTeamBId = Number(MACHINE_QUERY_PARAMS.get('team_b_id') || '');
+    const urlTeamAId = Number.isFinite(parsedUrlTeamAId) ? parsedUrlTeamAId : null;
+    const urlTeamBId = Number.isFinite(parsedUrlTeamBId) ? parsedUrlTeamBId : null;
     const CHAT_STORAGE_KEY = 'rivals.machine.chats.v2';
     const LEGACY_CHAT_STORAGE_KEY = 'rivals.machine.chat.v1';
     const MAX_STORED_MESSAGES = 24;
@@ -1799,7 +1931,7 @@ function renderReplyHeroStrip(answer, meta) {
         const linksHtml = lightweight ? '' : renderAgentProfileLinks(data.meta);
         const showVisuals = !!(visualPanelHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
-        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + formatAgentCopy(data.answer || 'No answer returned.') + '</div>'
+        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + renderAgentLead(data.answer || 'No answer returned.') + '</div>'
             + linksHtml
             + heroStripHtml
             + visualPanelHtml;
@@ -2746,7 +2878,7 @@ function renderReplyHeroStrip(answer, meta) {
         const showVisuals = !!(visualsHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
         const linksHtml = renderAgentProfileLinks(data.meta || {});
-        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + formatAgentCopy(data.answer || 'No answer returned.') + '</div>'
+        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + renderAgentLead(data.answer || 'No answer returned.') + '</div>'
             + linksHtml
             + heroStripHtml
             + visualsHtml;
@@ -2933,7 +3065,7 @@ function renderReplyHeroStrip(answer, meta) {
         if (!text) { if (onComplete) onComplete(); return; }
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReducedMotion || text.length > 1200) {
-            el.innerHTML = formatAgentCopy(text);
+            el.innerHTML = renderAgentLead(text);
             if (onComplete) onComplete();
             return;
         }
@@ -2947,7 +3079,7 @@ function renderReplyHeroStrip(answer, meta) {
                 log.scrollTop = log.scrollHeight;
                 setTimeout(tick, DELAY);
             } else {
-                el.innerHTML = formatAgentCopy(text);
+                el.innerHTML = renderAgentLead(text);
                 if (onComplete) onComplete();
             }
         }
@@ -3038,6 +3170,32 @@ function renderReplyHeroStrip(answer, meta) {
         restoreStoredChat();
         // Bind default Scout prompt button handlers on initial chat load.
         refreshSuggestionSet();
+
+        if (urlTeamAId || urlTeamBId || urlTeamAName || urlTeamBName) {
+            mergeAgentContext({
+                team_a_id: urlTeamAId || agentContext.team_a_id,
+                team_b_id: urlTeamBId || agentContext.team_b_id,
+                team_a_name: urlTeamAName || agentContext.team_a_name,
+                team_b_name: urlTeamBName || agentContext.team_b_name,
+            });
+            updateContextPanel();
+        }
+
+        if (urlPrompt) {
+            setTimeout(function() {
+                sendChat(urlPrompt);
+            }, 0);
+        }
+
+        if (urlPrompt || urlTeamAId || urlTeamBId || urlTeamAName || urlTeamBName) {
+            const cleaned = new URLSearchParams(window.location.search);
+            ['prompt', 'team_a_id', 'team_b_id', 'team_a_name', 'team_b_name'].forEach(function(key) {
+                cleaned.delete(key);
+            });
+            const cleanedQuery = cleaned.toString();
+            const cleanUrl = window.location.pathname + (cleanedQuery ? ('?' + cleanedQuery) : '');
+            window.history.replaceState({}, '', cleanUrl);
+        }
     }
     // Defer heavier refresh loops, but keep one-time prompt binding on startup.
 

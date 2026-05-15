@@ -193,6 +193,380 @@ def dashboard():
     )
 
 
+@app.route("/team-scouting")
+def team_scouting():
+    db = get_db()
+    migrate_enemy_teams_to_team_database(db)
+
+    our_team_row = db.execute(
+        """
+        SELECT id, name
+        FROM teams
+        ORDER BY
+            CASE WHEN is_personal = 1 THEN 0 ELSE 1 END,
+            CASE quality_tag
+                WHEN 'Preferred' THEN 0
+                WHEN 'Semi Preferred' THEN 1
+                WHEN 'Good' THEN 2
+                WHEN 'Avoid' THEN 3
+                ELSE 4
+            END,
+            name COLLATE NOCASE
+        LIMIT 1
+        """
+    ).fetchone()
+
+    if our_team_row is None:
+        return render_template(
+            "team_scouting.html",
+            our_team=None,
+            scout_rows=[],
+        )
+
+    our_team = {"id": int(our_team_row["id"]), "name": (our_team_row["name"] or "").strip()}
+    opponent_rows = db.execute(
+        """
+        SELECT id, name, logo_path, quality_tag, is_personal
+        FROM teams
+        WHERE id != ?
+        ORDER BY
+            CASE quality_tag
+                WHEN 'Preferred' THEN 0
+                WHEN 'Semi Preferred' THEN 1
+                WHEN 'Good' THEN 2
+                WHEN 'Avoid' THEN 3
+                ELSE 4
+            END,
+            name COLLATE NOCASE
+        """,
+        (our_team["id"],),
+    ).fetchall()
+
+    scrim_history = get_scrims_for_team(our_team["id"], our_team["name"])
+    tournament_history = build_team_tournament_scrims({"id": our_team["id"], "name": our_team["name"]})
+    our_history = scrim_history + tournament_history
+    season_options = get_scrim_season_options(our_history)
+    default_season = get_current_season_from_recent_scrim(our_history)
+    has_unseasoned_scrims = any(
+        not normalize_season_value(scrim.get("season", ""))
+        for scrim in our_history
+    )
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+
+    map_options = list(MAPS)
+    selected_map_name = (request.args.get("map_name") or "all").strip()
+    if selected_map_name != "all" and selected_map_name not in map_options:
+        selected_map_name = "all"
+
+    try:
+        min_maps = int(request.args.get("min_maps") or 3)
+    except (TypeError, ValueError):
+        min_maps = 3
+    min_maps = max(1, min(50, min_maps))
+
+    filtered_scrim_history = filter_scrims_by_season(scrim_history, selected_season)
+    filtered_tournament_history = filter_scrims_by_season(tournament_history, selected_season)
+
+    def _filter_scrims_to_map(scrims: list[dict], map_name: str) -> list[dict]:
+        if not map_name or map_name == "all":
+            return scrims
+        target = map_name.strip().lower()
+        filtered: list[dict] = []
+        for scrim in scrims:
+            maps_for_target = [
+                map_entry
+                for map_entry in scrim.get("maps", [])
+                if ((map_entry.get("map_name") or map_entry.get("map") or "").strip().lower() == target)
+            ]
+            if not maps_for_target:
+                continue
+            copied = dict(scrim)
+            copied["maps"] = maps_for_target
+            filtered.append(copied)
+        return filtered
+
+    filtered_scrim_history = _filter_scrims_to_map(filtered_scrim_history, selected_map_name)
+    filtered_tournament_history = _filter_scrims_to_map(filtered_tournament_history, selected_map_name)
+    filtered_history = filtered_scrim_history + filtered_tournament_history
+
+    def _opposite_slot(slot: str) -> str:
+        return "team2" if slot == "team1" else "team1"
+
+    def _scrim_includes_opponent(scrim: dict, opponent_id: int, opponent_name: str) -> bool:
+        if int(scrim.get("enemy_team_id") or 0) == opponent_id:
+            return True
+        if int(scrim.get("team1_id") or 0) == opponent_id or int(scrim.get("team2_id") or 0) == opponent_id:
+            return True
+        target = (opponent_name or "").strip().lower()
+        if not target:
+            return False
+        names = [
+            (scrim.get("enemy_team") or "").strip().lower(),
+            (scrim.get("opponent") or "").strip().lower(),
+            (scrim.get("team1_name") or "").strip().lower(),
+            (scrim.get("team2_name") or "").strip().lower(),
+        ]
+        return any(name == target for name in names if name)
+
+    def _build_scout_summary(history_rows: list[dict], opponent_id: int, opponent_name: str) -> dict | None:
+        enemy_hero_counter: Counter = Counter()
+        enemy_hero_record = defaultdict(lambda: {"wins": 0, "losses": 0, "maps": 0})
+        ban_counter: Counter = Counter()
+        ban_record = defaultdict(lambda: {"wins": 0, "losses": 0, "maps": 0})
+        comp_counter: Counter = Counter()
+        maps = 0
+        wins = 0
+        losses = 0
+
+        for scrim in history_rows:
+            if not _scrim_includes_opponent(scrim, opponent_id, opponent_name):
+                continue
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                our_slot = (map_entry.get("our_team_slot") or "team1").strip()
+                if our_slot not in TEAM_SLOTS:
+                    our_slot = "team1"
+                opponent_slot = _opposite_slot(our_slot)
+                result = get_map_outcome_for_slot(map_entry, our_slot)
+
+                maps += 1
+                if result == "Win":
+                    wins += 1
+                elif result == "Loss":
+                    losses += 1
+
+                draft = map_entry.get("draft", {})
+                opponent_draft = draft.get(opponent_slot, {}) if isinstance(draft, dict) else {}
+                if isinstance(opponent_draft, dict):
+                    for ban_key in ("ban1", "ban2", "ban3", "ban4"):
+                        hero = canonicalize_hero_name(opponent_draft.get(ban_key, ""))
+                        if not hero:
+                            continue
+                        ban_counter[hero] += 1
+                        ban_record[hero]["maps"] += 1
+                        if result == "Win":
+                            ban_record[hero]["wins"] += 1
+                        elif result == "Loss":
+                            ban_record[hero]["losses"] += 1
+
+                for section in map_entry.get("comp", []):
+                    if not isinstance(section, dict):
+                        continue
+                    heroes = [
+                        canonicalize_hero_name(slot.get("hero", ""))
+                        for slot in section.get(opponent_slot, [])
+                        if isinstance(slot, dict) and canonicalize_hero_name(slot.get("hero", ""))
+                    ]
+                    for hero_name in heroes:
+                        enemy_hero_counter[hero_name] += 1
+                        enemy_hero_record[hero_name]["maps"] += 1
+                        if result == "Win":
+                            enemy_hero_record[hero_name]["wins"] += 1
+                        elif result == "Loss":
+                            enemy_hero_record[hero_name]["losses"] += 1
+                    if len(heroes) >= 4:
+                        comp_counter[tuple(heroes)] += 1
+
+        if maps < min_maps:
+            return None
+
+        recommended_bans = []
+        for hero_name, count in enemy_hero_counter.most_common(10):
+            record = enemy_hero_record[hero_name]
+            decided = int(record["wins"]) + int(record["losses"])
+            opponent_win_rate = round((int(record["losses"]) / decided) * 100, 1) if decided else 0.0
+            recommended_bans.append(
+                {
+                    "hero": hero_name,
+                    "count": count,
+                    "opponent_win_rate": opponent_win_rate,
+                    "wins": int(record["wins"]),
+                    "losses": int(record["losses"]),
+                }
+            )
+
+        recommended_bans.sort(
+            key=lambda item: (item["count"], item["opponent_win_rate"], item["losses"]),
+            reverse=True,
+        )
+        recommended_bans = recommended_bans[:5]
+
+        top_enemy_bans = []
+        for hero_name, count in ban_counter.most_common(8):
+            record = ban_record[hero_name]
+            decided = int(record["wins"]) + int(record["losses"])
+            our_loss_rate = round((int(record["losses"]) / decided) * 100, 1) if decided else 0.0
+            top_enemy_bans.append(
+                {
+                    "hero": hero_name,
+                    "count": count,
+                    "our_loss_rate": our_loss_rate,
+                    "wins": int(record["wins"]),
+                    "losses": int(record["losses"]),
+                }
+            )
+
+        top_enemy_bans.sort(
+            key=lambda item: (item["our_loss_rate"], item["count"], item["losses"]),
+            reverse=True,
+        )
+        top_enemy_bans = top_enemy_bans[:5]
+
+        favorite_comps = [
+            {"heroes": list(comp), "count": count}
+            for comp, count in comp_counter.most_common(4)
+        ]
+
+        return {
+            "maps": maps,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": round((wins / (wins + losses)) * 100, 1) if (wins + losses) else 0.0,
+            "recommended_bans": recommended_bans,
+            "top_enemy_bans": top_enemy_bans,
+            "favorite_comps": favorite_comps,
+        }
+
+    filter_context_bits = []
+    if selected_season and selected_season != "all":
+        filter_context_bits.append(f"season {selected_season}")
+    if selected_map_name and selected_map_name != "all":
+        filter_context_bits.append(f"map {selected_map_name}")
+    if min_maps:
+        filter_context_bits.append(f"minimum {min_maps} maps")
+    filter_context = ", ".join(filter_context_bits) if filter_context_bits else "all history"
+
+    def _build_ai_url(opponent_id: int, opponent_name: str, prompt: str) -> str:
+        return url_for(
+            "machine",
+            tab="chat",
+            team_a_id=our_team["id"],
+            team_b_id=opponent_id,
+            team_a_name=our_team["name"],
+            team_b_name=opponent_name,
+            prompt=prompt,
+        )
+
+    scout_rows: list[dict] = []
+    for row in opponent_rows:
+        opponent_id = int(row["id"])
+        opponent_name = (row["name"] or "").strip()
+        combined_summary = _build_scout_summary(filtered_history, opponent_id, opponent_name)
+        if not combined_summary:
+            continue
+
+        scrim_summary = _build_scout_summary(filtered_scrim_history, opponent_id, opponent_name)
+        tournament_summary = _build_scout_summary(filtered_tournament_history, opponent_id, opponent_name)
+
+        source_compare = [
+            {
+                "label": "Scrims",
+                "maps": int((scrim_summary or {}).get("maps") or 0),
+                "win_rate": float((scrim_summary or {}).get("win_rate") or 0.0),
+                "favorite_comp": ((scrim_summary or {}).get("favorite_comps") or [{}])[0],
+                "top_ban": ((scrim_summary or {}).get("recommended_bans") or [{}])[0],
+            },
+            {
+                "label": "Tournaments",
+                "maps": int((tournament_summary or {}).get("maps") or 0),
+                "win_rate": float((tournament_summary or {}).get("win_rate") or 0.0),
+                "favorite_comp": ((tournament_summary or {}).get("favorite_comps") or [{}])[0],
+                "top_ban": ((tournament_summary or {}).get("recommended_bans") or [{}])[0],
+            },
+        ]
+
+        overview_prompt = (
+            f"Scout {opponent_name} against us ({our_team['name']}). Use {filter_context}. "
+            "Format the answer as labeled sections: Overview, Favorite comps, Best bans against them, "
+            "Bans hurting us most, First ban recommendation, Contingency plan. "
+            "For the contingency plan, explicitly name the most likely enemy pivot after our first ban and the exact hero or comp adjustment we should make in response."
+        )
+        favorite_comps_prompt = (
+            f"Expand on {opponent_name}'s favorite comps against us ({our_team['name']}). Use {filter_context}. "
+            "Explain what their most common comp shells are trying to do, what map or fight conditions they prefer, and which ban best disrupts each shell."
+        )
+        best_bans_prompt = (
+            f"Expand on the best bans into {opponent_name} against us ({our_team['name']}). Use {filter_context}. "
+            "Rank the top ban targets, explain why each one matters, and state what enemy comp or pivot remains if we remove the first target."
+        )
+        hurt_us_prompt = (
+            f"Expand on which {opponent_name} bans hurt us most. Use {filter_context}. "
+            "Explain why each ban damages our plan, which of our players or comp shells lose the most value, and what safer fallback we should move to."
+        )
+        source_compare_prompt = (
+            f"Compare {opponent_name}'s scrim data versus tournament data against us ({our_team['name']}). Use {filter_context}. "
+            "Explain what changes between scrims and tournaments in their favorite comps, ban priorities, and our results, and tell us which source should drive prep."
+        )
+
+        scout_rows.append(
+            {
+                "team_id": opponent_id,
+                "team_name": opponent_name,
+                "logo_path": row["logo_path"],
+                "quality_tag": (row["quality_tag"] or "").strip(),
+                "maps": combined_summary["maps"],
+                "wins": combined_summary["wins"],
+                "losses": combined_summary["losses"],
+                "win_rate": combined_summary["win_rate"],
+                "recommended_bans": combined_summary["recommended_bans"],
+                "top_enemy_bans": combined_summary["top_enemy_bans"],
+                "favorite_comps": combined_summary["favorite_comps"],
+                "source_compare": source_compare,
+                "ai_url": _build_ai_url(opponent_id, opponent_name, overview_prompt),
+                "ai_urls": {
+                    "overview": _build_ai_url(opponent_id, opponent_name, overview_prompt),
+                    "favorite_comps": _build_ai_url(opponent_id, opponent_name, favorite_comps_prompt),
+                    "recommended_bans": _build_ai_url(opponent_id, opponent_name, best_bans_prompt),
+                    "top_enemy_bans": _build_ai_url(opponent_id, opponent_name, hurt_us_prompt),
+                    "source_compare": _build_ai_url(opponent_id, opponent_name, source_compare_prompt),
+                },
+            }
+        )
+
+    scout_rows.sort(
+        key=lambda row: (
+            row["maps"],
+            row["wins"] + row["losses"],
+            row["team_name"].lower(),
+        ),
+        reverse=True,
+    )
+
+    try:
+        selected_team_id = int(request.args.get("opponent_id") or 0)
+    except (TypeError, ValueError):
+        selected_team_id = 0
+
+    selected_scout_row = None
+    if scout_rows:
+        selected_scout_row = next(
+            (row for row in scout_rows if int(row["team_id"]) == selected_team_id),
+            scout_rows[0],
+        )
+        selected_team_id = int(selected_scout_row["team_id"])
+
+    return render_template(
+        "team_scouting.html",
+        our_team=our_team,
+        scout_rows=scout_rows,
+        selected_scout_row=selected_scout_row,
+        selected_team_id=selected_team_id,
+        selected_season=selected_season,
+        season_options=season_options,
+        has_unseasoned_scrims=has_unseasoned_scrims,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+        selected_map_name=selected_map_name,
+        map_options=map_options,
+        min_maps=min_maps,
+    )
+
+
 def _ensure_team_sort_order_column(db: sqlite3.Connection) -> None:
     team_columns = {row[1] for row in db.execute("PRAGMA table_info(teams)").fetchall()}
     if "sort_order" not in team_columns:

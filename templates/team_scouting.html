@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Team Scouting{% endblock %}
+
+{% block content %}
+<div class="team-scout-shell">
+    <div class="main-header team-scout-header">
+        <div>
+            <div class="section-kicker">Prep Board</div>
+            <h2>Team Scouting</h2>
+            {% if our_team %}
+            <p>Prep from {{ our_team.name }} perspective with cleaner comp reads, ban pressure, and a direct Agent handoff.</p>
+            {% else %}
+            <p>Add teams first to unlock scouting intel.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if our_team %}
+    <section class="team-scout-toolbar">
+        <section class="panel team-scout-filter-panel">
+            <div class="panel-header-row">
+                <div>
+                    <div class="section-kicker">Filters</div>
+                    <h3>Scouting Scope</h3>
+                </div>
+                <span class="muted-label">Season, map, and minimum sample size</span>
+            </div>
+            <form method="get" action="{{ url_for('team_scouting') }}" class="form-grid top-gap">
+                <div class="field">
+                    <label for="opponent_id">Opponent</label>
+                    <select id="opponent_id" name="opponent_id">
+                        {% for row in scout_rows %}
+                            <option value="{{ row.team_id }}" {% if selected_team_id == row.team_id %}selected{% endif %}>{{ row.team_name }} ({{ row.maps }} maps)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="season">Season</label>
+                    <select id="season" name="season">
+                        <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                        {% if has_unseasoned_scrims %}
+                            <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                        {% endif %}
+                        {% for season in season_options %}
+                            <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="map_name">Map</label>
+                    <select id="map_name" name="map_name">
+                        <option value="all" {% if selected_map_name == 'all' %}selected{% endif %}>All Maps</option>
+                        {% for map_name in map_options %}
+                            <option value="{{ map_name }}" {% if selected_map_name == map_name %}selected{% endif %}>{{ map_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="min_maps">Minimum Maps</label>
+                    <input id="min_maps" type="number" name="min_maps" min="1" max="50" value="{{ min_maps }}">
+                </div>
+                <div class="button-row field-full">
+                    <button type="submit">Apply Filters</button>
+                    <a class="button-secondary btn-muted" href="{{ url_for('team_scouting') }}">Reset</a>
+                </div>
+            </form>
+
+            {% if scout_rows %}
+            <div class="team-scout-opponent-rail top-gap">
+                {% for option in scout_rows %}
+                    <a
+                        class="team-scout-opponent-chip {% if selected_team_id == option.team_id %}active{% endif %}"
+                        href="{{ url_for('team_scouting', opponent_id=option.team_id, season=selected_season, map_name=selected_map_name, min_maps=min_maps) }}"
+                    >
+                        <span>{{ option.team_name }}</span>
+                        <small>{{ option.maps }} maps</small>
+                    </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+    </section>
+    {% endif %}
+
+    {% if our_team and selected_scout_row %}
+    <div class="team-scout-grid">
+        {% set row = selected_scout_row %}
+        <section class="team-scout-card" id="scout-team-{{ row.team_id }}">
+            <div class="team-scout-card-head">
+                <div class="team-scout-card-title-row">
+                    <a class="team-scout-name" href="{{ url_for('team_detail', team_id=row.team_id) }}">
+                        {% if row.logo_path %}
+                            <img src="{{ team_logo_url(row.logo_path) }}" alt="{{ row.team_name }}" class="team-scout-logo">
+                        {% else %}
+                            <span class="team-scout-logo team-scout-logo-fallback">{{ row.team_name[0] if row.team_name else '?' }}</span>
+                        {% endif %}
+                        <span>{{ row.team_name }}</span>
+                    </a>
+                    <div class="team-scout-card-meta">
+                        {% if row.quality_tag %}
+                            <span class="pill pill-neutral">{{ row.quality_tag }}</span>
+                        {% endif %}
+                        <span class="pill pill-neutral">{{ row.maps }} maps</span>
+                        <span class="pill pill-neutral">{{ row.win_rate }}% WR</span>
+                    </div>
+                </div>
+                <div class="button-row team-scout-actions">
+                    <a class="button-secondary btn-muted" href="{{ url_for('team_detail', team_id=row.team_id) }}">Open Team</a>
+                    <a class="button-link" href="{{ row.ai_url }}">Ask Agent</a>
+                </div>
+            </div>
+
+            <div class="team-scout-summary-strip">
+                <div class="team-scout-summary-item">
+                    <span>Record</span>
+                    <strong>{{ row.wins }}-{{ row.losses }}</strong>
+                </div>
+                <div class="team-scout-summary-item">
+                    <span>Comp Shells</span>
+                    <strong>{{ row.favorite_comps|length }}</strong>
+                </div>
+                <div class="team-scout-summary-item">
+                    <span>Ban Targets</span>
+                    <strong>{{ row.recommended_bans|length }}</strong>
+                </div>
+            </div>
+
+            <article class="team-scout-block team-scout-compare-block">
+                <div class="team-scout-block-head team-scout-block-head-split">
+                    <div>
+                        <h4>Scrim Vs Tournament</h4>
+                        <p class="team-scout-block-copy">Compare whether their prep profile changes on stage.</p>
+                    </div>
+                    <a class="team-scout-ai-star" href="{{ row.ai_urls.source_compare }}" title="Ask AI to expand on scrim vs tournament">
+                        &#9733;
+                    </a>
+                </div>
+                <div class="team-scout-source-grid">
+                    {% for source_row in row.source_compare %}
+                    <div class="team-scout-source-card">
+                        <div class="team-scout-source-head">
+                            <span>{{ source_row.label }}</span>
+                            <strong>{{ source_row.maps }} maps</strong>
+                        </div>
+                        <div class="team-scout-source-line">{{ source_row.win_rate }}% WR</div>
+                        <div class="team-scout-source-line">
+                            Top shell:
+                            {% if source_row.favorite_comp and source_row.favorite_comp.heroes %}
+                                {{ hero_display_name(source_row.favorite_comp.heroes[0]) }}{% if source_row.favorite_comp.heroes|length > 1 %} +{{ source_row.favorite_comp.heroes|length - 1 }}{% endif %}
+                            {% else %}
+                                None yet
+                            {% endif %}
+                        </div>
+                        <div class="team-scout-source-line">
+                            Top ban:
+                            {% if source_row.top_ban and source_row.top_ban.hero %}
+                                {{ hero_display_name(source_row.top_ban.hero) }}
+                            {% else %}
+                                None yet
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <div class="team-scout-card-main">
+                <article class="team-scout-block team-scout-block-primary">
+                    <div class="team-scout-block-head team-scout-block-head-split">
+                        <div>
+                            <h4>Their Favorite Comps</h4>
+                            <p class="team-scout-block-copy">Most common shells in filtered history.</p>
+                        </div>
+                        <a class="team-scout-ai-star" href="{{ row.ai_urls.favorite_comps }}" title="Ask AI to expand on favorite comps">
+                            &#9733;
+                        </a>
+                    </div>
+                    {% if row.favorite_comps %}
+                        <div class="team-scout-comp-grid">
+                            {% for comp in row.favorite_comps %}
+                            <div class="team-scout-comp-card">
+                                <div class="team-scout-comp-card-head">
+                                    <span class="team-scout-comp-label">Shell {{ loop.index }}</span>
+                                    <span class="team-scout-comp-meta">{{ comp.count }} maps</span>
+                                </div>
+                                <div class="dashboard-comp-shell-heroes">
+                                    {% for hero in comp.heroes[:6] %}
+                                        <img class="hero-rank-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy" title="{{ hero_display_name(hero) }}">
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No comp history yet.</p>
+                    {% endif %}
+                </article>
+
+                <div class="team-scout-side-stack">
+                    <article class="team-scout-block">
+                        <div class="team-scout-block-head team-scout-block-head-split">
+                            <div>
+                                <h4>Best Bans Into Them</h4>
+                                <p class="team-scout-block-copy">Comfort heroes we should target first.</p>
+                            </div>
+                            <a class="team-scout-ai-star" href="{{ row.ai_urls.recommended_bans }}" title="Ask AI to expand on best bans into them">
+                                &#9733;
+                            </a>
+                        </div>
+                        {% if row.recommended_bans %}
+                            <div class="team-scout-ban-stack">
+                                {% for ban in row.recommended_bans %}
+                                <div class="team-scout-ban-row">
+                                    <div class="team-scout-ban-main">
+                                        <img class="hero-rank-img" src="{{ hero_image_url(ban.hero) }}" alt="{{ ban.hero }}" loading="lazy">
+                                        <div>
+                                            <div class="team-scout-ban-title">{{ hero_display_name(ban.hero) }}</div>
+                                            <div class="team-scout-ban-copy">{{ ban.count }} appearances</div>
+                                        </div>
+                                    </div>
+                                    <span class="team-scout-ban-pill">{{ ban.opponent_win_rate }}% opp WR</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-text">No comfort hero signal yet.</p>
+                        {% endif %}
+                    </article>
+
+                    <article class="team-scout-block">
+                        <div class="team-scout-block-head team-scout-block-head-split">
+                            <div>
+                                <h4>Their Bans That Hurt Us</h4>
+                                <p class="team-scout-block-copy">When they remove this, our results dip.</p>
+                            </div>
+                            <a class="team-scout-ai-star" href="{{ row.ai_urls.top_enemy_bans }}" title="Ask AI to expand on bans that hurt us">
+                                &#9733;
+                            </a>
+                        </div>
+                        {% if row.top_enemy_bans %}
+                            <div class="team-scout-ban-stack">
+                                {% for ban in row.top_enemy_bans[:3] %}
+                                <div class="team-scout-ban-row team-scout-ban-row-danger">
+                                    <div class="team-scout-ban-main">
+                                        <img class="hero-rank-img" src="{{ hero_image_url(ban.hero) }}" alt="{{ ban.hero }}" loading="lazy">
+                                        <div>
+                                            <div class="team-scout-ban-title">{{ hero_display_name(ban.hero) }}</div>
+                                            <div class="team-scout-ban-copy">Our record when banned: {{ ban.wins }}-{{ ban.losses }}</div>
+                                        </div>
+                                    </div>
+                                    <span class="team-scout-ban-pill team-scout-ban-pill-danger">{{ ban.our_loss_rate }}% loss</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-text">No impact signal yet.</p>
+                        {% endif %}
+                    </article>
+                </div>
+            </div>
+        </section>
+    </div>
+    {% elif our_team %}
+    <section class="panel">
+        <p class="empty-text">No opponent history found yet for {{ our_team.name }}.</p>
+    </section>
+    {% else %}
+    <section class="panel">
+        <p class="empty-text">No teams found yet. Add teams first, then this scouting board will populate automatically.</p>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

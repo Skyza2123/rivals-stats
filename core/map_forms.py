@@ -245,9 +245,7 @@ def build_match_map_entry_from_form() -> dict:
 
     map_name = request.form.get("map_name", "").strip()
     map_type = normalize_map_type_value(request.form.get("map_type", ""))
-    result = request.form.get("result", "").strip()
-    if result not in RESULTS:
-        result = ""
+    result = normalize_result_value(request.form.get("result", ""))
 
     our_team_slot = request.form.get("our_team_slot", "team1").strip()
     if our_team_slot not in TEAM_SLOTS:
@@ -289,6 +287,19 @@ def build_match_map_entry_from_form() -> dict:
     }
     NEXT_MAP_ID += 1
     return map_entry
+
+
+def normalize_result_value(raw_value: str) -> str:
+    value = str(raw_value or "").strip()
+    if not value:
+        return ""
+
+    lowered = value.lower()
+    if lowered == "win":
+        return "Win"
+    if lowered == "loss":
+        return "Loss"
+    return value if value in RESULTS else ""
 
 
 def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_tournament: bool, tournament_record: dict | None = None) -> dict:
