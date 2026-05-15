@@ -15,7 +15,9 @@
     (function () {
         var stored = localStorage.getItem('rivals-theme');
         var legacyTheme = stored === 'dark' ? 'blue' : stored;
-        var theme = legacyTheme || 'blue';
+        var allowedThemes = ['blue', 'green', 'red', 'black'];
+        var theme = legacyTheme || 'green';
+        if (allowedThemes.indexOf(theme) === -1) theme = 'green';
         document.documentElement.setAttribute('data-theme', theme);
     })();
     </script>
@@ -113,7 +115,6 @@
                         <option value="green">Green</option>
                         <option value="red">Red</option>
                         <option value="black">Black</option>
-                        <option value="light">Light</option>
                     </select>
                 </label>
                 <a href="{{ url_for('logout') }}" class="topnav-icon-btn" title="Logout">
@@ -189,10 +190,6 @@
     </nav>
 
     <div class="dashboard-layout">
-        <aside class="page-side-links" id="pageSideLinks" aria-label="Page quick links" hidden>
-            <div class="page-side-links-title">Quick Links</div>
-            <nav class="page-side-links-list" id="pageSideLinksList"></nav>
-        </aside>
         <main class="main-content">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -214,9 +211,9 @@
     if (!select) return;
 
     var stored = localStorage.getItem('rivals-theme');
-    var allowedThemes = ['blue', 'green', 'red', 'black', 'light'];
+    var allowedThemes = ['blue', 'green', 'red', 'black'];
     var current = stored === 'dark' ? 'blue' : stored;
-    if (allowedThemes.indexOf(current) === -1) current = 'blue';
+    if (allowedThemes.indexOf(current) === -1) current = 'green';
 
     function applyTheme(theme) {
         root.setAttribute('data-theme', theme);
@@ -302,47 +299,6 @@
             });
         }
     });
-})();
-</script>
-<script>
-/* Page quick links rail */
-(function () {
-    var rail = document.getElementById('pageSideLinks');
-    var list = document.getElementById('pageSideLinksList');
-    var main = document.querySelector('.main-content');
-    if (!rail || !list || !main) return;
-
-    var candidates = Array.from(main.querySelectorAll('[data-side-link], .panel h3, .main-header h2'));
-    var seen = {};
-    var links = [];
-
-    function slugify(value) {
-        return String(value || '')
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '') || 'section';
-    }
-
-    candidates.forEach(function (el, idx) {
-        var label = (el.getAttribute('data-side-link') || el.textContent || '').trim();
-        if (!label || label.length < 2) return;
-        if (seen[label.toLowerCase()]) return;
-
-        var id = el.id || slugify(label);
-        if (document.getElementById(id) && document.getElementById(id) !== el) {
-            id = id + '-' + (idx + 1);
-        }
-        el.id = id;
-        seen[label.toLowerCase()] = true;
-        links.push({ id: id, label: label });
-    });
-
-    if (links.length < 2) return;
-
-    list.innerHTML = links.slice(0, 14).map(function (item) {
-        return '<a class="page-side-link" href="#' + item.id + '">' + item.label + '</a>';
-    }).join('');
-    rail.hidden = false;
 })();
 </script>
 <script>
