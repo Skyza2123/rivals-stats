@@ -7,6 +7,9 @@
 _DRAFT_REASONER_MODEL_CACHE: dict[tuple, dict] = {}
 _DRAFT_REASONER_MODEL_CACHE_TTL_SECONDS = 180
 _DRAFT_REASONER_MODEL_CACHE_MAX_ITEMS = 32
+_MACHINE_CHAT_RESPONSE_CACHE: dict[tuple, dict] = {}
+_MACHINE_CHAT_RESPONSE_CACHE_TTL_SECONDS = 60
+_MACHINE_CHAT_RESPONSE_CACHE_MAX_ITEMS = 96
 
 
 def _draft_reasoner_cache_prune(now_ts: float) -> None:
@@ -28,6 +31,26 @@ def _draft_reasoner_cache_prune(now_ts: float) -> None:
     _DRAFT_REASONER_MODEL_CACHE.clear()
     for key, value in by_age[:_DRAFT_REASONER_MODEL_CACHE_MAX_ITEMS]:
         _DRAFT_REASONER_MODEL_CACHE[key] = value
+
+
+def _machine_chat_response_cache_prune(now_ts: float) -> None:
+    expired = [
+        key
+        for key, item in _MACHINE_CHAT_RESPONSE_CACHE.items()
+        if (now_ts - float(item.get("ts") or 0)) > _MACHINE_CHAT_RESPONSE_CACHE_TTL_SECONDS
+    ]
+    for key in expired:
+        _MACHINE_CHAT_RESPONSE_CACHE.pop(key, None)
+    if len(_MACHINE_CHAT_RESPONSE_CACHE) <= _MACHINE_CHAT_RESPONSE_CACHE_MAX_ITEMS:
+        return
+    by_age = sorted(
+        _MACHINE_CHAT_RESPONSE_CACHE.items(),
+        key=lambda kv: float((kv[1] or {}).get("ts") or 0),
+        reverse=True,
+    )
+    _MACHINE_CHAT_RESPONSE_CACHE.clear()
+    for key, value in by_age[:_MACHINE_CHAT_RESPONSE_CACHE_MAX_ITEMS]:
+        _MACHINE_CHAT_RESPONSE_CACHE[key] = value
 
 @app.route("/draft-simulator")
 def draft_simulator():
@@ -1801,13 +1824,11 @@ def _machine_agent_llm_answer(message: str, context: str, personal_team: str, me
 
 
 def _machine_agent_humanize_answer(text: str) -> str:
-    """Strip reasoning tags, markdown emphasis, and inline code for plain chat rendering."""
+    """Strip reasoning tags and normalize whitespace while preserving markdown emphasis."""
     if not text:
         return ""
     # Strip <think>…</think> blocks from MiniMax reasoning models
     cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL)
-    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
-    cleaned = cleaned.replace("`", "")
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -2645,6 +2666,25 @@ def _api_machine_chat_inner():
     include_tournaments = bool(chat_context.get("include_tournaments", True))
     if not include_scrims and not include_tournaments:
         return jsonify({"error": "Select at least one data source."}), 400
+    live_draft_active = bool((chat_context.get("draft_live") or {}).get("active"))
+
+    cache_key = None
+    if not live_draft_active and not pending_message:
+        cache_key = (
+            (intent_message or "").strip().lower(),
+            str(intent),
+            int(chat_context.get("team_a_id") or 0),
+            int(chat_context.get("team_b_id") or 0),
+            str(chat_context.get("season") or "all"),
+            str(chat_context.get("map") or "all"),
+            bool(include_scrims),
+            bool(include_tournaments),
+        )
+        now_ts = time.time()
+        _machine_chat_response_cache_prune(now_ts)
+        cached = _MACHINE_CHAT_RESPONSE_CACHE.get(cache_key)
+        if cached and (now_ts - float(cached.get("ts") or 0)) <= _MACHINE_CHAT_RESPONSE_CACHE_TTL_SECONDS:
+            return jsonify(cached.get("payload") or {})
 
     personal_team_obj = _machine_agent_get_personal_team() or {}
     personal_team_id = chat_context.get("team_a_id") or (personal_team_obj.get("id") if personal_team_obj else None)
@@ -2711,7 +2751,6 @@ def _api_machine_chat_inner():
         context_hint += "\n\n" + draft_live_hint
     if prefetched_site_context:
         context_hint += "\n\nPreloaded site data (use this directly if relevant):\n" + prefetched_site_context
-    live_draft_active = bool((chat_context.get("draft_live") or {}).get("active"))
     live_tools = _AGENT_TOOLS
     live_decision_data = {}
     if live_draft_active and chat_context.get("team_a_id") and chat_context.get("team_b_id"):
@@ -2856,12 +2895,16 @@ def _api_machine_chat_inner():
     meta["reasoning_mode"] = "agentic"
     meta["response_engine"] = "openai" if agent_answer else "local_draft"
 
-    return jsonify({
+    response_payload = {
         "answer": final_answer,
         "source": "draft_agent",
         "reason": None,
         "meta": meta,
-    })
+    }
+    if cache_key is not None:
+        _MACHINE_CHAT_RESPONSE_CACHE[cache_key] = {"ts": time.time(), "payload": response_payload}
+
+    return jsonify(response_payload)
 
 
 @app.route("/api/draft-reasoner/enemy-scouting")

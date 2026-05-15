@@ -23,6 +23,8 @@ def dashboard():
 
     pick_counter: Counter = Counter()
     ban_counter: Counter = Counter()
+    protect_counter: Counter = Counter()
+    comp_counter: Counter = Counter()
     opponent_records = defaultdict(lambda: {"team_id": None, "name": "", "scrims": 0, "maps": 0})
     personal_quick_teams = []
     seen_scrims: set = set()
@@ -66,12 +68,16 @@ def dashboard():
                 for section in map_entry.get("comp", []):
                     if not isinstance(section, dict):
                         continue
+                    comp_heroes: list[str] = []
                     for slot in section.get(our_slot, []):
                         if not isinstance(slot, dict):
                             continue
                         hero = canonicalize_hero_name(slot.get("hero", ""))
                         if hero:
                             pick_counter[hero] += 1
+                            comp_heroes.append(hero)
+                    if len(comp_heroes) >= 4:
+                        comp_counter[tuple(comp_heroes)] += 1
                 draft = map_entry.get("draft", {})
                 if isinstance(draft, dict):
                     our_draft = draft.get(our_slot, {})
@@ -80,9 +86,18 @@ def dashboard():
                             hero = canonicalize_hero_name(our_draft.get(ban_key, ""))
                             if hero:
                                 ban_counter[hero] += 1
+                        for protect_key in ("protect1", "protect2"):
+                            hero = canonicalize_hero_name(our_draft.get(protect_key, ""))
+                            if hero:
+                                protect_counter[hero] += 1
 
     top_picks = [{"hero": h, "count": c} for h, c in pick_counter.most_common(5)]
     top_bans = [{"hero": h, "count": c} for h, c in ban_counter.most_common(5)]
+    top_protects = [{"hero": h, "count": c} for h, c in protect_counter.most_common(5)]
+    top_comp_shells = [
+        {"heroes": list(comp), "count": count}
+        for comp, count in comp_counter.most_common(4)
+    ]
     personal_quick_teams.sort(
         key=lambda row: (row["maps"], row["scrims"], row["name"].lower()),
         reverse=True,
@@ -147,6 +162,8 @@ def dashboard():
         recent_tournaments=list(reversed(TOURNAMENT_MATCHES[-5:])),
         top_picks=top_picks,
         top_bans=top_bans,
+        top_protects=top_protects,
+        top_comp_shells=top_comp_shells,
         personal_quick_teams=personal_quick_teams,
         quick_opponents=quick_opponents,
         all_teams_for_quick_access=all_teams_for_quick_access,

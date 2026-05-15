@@ -470,6 +470,8 @@
 .machine-chat-message.bot { max-width:100%; background:none; border:none; padding:0; color:#cbd5e1; white-space:pre-wrap; }
 .machine-chat-message.bot.has-visuals { white-space:normal; }
 .machine-chat-message.bot.pending { color:#334155; }
+.machine-agent-copy strong { font-weight: 800; color: #f8fafc; }
+.machine-agent-copy em { font-style: italic; color: #e2e8f0; }
 .machine-chat-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.1rem; padding:4rem 2rem 3rem; text-align:center; flex:1; }
 .machine-chat-empty.hidden { display:none; }
 .machine-chat-empty-icon { width:52px; height:52px; border-radius:0.75rem; background:rgba(37,99,235,0.12); border:1px solid rgba(96,165,250,0.22); display:flex; align-items:center; justify-content:center; font-size:1.4rem; color:#60a5fa; flex-shrink:0; }
@@ -1163,6 +1165,13 @@ setMachineTab(activeMachineTab);
 function escapeHtml(v) {
     return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+function formatAgentCopy(v) {
+    let html = escapeHtml(v || '');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    html = html.replace(/\n/g, '<br>');
+    return html;
+}
 function heroPlaceholderUrl(hero) {
     const label = String(hero || 'Hero').trim().slice(0, 18) || 'Hero';
     const initials = label.split(/\s+/).map(function(part) { return part.charAt(0); }).join('').slice(0, 3).toUpperCase() || '?';
@@ -1790,7 +1799,7 @@ function renderReplyHeroStrip(answer, meta) {
         const linksHtml = lightweight ? '' : renderAgentProfileLinks(data.meta);
         const showVisuals = !!(visualPanelHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
-        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
+        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + formatAgentCopy(data.answer || 'No answer returned.') + '</div>'
             + linksHtml
             + heroStripHtml
             + visualPanelHtml;
@@ -2737,7 +2746,7 @@ function renderReplyHeroStrip(answer, meta) {
         const showVisuals = !!(visualsHtml || heroStripHtml);
         node.className = 'machine-chat-message bot' + (showVisuals ? ' has-visuals' : '');
         const linksHtml = renderAgentProfileLinks(data.meta || {});
-        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + escapeHtml(data.answer || 'No answer returned.') + '</div>'
+        node.innerHTML = '<div class="machine-agent-copy' + (showVisuals ? ' machine-agent-copy-leading' : '') + '">' + formatAgentCopy(data.answer || 'No answer returned.') + '</div>'
             + linksHtml
             + heroStripHtml
             + visualsHtml;
@@ -2922,9 +2931,15 @@ function renderReplyHeroStrip(answer, meta) {
     function _animateChatText(el, text, onComplete) {
         el.textContent = '';
         if (!text) { if (onComplete) onComplete(); return; }
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion || text.length > 1200) {
+            el.innerHTML = formatAgentCopy(text);
+            if (onComplete) onComplete();
+            return;
+        }
         let i = 0;
-        const CHUNK = 48;  // chars per tick
-        const DELAY = 4;   // ms between ticks
+        const CHUNK = text.length > 600 ? 120 : 72;  // chars per tick
+        const DELAY = text.length > 600 ? 1 : 2;     // ms between ticks
         function tick() {
             if (i < text.length) {
                 el.textContent += text.slice(i, i + CHUNK);
@@ -2932,7 +2947,7 @@ function renderReplyHeroStrip(answer, meta) {
                 log.scrollTop = log.scrollHeight;
                 setTimeout(tick, DELAY);
             } else {
-                el.textContent = text; // ensure exact final string
+                el.innerHTML = formatAgentCopy(text);
                 if (onComplete) onComplete();
             }
         }
