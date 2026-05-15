@@ -297,21 +297,43 @@ def team_scouting():
     def _opposite_slot(slot: str) -> str:
         return "team2" if slot == "team1" else "team1"
 
+    def _name_keys(value: str) -> set[str]:
+        raw = str(value or "").strip().lower()
+        if not raw:
+            return set()
+        compact = "".join(ch for ch in raw if ch.isalnum())
+        tokens = " ".join(ch if (ch.isalnum() or ch.isspace()) else " " for ch in raw)
+        token_compact = " ".join(tokens.split())
+        keys = {raw}
+        if compact:
+            keys.add(compact)
+        if token_compact:
+            keys.add(token_compact)
+            keys.add("".join(token_compact.split()))
+        return {k for k in keys if k}
+
+    def _names_match(left: str, right: str) -> bool:
+        left_keys = _name_keys(left)
+        right_keys = _name_keys(right)
+        if not left_keys or not right_keys:
+            return False
+        return bool(left_keys & right_keys)
+
     def _scrim_includes_opponent(scrim: dict, opponent_id: int, opponent_name: str) -> bool:
         if int(scrim.get("enemy_team_id") or 0) == opponent_id:
             return True
         if int(scrim.get("team1_id") or 0) == opponent_id or int(scrim.get("team2_id") or 0) == opponent_id:
             return True
-        target = (opponent_name or "").strip().lower()
+        target = (opponent_name or "").strip()
         if not target:
             return False
         names = [
-            (scrim.get("enemy_team") or "").strip().lower(),
-            (scrim.get("opponent") or "").strip().lower(),
-            (scrim.get("team1_name") or "").strip().lower(),
-            (scrim.get("team2_name") or "").strip().lower(),
+            (scrim.get("enemy_team") or "").strip(),
+            (scrim.get("opponent") or "").strip(),
+            (scrim.get("team1_name") or "").strip(),
+            (scrim.get("team2_name") or "").strip(),
         ]
-        return any(name == target for name in names if name)
+        return any(_names_match(name, target) for name in names if name)
 
     def _extract_bans_from_slot(map_entry: dict, slot: str) -> list[str]:
         draft = map_entry.get("draft", {})
@@ -342,9 +364,7 @@ def team_scouting():
 
     def _build_tournament_field_bans_counter(opponent_id: int, opponent_name: str) -> Counter:
         counter: Counter = Counter()
-        target_name = (opponent_name or "").strip().lower()
-        compact = lambda value: "".join(ch for ch in str(value or "").lower() if ch.isalnum())
-        target_name_compact = compact(opponent_name)
+        target_name = (opponent_name or "").strip()
         selected_season_key = normalize_season_value(selected_season)
         selected_map_key = (selected_map_name or "all").strip().lower()
 
@@ -361,10 +381,7 @@ def team_scouting():
                 tournament_team_name = (tournament_team.get("name") or "").strip()
                 name_match = False
                 if target_name and tournament_team_name:
-                    name_match = (
-                        tournament_team_name.lower() == target_name
-                        or compact(tournament_team_name) == target_name_compact
-                    )
+                    name_match = _names_match(tournament_team_name, target_name)
                 if (isinstance(source_team_id, int) and source_team_id == opponent_id) or name_match:
                     tournament_team_id = tournament_team.get("id")
                     if isinstance(tournament_team_id, int):

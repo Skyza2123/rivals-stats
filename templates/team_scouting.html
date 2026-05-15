@@ -198,6 +198,7 @@
                     <div>
                         <h4>Ban Correlation</h4>
                         <p class="team-scout-block-copy">Our bans into them vs tournament-field bans into them.</p>
+                        <p class="team-scout-block-copy team-scout-correlation-legend">Our Team = bans we used vs this opponent. Tournament Field = bans other teams used vs this opponent in tournaments.</p>
                     </div>
                     <a class="team-scout-ai-star" href="{{ row.ai_urls.ban_correlation }}" title="Ask AI to expand on ban correlation">
                         &#9733;
@@ -218,8 +219,8 @@
                                 </div>
                             </div>
                             <div class="team-scout-correlation-metrics">
-                                <span class="team-scout-correlation-pill">Us {{ ban_row.our_bans }}</span>
-                                <span class="team-scout-correlation-pill team-scout-correlation-pill-field">Field {{ ban_row.field_bans }}</span>
+                                <span class="team-scout-correlation-pill">Our Team {{ ban_row.our_bans }}</span>
+                                <span class="team-scout-correlation-pill team-scout-correlation-pill-field">Tournament Field {{ ban_row.field_bans }}</span>
                             </div>
                         </div>
                         {% endfor %}
