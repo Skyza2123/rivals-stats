@@ -313,6 +313,153 @@ def team_scouting():
         ]
         return any(name == target for name in names if name)
 
+    def _extract_bans_from_slot(map_entry: dict, slot: str) -> list[str]:
+        draft = map_entry.get("draft", {})
+        side_draft = draft.get(slot, {}) if isinstance(draft, dict) else {}
+        if not isinstance(side_draft, dict):
+            return []
+        bans: list[str] = []
+        for ban_key in ("ban1", "ban2", "ban3", "ban4"):
+            hero_name = canonicalize_hero_name(side_draft.get(ban_key, ""))
+            if hero_name:
+                bans.append(hero_name)
+        return bans
+
+    def _build_our_bans_counter(opponent_id: int, opponent_name: str) -> Counter:
+        counter: Counter = Counter()
+        for scrim in filtered_history:
+            if not _scrim_includes_opponent(scrim, opponent_id, opponent_name):
+                continue
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                our_slot = (map_entry.get("our_team_slot") or "team1").strip()
+                if our_slot not in TEAM_SLOTS:
+                    our_slot = "team1"
+                for hero_name in _extract_bans_from_slot(map_entry, our_slot):
+                    counter[hero_name] += 1
+        return counter
+
+    def _build_tournament_field_bans_counter(opponent_id: int, opponent_name: str) -> Counter:
+        counter: Counter = Counter()
+        target_name = (opponent_name or "").strip().lower()
+        compact = lambda value: "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+        target_name_compact = compact(opponent_name)
+        selected_season_key = normalize_season_value(selected_season)
+        selected_map_key = (selected_map_name or "all").strip().lower()
+
+        for tournament_record in TOURNAMENT_MATCHES:
+            tournament_season = normalize_season_value(tournament_record.get("season", ""))
+            if selected_season_key and selected_season_key != "all" and tournament_season != selected_season_key:
+                continue
+
+            opponent_tournament_ids: set[int] = set()
+            for tournament_team in tournament_record.get("tournament_teams", []):
+                if not isinstance(tournament_team, dict):
+                    continue
+                source_team_id = tournament_team.get("source_team_id")
+                tournament_team_name = (tournament_team.get("name") or "").strip()
+                name_match = False
+                if target_name and tournament_team_name:
+                    name_match = (
+                        tournament_team_name.lower() == target_name
+                        or compact(tournament_team_name) == target_name_compact
+                    )
+                if (isinstance(source_team_id, int) and source_team_id == opponent_id) or name_match:
+                    tournament_team_id = tournament_team.get("id")
+                    if isinstance(tournament_team_id, int):
+                        opponent_tournament_ids.add(tournament_team_id)
+
+            if not opponent_tournament_ids:
+                continue
+
+            for tournament_match in tournament_record.get("matches", []):
+                if not isinstance(tournament_match, dict):
+                    continue
+                match_team1_id = tournament_match.get("team1_tournament_team_id")
+                match_team2_id = tournament_match.get("team2_tournament_team_id")
+
+                default_target_slot = None
+                if match_team1_id in opponent_tournament_ids:
+                    default_target_slot = "team1"
+                elif match_team2_id in opponent_tournament_ids:
+                    default_target_slot = "team2"
+                if default_target_slot is None:
+                    continue
+
+                for map_entry in tournament_match.get("maps", []):
+                    if not isinstance(map_entry, dict):
+                        continue
+                    if selected_map_key != "all":
+                        map_name_key = ((map_entry.get("map_name") or map_entry.get("map") or "").strip().lower())
+                        if map_name_key != selected_map_key:
+                            continue
+
+                    map_target_slot = default_target_slot
+                    map_team1_id = map_entry.get("team1_tournament_team_id")
+                    map_team2_id = map_entry.get("team2_tournament_team_id")
+                    if map_team1_id in opponent_tournament_ids:
+                        map_target_slot = "team1"
+                    elif map_team2_id in opponent_tournament_ids:
+                        map_target_slot = "team2"
+
+                    enemy_slot = _opposite_slot(map_target_slot)
+                    for hero_name in _extract_bans_from_slot(map_entry, enemy_slot):
+                        counter[hero_name] += 1
+        return counter
+
+    def _build_ban_correlation_rows(opponent_id: int, opponent_name: str) -> list[dict]:
+        our_bans = _build_our_bans_counter(opponent_id, opponent_name)
+        field_bans = _build_tournament_field_bans_counter(opponent_id, opponent_name)
+        rows: list[dict] = []
+
+        for hero_name in set(our_bans.keys()) | set(field_bans.keys()):
+            our_count = int(our_bans.get(hero_name, 0))
+            field_count = int(field_bans.get(hero_name, 0))
+            combined = our_count + field_count
+            overlap = min(our_count, field_count)
+            if combined <= 0:
+                continue
+
+            diff = our_count - field_count
+            if overlap > 0 and abs(diff) <= 1:
+                priority_label = "Shared Priority"
+                priority_key = "shared"
+            elif field_count > our_count:
+                priority_label = "Field Priority"
+                priority_key = "field"
+            elif our_count > field_count:
+                priority_label = "Our Priority"
+                priority_key = "ours"
+            else:
+                priority_label = "Even Priority"
+                priority_key = "even"
+
+            rows.append(
+                {
+                    "hero": hero_name,
+                    "our_bans": our_count,
+                    "field_bans": field_count,
+                    "combined": combined,
+                    "overlap": overlap,
+                    "priority_label": priority_label,
+                    "priority_key": priority_key,
+                    "alignment_pct": round((overlap / combined) * 100, 1) if combined else 0.0,
+                }
+            )
+
+        rows.sort(
+            key=lambda item: (
+                item["overlap"],
+                item["combined"],
+                item["field_bans"],
+                item["our_bans"],
+                item["hero"],
+            ),
+            reverse=True,
+        )
+        return rows[:8]
+
     def _build_scout_summary(history_rows: list[dict], opponent_id: int, opponent_name: str) -> dict | None:
         enemy_hero_counter: Counter = Counter()
         enemy_hero_record = defaultdict(lambda: {"wins": 0, "losses": 0, "maps": 0})
@@ -503,6 +650,12 @@ def team_scouting():
             f"Compare {opponent_name}'s scrim data versus tournament data against us ({our_team['name']}). Use {filter_context}. "
             "Explain what changes between scrims and tournaments in their favorite comps, ban priorities, and our results, and tell us which source should drive prep."
         )
+        ban_correlation_prompt = (
+            f"Compare our bans versus tournament-field bans against {opponent_name}. Use {filter_context}. "
+            "Show which heroes we already align on, which high-value bans the tournament field prioritizes that we are missing, and what our first two-ban plan should be."
+        )
+
+        ban_correlation = _build_ban_correlation_rows(opponent_id, opponent_name)
 
         scout_rows.append(
             {
@@ -518,6 +671,7 @@ def team_scouting():
                 "top_enemy_bans": combined_summary["top_enemy_bans"],
                 "favorite_comps": combined_summary["favorite_comps"],
                 "source_compare": source_compare,
+                "ban_correlation": ban_correlation,
                 "ai_url": _build_ai_url(opponent_id, opponent_name, overview_prompt),
                 "ai_urls": {
                     "overview": _build_ai_url(opponent_id, opponent_name, overview_prompt),
@@ -525,6 +679,7 @@ def team_scouting():
                     "recommended_bans": _build_ai_url(opponent_id, opponent_name, best_bans_prompt),
                     "top_enemy_bans": _build_ai_url(opponent_id, opponent_name, hurt_us_prompt),
                     "source_compare": _build_ai_url(opponent_id, opponent_name, source_compare_prompt),
+                    "ban_correlation": _build_ai_url(opponent_id, opponent_name, ban_correlation_prompt),
                 },
             }
         )

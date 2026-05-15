@@ -136,18 +136,45 @@
                         &#9733;
                     </a>
                 </div>
+                {% set scrim_row = row.source_compare[0] if row.source_compare|length > 0 else None %}
+                {% set tournament_row = row.source_compare[1] if row.source_compare|length > 1 else None %}
+                <div class="team-scout-compare-meta">
+                    {% if scrim_row and tournament_row and scrim_row.maps > 0 and tournament_row.maps > 0 %}
+                        {% set wr_delta = (tournament_row.win_rate - scrim_row.win_rate)|round(1) %}
+                        <span class="team-scout-compare-delta {% if wr_delta > 0 %}is-up{% elif wr_delta < 0 %}is-down{% else %}is-flat{% endif %}">
+                            Tournament WR {% if wr_delta > 0 %}+{% endif %}{{ wr_delta }} pts vs scrims
+                        </span>
+                    {% else %}
+                        <span class="team-scout-compare-delta is-flat">Need more tournament maps for a reliable stage comparison.</span>
+                    {% endif %}
+                </div>
                 <div class="team-scout-source-grid">
                     {% for source_row in row.source_compare %}
-                    <div class="team-scout-source-card">
+                    <div class="team-scout-source-card{% if source_row.maps == 0 %} is-empty{% endif %}">
                         <div class="team-scout-source-head">
                             <span>{{ source_row.label }}</span>
                             <strong>{{ source_row.maps }} maps</strong>
                         </div>
-                        <div class="team-scout-source-line">{{ source_row.win_rate }}% WR</div>
+                        <div class="team-scout-source-line">
+                            {% if source_row.maps > 0 %}
+                                {{ source_row.win_rate }}% WR
+                            {% else %}
+                                No map data yet
+                            {% endif %}
+                        </div>
                         <div class="team-scout-source-line">
                             Top shell:
                             {% if source_row.favorite_comp and source_row.favorite_comp.heroes %}
-                                {{ hero_display_name(source_row.favorite_comp.heroes[0]) }}{% if source_row.favorite_comp.heroes|length > 1 %} +{{ source_row.favorite_comp.heroes|length - 1 }}{% endif %}
+                                {% set shell_heroes = source_row.favorite_comp.heroes %}
+                                <div class="team-scout-mini-heroes">
+                                    {% for hero_name in shell_heroes[:4] %}
+                                        <img class="hero-rank-img team-scout-mini-hero" src="{{ hero_image_url(hero_name) }}" alt="{{ hero_name }}" loading="lazy" title="{{ hero_display_name(hero_name) }}">
+                                    {% endfor %}
+                                </div>
+                                {% for hero_name in shell_heroes[:3] %}
+                                    {{ hero_display_name(hero_name) }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if shell_heroes|length > 3 %}(+{{ shell_heroes|length - 3 }}){% endif %}
                             {% else %}
                                 None yet
                             {% endif %}
@@ -155,6 +182,7 @@
                         <div class="team-scout-source-line">
                             Top ban:
                             {% if source_row.top_ban and source_row.top_ban.hero %}
+                                <img class="hero-rank-img team-scout-mini-hero" src="{{ hero_image_url(source_row.top_ban.hero) }}" alt="{{ source_row.top_ban.hero }}" loading="lazy" title="{{ hero_display_name(source_row.top_ban.hero) }}">
                                 {{ hero_display_name(source_row.top_ban.hero) }}
                             {% else %}
                                 None yet
@@ -163,6 +191,42 @@
                     </div>
                     {% endfor %}
                 </div>
+            </article>
+
+            <article class="team-scout-block team-scout-correlation-block">
+                <div class="team-scout-block-head team-scout-block-head-split">
+                    <div>
+                        <h4>Ban Correlation</h4>
+                        <p class="team-scout-block-copy">Our bans into them vs tournament-field bans into them.</p>
+                    </div>
+                    <a class="team-scout-ai-star" href="{{ row.ai_urls.ban_correlation }}" title="Ask AI to expand on ban correlation">
+                        &#9733;
+                    </a>
+                </div>
+                {% if row.ban_correlation %}
+                    <div class="team-scout-correlation-stack">
+                        {% for ban_row in row.ban_correlation[:6] %}
+                        <div class="team-scout-correlation-row">
+                            <div class="team-scout-ban-main">
+                                <img class="hero-rank-img" src="{{ hero_image_url(ban_row.hero) }}" alt="{{ ban_row.hero }}" loading="lazy" title="{{ hero_display_name(ban_row.hero) }}">
+                                <div>
+                                    <div class="team-scout-ban-title">{{ hero_display_name(ban_row.hero) }}</div>
+                                    <div class="team-scout-ban-copy">
+                                        {{ ban_row.alignment_pct }}% alignment
+                                        <span class="team-scout-priority-badge is-{{ ban_row.priority_key }}">{{ ban_row.priority_label }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="team-scout-correlation-metrics">
+                                <span class="team-scout-correlation-pill">Us {{ ban_row.our_bans }}</span>
+                                <span class="team-scout-correlation-pill team-scout-correlation-pill-field">Field {{ ban_row.field_bans }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">Not enough overlap data yet.</p>
+                {% endif %}
             </article>
 
             <div class="team-scout-card-main">
