@@ -866,14 +866,6 @@ def delete_tournament(tournament_id: int):
 @app.route("/scrims/<int:scrim_id>/add-map", methods=["POST"])
 def add_map(scrim_id: int):
     scrim = get_scrim_or_404(scrim_id)
-
-    map_name = (request.form.get("map_name") or "").strip()
-    map_submaps = MAP_SUBMAPS.get(map_name, [])
-    first_submap = (request.form.get("first_submap") or "").strip()
-    if map_submaps and first_submap not in map_submaps:
-        flash("Select the first sub-map before creating this map.", "error")
-        return redirect(url_for("scrim_detail", scrim_id=scrim_id))
-
     map_entry = build_match_map_entry_from_form()
     participant_one, participant_two = get_scrim_participants(scrim)
     valid_team_ids = {
@@ -924,13 +916,6 @@ def add_tournament_map(tournament_id: int):
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
     if team1_tournament_team_id == team2_tournament_team_id:
         flash("Map teams must be different.", "error")
-        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
-
-    map_name = (request.form.get("map_name") or "").strip()
-    map_submaps = MAP_SUBMAPS.get(map_name, [])
-    first_submap = (request.form.get("first_submap") or "").strip()
-    if map_submaps and first_submap not in map_submaps:
-        flash("Select the first sub-map before creating this map.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
     map_entry = build_match_map_entry_from_form()

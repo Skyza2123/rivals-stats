@@ -110,7 +110,7 @@ def build_default_comp_sections(map_name: str, first_submap: str = "") -> list[d
     submaps = MAP_SUBMAPS.get(map_name, [])
     if submaps:
         chosen_submap = (first_submap or "").strip()
-        if chosen_submap not in submaps:
+        if chosen_submap and chosen_submap not in submaps:
             chosen_submap = submaps[0]
         return [
             {

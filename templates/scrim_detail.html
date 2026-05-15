@@ -438,7 +438,7 @@
                     <select id="first_submap" name="first_submap">
                         <option value="">Select first sub-map</option>
                     </select>
-                    <small style="display:block; margin-top:6px; color:var(--muted);">Required for domination/control maps. Additional rounds can be added one at a time after map creation.</small>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Optional for domination/control maps. You can set this after bans on the map page.</small>
                 </div>
 
                 {% if show_team_selector %}
@@ -662,7 +662,7 @@ function updateFirstSubmapOptions() {
         return;
     }
 
-    select.required = true;
+    select.required = false;
 
     submaps.forEach(function (submap) {
         const option = document.createElement('option');
