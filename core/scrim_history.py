@@ -438,11 +438,29 @@ def scrim_involves_team(scrim: dict, team_id: int | None, team_name: str = "") -
         (scrim.get("enemy_team", "") or "").strip().lower(),
         (scrim.get("opponent", "") or "").strip().lower(),
     ]
-    return any(name == team_name_lower for name in participant_names if name)
+    if any(name == team_name_lower for name in participant_names if name):
+        return True
+
+    for map_entry in scrim.get("maps", []):
+        if not isinstance(map_entry, dict):
+            continue
+        for section in map_entry.get("comp", []):
+            if not isinstance(section, dict):
+                continue
+            for side in TEAM_SLOTS:
+                for slot in section.get(side, []):
+                    if not isinstance(slot, dict):
+                        continue
+                    if team_id is not None and slot.get("player_team_id") == team_id:
+                        return True
+                    slot_team_name = (slot.get("player_team_name") or "").strip().lower()
+                    if team_name_lower and slot_team_name == team_name_lower:
+                        return True
+
+    return False
 
 
 def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
-    relevant_scrims = [scrim for scrim in SCRIMS if scrim_involves_team(scrim, team_id, team_name)]
     remapped_scrims: list[dict] = []
 
     team_name_lower = (team_name or "").strip().lower()
@@ -482,6 +500,54 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
         finally:
             if not has_request_context():
                 roster_db.close()
+
+    def _scrim_matches_team_identity(record: dict) -> bool:
+        if team_id is not None and (
+            record.get("team1_id") == team_id
+            or record.get("team2_id") == team_id
+            or record.get("team_id") == team_id
+            or record.get("enemy_team_id") == team_id
+        ):
+            return True
+        if not team_name_lower:
+            return False
+        participant_names = [
+            (record.get("team_name", "") or "").strip().lower(),
+            (record.get("team1_name", "") or "").strip().lower(),
+            (record.get("team2_name", "") or "").strip().lower(),
+            (record.get("enemy_team", "") or "").strip().lower(),
+            (record.get("opponent", "") or "").strip().lower(),
+        ]
+        return any(name == team_name_lower for name in participant_names if name)
+
+    def _scrim_has_linked_fill_players(record: dict) -> bool:
+        if not selected_team_player_keys:
+            return False
+        for map_entry in record.get("maps", []):
+            if not isinstance(map_entry, dict):
+                continue
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for side in TEAM_SLOTS:
+                    for slot in section.get(side, []):
+                        if not isinstance(slot, dict):
+                            continue
+                        if team_id is not None and slot.get("player_team_id") == team_id:
+                            return True
+                        slot_team_name = (slot.get("player_team_name") or "").strip().lower()
+                        if team_name_lower and slot_team_name == team_name_lower:
+                            return True
+                        player_key = _compact_text(normalize_player_name(slot.get("player", "")))
+                        if player_key and player_key in selected_team_player_keys:
+                            return True
+        return False
+
+    relevant_scrims = [
+        scrim
+        for scrim in SCRIMS
+        if _scrim_matches_team_identity(scrim) or _scrim_has_linked_fill_players(scrim)
+    ]
 
     def _resolve_slot_for_record(record: dict, fallback_slot: str | None = None) -> str:
         if team_id is not None:
@@ -555,12 +621,18 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
 
     for original_scrim in relevant_scrims:
         scrim = copy.deepcopy(original_scrim)
+        explicit_team_in_scrim = _scrim_matches_team_identity(original_scrim)
         team_slot = _resolve_slot_for_record(scrim)
 
         remapped_maps: list[dict] = []
         for original_map in scrim.get("maps", []):
             if not isinstance(original_map, dict):
                 continue
+            if not explicit_team_in_scrim and selected_team_player_keys:
+                map_team1_keys = _map_side_player_keys(original_map, "team1")
+                map_team2_keys = _map_side_player_keys(original_map, "team2")
+                if not (map_team1_keys & selected_team_player_keys) and not (map_team2_keys & selected_team_player_keys):
+                    continue
             map_entry = copy.deepcopy(original_map)
             map_team_slot = _resolve_map_team_slot(original_scrim, original_map, team_slot)
             map_entry["our_team_slot"] = map_team_slot
@@ -569,6 +641,9 @@ def get_scrims_for_team(team_id: int | None, team_name: str = "") -> list[dict]:
             if inferred_result:
                 map_entry["result"] = inferred_result
             remapped_maps.append(map_entry)
+
+        if not remapped_maps:
+            continue
 
         scrim["team_slot"] = team_slot
         scrim["maps"] = remapped_maps

@@ -109,7 +109,20 @@ def dashboard():
     )[:8]
 
     all_team_rows = db.execute(
-        "SELECT id, name, logo_path, is_personal FROM teams ORDER BY name COLLATE NOCASE"
+        """
+        SELECT id, name, logo_path, is_personal, quality_tag
+        FROM teams
+        ORDER BY
+            CASE quality_tag
+                WHEN 'Preferred' THEN 0
+                WHEN 'Semi Preferred' THEN 1
+                WHEN 'Good' THEN 2
+                WHEN 'Avoid' THEN 3
+                ELSE 4
+            END,
+            name COLLATE NOCASE
+        LIMIT 8
+        """
     ).fetchall()
     all_teams_for_quick_access = [
         {
@@ -117,6 +130,7 @@ def dashboard():
             "name": row["name"],
             "logo_path": row["logo_path"],
             "is_personal": bool(row["is_personal"]),
+            "quality_tag": (row["quality_tag"] or "").strip(),
         }
         for row in all_team_rows
     ]

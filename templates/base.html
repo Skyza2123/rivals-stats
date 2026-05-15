@@ -157,6 +157,7 @@
                 </button>
                 <div class="top-nav-dropdown-content" id="tools-dropdown">
                     <a href="{{ url_for('draft_simulator') }}" class="top-nav-dropdown-link {% if request.path.startswith('/draft-simulator') %}active{% endif %}">Draft Prep</a>
+                    <a href="{{ url_for('player_rankings') }}" class="top-nav-dropdown-link {% if request.path.startswith('/players/rankings') %}active{% endif %}">Player Rankings</a>
                     <a href="{{ url_for('teams_compare') }}" class="top-nav-dropdown-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
                     <a href="{{ url_for('player_compare') }}" class="top-nav-dropdown-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
                 </div>
@@ -184,6 +185,7 @@
             <a href="{{ url_for('machine', tab='reasoner') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path == '/machine' and request.args.get('tab') == 'reasoner' %}active{% endif %}">Draft Reasoner</a>
             <div class="nav-drawer-group-label">Tools</div>
             <a href="{{ url_for('draft_simulator') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path == '/draft-simulator' %}active{% endif %}">Draft Prep</a>
+            <a href="{{ url_for('player_rankings') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/players/rankings') %}active{% endif %}">Player Rankings</a>
             <a href="{{ url_for('teams_compare') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
             <a href="{{ url_for('player_compare') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
         </div>

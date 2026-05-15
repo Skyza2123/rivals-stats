@@ -40,13 +40,13 @@
     <div>
         <div class="section-kicker">Control Center</div>
         <h2>Dashboard</h2>
-        <p>Fast read on team activity, priority opponents, and current draft trends.</p>
+        <p>Fast read on team activity, draft pressure points, and current prep momentum.</p>
     </div>
 </div>
 
 <div class="dashboard-layout-flow">
     <section class="panel dashboard-jump-panel">
-        <div class="section-kicker">Quick Jump</div>
+        <div class="section-kicker">Navigation</div>
         <div class="dashboard-jump-links">
             <a class="quick-link-chip" href="#dash-overview">Overview</a>
             <a class="quick-link-chip" href="#dash-draft-intel">Best Comps & Bans</a>
@@ -57,7 +57,7 @@
     </section>
 
     <section class="panel panel-toolbar dashboard-command-strip">
-        <div class="section-kicker">Actions</div>
+        <div class="section-kicker">Command Deck</div>
         <div class="page-toolbar">
             <div class="page-toolbar-group">
                 {% if session.get('access_level') == 'edit' %}
@@ -82,9 +82,9 @@
         <div class="summary-grid dashboard-metric-grid">
             {% for label, value, helper in metric_cards %}
             <section class="stat-card">
-                <strong>{{ label }}</strong>
-                <span>{{ value }}</span>
-                <small class="stat-footnote">{{ helper }}</small>
+                <strong class="dashboard-metric-label">{{ label }}</strong>
+                <span class="dashboard-metric-value">{{ value }}</span>
+                <small class="stat-footnote dashboard-metric-footnote">{{ helper }}</small>
             </section>
             {% endfor %}
         </div>
@@ -93,7 +93,7 @@
     <section class="panel dashboard-teams-panel" id="dash-teams">
         <div class="section-kicker">Teams</div>
         <div class="panel-header-row">
-            <h3>Quick Team Access</h3>
+            <h3>Top 8 By Preference</h3>
             <a href="{{ url_for('teams') }}" class="muted-label">Manage teams</a>
         </div>
         {% if all_teams_for_quick_access %}

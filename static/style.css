@@ -3003,9 +3003,9 @@ th {
     position: absolute;
     z-index: 2000;
     display: none;
-    width: 220px;
-    padding: 10px;
-    border-radius: 10px;
+    width: 184px;
+    padding: 8px;
+    border-radius: 9px;
     border: 1px solid rgba(96, 165, 250, 0.45);
     background: rgba(10, 16, 26, 0.97);
     box-shadow: 0 10px 26px rgba(2, 6, 23, 0.55);
@@ -3018,8 +3018,8 @@ th {
 
 .comp-assign-hover-label {
     display: block;
-    margin-bottom: 6px;
-    font-size: 0.7rem;
+    margin-bottom: 5px;
+    font-size: 0.64rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -3030,15 +3030,15 @@ th {
 .comp-assign-hover-input {
     width: 100%;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 7px;
     background: #0f1722;
     color: var(--text);
-    padding: 8px 9px;
-    font-size: 0.82rem;
+    padding: 6px 8px;
+    font-size: 0.76rem;
 }
 
 .comp-assign-hover-input {
-    margin-top: 8px;
+    margin-top: 6px;
     display: none;
 }
 
@@ -7173,14 +7173,15 @@ th {
 
 /* Dashboard layout refinements */
 .dashboard-hero-header {
-    margin-bottom: 20px;
+    margin-bottom: 22px;
     padding-bottom: 0;
     border-bottom: none;
 }
 
 .dashboard-hero-header h2 {
-    margin-bottom: 4px;
-    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    margin-bottom: 6px;
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    letter-spacing: -0.03em;
 }
 
 .dashboard-hero-header p {
@@ -7196,8 +7197,9 @@ th {
 }
 
 .dashboard-jump-panel {
-    padding-top: 0.9rem;
-    padding-bottom: 0.9rem;
+    padding-top: 0.95rem;
+    padding-bottom: 0.95rem;
+    background: linear-gradient(120deg, color-mix(in srgb, var(--panel) 78%, #12253c 22%) 0%, color-mix(in srgb, var(--panel) 92%, #000 8%) 100%);
 }
 
 .dashboard-jump-links {
@@ -7207,8 +7209,10 @@ th {
 }
 
 .dashboard-jump-links .quick-link-chip {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .dashboard-command-strip .page-toolbar-group {
@@ -7217,16 +7221,18 @@ th {
 
 .dashboard-layout-flow {
     display: grid;
-    gap: 12px;
+    gap: 14px;
+    position: relative;
 }
 
 .dashboard-layout-flow .panel {
     border-radius: 14px;
-    box-shadow: none;
+    box-shadow: 0 20px 36px rgba(0, 0, 0, 0.24);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 82%, #152035 18%) 0%, color-mix(in srgb, var(--panel) 92%, #000 8%) 100%);
 }
 
 .dashboard-command-strip {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 88%, #000 12%) 0%, var(--panel) 100%);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--panel) 78%, #1f3350 22%) 0%, color-mix(in srgb, var(--panel) 90%, #000 10%) 100%);
     border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
 }
 
@@ -7234,33 +7240,80 @@ th {
     display: grid;
     grid-template-columns: 2fr 1.2fr;
     gap: 12px;
-    align-items: start;
+    align-items: stretch;
+}
+
+.dashboard-primary-grid > .panel {
+    height: 100%;
 }
 
 .dashboard-metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 0;
 }
 
 .dashboard-metric-grid .stat-card {
-    border-radius: 10px;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 65%, #000 35%);
+    padding: 12px;
+    display: grid;
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(140deg, rgba(33, 72, 128, 0.7) 0%, rgba(16, 33, 55, 0.82) 100%);
+}
+
+.dashboard-metric-grid .stat-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -24% -44% auto;
+    width: 88px;
+    height: 88px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+.dashboard-metric-grid .stat-card:nth-child(2n) {
+    background: linear-gradient(140deg, rgba(20, 147, 176, 0.74) 0%, rgba(10, 45, 60, 0.86) 100%);
+}
+
+.dashboard-metric-grid .stat-card:nth-child(3n) {
+    background: linear-gradient(140deg, rgba(24, 167, 123, 0.74) 0%, rgba(10, 56, 45, 0.86) 100%);
+}
+
+.dashboard-metric-grid .stat-card:nth-child(4n) {
+    background: linear-gradient(140deg, rgba(122, 90, 188, 0.78) 0%, rgba(39, 27, 70, 0.88) 100%);
+}
+
+.dashboard-metric-grid .stat-card:nth-child(5n) {
+    background: linear-gradient(140deg, rgba(191, 84, 115, 0.78) 0%, rgba(64, 28, 45, 0.9) 100%);
+}
+
+.dashboard-metric-grid .stat-card:nth-child(6n) {
+    background: linear-gradient(140deg, rgba(204, 139, 59, 0.78) 0%, rgba(67, 45, 20, 0.9) 100%);
 }
 
 .dashboard-metric-grid .stat-card strong {
     font-size: 0.68rem;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     font-weight: 700;
+    color: rgba(243, 246, 253, 0.92);
 }
 
 .dashboard-metric-grid .stat-card span {
-    font-size: 1.45rem;
+    font-size: 1.52rem;
     font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+
+.dashboard-metric-footnote {
+    color: rgba(243, 246, 253, 0.78);
+    font-size: 0.74rem;
 }
 
 .dashboard-metrics-panel,
@@ -7288,19 +7341,21 @@ th {
 .dashboard-snapshot-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1.3fr;
-    gap: 10px;
+    gap: 12px;
 }
 
 .dashboard-snapshot-card {
     border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel-2);
-    padding: 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--panel-2) 84%, #1a2740 16%) 0%, color-mix(in srgb, var(--panel-2) 94%, #000 6%) 100%);
+    padding: 12px;
 }
 
 .dashboard-snapshot-card h4 {
-    margin: 0 0 8px 0;
+    margin: 0 0 10px 0;
     font-size: 0.88rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .hero-rank-list.compact .hero-rank-row {
@@ -7332,10 +7387,10 @@ th {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 8px;
-    background: color-mix(in srgb, var(--panel-2) 80%, var(--panel) 20%);
+    border: 1px solid color-mix(in srgb, var(--border) 75%, var(--accent) 25%);
+    border-radius: 10px;
+    padding: 7px 9px;
+    background: color-mix(in srgb, var(--panel-2) 78%, #1a2b46 22%);
 }
 
 .dashboard-comp-shell-heroes {
@@ -7357,15 +7412,17 @@ th {
 }
 
 .dashboard-layout-flow .quick-link-chip {
-    border-radius: 10px;
-    padding: 8px 10px;
+    border-radius: 999px;
+    padding: 8px 12px;
+    border-color: color-mix(in srgb, var(--border) 72%, var(--accent) 28%);
+    background: color-mix(in srgb, var(--panel-2) 72%, #1b2d48 28%);
 }
 
 .dashboard-layout-flow .list-card {
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--panel-2);
-    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border) 80%, #000 20%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--panel-2) 85%, #18263c 15%) 0%, color-mix(in srgb, var(--panel-2) 95%, #000 5%) 100%);
+    padding: 12px 13px;
 }
 
 .dashboard-layout-flow .list-card:hover {
@@ -7409,16 +7466,17 @@ th {
     gap: 6px;
     padding: 10px 8px;
     border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--panel-2);
+    border: 1px solid color-mix(in srgb, var(--border) 80%, #000 20%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--panel-2) 82%, #1b2840 18%) 0%, color-mix(in srgb, var(--panel-2) 94%, #000 6%) 100%);
     text-decoration: none;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
     cursor: pointer;
 }
 
 .dash-team-card:hover {
     border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-    background: color-mix(in srgb, var(--panel-2) 90%, var(--accent) 10%);
+    background: color-mix(in srgb, var(--panel-2) 84%, var(--accent) 16%);
+    transform: translateY(-1px);
 }
 
 .dash-team-card-personal {

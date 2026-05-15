@@ -867,6 +867,13 @@ def delete_tournament(tournament_id: int):
 def add_map(scrim_id: int):
     scrim = get_scrim_or_404(scrim_id)
 
+    map_name = (request.form.get("map_name") or "").strip()
+    map_submaps = MAP_SUBMAPS.get(map_name, [])
+    first_submap = (request.form.get("first_submap") or "").strip()
+    if map_submaps and first_submap not in map_submaps:
+        flash("Select the first sub-map before creating this map.", "error")
+        return redirect(url_for("scrim_detail", scrim_id=scrim_id))
+
     map_entry = build_match_map_entry_from_form()
     participant_one, participant_two = get_scrim_participants(scrim)
     valid_team_ids = {
@@ -898,6 +905,18 @@ def add_tournament_map(tournament_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     team1_tournament_team_id = parse_team_id(request.form.get("team1_tournament_team_id", ""))
     team2_tournament_team_id = parse_team_id(request.form.get("team2_tournament_team_id", ""))
+
+    if team1_tournament_team_id is not None and team2_tournament_team_id is None:
+        candidate_team_ids = [
+            team.get("id")
+            for team in tournament_match.get("tournament_teams", [])
+            if isinstance(team, dict) and isinstance(team.get("id"), int)
+        ]
+        for candidate_team_id in candidate_team_ids:
+            if candidate_team_id != team1_tournament_team_id:
+                team2_tournament_team_id = candidate_team_id
+                break
+
     team1 = get_tournament_team_by_id(tournament_match, team1_tournament_team_id)
     team2 = get_tournament_team_by_id(tournament_match, team2_tournament_team_id)
     if team1 is None or team2 is None:
@@ -905,6 +924,13 @@ def add_tournament_map(tournament_id: int):
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
     if team1_tournament_team_id == team2_tournament_team_id:
         flash("Map teams must be different.", "error")
+        return redirect(url_for("tournament_detail", tournament_id=tournament_id))
+
+    map_name = (request.form.get("map_name") or "").strip()
+    map_submaps = MAP_SUBMAPS.get(map_name, [])
+    first_submap = (request.form.get("first_submap") or "").strip()
+    if map_submaps and first_submap not in map_submaps:
+        flash("Select the first sub-map before creating this map.", "error")
         return redirect(url_for("tournament_detail", tournament_id=tournament_id))
 
     map_entry = build_match_map_entry_from_form()

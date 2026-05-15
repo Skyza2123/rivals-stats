@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Player Rankings{% endblock %}
+
+{% block content %}
+{% macro rankings_hero_label(hero_name) -%}
+    {% set pool = hero_pool_label(hero_name) %}
+    {% set readable_pool = 'support' if pool == 'supp' else pool %}
+    {{ hero_display_name(hero_name) }}{% if readable_pool %} ({{ readable_pool }}){% endif %}
+{%- endmacro %}
+
+<div class="team-hero gap-lg">
+    <div class="team-hero-left">
+        <div>
+            <h2>Player Rankings</h2>
+            <p>Includes scrims and tournament results. Filter by season, role, hero, map type, and map, then sort every column.</p>
+        </div>
+    </div>
+</div>
+
+<section class="panel">
+    <h3>Leaderboard Filters</h3>
+    <form method="GET" action="{{ url_for('player_rankings') }}" class="form-grid top-gap">
+        <div class="field">
+            <label for="season">Season</label>
+            <select id="season" name="season">
+                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                {% if has_unseasoned_scrims %}
+                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                {% endif %}
+                {% for season in season_options %}
+                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="role">Role</label>
+            <select id="role" name="role">
+                <option value="all" {% if selected_role == 'all' %}selected{% endif %}>All Roles</option>
+                {% for role in role_options %}
+                    <option value="{{ role }}" {% if selected_role == role %}selected{% endif %}>{{ role }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="hero">Hero</label>
+            <select id="hero" name="hero">
+                <option value="all" {% if selected_hero == 'all' %}selected{% endif %}>All Heroes</option>
+                {% for hero_name in hero_options %}
+                    <option value="{{ hero_name }}" {% if selected_hero == hero_name %}selected{% endif %}>{{ rankings_hero_label(hero_name) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="map_type">Map Type</label>
+            <select id="map_type" name="map_type">
+                <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
+                {% for map_type in map_type_options %}
+                    <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="map_name">Map</label>
+            <select id="map_name" name="map_name">
+                <option value="all" {% if selected_map_name == 'all' %}selected{% endif %}>All Maps</option>
+                {% for map_name in map_options %}
+                    <option value="{{ map_name }}" {% if selected_map_name == map_name %}selected{% endif %}>{{ map_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="min_maps">Minimum Maps</label>
+            <input id="min_maps" type="number" name="min_maps" min="1" max="50" value="{{ min_maps }}">
+        </div>
+        <div class="button-row field-full">
+            <button type="submit">Apply Filters</button>
+            <a class="button-secondary btn-muted" href="{{ url_for('player_rankings') }}">Reset</a>
+            <a class="button-secondary btn-muted" href="{{ url_for('player_compare', season=selected_season) }}">Open Compare</a>
+        </div>
+    </form>
+</section>
+
+<section class="panel top-gap">
+    <div class="panel-header-row">
+        <h3>Ranked Leaderboard</h3>
+        <span class="muted-label">{{ leaderboard_rows|length }} players match filters</span>
+    </div>
+
+    {% if leaderboard_rows %}
+        <div class="table-wrap">
+            <table class="stats-table stats-table-compare">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th><a href="{{ sort_links.name }}">Player</a></th>
+                        <th><a href="{{ sort_links.team }}">Team</a></th>
+                        <th>Role</th>
+                        <th>Top Hero</th>
+                        <th><a href="{{ sort_links.maps }}">Maps</a></th>
+                        <th><a href="{{ sort_links.wins }}">Wins</a></th>
+                        <th><a href="{{ sort_links.losses }}">Losses</a></th>
+                        <th><a href="{{ sort_links.events }}">Events</a></th>
+                        <th><a href="{{ sort_links.win_rate }}">Win %</a></th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in leaderboard_rows %}
+                        {% set wr_class = 'wr-good' if row.win_rate >= 55 else ('wr-ok' if row.win_rate >= 45 else 'wr-bad') %}
+                        <tr>
+                            <td>{{ row.rank }}</td>
+                            <td>
+                                <a href="{{ url_for('player_detail', team_id=row.team_id, player_id=row.player_id, season=selected_season, map_type=selected_map_type) }}" class="player-inline-hero">
+                                    <img src="{{ hero_image_url(row.top_hero) if row.top_hero else 'https://avatar.vercel.sh/' ~ (row.player_name | urlencode) ~ '.png?size=64' }}" alt="{{ row.player_name }}" onerror="this.src='https://avatar.vercel.sh/{{ row.player_name | urlencode }}.png?size=64'">
+                                    <span>{{ row.player_name }}</span>
+                                </a>
+                            </td>
+                            <td><a href="{{ url_for('team_detail', team_id=row.team_id, season=selected_season, map_type=selected_map_type) }}">{{ row.team_name }}</a></td>
+                            <td>{{ row.role or '-' }}</td>
+                            <td>
+                                {% if row.top_hero %}
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.top_hero) }}" alt="{{ row.top_hero }}" class="hero-inline-thumb" onerror="this.style.display='none'">
+                                        <span>{{ rankings_hero_label(row.top_hero) }}</span>
+                                    </span>
+                                {% else %}
+                                    <span class="empty-text">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.maps }}</td>
+                            <td>{{ row.wins }}</td>
+                            <td>{{ row.losses }}</td>
+                            <td>{{ row.events }}</td>
+                            <td><span class="{{ wr_class }}">{{ row.win_rate }}%</span></td>
+                            <td>
+                                <div class="inline-actions">
+                                    <a href="{{ row.compare_url }}" class="button-secondary btn-muted button-small">Compare</a>
+                                    <a href="{{ url_for('player_compare', player_b=row.player_id, season=selected_season) }}" class="button-secondary btn-muted button-small">Set B</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No players meet the current filters and minimum map threshold.</p>
+    {% endif %}
+</section>
+{% endblock %}

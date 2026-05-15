@@ -487,3 +487,261 @@ def player_compare():
     )
 
 
+@app.route("/players/rankings")
+def player_rankings():
+    db = get_db()
+    migrate_enemy_teams_to_team_database(db)
+
+    player_rows = db.execute(
+        """
+        SELECT p.id, p.name, p.role, p.team_id, t.name AS team_name
+        FROM players p
+        JOIN teams t ON t.id = p.team_id
+        ORDER BY p.name COLLATE NOCASE
+        """
+    ).fetchall()
+    players = [dict(row) for row in player_rows]
+
+    role_options = sorted(
+        {
+            (str(row.get("role") or "").strip())
+            for row in players
+            if str(row.get("role") or "").strip()
+        },
+        key=lambda value: value.lower(),
+    )
+    selected_role = (request.args.get("role") or "all").strip()
+    if selected_role != "all" and selected_role not in role_options:
+        selected_role = "all"
+
+    hero_options = list(HEROES)
+    selected_hero = (request.args.get("hero") or "all").strip()
+    if selected_hero != "all" and selected_hero not in hero_options:
+        selected_hero = "all"
+
+    all_history_scrims: list[dict] = []
+    seen_team_ids: set[int] = set()
+    for row in players:
+        team_id = int(row.get("team_id") or 0)
+        if not team_id or team_id in seen_team_ids:
+            continue
+        seen_team_ids.add(team_id)
+        all_history_scrims.extend(
+            get_team_history_scrims({"id": team_id, "name": row.get("team_name", "")})
+        )
+
+    season_options = get_scrim_season_options(all_history_scrims)
+    default_season = get_current_season_from_recent_scrim(all_history_scrims)
+    has_unseasoned_scrims = any(
+        not normalize_season_value(scrim.get("season", ""))
+        for scrim in all_history_scrims
+    )
+    selected_season = get_selected_season(
+        request.args.get("season", ""),
+        season_options,
+        allow_unspecified=has_unseasoned_scrims,
+        default_season=default_season,
+    )
+
+    selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    map_options = list(MAPS)
+    selected_map_name = (request.args.get("map_name") or "all").strip()
+    if selected_map_name != "all" and selected_map_name not in map_options:
+        selected_map_name = "all"
+
+    try:
+        min_maps = int(request.args.get("min_maps") or 5)
+    except (TypeError, ValueError):
+        min_maps = 5
+    min_maps = max(1, min(50, min_maps))
+
+    sort_by = (request.args.get("sort") or "win_rate").strip().lower()
+    allowed_sort = {"win_rate", "maps", "wins", "losses", "events", "name", "team"}
+    if sort_by not in allowed_sort:
+        sort_by = "win_rate"
+    sort_dir = (request.args.get("dir") or "desc").strip().lower()
+    if sort_dir not in {"asc", "desc"}:
+        sort_dir = "desc"
+
+    def _filter_scrims_to_map(scrims: list[dict], map_name: str) -> list[dict]:
+        if not map_name or map_name == "all":
+            return scrims
+        target = map_name.strip().lower()
+        filtered: list[dict] = []
+        for scrim in scrims:
+            maps_for_target = [
+                map_entry
+                for map_entry in scrim.get("maps", [])
+                if ((map_entry.get("map_name") or map_entry.get("map") or "").strip().lower() == target)
+            ]
+            if not maps_for_target:
+                continue
+            copied = dict(scrim)
+            copied["maps"] = maps_for_target
+            filtered.append(copied)
+        return filtered
+
+    def _filter_scrims_to_player_hero(
+        scrims: list[dict],
+        *,
+        player_id: int,
+        player_name: str,
+        hero_name: str,
+    ) -> list[dict]:
+        if not hero_name or hero_name == "all":
+            return scrims
+
+        target_player_key = _compact_text(normalize_player_name(player_name))
+        target_hero = canonicalize_hero_name(hero_name)
+        if not target_hero:
+            return scrims
+
+        filtered: list[dict] = []
+        for scrim in scrims:
+            matching_maps: list[dict] = []
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                found = False
+                for section in map_entry.get("comp", []):
+                    if not isinstance(section, dict):
+                        continue
+                    for side in TEAM_SLOTS:
+                        for slot in section.get(side, []):
+                            if not isinstance(slot, dict):
+                                continue
+                            slot_player_id = slot.get("player_id")
+                            if isinstance(slot_player_id, int) and slot_player_id == player_id:
+                                if canonicalize_hero_name(slot.get("hero", "")) == target_hero:
+                                    found = True
+                                    break
+                            slot_player_key = _compact_text(normalize_player_name(slot.get("player", "")))
+                            if target_player_key and slot_player_key == target_player_key:
+                                if canonicalize_hero_name(slot.get("hero", "")) == target_hero:
+                                    found = True
+                                    break
+                        if found:
+                            break
+                    if found:
+                        break
+                if found:
+                    matching_maps.append(map_entry)
+
+            if matching_maps:
+                copied = dict(scrim)
+                copied["maps"] = matching_maps
+                filtered.append(copied)
+        return filtered
+
+    rows: list[dict] = []
+    for player in players:
+        role_value = str(player.get("role") or "").strip()
+        if selected_role != "all" and role_value != selected_role:
+            continue
+
+        team_scrims = get_team_history_scrims({"id": player["team_id"], "name": player.get("team_name", "")})
+        team_scrims = filter_scrims_by_season(team_scrims, selected_season)
+        team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
+        team_scrims = _filter_scrims_to_map(team_scrims, selected_map_name)
+        team_scrims = _filter_scrims_to_player_hero(
+            team_scrims,
+            player_id=int(player["id"]),
+            player_name=player["name"],
+            hero_name=selected_hero,
+        )
+
+        stats = compute_player_stats(player["name"], team_scrims)
+        maps_played = int(stats.get("maps_played") or 0)
+        if maps_played < min_maps:
+            continue
+
+        breakdown = build_player_hero_map_breakdown(
+            player["name"],
+            team_scrims,
+            team_slots=TEAM_SLOTS,
+            canonical_draft_hero=_canonical_draft_hero,
+            get_map_outcome_for_slot=get_map_outcome_for_slot,
+            map_modes=MAP_MODES,
+            get_map_image_url=get_map_image_url,
+        )
+        primary_hero = (breakdown.get("hero_rows") or [None])[0]
+        display_top_hero = selected_hero if selected_hero != "all" else (primary_hero.get("hero") if isinstance(primary_hero, dict) else None)
+
+        rows.append(
+            {
+                "player_id": player["id"],
+                "player_name": player["name"],
+                "role": role_value,
+                "team_id": player["team_id"],
+                "team_name": player.get("team_name", ""),
+                "maps": maps_played,
+                "wins": int(stats.get("wins") or 0),
+                "losses": int(stats.get("losses") or 0),
+                "events": int(stats.get("events_mentioned") or 0),
+                "win_rate": float(stats.get("win_rate") or 0),
+                "top_hero": display_top_hero,
+            }
+        )
+
+    def _sort_tuple(row: dict) -> tuple:
+        if sort_by == "name":
+            return (row["player_name"].lower(), row["maps"], row["win_rate"])
+        if sort_by == "team":
+            return (row["team_name"].lower(), row["win_rate"], row["maps"])
+        if sort_by == "maps":
+            return (row["maps"], row["win_rate"], row["wins"])
+        if sort_by == "wins":
+            return (row["wins"], row["win_rate"], row["maps"])
+        if sort_by == "losses":
+            return (row["losses"], row["maps"], row["win_rate"])
+        if sort_by == "events":
+            return (row["events"], row["maps"], row["win_rate"])
+        return (row["win_rate"], row["maps"], row["wins"])
+
+    rows.sort(key=_sort_tuple, reverse=(sort_dir == "desc"))
+
+    for idx, row in enumerate(rows, start=1):
+        row["rank"] = idx
+        row["compare_url"] = url_for(
+            "player_compare",
+            player_a=row["player_id"],
+            season=selected_season,
+        )
+
+    sort_links = {}
+    for key in ("name", "team", "maps", "wins", "losses", "events", "win_rate"):
+        next_dir = "asc" if sort_by == key and sort_dir == "desc" else "desc"
+        sort_links[key] = url_for(
+            "player_rankings",
+            season=selected_season,
+            role=selected_role,
+            hero=selected_hero,
+            map_type=selected_map_type,
+            map_name=selected_map_name,
+            min_maps=min_maps,
+            sort=key,
+            dir=next_dir,
+        )
+
+    return render_template(
+        "player_rankings.html",
+        leaderboard_rows=rows,
+        selected_season=selected_season,
+        season_options=season_options,
+        has_unseasoned_scrims=has_unseasoned_scrims,
+        unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,
+        selected_role=selected_role,
+        role_options=role_options,
+        selected_hero=selected_hero,
+        hero_options=hero_options,
+        selected_map_type=selected_map_type,
+        map_type_options=MAP_TYPES,
+        selected_map_name=selected_map_name,
+        map_options=map_options,
+        min_maps=min_maps,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        sort_links=sort_links,
+    )
+
+

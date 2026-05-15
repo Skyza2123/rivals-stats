@@ -109,20 +109,17 @@ def serve_team_logo(filename: str):
 def build_default_comp_sections(map_name: str, first_submap: str = "") -> list[dict]:
     submaps = MAP_SUBMAPS.get(map_name, [])
     if submaps:
-        ordered_submaps = list(submaps)
         chosen_submap = (first_submap or "").strip()
-        if chosen_submap in ordered_submaps:
-            start_index = ordered_submaps.index(chosen_submap)
-            ordered_submaps = ordered_submaps[start_index:] + ordered_submaps[:start_index]
+        if chosen_submap not in submaps:
+            chosen_submap = submaps[0]
         return [
             {
-                "submap": sm,
+                "submap": chosen_submap,
                 "side": "",
                 "score": "",
                 "team1": [{"hero": "", "player": ""} for _ in range(6)],
                 "team2": [{"hero": "", "player": ""} for _ in range(6)],
             }
-            for sm in ordered_submaps
         ]
 
     if map_name in ATTACK_DEFENSE_MAPS:

@@ -43,6 +43,8 @@
                 {% endfor %}
             </select>
         </form>
+        <a href="{{ url_for('player_compare', player_a=player.id, season=selected_season) }}" class="button-secondary btn-muted">Compare</a>
+        <a href="{{ url_for('player_rankings', season=selected_season, role=(player.role or 'all'), map_type=selected_map_type) }}" class="button-secondary btn-muted">Rankings</a>
         <a href="{{ url_for('team_detail', team_id=team.id, season=selected_season, map_type=selected_map_type) }}#roster" class="button-secondary">Back to Team</a>
     </div>
 </div>

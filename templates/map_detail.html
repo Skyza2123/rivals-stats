@@ -118,8 +118,19 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Team Comp</h3>
-        {% if session.get('access_level') == 'edit' and map_entry.comp|length < 4 and not map_submaps.get(map_entry.map_name) and map_mode not in ['Escort', 'Hybrid'] %}
+        {% if session.get('access_level') == 'edit' and ((map_submaps.get(map_entry.map_name) and map_entry.comp|length < map_submaps.get(map_entry.map_name)|length) or ((not map_submaps.get(map_entry.map_name)) and map_entry.comp|length < 4 and map_mode not in ['Escort', 'Hybrid'])) %}
+        {% set used_submaps = map_entry.comp | map(attribute='submap') | list %}
         <form method="post" action="{{ url_for(add_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" style="display:inline;">
+            {% if map_submaps.get(map_entry.map_name) %}
+            <select name="next_submap" required>
+                <option value="">Choose next sub-map</option>
+                {% for submap_name in map_submaps.get(map_entry.map_name, []) %}
+                    {% if submap_name not in used_submaps %}
+                    <option value="{{ submap_name }}">{{ submap_name }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            {% endif %}
             <button type="submit" class="button-small">+ Add Round</button>
         </form>
         {% endif %}
@@ -172,7 +183,7 @@
             </div>
         </div>
         {% if sec.score %}
-        <div class="summary-box top-gap">Score: <span class="metric-text js-score-text">{{ sec.score }}</span>{% if sec.submap and sec.get('result') %} &bull; Result: <span class="metric-text">{{ sec.result }}</span>{% endif %}</div>
+        <div class="summary-box top-gap">Score: <span class="metric-text js-score-text">{{ sec.score }}</span>{% if sec.get('result') %} &bull; Result: <span class="metric-text">{{ sec.result }}</span>{% endif %}</div>
         {% endif %}
     </div>
     {% endfor %}
@@ -380,9 +391,8 @@
                     </select>
                 </div>
                 {% endif %}
-                {% if sec.submap %}
                 <div class="field">
-                    <label>Submap Result</label>
+                    <label>{{ 'Submap Result' if sec.submap else 'Round Result' }}</label>
                     <select name="section_result">
                         <option value="">Not Set</option>
                         <option value="Win" {% if sec.get('result') == 'Win' %}selected{% endif %}>{{ team1_label }} Won</option>
@@ -390,7 +400,6 @@
                         <option value="Draw" {% if sec.get('result') == 'Draw' %}selected{% endif %}>Tie</option>
                     </select>
                 </div>
-                {% endif %}
             </div>
 
             <!-- Hero pick slots -->
@@ -454,7 +463,7 @@
                     </div>
                     <div class="field">
                         <label>Or Type Custom Name</label>
-                        <input type="text" class="comp-assign-player-input" placeholder="Player name">
+                        <input type="text" class="comp-assign-player-input" list="fill-player-suggestions" placeholder="Player name">
                     </div>
                 </div>
                 <div class="button-row">
@@ -498,6 +507,12 @@
     </div>
 </div>
 {% endfor %}
+
+<datalist id="fill-player-suggestions">
+    {% for player_name in all_player_name_suggestions %}
+    <option value="{{ player_name }}"></option>
+    {% endfor %}
+</datalist>
 
 <!-- EDIT DRAFT MODAL -->
 <div class="modal-backdrop" id="draftModal">
@@ -1021,6 +1036,56 @@ function applyPlayerValueToControls(form, slotName, value) {
     syncCompSlotPlayerBadge(form, slotName);
 }
 
+function normalizePlayerMatchKey(value) {
+    return (value || '').trim().toLowerCase();
+}
+
+function collectKnownPlayerNames(selectEl) {
+    const names = [];
+    const seen = new Set();
+    const addName = (raw) => {
+        const value = (raw || '').trim();
+        if (!value) return;
+        const key = normalizePlayerMatchKey(value);
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        names.push(value);
+    };
+
+    if (selectEl) {
+        Array.from(selectEl.options || []).forEach((opt) => {
+            const value = (opt.value || '').trim();
+            if (!value || value === 'custom' || opt.disabled) return;
+            addName(value);
+        });
+    }
+
+    const datalist = document.getElementById('fill-player-suggestions');
+    if (datalist) {
+        Array.from(datalist.options || []).forEach((opt) => addName(opt.value || ''));
+    }
+    return names;
+}
+
+function findBestPlayerNameMatch(rawValue, knownNames) {
+    const typed = (rawValue || '').trim();
+    if (!typed) return '';
+    const typedKey = normalizePlayerMatchKey(typed);
+    if (!typedKey) return typed;
+
+    const names = Array.isArray(knownNames) ? knownNames : [];
+    const exact = names.find((name) => normalizePlayerMatchKey(name) === typedKey);
+    if (exact) return exact;
+
+    const prefixMatches = names.filter((name) => normalizePlayerMatchKey(name).startsWith(typedKey));
+    if (prefixMatches.length === 1) return prefixMatches[0];
+
+    const containsMatches = names.filter((name) => normalizePlayerMatchKey(name).includes(typedKey));
+    if (containsMatches.length === 1) return containsMatches[0];
+
+    return typed;
+}
+
 function getCompSlotLabel(slotName) {
     if (!slotName) return 'Slot';
     var teamKey = getCompTeamFromSlotName(slotName);
@@ -1098,7 +1163,8 @@ function syncCompAssignPanelForSlot(slot) {
     fillCompAssignPanelOptions(panel, slot, form, slotName);
 }
 
-function applyCompAssignPanel(panel) {
+function applyCompAssignPanel(panel, options) {
+    options = options || {};
     if (!panel) return;
     const modalId = panel.dataset.compModal;
     let slotName = panel.dataset.activeSlot || '';
@@ -1118,8 +1184,16 @@ function applyCompAssignPanel(panel) {
     const input = panel.querySelector('.comp-assign-player-input');
     const typed = input ? (input.value || '').trim() : '';
     const selected = select ? (select.value || '').trim() : '';
+    const knownNames = collectKnownPlayerNames(select);
+    const matchedTyped = options.preferMatch ? findBestPlayerNameMatch(typed, knownNames) : typed;
     // Dropdown is authoritative unless user explicitly typed a custom value.
-    const finalValue = typed.length ? typed : selected;
+    const finalValue = matchedTyped.length ? matchedTyped : selected;
+    if (input && finalValue) {
+        input.value = finalValue;
+    }
+    if (select && finalValue && Array.from(select.options || []).some((opt) => !opt.disabled && opt.value === finalValue)) {
+        select.value = finalValue;
+    }
     applyPlayerValueToControls(form, slotName, finalValue);
     fillCompAssignPanelOptions(panel, slot, form, slotName);
 }
@@ -1137,7 +1211,7 @@ function ensureCompAssignHover() {
     container.innerHTML = [
         '<label class="comp-assign-hover-label">Assign Player</label>',
         '<select class="comp-assign-hover-select"></select>',
-        '<input type="text" class="comp-assign-hover-input" placeholder="Player name">'
+        '<input type="text" class="comp-assign-hover-input" list="fill-player-suggestions" placeholder="Player name">'
     ].join('');
     document.body.appendChild(container);
 
@@ -1168,20 +1242,30 @@ function ensureCompAssignHover() {
         applyPlayerValueToControls(form, slotName, hoverSelect.value || '');
     });
 
-    const commitHoverCustom = () => {
+    const commitHoverCustom = (preferMatch) => {
         if (!compAssignHoverSlot) return;
         const form = compAssignHoverSlot.closest('form');
         const slotName = compAssignHoverSlot.dataset.playerSlot;
         if (!form || !slotName) return;
-        applyPlayerValueToControls(form, slotName, (hoverInput.value || '').trim());
+        const typed = (hoverInput.value || '').trim();
+        const knownNames = collectKnownPlayerNames(hoverSelect);
+        const resolved = preferMatch ? findBestPlayerNameMatch(typed, knownNames) : typed;
+        if (resolved) {
+            hoverInput.value = resolved;
+        }
+        if (resolved && Array.from(hoverSelect.options || []).some((opt) => !opt.disabled && opt.value === resolved)) {
+            hoverSelect.value = resolved;
+            hoverInput.style.display = 'none';
+        }
+        applyPlayerValueToControls(form, slotName, resolved);
     };
 
-    hoverInput.addEventListener('input', commitHoverCustom);
-    hoverInput.addEventListener('blur', commitHoverCustom);
+    hoverInput.addEventListener('input', () => commitHoverCustom(false));
+    hoverInput.addEventListener('blur', () => commitHoverCustom(false));
     hoverInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
-            commitHoverCustom();
+            commitHoverCustom(true);
             hideCompAssignHover();
         }
     });
@@ -1502,8 +1586,22 @@ document.querySelectorAll('.comp-assign-panel').forEach(function(panel) {
     input?.addEventListener('keydown', function(event) {
         if (event.key === 'Enter') {
             event.preventDefault();
-            applyCompAssignPanel(panel);
+            applyCompAssignPanel(panel, { preferMatch: true });
         }
+    });
+
+    input?.addEventListener('input', function() {
+        if (select) {
+            select.value = '';
+        }
+        applyCompAssignPanel(panel);
+    });
+
+    input?.addEventListener('blur', function() {
+        if (select) {
+            select.value = '';
+        }
+        applyCompAssignPanel(panel);
     });
 });
 

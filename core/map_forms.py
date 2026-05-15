@@ -607,6 +607,34 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     team1_default_players = _build_default_player_slots(team1_player_options)
     team2_default_players = _build_default_player_slots(team2_player_options)
 
+    all_player_name_suggestions: list[str] = []
+    suggestion_seen: set[str] = set()
+    for row in db.execute(
+        "SELECT name, role FROM players ORDER BY name COLLATE NOCASE"
+    ).fetchall():
+        player_name = (row["name"] or "").strip()
+        if not player_name or is_staff_role(row["role"]):
+            continue
+        normalized = player_name.lower()
+        if normalized in suggestion_seen:
+            continue
+        suggestion_seen.add(normalized)
+        all_player_name_suggestions.append(player_name)
+
+    for comp_section in map_entry.get("comp", []):
+        if not isinstance(comp_section, dict):
+            continue
+        for side_slot in TEAM_SLOTS:
+            for slot in comp_section.get(side_slot, []):
+                player_name = (slot.get("player") or "").strip() if isinstance(slot, dict) else ""
+                if not player_name:
+                    continue
+                normalized = player_name.lower()
+                if normalized in suggestion_seen:
+                    continue
+                suggestion_seen.add(normalized)
+                all_player_name_suggestions.append(player_name)
+
     map_draft_timeline_row = None
     target_map_name = (map_entry.get("map_name") or "").strip()
     if target_map_name:
@@ -659,6 +687,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "comp_player_options_by_slot": comp_player_options_by_slot,
         "team1_default_players": team1_default_players,
         "team2_default_players": team2_default_players,
+        "all_player_name_suggestions": all_player_name_suggestions,
         "team1_label": team1_label,
         "team2_label": team2_label,
         "participant_one_id": participant_one_id,

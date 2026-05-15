@@ -2386,6 +2386,7 @@
         <div class="panel-header-row">
             <h3>Roster & Stats</h3>
             <div class="inline-actions">
+                <a href="{{ url_for('player_rankings', season=selected_season, map_type=selected_map_type) }}" class="button-secondary btn-muted button-small">Player Rankings</a>
                 <a href="{{ url_for('player_compare') }}" class="button-secondary btn-muted button-small open-comparison-btn">Compare Players</a>
                 {% if session.get('access_level') == 'edit' %}<button id="openPlayerModal" type="button" class="button-secondary btn-muted button-small">Manage Players</button>{% endif %}
             </div>

@@ -23,36 +23,131 @@ def normalize_scrim_record(scrim: dict) -> dict:
         scrim["team1_name"] = str(scrim.get("team_name", "")).strip()
     if not scrim.get("team2_name"):
         scrim["team2_name"] = str(scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
-    for map_entry in scrim.get("maps", []):
-        if not isinstance(map_entry, dict):
-            continue
-        draft = map_entry.get("draft", {})
-        if isinstance(draft, dict):
-            for side in TEAM_SLOTS:
-                team_draft = draft.get(side, {})
-                if not isinstance(team_draft, dict):
-                    continue
-                for slot_key, hero_name in list(team_draft.items()):
-                    team_draft[slot_key] = normalize_hero_slot_value(hero_name)
 
-        comp_sections = map_entry.get("comp", [])
-        if isinstance(comp_sections, list):
-            for section in comp_sections:
-                if not isinstance(section, dict):
-                    continue
+    roster_db = get_db() if has_request_context() else _connect_db()
+    close_roster_db = not has_request_context()
+    team_lookup: dict[str, dict] = {}
+    player_lookup: dict[str, dict] = {}
+    try:
+        for team_row in roster_db.execute("SELECT id, name FROM teams").fetchall():
+            team_item = {"id": int(team_row["id"]), "name": str(team_row["name"] or "").strip()}
+            team_name_lower = team_item["name"].lower()
+            team_compact = _compact_text(team_item["name"])
+            if team_name_lower:
+                team_lookup[team_name_lower] = team_item
+            if team_compact:
+                team_lookup[team_compact] = team_item
+
+        for player_row in roster_db.execute(
+            """
+            SELECT p.id, p.name, p.team_id, t.name AS team_name
+            FROM players p
+            JOIN teams t ON t.id = p.team_id
+            """
+        ).fetchall():
+            player_name = str(player_row["name"] or "").strip()
+            player_item = {
+                "id": int(player_row["id"]),
+                "name": player_name,
+                "team_id": int(player_row["team_id"]),
+                "team_name": str(player_row["team_name"] or "").strip(),
+            }
+            player_name_lower = player_name.lower()
+            player_compact = _compact_text(player_name)
+            if player_name_lower and player_name_lower not in player_lookup:
+                player_lookup[player_name_lower] = player_item
+            if player_compact and player_compact not in player_lookup:
+                player_lookup[player_compact] = player_item
+
+        def _resolve_team(raw_name: str, fallback_id: int | None = None) -> dict | None:
+            if isinstance(fallback_id, int) and fallback_id > 0:
+                by_id = roster_db.execute("SELECT id, name FROM teams WHERE id = ?", (fallback_id,)).fetchone()
+                if by_id is not None:
+                    return {"id": int(by_id["id"]), "name": str(by_id["name"] or "").strip()}
+            team_name = (raw_name or "").strip()
+            if not team_name:
+                return None
+            return team_lookup.get(team_name.lower()) or team_lookup.get(_compact_text(team_name))
+
+        team1_resolved = _resolve_team(str(scrim.get("team1_name") or "").strip(), scrim.get("team1_id"))
+        team2_resolved = _resolve_team(str(scrim.get("team2_name") or "").strip(), scrim.get("team2_id"))
+        if team1_resolved is not None:
+            scrim["team1_id"] = team1_resolved["id"]
+            scrim["team1_name"] = team1_resolved["name"]
+        if team2_resolved is not None:
+            scrim["team2_id"] = team2_resolved["id"]
+            scrim["team2_name"] = team2_resolved["name"]
+
+        team_slot = normalize_match_team_slot(scrim.get("team_slot", "team1"))
+        enemy_slot = opposite_team_slot(team_slot)
+        scrim["team_id"] = scrim.get(f"{team_slot}_id")
+        scrim["team_name"] = str(scrim.get(f"{team_slot}_name") or "").strip()
+        scrim["enemy_team_id"] = scrim.get(f"{enemy_slot}_id")
+        scrim["enemy_team"] = str(scrim.get(f"{enemy_slot}_name") or "").strip()
+        scrim["opponent"] = scrim["enemy_team"]
+
+        def _resolve_player(raw_player_name: str) -> dict | None:
+            name = (raw_player_name or "").strip()
+            if not name:
+                return None
+            return player_lookup.get(name.lower()) or player_lookup.get(_compact_text(name))
+
+        for map_entry in scrim.get("maps", []):
+            if not isinstance(map_entry, dict):
+                continue
+            if map_entry.get("team1_id") in (None, "") and scrim.get("team1_id"):
+                map_entry["team1_id"] = scrim.get("team1_id")
+            if map_entry.get("team2_id") in (None, "") and scrim.get("team2_id"):
+                map_entry["team2_id"] = scrim.get("team2_id")
+            if not (map_entry.get("team1_name") or "").strip() and (scrim.get("team1_name") or "").strip():
+                map_entry["team1_name"] = str(scrim.get("team1_name") or "").strip()
+            if not (map_entry.get("team2_name") or "").strip() and (scrim.get("team2_name") or "").strip():
+                map_entry["team2_name"] = str(scrim.get("team2_name") or "").strip()
+
+            draft = map_entry.get("draft", {})
+            if isinstance(draft, dict):
                 for side in TEAM_SLOTS:
-                    slots = section.get(side, [])
-                    if not isinstance(slots, list):
+                    team_draft = draft.get(side, {})
+                    if not isinstance(team_draft, dict):
                         continue
-                    for slot in slots:
-                        if not isinstance(slot, dict):
+                    for slot_key, hero_name in list(team_draft.items()):
+                        team_draft[slot_key] = normalize_hero_slot_value(hero_name)
+
+            comp_sections = map_entry.get("comp", [])
+            if isinstance(comp_sections, list):
+                for section in comp_sections:
+                    if not isinstance(section, dict):
+                        continue
+                    for side in TEAM_SLOTS:
+                        slots = section.get(side, [])
+                        if not isinstance(slots, list):
                             continue
-                        raw_player_name = str(slot.get("player", "")).strip()
-                        if is_ringer_player_name(raw_player_name):
-                            slot["player"] = ""
-                        else:
-                            slot["player"] = normalize_player_name(raw_player_name)
-                        slot["hero"] = normalize_hero_slot_value(slot.get("hero", ""))
+                        for slot in slots:
+                            if not isinstance(slot, dict):
+                                continue
+                            raw_player_name = str(slot.get("player", "")).strip()
+                            if is_ringer_player_name(raw_player_name):
+                                slot["player"] = ""
+                                slot.pop("player_id", None)
+                                slot.pop("player_team_id", None)
+                                slot.pop("player_team_name", None)
+                            else:
+                                normalized_player = normalize_player_name(raw_player_name)
+                                slot["player"] = normalized_player
+                                linked_player = _resolve_player(normalized_player)
+                                if linked_player is not None:
+                                    slot["player"] = linked_player["name"]
+                                    slot["player_id"] = linked_player["id"]
+                                    slot["player_team_id"] = linked_player["team_id"]
+                                    slot["player_team_name"] = linked_player["team_name"]
+                                else:
+                                    slot.pop("player_id", None)
+                                    slot.pop("player_team_id", None)
+                                    slot.pop("player_team_name", None)
+                            slot["hero"] = normalize_hero_slot_value(slot.get("hero", ""))
+    finally:
+        if close_roster_db:
+            roster_db.close()
     return scrim
 
 

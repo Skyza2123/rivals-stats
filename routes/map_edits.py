@@ -204,16 +204,15 @@ def update_tournament_match_comp_section(tournament_id: int, match_id: int, map_
         side_value = ""
     section["side"] = side_value
     
-    # Store submap result if this section has a submap
+    # Store section result (submap/round), or infer from score text.
     section_result = request.form.get("section_result", "").strip()
     if section_result in RESULTS:
         section["result"] = section_result
-    elif section.get("submap"):
+    else:
         inferred_submap_result = infer_result_from_score_text(section.get("score", ""), slot="team1")
         if inferred_submap_result in RESULTS:
             section["result"] = inferred_submap_result
         else:
-            # Clear result if no valid result provided and score is not decisive.
             section.pop("result", None)
 
     for i in range(6):
@@ -735,16 +734,15 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
             request.form.get("score", section.get("score", "")).strip(),
         )
     
-    # Store submap result if this section has a submap
+    # Store section result (submap/round), or infer from score text.
     section_result = request.form.get("section_result", "").strip()
     if section_result in RESULTS:
         section["result"] = section_result
-    elif section.get("submap"):
+    else:
         inferred_submap_result = infer_result_from_score_text(section.get("score", ""), slot="team1")
         if inferred_submap_result in RESULTS:
             section["result"] = inferred_submap_result
         else:
-            # Clear result if no valid result provided and score is not decisive.
             section.pop("result", None)
 
     for team in ("team1", "team2"):
@@ -792,16 +790,15 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
             request.form.get("score", section.get("score", "")).strip(),
         )
     
-    # Store submap result if this section has a submap
+    # Store section result (submap/round), or infer from score text.
     section_result = request.form.get("section_result", "").strip()
     if section_result in RESULTS:
         section["result"] = section_result
-    elif section.get("submap"):
+    else:
         inferred_submap_result = infer_result_from_score_text(section.get("score", ""), slot="team1")
         if inferred_submap_result in RESULTS:
             section["result"] = inferred_submap_result
         else:
-            # Clear result if no valid result provided and score is not decisive.
             section.pop("result", None)
 
     for team in ("team1", "team2"):
@@ -832,15 +829,44 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
 def add_comp_section(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
-    sections = map_entry.setdefault("comp", [])
-    if len(sections) < 4:
-        sections.append({
-            "submap": "",
+
+    def _blank_section(submap: str = "") -> dict:
+        return {
+            "submap": submap,
             "side": "",
             "score": "",
             "team1": [{"hero": "", "player": ""} for _ in range(6)],
             "team2": [{"hero": "", "player": ""} for _ in range(6)],
-        })
+        }
+
+    def _next_section_for_map(current_map_entry: dict) -> dict | None:
+        sections = current_map_entry.setdefault("comp", [])
+        submaps = MAP_SUBMAPS.get(current_map_entry.get("map_name", ""), [])
+        if submaps:
+            used = {
+                (sec.get("submap") or "").strip().lower()
+                for sec in sections
+                if isinstance(sec, dict)
+            }
+            requested_submap = (request.form.get("next_submap") or "").strip()
+            if requested_submap:
+                requested_key = requested_submap.lower()
+                if requested_submap in submaps and requested_key not in used:
+                    return _blank_section(submap=requested_submap)
+                flash("Choose an available sub-map for the next round.", "error")
+                return None
+            for submap_name in submaps:
+                if submap_name.strip().lower() not in used:
+                    return _blank_section(submap=submap_name)
+            return None
+        if len(sections) >= 4:
+            return None
+        return _blank_section()
+
+    sections = map_entry.setdefault("comp", [])
+    next_section = _next_section_for_map(map_entry)
+    if next_section is not None:
+        sections.append(next_section)
         save_app_state()
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
@@ -850,15 +876,44 @@ def add_tournament_match_comp_section(tournament_id: int, match_id: int, map_id:
     tournament_record = get_tournament_or_404(tournament_id)
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
     map_entry = get_map_or_404(tournament_match, map_id)
-    sections = map_entry.setdefault("comp", [])
-    if len(sections) < 4:
-        sections.append({
-            "submap": "",
+
+    def _blank_section(submap: str = "") -> dict:
+        return {
+            "submap": submap,
             "side": "",
             "score": "",
             "team1": [{"hero": "", "player": ""} for _ in range(6)],
             "team2": [{"hero": "", "player": ""} for _ in range(6)],
-        })
+        }
+
+    def _next_section_for_map(current_map_entry: dict) -> dict | None:
+        sections = current_map_entry.setdefault("comp", [])
+        submaps = MAP_SUBMAPS.get(current_map_entry.get("map_name", ""), [])
+        if submaps:
+            used = {
+                (sec.get("submap") or "").strip().lower()
+                for sec in sections
+                if isinstance(sec, dict)
+            }
+            requested_submap = (request.form.get("next_submap") or "").strip()
+            if requested_submap:
+                requested_key = requested_submap.lower()
+                if requested_submap in submaps and requested_key not in used:
+                    return _blank_section(submap=requested_submap)
+                flash("Choose an available sub-map for the next round.", "error")
+                return None
+            for submap_name in submaps:
+                if submap_name.strip().lower() not in used:
+                    return _blank_section(submap=submap_name)
+            return None
+        if len(sections) >= 4:
+            return None
+        return _blank_section()
+
+    sections = map_entry.setdefault("comp", [])
+    next_section = _next_section_for_map(map_entry)
+    if next_section is not None:
+        sections.append(next_section)
         save_app_state()
     return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
 
@@ -867,15 +922,44 @@ def add_tournament_match_comp_section(tournament_id: int, match_id: int, map_id:
 def add_tournament_comp_section(tournament_id: int, map_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     map_entry = get_map_or_404(tournament_match, map_id)
-    sections = map_entry.setdefault("comp", [])
-    if len(sections) < 4:
-        sections.append({
-            "submap": "",
+
+    def _blank_section(submap: str = "") -> dict:
+        return {
+            "submap": submap,
             "side": "",
             "score": "",
             "team1": [{"hero": "", "player": ""} for _ in range(6)],
             "team2": [{"hero": "", "player": ""} for _ in range(6)],
-        })
+        }
+
+    def _next_section_for_map(current_map_entry: dict) -> dict | None:
+        sections = current_map_entry.setdefault("comp", [])
+        submaps = MAP_SUBMAPS.get(current_map_entry.get("map_name", ""), [])
+        if submaps:
+            used = {
+                (sec.get("submap") or "").strip().lower()
+                for sec in sections
+                if isinstance(sec, dict)
+            }
+            requested_submap = (request.form.get("next_submap") or "").strip()
+            if requested_submap:
+                requested_key = requested_submap.lower()
+                if requested_submap in submaps and requested_key not in used:
+                    return _blank_section(submap=requested_submap)
+                flash("Choose an available sub-map for the next round.", "error")
+                return None
+            for submap_name in submaps:
+                if submap_name.strip().lower() not in used:
+                    return _blank_section(submap=submap_name)
+            return None
+        if len(sections) >= 4:
+            return None
+        return _blank_section()
+
+    sections = map_entry.setdefault("comp", [])
+    next_section = _next_section_for_map(map_entry)
+    if next_section is not None:
+        sections.append(next_section)
         save_app_state()
     return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 

@@ -433,6 +433,14 @@
                     </select>
                 </div>
 
+                <div class="field" id="first_submap_field" style="display:none;">
+                    <label for="first_submap">First Sub-Map</label>
+                    <select id="first_submap" name="first_submap">
+                        <option value="">Select first sub-map</option>
+                    </select>
+                    <small style="display:block; margin-top:6px; color:var(--muted);">Required for domination/control maps. Additional rounds can be added one at a time after map creation.</small>
+                </div>
+
                 {% if show_team_selector %}
                 <div class="field">
                     <label for="map_team1_select">Team On Side 1</label>
@@ -646,12 +654,15 @@ function updateFirstSubmapOptions() {
     const hasControlSubmaps = Array.isArray(submaps) && submaps.length > 0;
 
     field.style.display = hasControlSubmaps ? '' : 'none';
-    select.innerHTML = '<option value="">Default order</option>';
+    select.innerHTML = '<option value="">Select first sub-map</option>';
 
     if (!hasControlSubmaps) {
         select.value = '';
+        select.required = false;
         return;
     }
+
+    select.required = true;
 
     submaps.forEach(function (submap) {
         const option = document.createElement('option');
