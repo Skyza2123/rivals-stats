@@ -477,7 +477,13 @@ def team_scouting():
         )
         return rows[:8]
 
-    def _build_scout_summary(history_rows: list[dict], opponent_id: int, opponent_name: str) -> dict | None:
+    def _build_scout_summary(
+        history_rows: list[dict],
+        opponent_id: int,
+        opponent_name: str,
+        *,
+        include_all_matches: bool = False,
+    ) -> dict | None:
         enemy_hero_counter: Counter = Counter()
         enemy_hero_record = defaultdict(lambda: {"wins": 0, "losses": 0, "maps": 0})
         ban_counter: Counter = Counter()
@@ -488,7 +494,7 @@ def team_scouting():
         losses = 0
 
         for scrim in history_rows:
-            if not _scrim_includes_opponent(scrim, opponent_id, opponent_name):
+            if not include_all_matches and not _scrim_includes_opponent(scrim, opponent_id, opponent_name):
                 continue
             for map_entry in scrim.get("maps", []):
                 if not isinstance(map_entry, dict):
@@ -626,7 +632,16 @@ def team_scouting():
             continue
 
         scrim_summary = _build_scout_summary(filtered_scrim_history, opponent_id, opponent_name)
-        tournament_summary = _build_scout_summary(filtered_tournament_history, opponent_id, opponent_name)
+
+        opponent_tournament_history = build_team_tournament_scrims({"id": opponent_id, "name": opponent_name})
+        opponent_tournament_history = filter_scrims_by_season(opponent_tournament_history, selected_season)
+        opponent_tournament_history = _filter_scrims_to_map(opponent_tournament_history, selected_map_name)
+        tournament_summary = _build_scout_summary(
+            opponent_tournament_history,
+            opponent_id,
+            opponent_name,
+            include_all_matches=True,
+        )
 
         source_compare = [
             {

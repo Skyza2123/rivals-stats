@@ -362,8 +362,19 @@
             <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
         </div>
         <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, section_index=s) }}" method="post">
-            <input type="hidden" name="submap" value="{{ sec.submap }}">
             <div class="form-grid">
+                {% if map_submaps.get(map_entry.map_name) %}
+                <div class="field">
+                    <label>Submap</label>
+                    <select name="submap" required>
+                        {% for submap_name in map_submaps.get(map_entry.map_name, []) %}
+                        <option value="{{ submap_name }}" {% if sec.submap == submap_name %}selected{% endif %}>{{ submap_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% else %}
+                <input type="hidden" name="submap" value="{{ sec.submap }}">
+                {% endif %}
                 {% if uses_map_level_round_score %}
                 <div class="field" style="grid-column: 1 / -1;">
                     <p class="panel-intro" style="margin:0;">

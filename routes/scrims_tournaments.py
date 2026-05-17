@@ -724,6 +724,80 @@ def edit_scrim(scrim_id: int):
     return redirect(url_for("scrim_detail", scrim_id=scrim_id))
 
 
+def _swap_dict_fields(record: dict, left_key: str, right_key: str) -> None:
+    record[left_key], record[right_key] = record.get(right_key), record.get(left_key)
+
+
+def _flip_result_value_for_side_swap(raw_result: str) -> str:
+    value = (raw_result or "").strip().lower()
+    if value == "win":
+        return "Loss"
+    if value == "loss":
+        return "Win"
+    return raw_result
+
+
+def _swap_side_score_text(raw_score: str) -> str:
+    score_text = (raw_score or "").strip()
+    match = re.match(r"^([^\-]+)-([^\-]+)$", score_text)
+    if not match:
+        return raw_score
+    left = match.group(1).strip()
+    right = match.group(2).strip()
+    if not left and not right:
+        return raw_score
+    return f"{right}-{left}"
+
+
+def _swap_map_sides(map_entry: dict) -> None:
+    _swap_dict_fields(map_entry, "team1_id", "team2_id")
+    _swap_dict_fields(map_entry, "team1_name", "team2_name")
+
+    draft = map_entry.get("draft")
+    if isinstance(draft, dict):
+        _swap_dict_fields(draft, "team1", "team2")
+
+    for section in map_entry.get("comp", []):
+        if not isinstance(section, dict):
+            continue
+        _swap_dict_fields(section, "team1", "team2")
+        if section.get("score"):
+            section["score"] = _swap_side_score_text(section.get("score", ""))
+        if section.get("result"):
+            section["result"] = _flip_result_value_for_side_swap(section.get("result", ""))
+
+    _swap_dict_fields(map_entry, "our_attack_score", "enemy_attack_score")
+
+    if map_entry.get("score"):
+        map_entry["score"] = _swap_side_score_text(map_entry.get("score", ""))
+    if map_entry.get("result"):
+        map_entry["result"] = _flip_result_value_for_side_swap(map_entry.get("result", ""))
+
+
+@app.route("/scrims/<int:scrim_id>/swap-sides", methods=["POST"])
+def swap_scrim_sides(scrim_id: int):
+    scrim = get_scrim_or_404(scrim_id)
+
+    _swap_dict_fields(scrim, "team1_id", "team2_id")
+    _swap_dict_fields(scrim, "team1_name", "team2_name")
+    _swap_dict_fields(scrim, "team1_players", "team2_players")
+
+    for map_entry in scrim.get("maps", []):
+        if isinstance(map_entry, dict):
+            _swap_map_sides(map_entry)
+
+    scrim["team_id"] = scrim.get("team1_id")
+    scrim["team_name"] = scrim.get("team1_name", "")
+    scrim["team_slot"] = "team1"
+    scrim["enemy_team_id"] = scrim.get("team2_id")
+    scrim["enemy_team"] = scrim.get("team2_name", "")
+    scrim["opponent"] = scrim.get("team2_name", "")
+
+    save_app_state()
+    flash("Swapped Team 1 and Team 2 across this scrim, including rosters and map draft/comp data.", "success")
+    return redirect(url_for("scrim_detail", scrim_id=scrim_id))
+
+
 @app.route("/tournaments/<int:tournament_id>/edit", methods=["POST"])
 def edit_tournament(tournament_id: int):
     tournament_match = get_tournament_or_404(tournament_id)

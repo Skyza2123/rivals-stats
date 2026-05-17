@@ -718,7 +718,22 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
 
     section = sections[section_index]
 
-    section["submap"] = request.form.get("submap", section.get("submap", "")).strip()
+    requested_submap = request.form.get("submap", section.get("submap", "")).strip()
+    allowed_submaps = MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])
+    if allowed_submaps:
+        if requested_submap not in allowed_submaps:
+            flash("Choose a valid submap for this map.", "error")
+            return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+        duplicate_submap = any(
+            idx != section_index
+            and isinstance(existing_section, dict)
+            and (existing_section.get("submap") or "").strip().lower() == requested_submap.lower()
+            for idx, existing_section in enumerate(sections)
+        )
+        if duplicate_submap:
+            flash("That submap is already used in another section on this map.", "error")
+            return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+    section["submap"] = requested_submap
     side_value = request.form.get("side", section.get("side", "")).strip()
     if side_value not in SIDES:
         side_value = ""
@@ -774,7 +789,22 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
         abort(404)
 
     section = sections[section_index]
-    section["submap"] = request.form.get("submap", section.get("submap", "")).strip()
+    requested_submap = request.form.get("submap", section.get("submap", "")).strip()
+    allowed_submaps = MAP_SUBMAPS.get(map_entry.get("map_name", ""), [])
+    if allowed_submaps:
+        if requested_submap not in allowed_submaps:
+            flash("Choose a valid submap for this map.", "error")
+            return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+        duplicate_submap = any(
+            idx != section_index
+            and isinstance(existing_section, dict)
+            and (existing_section.get("submap") or "").strip().lower() == requested_submap.lower()
+            for idx, existing_section in enumerate(sections)
+        )
+        if duplicate_submap:
+            flash("That submap is already used in another section on this map.", "error")
+            return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+    section["submap"] = requested_submap
     side_value = request.form.get("side", section.get("side", "")).strip()
     if side_value not in SIDES:
         side_value = ""

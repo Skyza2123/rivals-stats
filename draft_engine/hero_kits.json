@@ -1,0 +1,5078 @@
+{
+  "version": 1,
+  "description": "Compact Parsertime-style Marvel Rivals hero kits: weapons, abilities, ultimates, tags, cooldowns, and impact tiers.",
+  "impact_scale": {
+    "negligible": "Always-available basics, reloads, stance text, traversal passives, or team-up flavor with little draft/timing value.",
+    "low": "Useful but routine value: poke, minor mobility, basic damage, or low-commitment utility.",
+    "medium": "Meaningful cooldown or defensive/sustain tool that can swing a duel or small timing window.",
+    "high": "Fight-shaping ability, major crowd control, revive/sustain tool, strong engage, or ultimate-level threat.",
+    "critical": "Draft-defining or fight-winning button that demands tracking, baiting, banning, or coordinated counterplay."
+  },
+  "heroes": {
+    "Adam Warlock": {
+      "name": "Adam Warlock",
+      "image": "adam-warlock.png",
+      "weapon1": {
+        "name": "Quantum Magic",
+        "description": "Single-cast direct hit",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Cosmic Cluster",
+        "description": "Cosmic Cluster shares ammo with Quantum Magic, each hit reduces the cooldown of Avatar Life Stream by 0.3s.",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability2": {
+        "name": "Avatar Life Stream",
+        "description": "Bouncing target does not include Adam Warlock",
+        "cooldown": 2,
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Soul Bond",
+        "description": "Adam Warlock will share a portion of the damage sustained by linked allies. If Adam Warlock sustains damage that would KO him due to the link, then the link will be broken, and he will retain 1 Health. The link will also break once enough damage is sustained, if Adam Warlock or the linked ally leave the link's range, or after a certain length of time has passed",
+        "cooldown": 40,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "critical"
+      },
+      "ability4": {
+        "name": "Regenerative Cocoon",
+        "description": "Passive ability.",
+        "cooldown": 105,
+        "tags": [
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Soul Perseverance",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Cosmic Awareness",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Karmic Revival",
+        "description": "Revive allies within range, centered on Adam. Continuously monitor for fallen allies within this range; if they enter the area, they can be revived at the casting location",
+        "tags": [
+          "sustain",
+          "areaOfEffect",
+          "revive"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Angela": {
+      "name": "Angela",
+      "image": "angela.png",
+      "weapon1": {
+        "name": "Spear of Ichors",
+        "description": "Melee lunge that scales with Attack Charge; at full charge launches enemies upward.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Axes of Ichors",
+        "description": "Alternate twin-axe strikes; fourth strike dashes forward.",
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Shielded Stance",
+        "description": "Form an ichor shield; absorbing damage builds Attack Charge.",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Assassin's Charge",
+        "description": "Accelerated dash; immune to knock-back/launch-up; carries enemies struck head-on.",
+        "cooldown": 3,
+        "tags": [
+          "damage",
+          "defense",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Divine Judgement",
+        "description": "Dive, switch to axes, create a Divine Judgement Zone.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Wingblade Ascent",
+        "description": "Take to the skies, switching back to spear form.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Seraphic Soar",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Celestial Command",
+        "description": "Team-Up Passive ability.",
+        "tags": [
+          "sustain",
+          "movement",
+          "areaOfEffect",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Heven's Retribution",
+        "description": "Throw ribbon-bound spear; on impact binds enemies. Recast to leap to spear, deal AoE, and create a Divine Judgement Zone.",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Black Cat": {
+      "name": "Black Cat",
+      "image": "black-cat.png",
+      "ability1": {
+        "name": "Cat's Cradle",
+        "description": "Dash",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Stealthy Catwalk",
+        "description": "Passive wall-climb",
+        "tags": [
+          "stealth",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Thieving Grace",
+        "description": "Jump",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Mento-fish",
+        "description": "Projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Fortune's Favor",
+        "description": "Fortune spend",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Claw Whip",
+        "description": "Melee arc",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Gift Of Gold",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Calling Card",
+        "description": "Targeted sequential dash",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "movement"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Black Panther": {
+      "name": "Black Panther",
+      "image": "black-panther.png",
+      "weapon1": {
+        "name": "Vibranium Claws",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Spinning Kick",
+        "description": "Movement-based damage ability",
+        "cooldown": 8,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability2": {
+        "name": "Spear Toss",
+        "description": "Arced projectile that generates a spell field upon impact",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability3": {
+        "name": "Subtle Step",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Spirit Rend",
+        "description": "Movement-based damage ability",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Panther's Cunning",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Wakandan Master",
+        "description": "Normal ability.",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "sustain",
+          "teamup"
+        ],
+        "impact": "high"
+      },
+      "ult": {
+        "name": "Bast's Descent",
+        "description": "Cuboid Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Black Widow": {
+      "name": "Black Widow",
+      "image": "black-widow.png",
+      "weapon1": {
+        "name": "FEROCIOUS THROW",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Rapid Fire",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "Red Room Rifle",
+        "description": "Shares the same magazine with Red Room Rifle. Straight Shooter activates only after aiming down sights for a specific duration; otherwise, it will fire from the Red Room Rifle",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "LION'S LAUNCH",
+        "description": "Normal ability.",
+        "tags": [
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "FLEET FOOT",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "LION DANCER",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Edge Dancer",
+        "description": "Melee",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Straight Shooter",
+        "description": "Shares the same magazine with Red Room Rifle",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Fleet Foot",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Supersensory Hunt",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Pulse Rifle",
+        "description": "No Headshot",
+        "cooldown": 10,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Electro-plasma Explosion",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Blade": {
+      "name": "Blade",
+      "image": "blade.png",
+      "weapon1": {
+        "name": "Hunter's Shotgun",
+        "description": "Weapon ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Ancestral Sword",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Scarlet Shroud",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Bloodline Awakening",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Daywalker Dash",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "New Moon",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Thousand-fold Slash",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "high"
+      }
+    },
+    "Captain America": {
+      "name": "Captain America",
+      "image": "captain-america.png",
+      "weapon1": {
+        "name": "Sentinel Strike",
+        "description": "Automatically target enemies near the crosshair",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Leading Dash",
+        "description": "Channeled",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Vibranium Energy Saw",
+        "description": "Single-cast projectile that can ricochet",
+        "cooldown": 8,
+        "tags": [
+          "damage"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Super-soldier Slam",
+        "description": "Targeted",
+        "cooldown": 12,
+        "tags": [
+          "damage"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Living Legend",
+        "description": "Channeled",
+        "cooldown": 1,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense"
+        ],
+        "impact": "high"
+      },
+      "ability5": {
+        "name": "Liberty Rush",
+        "description": "Single-cast forward dash",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Captain's Spirit",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Charged Aegis",
+        "description": "Normal ability.",
+        "tags": [
+          "movement",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Freedom Charge",
+        "description": "Activation",
+        "tags": [
+          "sustain",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Cloak & Dagger": {
+      "name": "Cloak & Dagger",
+      "image": "cloak-&-dagger.png",
+      "weapon1": {
+        "name": "Darkforce Cloak",
+        "description": "Attacks will target the nearest enemy to the crosshair, dealing damage",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Lightforce Dagger",
+        "description": "The projectile features an attraction effect, pulling in the closest target to the crosshair and creating a spell field upon impact. This spell field provides healing effects",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Light's Embrace",
+        "description": "Instant Cast",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Terror Cape",
+        "description": "The spell field advances along the casting path",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Dark Teleportation",
+        "description": "Allies within the area gain Invisibility and Movement Boost",
+        "cooldown": 12,
+        "tags": [
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability4": {
+        "name": "Light Explosion",
+        "description": "Normal ability.",
+        "tags": [
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Shadow's Embrace",
+        "description": "Instant Cast",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Dagger Storm",
+        "description": "Single-cast projectile with delayed impact that also generates a spell field",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability7": {
+        "name": "From Shadow To Light",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Eternal Bond",
+        "description": "Persistent Spell Field",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Daredevil": {
+      "name": "Daredevil",
+      "image": "daredevil.png",
+      "weapon1": {
+        "name": "Justice Jab",
+        "description": "Gain 15 Fury on hit",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Righteous Cross",
+        "description": "Gain 15 Fury on hit",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Objection!",
+        "description": "Gain 60 Fury when successfully blocking an attack",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Devil's Latch",
+        "description": "Enable Righteous Cross within 5s after use; Gain 60 Fury",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Infernal Fury",
+        "description": "Enable Righteous Cross within 5s after use",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Sonic Pursuit",
+        "description": "If the target is defeated, refresh cooldown; Gain 60 Fury after dash",
+        "tags": [
+          "damage",
+          "defense",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Radar Sense",
+        "description": "Passive ability.",
+        "tags": [
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Blind Ascent",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Blind Verdict",
+        "description": "Team-Up Passive ability.",
+        "tags": [
+          "damage",
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Let the Devil Out",
+        "description": "Enemies in line of sight take damage and suffer a ramping Blind; Daredevil gains Fury.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "high"
+      }
+    },
+    "Devil Dinosaur": {
+      "name": "Devil Dinosaur",
+      "image": "devil-dinosaur.png",
+      "weapon1": {
+        "name": "Primal Bite",
+        "description": "Melee",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Savage Predation",
+        "description": "Normal ability.",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Buddy Barrier",
+        "description": "Normal ability.",
+        "cooldown": 10,
+        "tags": [
+          "sustain",
+          "defense",
+          "crowdControl",
+          "utility"
+        ],
+        "impact": "high"
+      },
+      "ability3": {
+        "name": "Impact Beam",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Frenzied Feast",
+        "description": "Normal ability.",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Prehistoric Plating",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Apex Advantage",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Primal Punishment",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Devil-Beast Rampage",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "DpsPool": {
+      "name": "DpsPool",
+      "image": "deadpool.png",
+      "weapon1": {
+        "name": "Kick@$$ Katana - Duelist Upgraded",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Kick@$$ Katana - Duelist",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "Dual Desert Eagles - Duelist Upgraded",
+        "description": "Weapon ability.",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon4": {
+        "name": "Dual Desert Eagles - Duelist",
+        "description": "Rapid-fire projectile",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Lock And Load!",
+        "description": "Weapon swap to pistols",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Slice And Dice!",
+        "description": "Weapon swap to katana",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Deadpool In Your Area - Duelist Upgraded",
+        "description": "Disrupt enemies' vision in range and gain XP. Enemies can damage Deadpool to end the disruption.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "defense",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Deadpool In Your Area - Duelist",
+        "description": "Disrupt enemies' vision in range and gain XP. Enemies can damage Deadpool to end the disruption.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "defense",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Hazardous Hijinks - Duelist Upgraded",
+        "description": "Refresh the cooldown if it hits an enemy. Deadpool bounces in the direction the ability hits an enemy.",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Hazardous Hijinks - Duelist",
+        "description": "Refresh the cooldown if it hits an enemy for up to 2 times",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Headshot! - Duelist Upgraded",
+        "description": "Normal ability.",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability8": {
+        "name": "Headshot! - Duelist",
+        "description": "Single-cast projectile with delayed impact that also generates a spell field",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability9": {
+        "name": "Bunny Hop",
+        "description": "Refresh the cooldown if it hits an enemy or wall",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability10": {
+        "name": "Photo-taking",
+        "description": "After delivering the Final Hit, take a photo with the enemy corpse for bonus XP.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability11": {
+        "name": "Deadpool On Air",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability12": {
+        "name": "Upgrade!",
+        "description": "Accumulate XP in battle. When maxed, choose an ability to upgrade for powerful boosts.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability13": {
+        "name": "Maximum Flair",
+        "description": "The ultimate ability can be unleashed after reaching an S rating. The rating is cleared if Deadpool is defeated.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability14": {
+        "name": "Healing Factor",
+        "description": "The healing factor kicks in after Deadpool has been out of combat for 5s. If Deadpool takes more than 200 damage within a two-second window, the healing factor activates and boosts the healing.",
+        "cooldown": 45,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "high"
+      },
+      "ability15": {
+        "name": "Comical Chaos",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "The Ban Hammer",
+        "description": "Targeted",
+        "cooldown": 45,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "critical"
+      },
+      "ult2": {
+        "name": "Skill Issue - Upgraded",
+        "description": "Ultimate ability.",
+        "cooldown": 45,
+        "tags": [
+          "damage"
+        ],
+        "impact": "high"
+      },
+      "ult3": {
+        "name": "Skill Issue",
+        "description": "Ultimate ability.",
+        "cooldown": 45,
+        "tags": [
+          "damage"
+        ],
+        "impact": "high"
+      }
+    },
+    "Dr. Strange": {
+      "name": "Dr. Strange",
+      "image": "doctor-strange.png",
+      "weapon1": {
+        "name": "Daggers Of Denak",
+        "description": "Five-round delayed hit projectiles",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Cloak Of Levitation",
+        "description": "Instant Cast",
+        "cooldown": 12,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Maelstrom Of Madness",
+        "description": "Single-cast spell field that surrounds the caster",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Shield Of The Seraphim",
+        "description": "Channeled",
+        "tags": [
+          "sustain",
+          "defense"
+        ],
+        "impact": "high"
+      },
+      "ability4": {
+        "name": "Pentagram Of Farallah",
+        "description": "Multi-segment release",
+        "cooldown": 180,
+        "tags": [
+          "utility"
+        ],
+        "impact": "critical"
+      },
+      "ability5": {
+        "name": "Price Of Magic",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Enchanted Enhancement",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Gamma Maelstrom",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Eye Of Agamotto",
+        "description": "Single-cast spell field that surrounds the caster",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Elsa Bloodstone": {
+      "name": "Elsa Bloodstone",
+      "image": "elsa-bloodstone.png",
+      "weapon1": {
+        "name": "Double-Barrel Blaster",
+        "description": "Shotgun projectiles that hit instantly",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Monster-Piercer",
+        "description": "Shotgun projectiles that hit instantly",
+        "tags": [
+          "damage",
+          "sustain",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Ruthless Pursuit",
+        "description": "Movement-based damage ability",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Follow Up",
+        "description": "Follow-up ability",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Helix Advance",
+        "description": "In 6s after unleashing Helix Advance, the next Double-Barrel Blaster becomes Monster-Piercer",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Living Bullet",
+        "description": "Projectile",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Smoky Snare",
+        "description": "Placed trap",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Inherited Instinct",
+        "description": "Passive ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Bloodstone's Boombox Bullets",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Apex Predator",
+        "description": "Glartrox cannot be critical hit. Drag 6 targets at most.",
+        "tags": [
+          "damage",
+          "sustain",
+          "movement",
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Emma Frost": {
+      "name": "Emma Frost",
+      "image": "emma-frost.png",
+      "ability1": {
+        "name": "Faceted Fury",
+        "description": "Single-cast Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability2": {
+        "name": "Crystal Kick",
+        "description": "Maximum knockback distance: 10m",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Psionic Seduction",
+        "description": "When exposed to the ability, enemies accumulate 10 stacks per second, and the stacks decrease by 10 stacks per second when they leave the exposure. At 15 stacks, a control effect is triggered. Each enemy can only be controlled once per ultimate activation",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability4": {
+        "name": "Mind's Aegis",
+        "description": "Deployable Shield",
+        "tags": [
+          "sustain",
+          "defense"
+        ],
+        "impact": "high"
+      },
+      "ability5": {
+        "name": "Psychic Spear",
+        "description": "When the distance between the target and its sentience is more than 15m, their linkage can be broken",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Carbon Crush",
+        "description": "Control effect duration: 1.6s",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Diamond Form",
+        "description": "25% Damage Reduction in Diamond form",
+        "tags": [
+          "damage",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability8": {
+        "name": "Telepathic Pulse",
+        "description": "Energy gain: Hero hit: 10/s; Sentience hit: 15/s; Common summons hit: 5/s; Shield hit: 10/s. Falloff begins 3s after not hitting an enemy, at a rate of 30/s",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability9": {
+        "name": "Mind Link",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      }
+    },
+    "Gambit": {
+      "name": "Gambit",
+      "image": "gambit.png",
+      "weapon1": {
+        "name": "Kinetic Cards",
+        "description": "Projectile that fires in a straight trajectory",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Healing Hearts",
+        "description": "Within the duration, consume one stack of Sleight of Hand to use Bridge Boost and Purifying Pick-Up.",
+        "cooldown": 4,
+        "tags": [
+          "sustain",
+          "cleanse"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Bayou Bash",
+        "description": "Dash",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Cajun Charge",
+        "description": "Dash",
+        "cooldown": 2,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Ace Of Aces",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Bidding Barrage",
+        "description": "Launch enemies up on hit, which can take effect only once.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Explosive Trick",
+        "description": "Projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Breaking Spades",
+        "description": "Within the duration, consume one stack of Sleight of Hand to use Explosive Trick and Bidding Barrage",
+        "cooldown": 4,
+        "tags": [
+          "damage"
+        ],
+        "impact": "medium"
+      },
+      "ability8": {
+        "name": "Purifying Pick-up",
+        "description": "The spell field applies Purify to allies upon impact. This can take effect on allies a maximum of 2 times and on himself once.",
+        "tags": [
+          "damage",
+          "sustain",
+          "cleanse",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability9": {
+        "name": "Bridge Boost",
+        "description": "The projectile automatically tracks allies and will bounce between allies on impact.",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability10": {
+        "name": "Big Easy Impact",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability11": {
+        "name": "Street Staff Arts",
+        "description": "Melee ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability12": {
+        "name": "Hand Reorder",
+        "description": "Reload ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Ragin' Royal Flush",
+        "description": "Gambit and the targeted ally receive the Purify and Jump Boost effect.",
+        "tags": [
+          "damage",
+          "sustain",
+          "cleanse",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Groot": {
+      "name": "Groot",
+      "image": "groot.png",
+      "ability1": {
+        "name": "Furious Flora",
+        "description": "The first two strikes can reach 3m, while the third strike can reach 4m",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability2": {
+        "name": "Ironwood Wall",
+        "description": "Ironwood Wall heals 40 Bonus Health per second, up to 250 Bonus Health",
+        "cooldown": 12,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Thornlash Wall",
+        "description": "Thornlash Wall deals 60 damage every 0.5s",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Spore Bomb",
+        "description": "Spore Bomb explodes into 6 explosive spores",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Vine Strike",
+        "description": "Single-cast projectile with delayed impact",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Flora Colossus",
+        "description": "Persistent spell field that surrounds the caster",
+        "tags": [
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Wild Wall",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Friendly Shoulder",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Strangling Prison",
+        "description": "Imprison enemies for 3.5s",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Hawkeye": {
+      "name": "Hawkeye",
+      "image": "hawkeye.png",
+      "weapon1": {
+        "name": "Piercing Arrow",
+        "description": "Charged projectile with an arced trajectory",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Blast Arrow",
+        "description": "Arced projectile that generates a spell field upon impact",
+        "cooldown": 0.5,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Skyward Leap",
+        "description": "Normal ability.",
+        "cooldown": 6,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Hypersonic Arrow",
+        "description": "Straight-line projectile that is accompanied by a spell field",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Crescent Slash",
+        "description": "Melee",
+        "cooldown": 12,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability4": {
+        "name": "Ronin Slash",
+        "description": "This ability cannot block explosions or effects created by projectiles on hit",
+        "tags": [
+          "damage",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Archer's Focus",
+        "description": "Passive ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Supersensory Vision",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Ice Arrow",
+        "description": "Straight-line projectile that is accompanied by a spell field",
+        "cooldown": 20,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ult": {
+        "name": "Hunter's Sight",
+        "description": "Ultimate ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Hela": {
+      "name": "Hela",
+      "image": "hela.png",
+      "weapon1": {
+        "name": "Nightsword Thorn",
+        "description": "Single-cast direct hit",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Soul Drainer",
+        "description": "Arced projectile that generates a spell field upon impact",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Astral Flock",
+        "description": "Shapeshift into a Nastrond Crow and gain invincibility",
+        "cooldown": 15,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Piercing Night",
+        "description": "Projectiles stick to enemies on hit",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Nastrond Crowstorm",
+        "description": "80",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Hel's Descent",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Hel Tendrils",
+        "description": "3m spherical radius spell field",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Queen Of Hel",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Goddess Of Death",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Hulk": {
+      "name": "Hulk",
+      "image": "hulk.png"
+    },
+    "Human Torch": {
+      "name": "Human Torch",
+      "image": "human-torch.png",
+      "weapon1": {
+        "name": "Fire Cluster",
+        "description": "Burst Projectile",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Plasma Body",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Pyro-prison",
+        "description": "Normal ability.",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Flaming Meteor",
+        "description": "40",
+        "cooldown": 20,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Blazing Blast",
+        "description": "Straight-line projectile that generates a spherical spell field upon impact.",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Two In One",
+        "description": "Launch-up spell field causes 30 damage; mobility abilities disabling spell field causes 15 damage per second",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Pyrokinetic Energy",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "United Siblings",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Omega Fire",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Supernova",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Invisible Woman": {
+      "name": "Invisible Woman",
+      "image": "invisible-woman.png",
+      "weapon1": {
+        "name": "Psionic Strike",
+        "description": "Weapon ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Psionic Hammer",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Invisible Energy",
+        "description": "Normal ability.",
+        "tags": [
+          "stealth",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability3": {
+        "name": "Psionic Support",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Psionic Vortex",
+        "description": "Applies a slow effect to enemies within the spell field; the closer they are to the center of the field, the greater the slow effect",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Psionic Surge",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Psionic Invisibility",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Fantasti-force",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Invisible",
+        "description": "Ultimate ability.",
+        "tags": [
+          "stealth",
+          "utility"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Iron Fist": {
+      "name": "Iron Fist",
+      "image": "iron-fist.png",
+      "weapon1": {
+        "name": "LION'S LAUNCH",
+        "description": "Weapon ability.",
+        "tags": [
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Yat Jee Chung Kuen",
+        "description": "Melee",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "Jeet Kune Do",
+        "description": "Melee",
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "negligible"
+      },
+      "weapon4": {
+        "name": "FEROCIOUS THROW",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Crane Leap",
+        "description": "Normal ability.",
+        "cooldown": 3,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "LION KICK",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Harmony Recovery",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "K'un-lun Kick",
+        "description": "Movement-based damage ability",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "CRANE LEAP",
+        "description": "Normal ability.",
+        "cooldown": 3,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Dragon's Defense",
+        "description": "Normal ability.",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Wall Runner",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Chi Absorption",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability9": {
+        "name": "Lunar Chi",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability10": {
+        "name": "Dragon's Chill",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Living Chi",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "high"
+      }
+    },
+    "Iron Man": {
+      "name": "Iron Man",
+      "image": "iron-man.png",
+      "weapon1": {
+        "name": "Repulsor Blast",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Unibeam",
+        "description": "Channeled",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Micro-missile Barrage",
+        "description": "Scatter-type projectile that generates a spell area upon impact",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Hyper-velocity",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Armor Overdrive",
+        "description": "Normal ability.",
+        "cooldown": 20,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Gamma Overdrive",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Nano Tech",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Invincible Pulse Cannon",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Jeff TLS": {
+      "name": "Jeff TLS",
+      "image": "jeff-the-land-shark.png",
+      "weapon1": {
+        "name": "Frost Burst",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Snow Splash",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "Joyful Splash",
+        "description": "Rapid-fire, delayed projectile",
+        "tags": [
+          "damage",
+          "sustain",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Aqua Burst",
+        "description": "Direct hits can launch enemies up",
+        "cooldown": 3,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Healing Bubble",
+        "description": "Touching the bubble will immediately activate its effect",
+        "cooldown": 3,
+        "tags": [
+          "sustain",
+          "utility"
+        ],
+        "impact": "high"
+      },
+      "ability3": {
+        "name": "Hide And Seek",
+        "description": "During the dive, gain Unstoppable, healing over time, and a Movement Boost, while Jeff's hitbox is reduced",
+        "tags": [
+          "sustain",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Hide And Seek",
+        "description": "During the dive, gain Unstoppable, healing over time, and a Movement Boost, while Jeff's hitbox is reduced",
+        "tags": [
+          "sustain",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Blasting Bubble",
+        "description": "Normal ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Oblivious Cuteness",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "New Friends",
+        "description": "Targeted",
+        "tags": [
+          "damage",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability8": {
+        "name": "It's Jeff-nado!",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability9": {
+        "name": "Guardian Of The Deep",
+        "description": "10m spherical radius spell field",
+        "cooldown": 20,
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability10": {
+        "name": "Frozen Spitball",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "It's Jeff!",
+        "description": "After swallowing allies and enemies, Jeff will deal damage to enemies and heal allies for the duration of the effect, during which they will also benefit from Hide and Seek",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      },
+      "ult2": {
+        "name": "It's Jeff!",
+        "description": "After swallowing allies and enemies, Jeff will deal damage to enemies and heal allies for the duration of the effect, during which they will also benefit from Hide and Seek",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Loki": {
+      "name": "Loki",
+      "image": "loki.png",
+      "weapon1": {
+        "name": "Mystical Missile",
+        "description": "Single-cast projectile with delayed impact that also generates a spell field",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Regeneration Domain",
+        "description": "The spell field is sustained by Rune Stones. It will disappear if the Rune Stone is destroyed or if its maximum duration is reached. Allies within the field will receive healing over time, and any damage taken will be converted into healing based on the amount of damage taken",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability2": {
+        "name": "Doppelganger",
+        "description": "Project an Illusion at a selected location",
+        "cooldown": 2,
+        "tags": [
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Backstab",
+        "description": "Single-cast Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability4": {
+        "name": "Devious Exchange",
+        "description": "Targeted",
+        "cooldown": 15,
+        "tags": [
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Deception",
+        "description": "Loki leaves an illusion in his place and becomes invisible while continuously healing himself. This invisibility has no time limit, but any actions other than casting Devious Exchange, reloading, or casting Doppelganger will render him visible",
+        "cooldown": 15,
+        "tags": [
+          "sustain",
+          "stealth",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Deific Blessing",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Laufeyson Reborn",
+        "description": "When Hela defeats an enemy, if Loki is still alive, he will receive Bonus Health. If Loki is defeated, he will respawn on the spot after a short delay",
+        "tags": [
+          "sustain",
+          "revive"
+        ],
+        "impact": "high"
+      },
+      "ult": {
+        "name": "God Of Mischief",
+        "description": "After transforming, Loki's Ultimate ability will be fully charged. Casting a transformation-type Ultimate ability will extend the duration of God of Mischief until the transformation ability ends",
+        "tags": [
+          "movement",
+          "utility"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Luna Snow": {
+      "name": "Luna Snow",
+      "image": "luna-snow.png",
+      "weapon1": {
+        "name": "Light & Dark Ice",
+        "description": "A triple shot that hits instantly",
+        "tags": [
+          "damage",
+          "sustain",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Ice Arts",
+        "description": "Replace the previous Light & Dark Ice cast",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Absolute Zero",
+        "description": "Freeze enemies for 2.7s. However, if they are attacked during the last 2.2s of the freeze, the effect will be canceled. Grants 50 Bonus Health per enemy hit",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "high"
+      },
+      "ability3": {
+        "name": "Share The Stage",
+        "description": "Provide healing to allies marked with Idol Aura",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Smooth Skate",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Cryo Heart",
+        "description": "30/s for 3 seconds",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Frozen Chi",
+        "description": "Knock back enemies and apply a Slow",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Icy Disco",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Winter's Chill",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability9": {
+        "name": "Light & Shadow Karma",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Fate Of Both Worlds",
+        "description": "Persistent spell field that surrounds the caster",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Magik": {
+      "name": "Magik",
+      "image": "magik.png",
+      "ability1": {
+        "name": "Magik Slash",
+        "description": "Charged projectile that travels in a straight trajectory",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "low"
+      },
+      "ability2": {
+        "name": "Stepping Discs",
+        "description": "Dash",
+        "cooldown": 6,
+        "tags": [
+          "defense",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Eldritch Whirl",
+        "description": "A cylindrical spell field in melee range",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability4": {
+        "name": "Demon's Rage",
+        "description": "A cuboid spell field in melee range",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Umbral Incursion",
+        "description": "Movement-based damage ability",
+        "cooldown": 8,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Magik Slash",
+        "description": "Charged projectile that travels in a straight trajectory",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Soulsword",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability8": {
+        "name": "Stepping Discs",
+        "description": "Dash",
+        "cooldown": 6,
+        "tags": [
+          "defense",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability9": {
+        "name": "Eldritch Whirl",
+        "description": "A cylindrical spell field in melee range",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability10": {
+        "name": "Demon's Rage",
+        "description": "A cuboid spell field in melee range",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability11": {
+        "name": "Umbral Incursion",
+        "description": "Movement-based damage ability",
+        "cooldown": 8,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability12": {
+        "name": "Soulsword",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability13": {
+        "name": "Limbo's Might",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability14": {
+        "name": "Disc Master",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Darkchild",
+        "description": "When in the Darkchild state, all of Magik's abilities are enhanced",
+        "tags": [
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Magneto": {
+      "name": "Magneto",
+      "image": "magneto.png",
+      "weapon1": {
+        "name": "Iron Volley",
+        "description": "Single-cast projectile with delayed impact that also generates a spell field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Metallic Curtain",
+        "description": "Shield",
+        "cooldown": 3,
+        "tags": [
+          "sustain",
+          "defense"
+        ],
+        "impact": "high"
+      },
+      "ability2": {
+        "name": "Metal Bulwark",
+        "description": "The shield grants one charge of Iron Ring for every 100 damage it absorbs",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "movement"
+        ],
+        "impact": "high"
+      },
+      "ability3": {
+        "name": "Iron Bulwark",
+        "description": "The shield grants one charge of Iron Ring for every 100 damage it absorbs",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "movement"
+        ],
+        "impact": "high"
+      },
+      "ability4": {
+        "name": "Mag-cannon",
+        "description": "When fully charged, the Iron Ring has a 6m knockback distance",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Magnetic Descent",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Magnetic Resonance",
+        "description": "Upon release, Magneto and his Duplicate Illusion become invisible. The damage dealt by the projection is reduced, and it dissipates after taking a specific amount of damage",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "defense",
+          "stealth"
+        ],
+        "impact": "high"
+      },
+      "ability7": {
+        "name": "Metallic Fusion",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Meteor M",
+        "description": "For each point of projectile damage absorbed, the power increases by 0.125, with a maximum absorption of 800 projectile damage",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Mantis": {
+      "name": "Mantis",
+      "image": "mantis.png",
+      "ability1": {
+        "name": "Allied Inspiration",
+        "description": "Targeted",
+        "cooldown": 1,
+        "tags": [
+          "damage"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Natural Anger",
+        "description": "Instant Cast",
+        "cooldown": 1,
+        "tags": [
+          "damage"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Spore Slumber",
+        "description": "A Mantis illusions will manifest beside the sedated heroes. Allies can attack this illusion to awaken the affected hero",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability4": {
+        "name": "Healing Flower",
+        "description": "Healing Flower provides two types of healing effects: One-time Healing and Healing Over Time",
+        "cooldown": 1,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Life Energy Blast",
+        "description": "Critical hit generates 1 Life Orb",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Nature's Favor",
+        "description": "Consume Life Orbs to receive Healing Over Time",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Heavenly Guardian",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Nature's Soul",
+        "description": "Normal ability.",
+        "cooldown": 135,
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Soul Resurgence",
+        "description": "Persistent spell field that surrounds the caster",
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Moon Knight": {
+      "name": "Moon Knight",
+      "image": "moon-knight.png",
+      "weapon1": {
+        "name": "Crescent Dart",
+        "description": "Triple shot that fires in a straight trajectory",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Rising Leap",
+        "description": "Normal ability.",
+        "cooldown": 6,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Night Glider",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Triple Eclipse",
+        "description": "Melee",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Moonlight Hook",
+        "description": "Dash",
+        "cooldown": 15,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Moon Blade",
+        "description": "Projectile that fires in a straight trajectory",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Ancient Ankh",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Full Moon",
+        "description": "25/sec",
+        "cooldown": 30,
+        "tags": [
+          "sustain",
+          "areaOfEffect",
+          "teamup"
+        ],
+        "impact": "high"
+      },
+      "ult": {
+        "name": "Hand Of Khonshu",
+        "description": "Delayed Spherical Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Mr. Fantastic": {
+      "name": "Mr. Fantastic",
+      "image": "mister-fantastic.png",
+      "weapon1": {
+        "name": "Stretch Punch",
+        "description": "Straight Spell Field",
+        "tags": [
+          "damage",
+          "movement",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Reflexive Rubber",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Flexible Elongation",
+        "description": "30",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Distended Grip",
+        "description": "Projectile that fires in a straight trajectory",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Elastic Strength",
+        "description": "80",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Wedded Harmony",
+        "description": "Normal ability.",
+        "cooldown": 25,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ult": {
+        "name": "Brainiac Bounce",
+        "description": "Spherical Spell Field",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Namor": {
+      "name": "Namor",
+      "image": "namor.png",
+      "ability1": {
+        "name": "Blessing Of The Deep",
+        "description": "Normal ability.",
+        "cooldown": 20,
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Trident Of Neptune",
+        "description": "Projectile with an arced trajectory",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability3": {
+        "name": "Tide Fall",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Wrath Of The Seven Seas",
+        "description": "Arced projectile that generates a spell field upon impact",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Aquatic Dominion",
+        "description": "Arced Trajectory (Summon Monstro Spawn), Direct Hit (Monstro Spawn)",
+        "tags": [
+          "damage",
+          "sustain",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Horn Of Proteus",
+        "description": "Cylindrical Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Frozen Spawn",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Gamma Monstro",
+        "description": "When attacking the same target continuously, the damage will gradually increase to 1.5X over 5 seconds",
+        "cooldown": 20,
+        "tags": [
+          "damage",
+          "sustain",
+          "utility",
+          "teamup"
+        ],
+        "impact": "medium"
+      }
+    },
+    "Peni Parker": {
+      "name": "Peni Parker",
+      "image": "peni-parker.png",
+      "weapon1": {
+        "name": "Cyber-Web Cluster",
+        "description": "Delayed projectile plus a Cyber-Web spell field on hit.",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Arachno-Mine",
+        "description": "Deploys a mine; invisibility and lock-on when placed on Cyber-Webs.",
+        "cooldown": 4,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability2": {
+        "name": "Cyber-Web Snare",
+        "description": "Fires a snaring web; if it hits terrain it creates a Cyber-Web zone.",
+        "cooldown": 3,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability3": {
+        "name": "Wall Crawl",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Cyber-Bond",
+        "description": "Web-zip to surfaces; latches until cancelled and lays a Cyber-Web.",
+        "cooldown": 3,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Bionic Spider-Nest",
+        "description": "Places a nest that spawns drones and creates a large Cyber-Web.",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability6": {
+        "name": "Wall Crawl",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Armor Expulsion",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Armored Spider-nest",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability9": {
+        "name": "Rocket Network (Armored Spider-Nest)",
+        "description": "Deploys an Armored Spider-Nest that spawns drones and armor packs.",
+        "cooldown": 30,
+        "tags": [
+          "sustain",
+          "areaOfEffect",
+          "teamup"
+        ],
+        "impact": "high"
+      },
+      "ult": {
+        "name": "Spider-Sweeper",
+        "description": "Enhances speed and unleashes a sweeping melee that launches; auto-deploys webs, mines, and drones while active.",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Phoenix": {
+      "name": "Phoenix",
+      "image": "phoenix.png",
+      "weapon1": {
+        "name": "Cosmic Flames",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Psionic Detonation",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Dark Ascent",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Telepathic Illusion",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Mind's Grace",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Endsong Inferno",
+        "description": "Ultimate ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Psylocke": {
+      "name": "Psylocke",
+      "image": "psylocke.png",
+      "ability1": {
+        "name": "Wing Shurikens",
+        "description": "Projectile that fires in a straight trajectory.",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Dance Of The Butterfly",
+        "description": "150 damage per hit",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Psychic Stealth",
+        "description": "Normal ability.",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "stealth",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability4": {
+        "name": "Psionic Crossbow",
+        "description": "Double projectile with spread",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Psi-blade Dash",
+        "description": "50",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Psychic Echoes",
+        "description": "Upon release, Magneto and his Duplicate Illusion become invisible. The damage dealt by the projection is reduced, and it dissipates after taking a specific amount of damage",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "defense",
+          "stealth"
+        ],
+        "impact": "high"
+      },
+      "ability7": {
+        "name": "Psionic Disc",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      }
+    },
+    "Punisher": {
+      "name": "Punisher",
+      "image": "the-punisher.png",
+      "weapon1": {
+        "name": "Deliverance",
+        "description": "Shotgun projectiles that hit instantly",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Adjudication",
+        "description": "Rapid-fire projectile",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Scourge Grenade",
+        "description": "Create a temporary smokescreen that obstructs vision",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "movement",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Vantage Connection",
+        "description": "Dash",
+        "cooldown": 20,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Culling Turret",
+        "description": "Rapid-fire projectiles that create a spell field upon impact",
+        "cooldown": 20,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Warrior's Gaze",
+        "description": "Retain vision of enemies that disappear from view for a short duration",
+        "tags": [
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Infinite Punishment",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Cutting-edge Tech",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Final Judgement",
+        "description": "Rapid-fire projectiles that hit instantly and have a tracking trajectory",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Rocket Raccoon": {
+      "name": "Rocket Raccoon",
+      "image": "rocket-raccoon.png",
+      "weapon1": {
+        "name": "Bombard Mode",
+        "description": "Rapid-fire, delayed projectile",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Repair Mode",
+        "description": "One-time healing for allies when projectile hits them，Bouncing Spheres will bounce off surfaces upon contact, with a maximum of 10 bounces. When they approach injured allies, their speed will reduce",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "B.r.b.",
+        "description": "Generate an item every 3s, including Armor Pack and Rocket Boots",
+        "cooldown": 45,
+        "tags": [
+          "sustain",
+          "utility"
+        ],
+        "impact": "critical"
+      },
+      "ability2": {
+        "name": "Jetpack Dash",
+        "description": "Dash",
+        "cooldown": 2,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Flying Ace",
+        "description": "Passive ability.",
+        "tags": [
+          "movement",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Wild Crawl",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Rocket Network",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Ammo Invention",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Unknown",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Old Friends",
+        "description": "Pressing SHIFT will exit the Team-Up status with Groot",
+        "tags": [
+          "damage",
+          "defense",
+          "crowdControl",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "C.y.a.",
+        "description": "During the ability's duration, linked allies will receive an additional 100 Bonus Health points per second, capping at 150. After breaking the link, this bonus starts to falloff after 1 second at a rate of 75 per/s",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Rogue": {
+      "name": "Rogue",
+      "image": "rogue.png",
+      "ability1": {
+        "name": "Ability Absorption",
+        "description": "Knock down target; Rogue is Unstoppable during absorption; after absorbing, replace Ability Absorption with stolen ability or refresh Fatal Attraction.",
+        "cooldown": 25,
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Chrono Kick Combo",
+        "description": "Launch up enemy hit, enter flight; next two Power Surge Punch attacks become ranged; ability can be unleashed again.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Fatal Attraction",
+        "description": "Launch up enemies hit.",
+        "cooldown": 17,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Southern Brawl",
+        "description": "Launch up enemies hit.",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Defensive Stance",
+        "description": "Reduced damage transforms into backlash energy that powers up the next Southern Brawl.",
+        "tags": [
+          "damage",
+          "defense"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Hearts As One",
+        "description": "Normal ability.",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "teamup"
+        ],
+        "impact": "high"
+      },
+      "ability7": {
+        "name": "Power Surge Punch",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Heartbreaker",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Scarlet Witch": {
+      "name": "Scarlet Witch",
+      "image": "scarlet-witch.png",
+      "ability1": {
+        "name": "Reality Erasure",
+        "description": "During this period, Scarlet Witch enters a Free-flight state",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Telekinesis",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "Mystic Projection",
+        "description": "During this period, Scarlet Witch enters the Projection state",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Dark Seal",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Chthonian Burst",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Chaos Control",
+        "description": "Cylindrical Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Sorcery Surge",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability8": {
+        "name": "Chaotic Bond",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      }
+    },
+    "Spider-Man": {
+      "name": "Spider-Man",
+      "image": "spider-man.png",
+      "weapon1": {
+        "name": "Spider-power",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Web-cluster",
+        "description": "Projectile that fires in a straight trajectory",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Web-swing",
+        "description": "Dash",
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Get Over Here!",
+        "description": "Projectile that fires in a straight trajectory",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Wall Crawl",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Amazing Combo",
+        "description": "Melee",
+        "cooldown": 2,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Thwip And Flip",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Spider-sense",
+        "description": "8m spherical radius",
+        "tags": [
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Suit Expulsion",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Extra Web-fluid",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability9": {
+        "name": "Inferno Blast",
+        "description": "30",
+        "cooldown": 12,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Spectacular Spin",
+        "description": "Striking an enemy applies a stacking Slow effect, and after reaching a certain number of stacks, the enemy will be Stunned",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Squirrel Girl": {
+      "name": "Squirrel Girl",
+      "image": "squirrel-girl.png",
+      "weapon1": {
+        "name": "Burst Acorn",
+        "description": "Arced projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Mammal Bond",
+        "description": "Normal ability.",
+        "cooldown": 10,
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Squirrel Blockade",
+        "description": "Charged projectile with an arced trajectory",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "defense",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Tail Bounce",
+        "description": "Normal ability.",
+        "cooldown": 8,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Webbed Acorn",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Squirrel Missile",
+        "description": "Automatically track enemies within a horizontal angle of 60°, a vertical angle of 60°, and a maximum distance of 60m",
+        "cooldown": 20,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Squirrel Support",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Unbeatable Squirrel Tsunami",
+        "description": "150",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Star-Lord": {
+      "name": "Star-Lord",
+      "image": "star-lord.png",
+      "weapon1": {
+        "name": "FEROCIOUS THROW",
+        "description": "Weapon ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Element Guns",
+        "description": "Rapid-fire shots with spread.",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "LION'S LAUNCH",
+        "description": "Weapon ability.",
+        "tags": [
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "ROCKET PROPULSION",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "LION LEAP",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability3": {
+        "name": "CELESTIAL LEAP",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Stellar Shift",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Rocket Propulsion",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Blaster Barrage",
+        "description": "Spherical Spell Field",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Network Leapspider",
+        "description": "Normal ability.",
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Leader's Soul",
+        "description": "Passive ability.",
+        "cooldown": 135,
+        "tags": [
+          "movement",
+          "teamup"
+        ],
+        "impact": "medium"
+      },
+      "ult": {
+        "name": "Galactic Legend",
+        "description": "Rapid-fire projectile.",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "high"
+      }
+    },
+    "Storm": {
+      "name": "Storm",
+      "image": "storm.png",
+      "ability1": {
+        "name": "Goddess Boost",
+        "description": "Spherical Spell Field",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Weather Control",
+        "description": "Spherical Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Bolt Rush",
+        "description": "Straight Spell Field",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Wind Blade",
+        "description": "Wind Blade pierces through enemies",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability5": {
+        "name": "Shark Surge",
+        "description": "Passive ability.",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Charged Gale",
+        "description": "Normal ability.",
+        "tags": [
+          "movement",
+          "utility"
+        ],
+        "impact": "low"
+      },
+      "ability7": {
+        "name": "Burning Hurricane",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Omega Hurricane",
+        "description": "Weather effects will be disabled during the Ultimate",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "SupportPool": {
+      "name": "SupportPool",
+      "image": "deadpool.png",
+      "ability1": {
+        "name": "Magical Unicorn Shield! - Upgraded",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "sustain",
+          "defense",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Magical Unicorn Shield!",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "sustain",
+          "defense",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Bunny Bounce",
+        "description": "Jump",
+        "cooldown": 6,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Lock And Load!",
+        "description": "Weapon swap to pistols",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Slice And Dice!",
+        "description": "Weapon swap to katana",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Photo-taking",
+        "description": "After delivering the Final Hit, take a photo with the enemy corpse for bonus XP.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Deadpool On Air",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Upgrade!",
+        "description": "Accumulate XP in battle. When maxed, choose an ability to upgrade for powerful boosts.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability9": {
+        "name": "Maximum Flair",
+        "description": "The ultimate ability can be unleashed after reaching an S rating. The rating is cleared if Deadpool is defeated.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability10": {
+        "name": "Healing Factor",
+        "description": "The healing factor kicks in after Deadpool has been out of combat for 5s. If Deadpool takes more than 200 damage within a two-second window, the healing factor activates and boosts the healing.",
+        "cooldown": 45,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "high"
+      },
+      "ability11": {
+        "name": "Comical Chaos",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "The Big Test",
+        "description": "AoE self-buff",
+        "cooldown": 60,
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      },
+      "ult2": {
+        "name": "Pop Quiz! - Upgraded",
+        "description": "Ultimate ability.",
+        "cooldown": 45,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "critical"
+      },
+      "ult3": {
+        "name": "Pop Quiz!",
+        "description": "Ultimate ability.",
+        "cooldown": 45,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Tankpool": {
+      "name": "Tankpool",
+      "image": "deadpool.png",
+      "weapon1": {
+        "name": "Kick@$$ Katana - Vanguard",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Dual Desert Eagles - Vanguard Upgraded",
+        "description": "Weapon ability.",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "Dual Desert Eagles - Vanguard",
+        "description": "Rapid-fire projectile",
+        "tags": [
+          "damage",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Deadpool In Your Area - Vanguard Upgraded",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Deadpool In Your Area - Vanguard",
+        "description": "Disrupt enemies' vision in range and gain XP. Enemies can damage Deadpool to end the disruption. Increase left-click attack speed for the duration.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Hazardous Hijinks - Vanguard",
+        "description": "Refresh the cooldown if it hits an enemy for up to 2 times",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Magical Unicorn Shield! - Upgraded",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "sustain",
+          "defense",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Magical Unicorn Shield!",
+        "description": "Normal ability.",
+        "cooldown": 12,
+        "tags": [
+          "sustain",
+          "defense",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Bunny Bounce",
+        "description": "Jump",
+        "cooldown": 6,
+        "tags": [
+          "movement"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Lock And Load!",
+        "description": "Weapon swap to pistols",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Slice And Dice!",
+        "description": "Weapon swap to katana",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability9": {
+        "name": "Photo-taking",
+        "description": "After delivering the Final Hit, take a photo with the enemy corpse for bonus XP.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability10": {
+        "name": "Deadpool On Air",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability11": {
+        "name": "Upgrade!",
+        "description": "Accumulate XP in battle. When maxed, choose an ability to upgrade for powerful boosts.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability12": {
+        "name": "Maximum Flair",
+        "description": "The ultimate ability can be unleashed after reaching an S rating. The rating is cleared if Deadpool is defeated.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability13": {
+        "name": "Healing Factor",
+        "description": "The healing factor kicks in after Deadpool has been out of combat for 5s. If Deadpool takes more than 200 damage within a two-second window, the healing factor activates and boosts the healing.",
+        "cooldown": 45,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "high"
+      },
+      "ability14": {
+        "name": "Comical Chaos",
+        "description": "Normal ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "The Ban Hammer",
+        "description": "Targeted",
+        "cooldown": 45,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "critical"
+      },
+      "ult2": {
+        "name": "The Big Test",
+        "description": "AoE self-buff",
+        "cooldown": 60,
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Thing": {
+      "name": "Thing",
+      "image": "the-thing.png",
+      "weapon1": {
+        "name": "Rocky Jab",
+        "description": "Single-cast Spell Field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Stone Haymaker",
+        "description": "Move forward 3 meters while punching, gaining 50 Bonus Health during skill activation\n\t\t\t\t\t\t; once hit, this ability can knock down flying enemies to the ground.",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Battle Blitz",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability2": {
+        "name": "Embattled Leap",
+        "description": "Apply a 25% damage reduction effect to self and target ally for 3s",
+        "cooldown": 3,
+        "tags": [
+          "damage",
+          "defense",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Yancy Street Charge",
+        "description": "Gain 200 Bonus Health during skill activation",
+        "cooldown": 10,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Unyielding Will",
+        "description": "Immune to launch-up, knock-back, and other displacement effects",
+        "tags": [
+          "defense",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Flying Thing",
+        "description": "Launch-up spell field causes 30 damage; mobility abilities disabling spell field causes 15 damage per second",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "ability6": {
+        "name": "Cosmic Fastball",
+        "description": "Targeted",
+        "cooldown": 3,
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Cooperative Comrades",
+        "description": "Normal ability.",
+        "cooldown": 25,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ult": {
+        "name": "Clobberin' Time",
+        "description": "Stun duration 2.5s",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Thor": {
+      "name": "Thor",
+      "image": "thor.png",
+      "ability1": {
+        "name": "Awakening Rune",
+        "description": "Inflict damage over time on nearby enemies; After casting Awakening Rune, you can manually cancel the Awakened state after a brief delay. At the end of the Awakened state, Thor restores 1 point of Thunderforce.",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Lightning Realm",
+        "description": "For each enemy within the spell area, 1 point of Thorforce is restored. Enemies that cross the boundary will be Slowed by 30%, Enemies that cross the boundary will receive an additional debuff that restricts aerial abilities for 2s.",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Hammer Throw",
+        "description": "Launch a single-target projectile that returns after a delayed hit",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Mjölnir Bash",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability5": {
+        "name": "Storm Surge",
+        "description": "Charged Dash",
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "low"
+      },
+      "ability6": {
+        "name": "Thorforce",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Odinson Reborn",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain",
+          "revive"
+        ],
+        "impact": "high"
+      },
+      "ability8": {
+        "name": "Thunderous Deity",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "God Of Thunder",
+        "description": "A persistent spell field that generates a one-time spell field upon expiration",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Ultron": {
+      "name": "Ultron",
+      "image": "ultron.png",
+      "weapon1": {
+        "name": "Imperative: Firewall",
+        "description": "Grant bonus health to Ultron and Allies within range, centered around Ultron and the drones",
+        "cooldown": 10,
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      },
+      "weapon2": {
+        "name": "Encephalo-ray",
+        "description": "First constant beam; Second single-cast cylindrical spell field",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Dynamic Flight",
+        "description": "Dynamic Flight can trigger a one-time dash followed by an constant accelerated effect.",
+        "cooldown": 8,
+        "tags": [
+          "sustain",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Imperative: Patch",
+        "description": "Targeted",
+        "tags": [
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Nano Ray",
+        "description": "Channeled",
+        "cooldown": 30,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "high"
+      },
+      "ult": {
+        "name": "Rage Of Ultron",
+        "description": "Within the ultimate duration, Ultron grants an Unstoppable effect",
+        "tags": [
+          "damage",
+          "sustain",
+          "defense",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Venom": {
+      "name": "Venom",
+      "image": "venom.png",
+      "weapon1": {
+        "name": "Dark Predation",
+        "description": "Quad-cast delayed spell field",
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Symbiotic Resilience",
+        "description": "Grant 100 Bonus Health and convert 120% of lost Health into Bonus Health",
+        "cooldown": 15,
+        "tags": [
+          "sustain"
+        ],
+        "impact": "high"
+      },
+      "ability2": {
+        "name": "Frenzied Arrival",
+        "description": "Knocks enemies inward, with an inward knockback angle of 75°",
+        "cooldown": 8,
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Cellular Corrosion",
+        "description": "Tendrils apply a 25% Slow on the target and take 3s to inflict damage. If the distance from Venom exceeds 11m, the tendrils will detach",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Venom Swing",
+        "description": "Dash",
+        "cooldown": 8,
+        "tags": [
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Alien Biology",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Touch Of Klyntar",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability7": {
+        "name": "Healing Tendrils",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain",
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ult": {
+        "name": "Feast Of The Abyss",
+        "description": "100% of damage dealt is converted into Bonus Health",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "White Fox": {
+      "name": "White Fox",
+      "image": "white-fox.png",
+      "weapon1": {
+        "name": "Yeowoo Guseul",
+        "description": "Projectile",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "negligible"
+      },
+      "weapon2": {
+        "name": "Claw Strike",
+        "description": "Melee",
+        "tags": [
+          "damage"
+        ],
+        "impact": "negligible"
+      },
+      "weapon3": {
+        "name": "Ninefold Slam",
+        "description": "Melee",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Tail Sweep",
+        "description": "Melee sweep",
+        "cooldown": 3,
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability2": {
+        "name": "Spectral Surge",
+        "description": "Projectile",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Ancestral Force",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability4": {
+        "name": "Predatory Pounce",
+        "description": "Dash",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Spirit Sanctuary",
+        "description": "While the shield is active, it provides 20/s Healing Over Time to allies (including White Fox) within the shield's range.",
+        "cooldown": 12,
+        "tags": [
+          "sustain",
+          "defense",
+          "movement",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "high"
+      },
+      "ability6": {
+        "name": "Blessed By The Nine",
+        "description": "Targeted",
+        "cooldown": 2,
+        "tags": [
+          "sustain",
+          "defense"
+        ],
+        "impact": "high"
+      },
+      "ability7": {
+        "name": "Fox Form Awakening",
+        "description": "Transformation",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "negligible"
+      },
+      "ability8": {
+        "name": "Spirit Fox Ward",
+        "description": "Normal ability.",
+        "tags": [
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability9": {
+        "name": "Nine-Tailed Aura",
+        "description": "Normal ability.",
+        "tags": [
+          "teamup"
+        ],
+        "impact": "low"
+      },
+      "ability10": {
+        "name": "Melee Attack",
+        "description": "Melee ability.",
+        "tags": [
+          "damage"
+        ],
+        "impact": "low"
+      },
+      "ability11": {
+        "name": "Reload",
+        "description": "Reload ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Kumiho Unleashed",
+        "description": "Transformation",
+        "tags": [
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    },
+    "Winter Soldier": {
+      "name": "Winter Soldier",
+      "image": "winter-soldier.png",
+      "weapon1": {
+        "name": "Roterstern",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "tags": [
+          "damage",
+          "areaOfEffect",
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability1": {
+        "name": "Tainted Voltage",
+        "description": "Projectile that fires in a straight trajectory",
+        "cooldown": 6,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Trooper's Fist",
+        "description": "Movement-based damage ability",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "crowdControl"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Bionic Hook",
+        "description": "Straight-line projectile that generates a spell field upon impact",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Ceaseless Charge",
+        "description": "Passive ability.",
+        "tags": [
+          "sustain",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Infinite Grit",
+        "description": "Passive ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ability6": {
+        "name": "Stellar Impact",
+        "description": "Stellar Impact also triggers the Ceaseless Charge passive effect",
+        "cooldown": 12,
+        "tags": [
+          "damage",
+          "sustain",
+          "movement",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ult": {
+        "name": "Kraken Impact",
+        "description": "Spherical Spell Field",
+        "tags": [
+          "damage",
+          "sustain",
+          "areaOfEffect"
+        ],
+        "impact": "high"
+      }
+    },
+    "Wolverine": {
+      "name": "Wolverine",
+      "image": "wolverine.png",
+      "ability1": {
+        "name": "Undying Animal",
+        "description": "Normal ability.",
+        "cooldown": 16,
+        "tags": [
+          "damage"
+        ],
+        "impact": "medium"
+      },
+      "ability2": {
+        "name": "Feral Leap",
+        "description": "Normal ability.",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability3": {
+        "name": "Berserker Rage",
+        "description": "Normal ability.",
+        "tags": [
+          "damage",
+          "crowdControl",
+          "movement"
+        ],
+        "impact": "medium"
+      },
+      "ability4": {
+        "name": "Regenerative Healing Factor",
+        "description": "Normal ability.",
+        "cooldown": 90,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability5": {
+        "name": "Savage Claw",
+        "description": "Melee",
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability6": {
+        "name": "Vicious Rampage",
+        "description": "Movement-based damage ability",
+        "cooldown": 3,
+        "tags": [
+          "damage",
+          "sustain"
+        ],
+        "impact": "medium"
+      },
+      "ability7": {
+        "name": "Phoenix Warrior",
+        "description": "Normal ability.",
+        "cooldown": 15,
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "medium"
+      },
+      "ability8": {
+        "name": "Metal Cannonball",
+        "description": "Normal ability.",
+        "tags": [
+          "utility"
+        ],
+        "impact": "negligible"
+      },
+      "ult": {
+        "name": "Last Stand",
+        "description": "Ultimate ability.",
+        "tags": [
+          "damage",
+          "sustain",
+          "crowdControl",
+          "areaOfEffect"
+        ],
+        "impact": "critical"
+      }
+    }
+  }
+}

@@ -23,6 +23,9 @@
         <a href="{{ url_for(match_list_endpoint) }}" class="button-secondary">Back to {{ match_label }}s</a>
         {% if session.get('access_level') == 'edit' %}
         <button type="button" class="button-secondary" onclick="openEditScrimModal()">Edit</button>
+        {% if show_team_selector %}
+        <button type="button" class="button-secondary" onclick="confirmSwapSides()">Swap Sides</button>
+        {% endif %}
         {% if not show_team_selector %}
         <button type="button" class="button-secondary" onclick="openManageTeamsModal()">Manage Teams</button>
         {% endif %}
@@ -225,6 +228,9 @@
 {% if session.get('access_level') == 'edit' %}
 <!-- Hidden delete forms -->
 <form id="deleteScrimForm" action="{{ url_for(match_delete_endpoint, tournament_id=scrim.id, scrim_id=scrim.id) }}" method="post" style="display:none;"></form>
+{% if show_team_selector %}
+<form id="swapSidesForm" action="{{ url_for('swap_scrim_sides', scrim_id=scrim.id) }}" method="post" style="display:none;"></form>
+{% endif %}
 {% for map_entry in scrim.maps %}
 <form id="deleteMapForm{{ map_entry.id }}" action="{{ url_for(delete_map_endpoint, tournament_id=scrim.id, scrim_id=scrim.id, map_id=map_entry.id) }}" method="post" style="display:none;"></form>
 {% endfor %}
@@ -488,6 +494,13 @@ function openManageTeamsModal() {
 function closeManageTeamsModal(e) {
     var modal = document.getElementById("manageTeamsModal");
     if (modal && (!e || e.target.id === "manageTeamsModal")) modal.classList.remove("show");
+}
+function confirmSwapSides() {
+    var form = document.getElementById("swapSidesForm");
+    if (!form) return;
+    if (confirm("Swap Team 1 and Team 2 for this scrim? This flips teams, rosters, and all map draft/comp sides.")) {
+        form.submit();
+    }
 }
 function syncTournamentMapTeams() {
     var team1Select = document.getElementById("map_team1_select");
