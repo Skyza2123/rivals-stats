@@ -1439,42 +1439,12 @@ def team_detail(team_id: int):
     matrix_map_columns = matchup_context["matrix_map_columns"]
     matrix_rows = matchup_context["matrix_rows"]
 
-    enemy_team_rows = db.execute(
-        "SELECT id, name, notes, logo_path, created_at FROM teams WHERE id != ? ORDER BY name COLLATE NOCASE",
-        (team_id,),
-    ).fetchall()
-
-    enemy_teams = []
-    for enemy_row in enemy_team_rows:
-        enemy_players = db.execute(
-            "SELECT id, name, role, main_hero, notes FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
-            (enemy_row["id"],),
-        ).fetchall()
-        enemy_teams.append({
-            "id": enemy_row["id"],
-            "name": enemy_row["name"],
-            "notes": enemy_row["notes"],
-            "logo_path": enemy_row["logo_path"],
-            "created_at": enemy_row["created_at"],
-            "players": [dict(p) for p in enemy_players],
-        })
-
-    prep_context = build_team_prep_context(
-        team_scrims=team_scrims,
-        team_players=player_rows,
-        enemy_teams=enemy_teams,
-        selected_enemy_id_raw=request.args.get("prep_enemy_id", ""),
-        compare_map_a_raw=request.args.get("compare_map_a", ""),
-        compare_map_b_raw=request.args.get("compare_map_b", ""),
-    )
-
     return render_template(
         "team_detail.html",
         team=team,
         players=players,
         staff_members=staff_members,
         staff_roles=staff_role_options,
-        enemy_teams=enemy_teams,
         team_tournament_rows=team_tournament_rows,
         player_roles=PLAYER_ROLES,
         team_analytics=team_analytics,
@@ -1511,7 +1481,6 @@ def team_detail(team_id: int):
         atk_def_wr=atk_def_wr,
         pivot_wr=pivot_wr,
         scrim_log=scrim_log,
-        **prep_context,
     )
 
 

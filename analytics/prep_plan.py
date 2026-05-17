@@ -4,10 +4,11 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
-def build_prep_ban_correlation_rows(prep_scrims: list[dict], *, limit: int = 8, partner_limit: int = 4) -> list[dict]:
-    enemy_ban_counts = defaultdict(int)
-    co_ban_counts = defaultdict(lambda: defaultdict(int))
-    draft_count = 0
+def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
+    by_kind = {
+        "ban": {"counts": defaultdict(int), "drafts": []},
+        "protect": {"counts": defaultdict(int), "drafts": []},
+    }
 
     for scrim in prep_scrims:
         for map_entry in scrim.get("maps", []):
@@ -17,57 +18,98 @@ def build_prep_ban_correlation_rows(prep_scrims: list[dict], *, limit: int = 8, 
             enemy_slot = "team2" if our_team_slot == "team1" else "team1"
             draft = map_entry.get("draft", {})
             enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
-            banned_heroes = sorted(
-                {
-                    _canonical_draft_hero(hero_name)
-                    for slot_key, hero_name in enemy_draft.items()
-                    if "ban" in slot_key and _canonical_draft_hero(hero_name)
-                }
-            )
-            if not banned_heroes:
-                continue
 
-            draft_count += 1
-            for hero_name in banned_heroes:
-                enemy_ban_counts[hero_name] += 1
-            for hero_name in banned_heroes:
-                for partner_hero in banned_heroes:
-                    if partner_hero != hero_name:
-                        co_ban_counts[hero_name][partner_hero] += 1
+            for slot_kind in ("ban", "protect"):
+                picked_heroes = sorted(
+                    {
+                        _canonical_draft_hero(hero_name)
+                        for slot_key, hero_name in enemy_draft.items()
+                        if slot_kind in slot_key and _canonical_draft_hero(hero_name)
+                    }
+                )
+                if not picked_heroes:
+                    continue
+                by_kind[slot_kind]["drafts"].append(picked_heroes)
+                for hero_name in picked_heroes:
+                    by_kind[slot_kind]["counts"][hero_name] += 1
 
-    rows = []
-    for hero_name, ban_count in enemy_ban_counts.items():
-        partner_rows = []
-        for partner_hero, co_count in co_ban_counts[hero_name].items():
-            partner_ban_count = enemy_ban_counts.get(partner_hero, 0)
-            if not partner_ban_count:
-                continue
-            partner_rows.append(
-                {
-                    "hero": partner_hero,
-                    "ban_count": partner_ban_count,
-                    "co_count": co_count,
-                    "correlation": round((co_count / ban_count) * 100, 1) if ban_count else 0,
-                    "mutual_correlation": round(
-                        ((co_count / ban_count) * (co_count / partner_ban_count)) ** 0.5 * 100,
-                        1,
-                    ) if ban_count and partner_ban_count else 0,
-                }
-            )
-        partner_rows.sort(key=lambda row: (row["co_count"], row["correlation"], row["ban_count"]), reverse=True)
-        if not partner_rows:
-            continue
-        rows.append(
+    def _finalize(kind_data: dict, *, limit: int = 8, partner_limit: int = 4, lock_threshold: float = 90.0) -> dict:
+        enemy_pick_counts = kind_data["counts"]
+        draft_hero_sets = kind_data["drafts"]
+        draft_count = len(draft_hero_sets)
+        locked_hero_keys = {
+            hero_name
+            for hero_name, pick_count in enemy_pick_counts.items()
+            if draft_count and round((pick_count / draft_count) * 100, 1) >= lock_threshold
+        }
+        locked_rows = [
             {
                 "hero": hero_name,
-                "ban_count": ban_count,
-                "ban_rate": round((ban_count / draft_count) * 100, 1) if draft_count else 0,
-                "partners": partner_rows[:partner_limit],
+                "count": pick_count,
+                "rate": round((pick_count / draft_count) * 100, 1) if draft_count else 0,
+                "low_sample": draft_count < 3,
             }
-        )
+            for hero_name, pick_count in enemy_pick_counts.items()
+            if hero_name in locked_hero_keys
+        ]
+        locked_rows.sort(key=lambda row: (row["rate"], row["count"], row["hero"]), reverse=True)
 
-    rows.sort(key=lambda row: (row["ban_count"], row["ban_rate"], len(row["partners"])), reverse=True)
-    return rows[:limit]
+        eligible_pick_counts = {
+            hero_name: pick_count
+            for hero_name, pick_count in enemy_pick_counts.items()
+            if hero_name not in locked_hero_keys
+        }
+        co_pick_counts = defaultdict(lambda: defaultdict(int))
+        for picked_heroes in draft_hero_sets:
+            co_heroes = [hero_name for hero_name in picked_heroes if hero_name not in locked_hero_keys]
+            for hero_name in co_heroes:
+                for partner_hero in co_heroes:
+                    if partner_hero != hero_name:
+                        co_pick_counts[hero_name][partner_hero] += 1
+
+        rows = []
+        for hero_name, pick_count in eligible_pick_counts.items():
+            partner_rows = []
+            for partner_hero, co_count in co_pick_counts[hero_name].items():
+                partner_pick_count = eligible_pick_counts.get(partner_hero, 0)
+                if not partner_pick_count:
+                    continue
+                partner_rows.append(
+                    {
+                        "hero": partner_hero,
+                        "count": partner_pick_count,
+                        "co_count": co_count,
+                        "correlation": round((co_count / pick_count) * 100, 1) if pick_count else 0,
+                        "mutual_correlation": round(
+                            ((co_count / pick_count) * (co_count / partner_pick_count)) ** 0.5 * 100,
+                            1,
+                        ) if pick_count and partner_pick_count else 0,
+                    }
+                )
+            partner_rows.sort(key=lambda row: (row["co_count"], row["correlation"], row["count"]), reverse=True)
+            if not partner_rows:
+                continue
+            rows.append(
+                {
+                    "hero": hero_name,
+                    "count": pick_count,
+                    "rate": round((pick_count / draft_count) * 100, 1) if draft_count else 0,
+                    "partners": partner_rows[:partner_limit],
+                }
+            )
+
+        rows.sort(key=lambda row: (row["count"], row["rate"], len(row["partners"])), reverse=True)
+        return {
+            "locked_rows": locked_rows,
+            "cooccurrence_rows": rows[:limit],
+            "draft_count": draft_count,
+            "lock_threshold": lock_threshold,
+        }
+
+    return {
+        "ban": _finalize(by_kind["ban"]),
+        "protect": _finalize(by_kind["protect"]),
+    }
 
 
 def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sqlite3.Row | dict], prep_analytics: dict, all_scrims: list[dict] | None = None) -> dict:
@@ -759,7 +801,9 @@ def build_team_prep_context(
     prep_analytics = build_scrim_analytics(prep_scrims, roster_player_names=roster_player_names)
     draft_phase_timeline = build_draft_phase_timeline(prep_scrims)
     prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics, all_scrims=team_scrims)
-    prep_ban_correlation_rows = build_prep_ban_correlation_rows(prep_scrims)
+    prep_draft_correlation = build_prep_draft_correlation_bundle(prep_scrims)
+    prep_ban_correlation = prep_draft_correlation["ban"]
+    prep_protect_correlation = prep_draft_correlation["protect"]
 
     compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
     compare_map_a = (compare_map_a_raw or "").strip()
@@ -788,7 +832,12 @@ def build_team_prep_context(
         "compare_map_rows": compare_map_rows,
         "draft_phase_timeline": draft_phase_timeline,
         "prep_expected_plan": prep_expected_plan,
-        "prep_ban_correlation_rows": prep_ban_correlation_rows,
+        "prep_ban_correlation": prep_ban_correlation,
+        "prep_ban_correlation_rows": prep_ban_correlation["cooccurrence_rows"],
+        "prep_perma_ban_rows": prep_ban_correlation["locked_rows"],
+        "prep_protect_correlation": prep_protect_correlation,
+        "prep_protect_correlation_rows": prep_protect_correlation["cooccurrence_rows"],
+        "prep_perma_protect_rows": prep_protect_correlation["locked_rows"],
     }
 
 

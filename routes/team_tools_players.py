@@ -4,6 +4,34 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
+_TEAM_PREP_FRAGMENT_CACHE: dict[tuple, dict] = {}
+_TEAM_PREP_FRAGMENT_CACHE_TTL_SECONDS = 30
+_TEAM_PREP_FRAGMENT_CACHE_MAX_ITEMS = 24
+
+
+def _team_prep_fragment_cache_get(cache_key: tuple) -> str | None:
+    now_ts = time.time()
+    stale_keys = [
+        key for key, item in _TEAM_PREP_FRAGMENT_CACHE.items()
+        if (now_ts - float(item.get("ts") or 0)) > _TEAM_PREP_FRAGMENT_CACHE_TTL_SECONDS
+    ]
+    for key in stale_keys:
+        _TEAM_PREP_FRAGMENT_CACHE.pop(key, None)
+    cached = _TEAM_PREP_FRAGMENT_CACHE.get(cache_key)
+    if cached and (now_ts - float(cached.get("ts") or 0)) <= _TEAM_PREP_FRAGMENT_CACHE_TTL_SECONDS:
+        return cached.get("html") or ""
+    return None
+
+
+def _team_prep_fragment_cache_set(cache_key: tuple, html: str) -> None:
+    _TEAM_PREP_FRAGMENT_CACHE[cache_key] = {"ts": time.time(), "html": html}
+    if len(_TEAM_PREP_FRAGMENT_CACHE) <= _TEAM_PREP_FRAGMENT_CACHE_MAX_ITEMS:
+        return
+    by_age = sorted(_TEAM_PREP_FRAGMENT_CACHE.items(), key=lambda item: float(item[1].get("ts") or 0))
+    for key, _item in by_age[: len(_TEAM_PREP_FRAGMENT_CACHE) - _TEAM_PREP_FRAGMENT_CACHE_MAX_ITEMS]:
+        _TEAM_PREP_FRAGMENT_CACHE.pop(key, None)
+
+
 @app.route("/teams/<int:team_id>/prep-fragment")
 def team_prep_fragment(team_id: int):
     db = get_db()
@@ -11,6 +39,19 @@ def team_prep_fragment(team_id: int):
     team = db.execute("SELECT * FROM teams WHERE id = ?", (team_id,)).fetchone()
     if team is None:
         abort(404)
+
+    cache_key = (
+        team_id,
+        LAST_SCRIMS_REV,
+        request.args.get("season", "").strip(),
+        request.args.get("map_type", "all").strip(),
+        request.args.get("prep_enemy_id", "").strip(),
+        request.args.get("compare_map_a", "").strip(),
+        request.args.get("compare_map_b", "").strip(),
+    )
+    cached_html = _team_prep_fragment_cache_get(cache_key)
+    if cached_html is not None:
+        return cached_html
 
     all_team_scrims = get_scrims_for_team(team["id"], team["name"])
     season_options = get_scrim_season_options(all_team_scrims)
@@ -45,7 +86,7 @@ def team_prep_fragment(team_id: int):
         compare_map_b_raw=request.args.get("compare_map_b", ""),
     )
 
-    return render_template(
+    html = render_template(
         "_team_prep_content.html",
         team=team,
         enemy_teams=enemy_teams,
@@ -53,6 +94,8 @@ def team_prep_fragment(team_id: int):
         selected_map_type=selected_map_type,
         **prep_context,
     )
+    _team_prep_fragment_cache_set(cache_key, html)
+    return html
 
 
 @app.route("/teams/<int:team_id>/draft-predict")

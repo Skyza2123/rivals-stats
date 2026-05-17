@@ -908,6 +908,77 @@ button:hover {
     color: var(--text);
 }
 
+.loading-panel {
+    min-height: 156px;
+}
+
+.loading-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.loading-spinner {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    border: 2px solid rgba(255, 255, 255, 0.16);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    flex: 0 0 auto;
+    animation: loading-spin 0.75s linear infinite;
+}
+
+.loading-skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+}
+
+@media (max-width: 720px) {
+    .loading-skeleton-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.loading-skeleton-grid span,
+.loading-skeleton-line {
+    min-height: 54px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent),
+        rgba(255, 255, 255, 0.035);
+    background-size: 220% 100%, 100% 100%;
+    animation: loading-shimmer 1.4s ease-in-out infinite;
+}
+
+.is-loading {
+    cursor: progress;
+}
+
+.is-loading > .panel,
+.is-loading > .prep-content-root {
+    opacity: 0.72;
+    transition: opacity 0.18s ease;
+}
+
+@keyframes loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes loading-shimmer {
+    0% {
+        background-position: 220% 0, 0 0;
+    }
+    100% {
+        background-position: -220% 0, 0 0;
+    }
+}
+
 .panel-header-row {
     display: flex;
     justify-content: space-between;
@@ -1342,6 +1413,87 @@ textarea:focus {
     background: rgba(250, 68, 84, 0.08);
     border: 1px solid rgba(250, 68, 84, 0.22);
     color: #ffd7db;
+}
+
+.chip-nav,
+.prep-overview-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.chip-nav-link,
+.prep-overview-link {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.chip-nav-link:hover,
+.prep-overview-link:hover {
+    color: var(--text);
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+    background: color-mix(in srgb, var(--accent) 10%, var(--panel-2));
+}
+
+.analysis-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.analysis-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    background: color-mix(in srgb, var(--panel-2) 82%, transparent);
+}
+
+.analysis-card-header,
+.analysis-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.analysis-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.analysis-row {
+    padding: 8px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.signal-card {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+}
+
+.signal-card-danger {
+    border-color: rgba(248, 113, 113, 0.32);
+    background: linear-gradient(180deg, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0.035));
+}
+
+.signal-card-success {
+    border-color: rgba(74, 222, 128, 0.3);
+    background: linear-gradient(180deg, rgba(74, 222, 128, 0.105), rgba(74, 222, 128, 0.03));
 }
 
 .table-wrap {
@@ -4979,33 +5131,6 @@ th {
     font-size: 0.95rem;
     line-height: 1.45;
     color: var(--text);
-}
-
-.prep-overview-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 2px 0;
-}
-
-.prep-overview-link {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--border);
-    background: var(--panel-2);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-
-.prep-overview-link:hover {
-    color: var(--text);
-    border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
-    background: color-mix(in srgb, var(--accent) 10%, var(--panel-2));
 }
 
 .prep-content-root .dense-collapsible {

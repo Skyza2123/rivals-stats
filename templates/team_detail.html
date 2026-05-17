@@ -1004,8 +1004,22 @@
         </div>
     </section>
 
-    <div id="teamPrepContent">
-        {% include '_team_prep_content.html' %}
+    <div id="teamPrepContent" data-loaded="false" aria-live="polite">
+        <section class="panel loading-panel">
+            <div class="loading-row">
+                <span class="loading-spinner" aria-hidden="true"></span>
+                <div>
+                    <div class="section-kicker">Opponent Prep Report</div>
+                    <h3>Loading Prep</h3>
+                    <p class="panel-intro">Prep details load when this tab opens.</p>
+                </div>
+            </div>
+            <div class="loading-skeleton-grid" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </section>
     </div>
 
 </div>
@@ -1707,7 +1721,8 @@
         <div class="section-kicker">Player vs Player On Hero</div>
         <h3>Hero Specialist Difference</h3>
         <p class="panel-intro">Heroes played by more than one player, ranked by win-rate difference. <strong>Main Player</strong> is whoever has played the hero most.</p>
-        {% if prep_expected_plan.hero_player_differences %}
+        {% set hero_player_differences = prep_expected_plan.hero_player_differences if prep_expected_plan is defined else [] %}
+        {% if hero_player_differences %}
             <div class="table-wrap top-gap">
                 <table class="stats-table stats-table-compare">
                     <thead>
@@ -1722,7 +1737,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for row in prep_expected_plan.hero_player_differences %}
+                        {% for row in hero_player_differences %}
                             <tr>
                                 <td>
                                     <span class="hero-inline-cell">
@@ -3540,7 +3555,12 @@
     };
 
     tabButtons.forEach((button) => {
-        button.addEventListener("click", () => switchTeamTab(button.dataset.tab));
+        button.addEventListener("click", () => {
+            switchTeamTab(button.dataset.tab);
+            if (button.dataset.tab === "prep" && prepContainer?.dataset.loaded !== "true") {
+                loadPrepContent();
+            }
+        });
     });
 
     const hashTab = (window.location.hash || "").replace("#", "").trim().toLowerCase();
@@ -3581,6 +3601,7 @@
         const enemySelector = document.getElementById("prepEnemySelector");
         const compareMapA = document.getElementById("prepCompareMapA");
         const compareMapB = document.getElementById("prepCompareMapB");
+        const currentParams = new URLSearchParams(window.location.search);
         const params = new URLSearchParams();
         if (prepSeason && prepSeason !== "all") {
             params.set("season", prepSeason);
@@ -3590,12 +3611,18 @@
         }
         if (enemySelector && enemySelector.value) {
             params.set("prep_enemy_id", enemySelector.value);
+        } else if (currentParams.get("prep_enemy_id")) {
+            params.set("prep_enemy_id", currentParams.get("prep_enemy_id"));
         }
         if (!resetCompare && compareMapA && compareMapA.value) {
             params.set("compare_map_a", compareMapA.value);
+        } else if (!resetCompare && currentParams.get("compare_map_a")) {
+            params.set("compare_map_a", currentParams.get("compare_map_a"));
         }
         if (!resetCompare && compareMapB && compareMapB.value) {
             params.set("compare_map_b", compareMapB.value);
+        } else if (!resetCompare && currentParams.get("compare_map_b")) {
+            params.set("compare_map_b", currentParams.get("compare_map_b"));
         }
 
         const requestId = ++prepRequestId;
@@ -3612,6 +3639,7 @@
                 return;
             }
             prepContainer.innerHTML = html;
+            prepContainer.dataset.loaded = "true";
             // innerHTML silently drops <script> tags — re-execute them manually
             prepContainer.querySelectorAll('script').forEach((oldScript) => {
                 if (oldScript.type && oldScript.type !== 'text/javascript') return;
@@ -3629,6 +3657,9 @@
 
     bindPrepControls();
     window.__prepLoadContent = loadPrepContent;
+    if (!document.getElementById("tab-prep")?.classList.contains("tab-hidden") && prepContainer?.dataset.loaded !== "true") {
+        loadPrepContent();
+    }
 
     const modal = document.getElementById("playerModal");
     const openBtn = document.getElementById("openPlayerModal");
