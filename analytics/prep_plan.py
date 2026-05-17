@@ -16,6 +16,7 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
             enemy_slot = "team2" if our_team_slot == "team1" else "team1"
+            map_outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
             draft = map_entry.get("draft", {})
             enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
 
@@ -29,14 +30,21 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
                 )
                 if not picked_heroes:
                     continue
-                by_kind[slot_kind]["drafts"].append(picked_heroes)
+                by_kind[slot_kind]["drafts"].append({"heroes": picked_heroes, "outcome": map_outcome})
                 for hero_name in picked_heroes:
                     by_kind[slot_kind]["counts"][hero_name] += 1
 
-    def _finalize(kind_data: dict, *, limit: int = 8, partner_limit: int = 4, lock_threshold: float = 90.0) -> dict:
+    def _finalize(
+        kind_data: dict,
+        *,
+        limit: int = 8,
+        partner_limit: int = 4,
+        group_limit: int = 8,
+        lock_threshold: float = 90.0,
+    ) -> dict:
         enemy_pick_counts = kind_data["counts"]
-        draft_hero_sets = kind_data["drafts"]
-        draft_count = len(draft_hero_sets)
+        draft_rows = kind_data["drafts"]
+        draft_count = len(draft_rows)
         locked_hero_keys = {
             hero_name
             for hero_name, pick_count in enemy_pick_counts.items()
@@ -59,26 +67,51 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
             for hero_name, pick_count in enemy_pick_counts.items()
             if hero_name not in locked_hero_keys
         }
-        co_pick_counts = defaultdict(lambda: defaultdict(int))
-        for picked_heroes in draft_hero_sets:
+        co_pick_counts = defaultdict(lambda: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}))
+        group_counts = {
+            2: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
+            3: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
+            4: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
+        }
+        for draft_row in draft_rows:
+            picked_heroes = draft_row["heroes"]
+            outcome = draft_row.get("outcome", "")
             co_heroes = [hero_name for hero_name in picked_heroes if hero_name not in locked_hero_keys]
             for hero_name in co_heroes:
                 for partner_hero in co_heroes:
                     if partner_hero != hero_name:
-                        co_pick_counts[hero_name][partner_hero] += 1
+                        co_pick_counts[hero_name][partner_hero]["count"] += 1
+                        if outcome == "Win":
+                            co_pick_counts[hero_name][partner_hero]["wins"] += 1
+                        elif outcome == "Loss":
+                            co_pick_counts[hero_name][partner_hero]["losses"] += 1
+            for group_size in (2, 3, 4):
+                if len(co_heroes) < group_size:
+                    continue
+                for group_key in combinations(co_heroes, group_size):
+                    group_counts[group_size][group_key]["count"] += 1
+                    if outcome == "Win":
+                        group_counts[group_size][group_key]["wins"] += 1
+                    elif outcome == "Loss":
+                        group_counts[group_size][group_key]["losses"] += 1
 
         rows = []
         for hero_name, pick_count in eligible_pick_counts.items():
             partner_rows = []
-            for partner_hero, co_count in co_pick_counts[hero_name].items():
+            for partner_hero, co_stats in co_pick_counts[hero_name].items():
                 partner_pick_count = eligible_pick_counts.get(partner_hero, 0)
                 if not partner_pick_count:
                     continue
+                co_count = co_stats["count"]
+                decided = co_stats["wins"] + co_stats["losses"]
                 partner_rows.append(
                     {
                         "hero": partner_hero,
                         "count": partner_pick_count,
                         "co_count": co_count,
+                        "wins": co_stats["wins"],
+                        "losses": co_stats["losses"],
+                        "win_rate": round((co_stats["wins"] / decided) * 100, 1) if decided else None,
                         "correlation": round((co_count / pick_count) * 100, 1) if pick_count else 0,
                         "mutual_correlation": round(
                             ((co_count / pick_count) * (co_count / partner_pick_count)) ** 0.5 * 100,
@@ -99,9 +132,27 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
             )
 
         rows.sort(key=lambda row: (row["count"], row["rate"], len(row["partners"])), reverse=True)
+        group_rows_by_size = {}
+        for group_size, groups in group_counts.items():
+            group_rows = []
+            for heroes, stats in groups.items():
+                decided = stats["wins"] + stats["losses"]
+                group_rows.append(
+                    {
+                        "heroes": list(heroes),
+                        "count": stats["count"],
+                        "wins": stats["wins"],
+                        "losses": stats["losses"],
+                        "win_rate": round((stats["wins"] / decided) * 100, 1) if decided else None,
+                    }
+                )
+            group_rows.sort(key=lambda row: (row["count"], row["wins"]), reverse=True)
+            group_rows_by_size[group_size] = group_rows[:group_limit]
+
         return {
             "locked_rows": locked_rows,
             "cooccurrence_rows": rows[:limit],
+            "group_rows_by_size": group_rows_by_size,
             "draft_count": draft_count,
             "lock_threshold": lock_threshold,
         }
@@ -834,6 +885,7 @@ def build_team_prep_context(
         "prep_expected_plan": prep_expected_plan,
         "prep_ban_correlation": prep_ban_correlation,
         "prep_ban_correlation_rows": prep_ban_correlation["cooccurrence_rows"],
+        "prep_ban_group_rows_by_size": prep_ban_correlation["group_rows_by_size"],
         "prep_perma_ban_rows": prep_ban_correlation["locked_rows"],
         "prep_protect_correlation": prep_protect_correlation,
         "prep_protect_correlation_rows": prep_protect_correlation["cooccurrence_rows"],

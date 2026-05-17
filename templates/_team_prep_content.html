@@ -165,7 +165,10 @@
                                     <img src="{{ hero_image_url(partner.hero) }}" alt="{{ partner.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ partner.hero | urlencode }}'">
                                     <span class="hero-inline-meta">
                                         <span>{{ hero_display_name(partner.hero) }}</span>
-                                        <small class="hero-sub-label">{{ partner.co_count }} co-bans{% if partner.co_count < 3 %} - Low{% endif %}</small>
+                                        <small class="hero-sub-label">
+                                            {{ partner.co_count }} co-bans{% if partner.co_count < 3 %} - Low{% endif %}
+                                            {% if partner.win_rate is not none %} - {{ partner.wins }}-{{ partner.losses }} - {{ partner.win_rate }}% WR{% endif %}
+                                        </small>
                                     </span>
                                 </span>
                                 <span class="metric-text {% if partner.correlation >= 70 %}metric-bad{% elif partner.correlation >= 40 %}metric-warn{% else %}metric-neutral{% endif %}">
@@ -179,6 +182,52 @@
                 </div>
             {% else %}
                 <p class="empty-text">No non-lock ban pairs to calculate yet.</p>
+            {% endif %}
+            {% set ban_group_pairs = prep_ban_group_rows_by_size.get(2, []) %}
+            {% set ban_group_trios = prep_ban_group_rows_by_size.get(3, []) %}
+            {% set ban_group_quads = prep_ban_group_rows_by_size.get(4, []) %}
+            {% if ban_group_pairs or ban_group_trios or ban_group_quads %}
+                <div class="table-wrap top-gap">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>Group</th>
+                                <th>Heroes Banned Together</th>
+                                <th>Occurrences</th>
+                                <th>Record</th>
+                                <th>WR When Banned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group_size, group_rows in [(2, ban_group_pairs), (3, ban_group_trios), (4, ban_group_quads)] %}
+                                {% for row in group_rows %}
+                                <tr>
+                                    <td>{{ group_size }} bans</td>
+                                    <td>
+                                        <span class="hero-inline-cell">
+                                            {% for hero in row.heroes %}
+                                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="hero-inline-thumb" title="{{ hero_display_name(hero) }}" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero | urlencode }}'">
+                                            {% endfor %}
+                                            <span>{% for hero in row.heroes %}{{ hero_display_name(hero) }}{% if not loop.last %} + {% endif %}{% endfor %}</span>
+                                        </span>
+                                    </td>
+                                    <td>{{ row.count }}{% if row.count < 3 %} <span class="sample-warn-icon" title="Low sample size">?</span>{% endif %}</td>
+                                    <td>{{ row.wins }}-{{ row.losses }}</td>
+                                    <td>
+                                        {% if row.win_rate is not none %}
+                                            <span class="metric-text {% if row.win_rate >= 55 %}metric-good{% elif row.win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                                                {{ row.win_rate }}%
+                                            </span>
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% endif %}
         </section>
 
