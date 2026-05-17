@@ -4,6 +4,72 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
+def build_prep_ban_correlation_rows(prep_scrims: list[dict], *, limit: int = 8, partner_limit: int = 4) -> list[dict]:
+    enemy_ban_counts = defaultdict(int)
+    co_ban_counts = defaultdict(lambda: defaultdict(int))
+    draft_count = 0
+
+    for scrim in prep_scrims:
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            enemy_slot = "team2" if our_team_slot == "team1" else "team1"
+            draft = map_entry.get("draft", {})
+            enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
+            banned_heroes = sorted(
+                {
+                    _canonical_draft_hero(hero_name)
+                    for slot_key, hero_name in enemy_draft.items()
+                    if "ban" in slot_key and _canonical_draft_hero(hero_name)
+                }
+            )
+            if not banned_heroes:
+                continue
+
+            draft_count += 1
+            for hero_name in banned_heroes:
+                enemy_ban_counts[hero_name] += 1
+            for hero_name in banned_heroes:
+                for partner_hero in banned_heroes:
+                    if partner_hero != hero_name:
+                        co_ban_counts[hero_name][partner_hero] += 1
+
+    rows = []
+    for hero_name, ban_count in enemy_ban_counts.items():
+        partner_rows = []
+        for partner_hero, co_count in co_ban_counts[hero_name].items():
+            partner_ban_count = enemy_ban_counts.get(partner_hero, 0)
+            if not partner_ban_count:
+                continue
+            partner_rows.append(
+                {
+                    "hero": partner_hero,
+                    "ban_count": partner_ban_count,
+                    "co_count": co_count,
+                    "correlation": round((co_count / ban_count) * 100, 1) if ban_count else 0,
+                    "mutual_correlation": round(
+                        ((co_count / ban_count) * (co_count / partner_ban_count)) ** 0.5 * 100,
+                        1,
+                    ) if ban_count and partner_ban_count else 0,
+                }
+            )
+        partner_rows.sort(key=lambda row: (row["co_count"], row["correlation"], row["ban_count"]), reverse=True)
+        if not partner_rows:
+            continue
+        rows.append(
+            {
+                "hero": hero_name,
+                "ban_count": ban_count,
+                "ban_rate": round((ban_count / draft_count) * 100, 1) if draft_count else 0,
+                "partners": partner_rows[:partner_limit],
+            }
+        )
+
+    rows.sort(key=lambda row: (row["ban_count"], row["ban_rate"], len(row["partners"])), reverse=True)
+    return rows[:limit]
+
+
 def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sqlite3.Row | dict], prep_analytics: dict, all_scrims: list[dict] | None = None) -> dict:
     pair_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     hero_counts = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
@@ -693,6 +759,7 @@ def build_team_prep_context(
     prep_analytics = build_scrim_analytics(prep_scrims, roster_player_names=roster_player_names)
     draft_phase_timeline = build_draft_phase_timeline(prep_scrims)
     prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics, all_scrims=team_scrims)
+    prep_ban_correlation_rows = build_prep_ban_correlation_rows(prep_scrims)
 
     compare_map_options = [row["map_name"] for row in draft_phase_timeline.get("maps", [])]
     compare_map_a = (compare_map_a_raw or "").strip()
@@ -721,6 +788,7 @@ def build_team_prep_context(
         "compare_map_rows": compare_map_rows,
         "draft_phase_timeline": draft_phase_timeline,
         "prep_expected_plan": prep_expected_plan,
+        "prep_ban_correlation_rows": prep_ban_correlation_rows,
     }
 
 

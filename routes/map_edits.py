@@ -4,6 +4,37 @@
 # ruff: noqa: F821
 # Transitional module executed in app.py's namespace.
 
+def sync_map_score_from_submap_results(map_entry: dict) -> None:
+    if not MAP_SUBMAPS.get(map_entry.get("map_name", ""), []):
+        return
+
+    team1_wins = 0
+    team2_wins = 0
+    has_recorded_submap_result = False
+    for section in map_entry.get("comp", []):
+        if not isinstance(section, dict) or not (section.get("submap") or "").strip():
+            continue
+        result = normalize_result_value(section.get("result", ""))
+        if result not in RESULTS:
+            continue
+        has_recorded_submap_result = True
+        if result == "Win":
+            team1_wins += 1
+        elif result == "Loss":
+            team2_wins += 1
+
+    if not has_recorded_submap_result:
+        return
+
+    map_entry["score"] = f"{team1_wins}-{team2_wins}"
+    inferred_result = infer_result_from_score_text(
+        map_entry.get("score", ""),
+        slot=map_entry.get("our_team_slot", "team1"),
+    )
+    if inferred_result in RESULTS:
+        map_entry["result"] = inferred_result
+
+
 @app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/delete", methods=["POST"])
 def delete_tournament_match_map(tournament_id: int, match_id: int, map_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
@@ -161,6 +192,13 @@ def update_tournament_match_comp(tournament_id: int, match_id: int, map_id: int)
             "team1": [],
             "team2": [],
         }
+        section_result = normalize_result_value(request.form.get(f"sec_{s}_section_result", ""))
+        if section_result in RESULTS:
+            sec["result"] = section_result
+        else:
+            inferred_submap_result = infer_result_from_score_text(sec.get("score", ""), slot="team1")
+            if inferred_submap_result in RESULTS:
+                sec["result"] = inferred_submap_result
         for i in range(6):
             sec["team1"].append({
                 "hero": request.form.get(f"sec_{s}_team1_hero_{i}", "").strip(),
@@ -179,6 +217,7 @@ def update_tournament_match_comp(tournament_id: int, match_id: int, map_id: int)
         )
         sections.append(sec)
     map_entry["comp"] = sections
+    sync_map_score_from_submap_results(map_entry)
     save_app_state()
     return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
 
@@ -227,6 +266,7 @@ def update_tournament_match_comp_section(tournament_id: int, match_id: int, map_
         is_tournament=True,
         tournament_record=tournament_record,
     )
+    sync_map_score_from_submap_results(map_entry)
     save_app_state()
     return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
 
@@ -646,6 +686,13 @@ def update_comp(scrim_id: int, map_id: int):
             "team1": [],
             "team2": [],
         }
+        section_result = normalize_result_value(request.form.get(f"sec_{s}_section_result", ""))
+        if section_result in RESULTS:
+            sec["result"] = section_result
+        else:
+            inferred_submap_result = infer_result_from_score_text(sec.get("score", ""), slot="team1")
+            if inferred_submap_result in RESULTS:
+                sec["result"] = inferred_submap_result
         for team in ("team1", "team2"):
             for i in range(6):
                 hero = request.form.get(f"sec_{s}_{team}_hero_{i}", "").strip()
@@ -662,6 +709,7 @@ def update_comp(scrim_id: int, map_id: int):
         )
         sections.append(sec)
     map_entry["comp"] = sections
+    sync_map_score_from_submap_results(map_entry)
     save_app_state()
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
@@ -688,6 +736,13 @@ def update_tournament_comp(tournament_id: int, map_id: int):
             "team1": [],
             "team2": [],
         }
+        section_result = normalize_result_value(request.form.get(f"sec_{s}_section_result", ""))
+        if section_result in RESULTS:
+            sec["result"] = section_result
+        else:
+            inferred_submap_result = infer_result_from_score_text(sec.get("score", ""), slot="team1")
+            if inferred_submap_result in RESULTS:
+                sec["result"] = inferred_submap_result
         for team in ("team1", "team2"):
             for i in range(6):
                 hero = request.form.get(f"sec_{s}_{team}_hero_{i}", "").strip()
@@ -704,6 +759,7 @@ def update_tournament_comp(tournament_id: int, map_id: int):
         )
         sections.append(sec)
     map_entry["comp"] = sections
+    sync_map_score_from_submap_results(map_entry)
     save_app_state()
     return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
@@ -776,6 +832,7 @@ def update_comp_section(scrim_id: int, map_id: int, section_index: int):
     )
 
     map_entry["comp"][section_index] = section
+    sync_map_score_from_submap_results(map_entry)
     save_app_state()
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
 
@@ -847,6 +904,7 @@ def update_tournament_comp_section(tournament_id: int, map_id: int, section_inde
     )
 
     map_entry["comp"][section_index] = section
+    sync_map_score_from_submap_results(map_entry)
     save_app_state()
     return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
 
