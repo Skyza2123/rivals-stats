@@ -15,31 +15,31 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
-            enemy_slot = "team2" if our_team_slot == "team1" else "team1"
-            map_outcome = get_map_outcome_for_slot(map_entry, enemy_slot)
+            # Keep outcome perspective consistent with the Bans tab analytics.
+            map_outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
             draft = map_entry.get("draft", {})
-            enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
-            enemy_ban_slots = {
-                slot_key: _canonical_draft_hero(enemy_draft.get(slot_key, ""))
+            team_draft = draft.get(our_team_slot, {}) if isinstance(draft, dict) else {}
+            team_ban_slots = {
+                slot_key: _canonical_draft_hero(team_draft.get(slot_key, ""))
                 for slot_key in ("ban1", "ban2", "ban3", "ban4")
             }
             protect_ban_responses = defaultdict(list)
-            protect1_hero = _canonical_draft_hero(enemy_draft.get("protect1", ""))
-            protect2_hero = _canonical_draft_hero(enemy_draft.get("protect2", ""))
+            protect1_hero = _canonical_draft_hero(team_draft.get("protect1", ""))
+            protect2_hero = _canonical_draft_hero(team_draft.get("protect2", ""))
             if protect1_hero:
                 protect_ban_responses[protect1_hero].extend(
                     hero_name
-                    for hero_name in (enemy_ban_slots.get("ban2"), enemy_ban_slots.get("ban3"), enemy_ban_slots.get("ban4"))
+                    for hero_name in (team_ban_slots.get("ban2"), team_ban_slots.get("ban3"), team_ban_slots.get("ban4"))
                     if hero_name
                 )
-            if protect2_hero and enemy_ban_slots.get("ban4"):
-                protect_ban_responses[protect2_hero].append(enemy_ban_slots["ban4"])
+            if protect2_hero and team_ban_slots.get("ban4"):
+                protect_ban_responses[protect2_hero].append(team_ban_slots["ban4"])
 
             for slot_kind in ("ban", "protect"):
                 picked_heroes = sorted(
                     {
                         _canonical_draft_hero(hero_name)
-                        for slot_key, hero_name in enemy_draft.items()
+                        for slot_key, hero_name in team_draft.items()
                         if slot_kind in slot_key and _canonical_draft_hero(hero_name)
                     }
                 )
