@@ -202,6 +202,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
     total_instances = 0
     timeline_points = []
     map_log_rows = []
+    hero_map_mode_observations = []
 
     ban_tracked_maps = 0
     banned_maps = 0
@@ -306,6 +307,22 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                 continue
 
             map_name = (map_entry.get("map_name") or "").strip()
+            source_label = (
+                str(scrim.get("source") or scrim.get("event_type") or scrim.get("event") or scrim.get("tournament_name") or "")
+                .strip()
+                .lower()
+                or "scrim"
+            )
+            if result in {"Win", "Loss"}:
+                hero_map_mode_observations.append(
+                    {
+                        "win": 1.0 if result == "Win" else 0.0,
+                        "mode": MAP_MODES.get(map_name, "Other") if map_name else "Other",
+                        "map": map_name or "Unknown Map",
+                        "source": source_label,
+                        "side": our_team_slot,
+                    }
+                )
             if map_name:
                 map_stats[map_name]["maps"] += 1
 
@@ -399,6 +416,119 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             }
         )
     map_rows.sort(key=lambda r: (r["maps"], r["win_rate"]), reverse=True)
+
+    def build_hero_map_mode_anova(observations: list[dict]) -> dict:
+        try:
+            import numpy as np
+        except Exception:
+            return {}
+
+        if len(observations) < 4:
+            return {
+                "status": "insufficient",
+                "significance": "insufficient sample",
+                "sample": len(observations),
+            }
+
+        def pct(part: int, whole: int) -> float:
+            return round((part / whole) * 100, 1) if whole else 0.0
+
+        def build_matrix(items: list[dict], factors: tuple[str, ...]):
+            columns = [[1.0] * len(items)]
+            for factor in factors:
+                values = sorted({str(row.get(factor) or "") for row in items})
+                if len(values) <= 1:
+                    continue
+                for value in values[1:]:
+                    columns.append([1.0 if str(row.get(factor) or "") == value else 0.0 for row in items])
+            return np.asarray(columns, dtype=float).T
+
+        def sse_for(matrix, y_values) -> tuple[float, int]:
+            beta, *_ = np.linalg.lstsq(matrix, y_values, rcond=None)
+            residuals = y_values - matrix.dot(beta)
+            rank = int(np.linalg.matrix_rank(matrix))
+            return float(np.sum(residuals ** 2)), max(0, len(y_values) - rank)
+
+        mode_rows = []
+        for mode_name in sorted({row.get("mode") or "Other" for row in observations}):
+            mode_items = [row for row in observations if (row.get("mode") or "Other") == mode_name]
+            wins = sum(1 for row in mode_items if row["win"] >= 1.0)
+            mode_rows.append({"mode": mode_name, "maps": len(mode_items), "win_rate": pct(wins, len(mode_items))})
+        mode_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+        map_anova_rows = []
+        for map_name_value in sorted({row.get("map") or "Unknown Map" for row in observations}):
+            map_items = [row for row in observations if (row.get("map") or "Unknown Map") == map_name_value]
+            wins = sum(1 for row in map_items if row["win"] >= 1.0)
+            map_anova_rows.append({"map": map_name_value, "maps": len(map_items), "win_rate": pct(wins, len(map_items))})
+        map_anova_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+        if len(mode_rows) <= 1 and len(map_anova_rows) <= 1:
+            return {
+                "status": "insufficient",
+                "significance": "single map/mode",
+                "sample": len(observations),
+                "mode_rows": mode_rows[:4],
+                "map_rows": map_anova_rows[:4],
+            }
+
+        try:
+            y = np.asarray([row["win"] for row in observations], dtype=float)
+            reduced = build_matrix(observations, ("source", "side"))
+            full = build_matrix(observations, ("source", "side", "mode", "map"))
+            sse_reduced, df_reduced = sse_for(reduced, y)
+            sse_full, df_full = sse_for(full, y)
+        except Exception:
+            return {}
+
+        df_num = max(1, df_reduced - df_full)
+        if df_full <= 0 or sse_full <= 0 or sse_reduced < sse_full:
+            f_stat = 0.0
+            partial_eta = 0.0
+        else:
+            ss_effect = max(0.0, sse_reduced - sse_full)
+            f_stat = (ss_effect / df_num) / (sse_full / df_full)
+            partial_eta = ss_effect / (ss_effect + sse_full) if (ss_effect + sse_full) else 0.0
+
+        best_map = max(map_anova_rows, key=lambda row: (row["win_rate"], row["maps"])) if map_anova_rows else None
+        worst_map = min(map_anova_rows, key=lambda row: (row["win_rate"], -row["maps"])) if map_anova_rows else None
+        best_mode = max(mode_rows, key=lambda row: (row["win_rate"], row["maps"])) if mode_rows else None
+        worst_mode = min(mode_rows, key=lambda row: (row["win_rate"], -row["maps"])) if mode_rows else None
+        map_spread = round((best_map["win_rate"] - worst_map["win_rate"]), 1) if best_map and worst_map else 0.0
+        mode_spread = round((best_mode["win_rate"] - worst_mode["win_rate"]), 1) if best_mode and worst_mode else 0.0
+
+        if len(observations) < 6:
+            significance = "low sample"
+        elif f_stat >= 6.8 and partial_eta >= 0.10:
+            significance = "strong"
+        elif f_stat >= 3.8 and partial_eta >= 0.05:
+            significance = "moderate"
+        elif f_stat >= 2.0 and partial_eta >= 0.025:
+            significance = "weak"
+        else:
+            significance = "not significant"
+
+        return {
+            "status": "ready",
+            "significance": significance,
+            "sample": len(observations),
+            "win_rate": pct(int(sum(row["win"] for row in observations)), len(observations)),
+            "f_stat": round(f_stat, 3),
+            "df_num": df_num,
+            "df_den": df_full,
+            "partial_eta_sq": round(partial_eta, 4),
+            "map_spread": map_spread,
+            "mode_spread": mode_spread,
+            "best_map": best_map,
+            "worst_map": worst_map,
+            "best_mode": best_mode,
+            "worst_mode": worst_mode,
+            "mode_rows": mode_rows[:4],
+            "map_rows": map_anova_rows[:4],
+            "factors": ["map_mode", "map_name", "source", "side"],
+        }
+
+    map_mode_anova = build_hero_map_mode_anova(hero_map_mode_observations)
     map_log_rows.sort(
         key=lambda row: (
             row.get("scrim_date", ""),
@@ -445,6 +575,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         "duo_rows": duo_rows,
         "comp_rows": comp_rows,
         "map_rows": map_rows,
+        "map_mode_anova": map_mode_anova,
         "map_log_rows": map_log_rows,
         "timeline_points": timeline_points,
         "ban_impact": {

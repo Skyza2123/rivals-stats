@@ -650,75 +650,60 @@
                     <div class="section-kicker">Ban Significance</div>
                     <h3>When We Ban, Map And Mode Impact</h3>
                     <p class="panel-intro">For each hero this team bans, ANOVA checks whether results differ by map and mode while controlling source and side.</p>
-                    <div class="table-wrap top-gap">
-                        <table class="stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Our Ban</th>
-                                    <th>Map/Mode Signal</th>
-                                    <th>Best Context</th>
-                                    <th>Worst Context</th>
-                                    <th>Spread</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in ban_map_mode_anova_rows[:8] %}
-                                <tr>
-                                    <td>
-                                        <span class="hero-inline-cell">
-                                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                                            <span class="hero-inline-meta">
-                                                <span>{{ hero_display_name(row.hero) }}{% if hero_pool_label(row.hero) %} ({{ hero_pool_label(row.hero) }}){% endif %}</span>
-                                                <small class="hero-sub-label">{{ row.sample }} ban maps{% if row.win_rate is defined %} | {{ row.win_rate }}% WR{% endif %}</small>
-                                            </span>
+                    <div class="ban-anova-card-grid top-gap">
+                        {% for row in ban_map_mode_anova_rows[:8] %}
+                            {% set map_spread = row.map_spread | default(0) %}
+                            {% set mode_spread = row.mode_spread | default(0) %}
+                            {% set spread_max = map_spread if map_spread >= mode_spread else mode_spread %}
+                            <article class="ban-anova-card {% if row.significance in ['strong', 'moderate'] %}ban-anova-card-hot{% elif row.significance in ['weak', 'low sample'] %}ban-anova-card-watch{% endif %}">
+                                <div class="ban-anova-head">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                        <span class="hero-inline-meta">
+                                            <span>{{ hero_display_name(row.hero) }}{% if hero_pool_label(row.hero) %} ({{ hero_pool_label(row.hero) }}){% endif %}</span>
+                                            <small class="hero-sub-label">{{ row.sample }} ban maps{% if row.win_rate is defined %} | {{ row.win_rate }}% WR{% endif %}</small>
                                         </span>
-                                    </td>
-                                    <td>
-                                        {% if row.status == 'ready' %}
-                                            <span class="metric-text {% if row.significance in ['strong', 'moderate'] %}metric-bad{% elif row.significance in ['weak', 'low sample'] %}metric-warn{% else %}metric-neutral{% endif %}">
-                                                {{ row.significance }}
-                                            </span>
-                                            <small class="hero-sub-label">F {{ row.f_stat }} | eta {{ row.partial_eta_sq }}</small>
-                                        {% else %}
-                                            <span class="metric-text metric-neutral">{{ row.significance }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
+                                    </span>
+                                    <span class="ban-anova-signal {% if row.significance in ['strong', 'moderate'] %}signal-danger{% elif row.significance in ['weak', 'low sample'] %}signal-warn{% else %}signal-neutral{% endif %}">
+                                        {{ row.significance }}
+                                    </span>
+                                </div>
+
+                                <div class="ban-anova-contexts">
+                                    <div class="ban-anova-context ban-anova-context-good">
+                                        <span class="ban-anova-label">Best</span>
                                         {% if row.best_map %}
-                                            <span>{{ row.best_map.map }}</span>
-                                            <small class="hero-sub-label">{{ row.best_map.win_rate }}% WR | {{ row.best_map.maps }} maps</small>
+                                            <strong>{{ row.best_map.map }}</strong>
+                                            <small>{{ row.best_map.win_rate }}% WR | {{ sample_warn(row.best_map.maps) }}</small>
                                         {% elif row.best_mode %}
-                                            <span>{{ row.best_mode.mode }}</span>
-                                            <small class="hero-sub-label">{{ row.best_mode.win_rate }}% WR | {{ row.best_mode.maps }} maps</small>
+                                            <strong>{{ row.best_mode.mode }}</strong>
+                                            <small>{{ row.best_mode.win_rate }}% WR | {{ sample_warn(row.best_mode.maps) }}</small>
                                         {% else %}
-                                            --
+                                            <strong>--</strong>
                                         {% endif %}
-                                    </td>
-                                    <td>
+                                    </div>
+                                    <div class="ban-anova-context ban-anova-context-bad">
+                                        <span class="ban-anova-label">Worst</span>
                                         {% if row.worst_map %}
-                                            <span>{{ row.worst_map.map }}</span>
-                                            <small class="hero-sub-label">{{ row.worst_map.win_rate }}% WR | {{ row.worst_map.maps }} maps</small>
+                                            <strong>{{ row.worst_map.map }}</strong>
+                                            <small>{{ row.worst_map.win_rate }}% WR | {{ sample_warn(row.worst_map.maps) }}</small>
                                         {% elif row.worst_mode %}
-                                            <span>{{ row.worst_mode.mode }}</span>
-                                            <small class="hero-sub-label">{{ row.worst_mode.win_rate }}% WR | {{ row.worst_mode.maps }} maps</small>
+                                            <strong>{{ row.worst_mode.mode }}</strong>
+                                            <small>{{ row.worst_mode.win_rate }}% WR | {{ sample_warn(row.worst_mode.maps) }}</small>
                                         {% else %}
-                                            --
+                                            <strong>--</strong>
                                         {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if row.status == 'ready' %}
-                                            <span class="metric-text {% if row.map_spread >= 30 or row.mode_spread >= 30 %}metric-bad{% elif row.map_spread >= 15 or row.mode_spread >= 15 %}metric-warn{% else %}metric-neutral{% endif %}">
-                                                Map {{ row.map_spread }}pp
-                                            </span>
-                                            <small class="hero-sub-label">Mode {{ row.mode_spread }}pp</small>
-                                        {% else %}
-                                            --
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="ban-anova-footer">
+                                    <span class="ban-anova-spread {% if spread_max >= 30 %}spread-high{% elif spread_max >= 15 %}spread-mid{% else %}spread-low{% endif %}">
+                                        {{ spread_max }}pp max spread
+                                    </span>
+                                    <span class="hero-sub-label">Map {{ map_spread }}pp | Mode {{ mode_spread }}pp</span>
+                                </div>
+                            </article>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}

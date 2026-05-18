@@ -204,6 +204,167 @@ def _collect_map_draft_intel(source_scrims: list[dict], map_name: str) -> dict:
     }
 
 
+def _collect_map_specific_intel(source_scrims: list[dict], map_name: str) -> dict:
+    opponent_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "last_played": ""})
+    side_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    segment_records = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    comp_matchup_records = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    recent_rows = []
+
+    def pct(part: int, whole: int) -> float:
+        return round((part / whole) * 100, 1) if whole else 0.0
+
+    def finalize_record(label: str, stats: dict) -> dict:
+        maps = stats.get("maps", 0)
+        return {
+            "label": label,
+            "maps": maps,
+            "wins": stats.get("wins", 0),
+            "losses": stats.get("losses", 0),
+            "win_rate": pct(stats.get("wins", 0), maps),
+            "last_played": stats.get("last_played", ""),
+        }
+
+    def largest_lineup(map_entry: dict, team_slot: str) -> list[str]:
+        largest: list[str] = []
+        for section in map_entry.get("comp", []):
+            if not isinstance(section, dict):
+                continue
+            heroes = []
+            for slot in section.get(team_slot, []) or []:
+                if not isinstance(slot, dict):
+                    continue
+                hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                if hero_name:
+                    heroes.append(hero_name)
+            if len(heroes) > len(largest):
+                largest = heroes
+        return largest
+
+    def perspective_section_result(section: dict, our_team_slot: str) -> str:
+        result = (section.get("result") or "").strip()
+        if result not in {"Win", "Loss"}:
+            return ""
+        if our_team_slot == "team1":
+            return result
+        return "Loss" if result == "Win" else "Win"
+
+    for source_scrim in source_scrims:
+        participant_one_label, participant_two_label = get_scrim_participant_labels(source_scrim)
+        played_on = (
+            source_scrim.get("date")
+            or source_scrim.get("scrim_date")
+            or source_scrim.get("match_date")
+            or source_scrim.get("created_at")
+            or ""
+        )
+        for map_entry in source_scrim.get("maps", []):
+            if (map_entry.get("map_name") or "").strip() != map_name:
+                continue
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            enemy_team_slot = opposite_team_slot(our_team_slot)
+            opponent_label = participant_two_label if our_team_slot == "team1" else participant_one_label
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+            is_win = result == "Win"
+            is_loss = result == "Loss"
+
+            opponent_stats = opponent_records[opponent_label]
+            opponent_stats["maps"] += 1
+            if is_win:
+                opponent_stats["wins"] += 1
+            elif is_loss:
+                opponent_stats["losses"] += 1
+            if played_on and str(played_on) > str(opponent_stats.get("last_played") or ""):
+                opponent_stats["last_played"] = str(played_on)
+
+            recent_rows.append(
+                {
+                    "date": str(played_on),
+                    "opponent": opponent_label,
+                    "result": result or "Unknown",
+                    "score": map_entry.get("score", ""),
+                }
+            )
+
+            side_value = (map_entry.get("side") or "").strip()
+            if side_value in {"Attack", "Defense"}:
+                side_stats = side_records[side_value]
+                side_stats["maps"] += 1
+                if is_win:
+                    side_stats["wins"] += 1
+                elif is_loss:
+                    side_stats["losses"] += 1
+
+            for index, section in enumerate(map_entry.get("comp", []) or [], start=1):
+                if not isinstance(section, dict):
+                    continue
+                segment_label = (section.get("submap") or section.get("side") or f"Round {index}").strip()
+                if not segment_label:
+                    continue
+                section_result = perspective_section_result(section, our_team_slot)
+                if not section_result:
+                    continue
+                segment_stats = segment_records[segment_label]
+                segment_stats["maps"] += 1
+                if section_result == "Win":
+                    segment_stats["wins"] += 1
+                elif section_result == "Loss":
+                    segment_stats["losses"] += 1
+
+            our_lineup = tuple(sorted(largest_lineup(map_entry, our_team_slot)))
+            enemy_lineup = tuple(sorted(largest_lineup(map_entry, enemy_team_slot)))
+            if our_lineup and enemy_lineup:
+                matchup_stats = comp_matchup_records[(our_lineup, enemy_lineup)]
+                matchup_stats["count"] += 1
+                if is_win:
+                    matchup_stats["wins"] += 1
+                elif is_loss:
+                    matchup_stats["losses"] += 1
+
+    opponent_rows = [
+        finalize_record(label, stats)
+        for label, stats in opponent_records.items()
+    ]
+    opponent_rows.sort(key=lambda row: (row["maps"], row["win_rate"], row["label"]), reverse=True)
+
+    side_rows = [
+        finalize_record(label, stats)
+        for label, stats in side_records.items()
+    ]
+    side_rows.sort(key=lambda row: (row["maps"], row["win_rate"], row["label"]), reverse=True)
+
+    segment_rows = [
+        finalize_record(label, stats)
+        for label, stats in segment_records.items()
+    ]
+    segment_rows.sort(key=lambda row: (row["maps"], row["win_rate"], row["label"]), reverse=True)
+
+    comp_matchup_rows = []
+    for (our_lineup, enemy_lineup), stats in comp_matchup_records.items():
+        comp_matchup_rows.append(
+            {
+                "our_heroes": list(our_lineup),
+                "enemy_heroes": list(enemy_lineup),
+                "count": stats["count"],
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "win_rate": pct(stats["wins"], stats["count"]),
+            }
+        )
+    comp_matchup_rows.sort(key=lambda row: (row["count"], row["wins"], row["win_rate"]), reverse=True)
+
+    recent_rows.sort(key=lambda row: row.get("date") or "", reverse=True)
+    return {
+        "opponent_rows": opponent_rows[:8],
+        "side_rows": side_rows,
+        "segment_rows": segment_rows[:8],
+        "comp_matchup_rows": comp_matchup_rows[:8],
+        "recent_rows": recent_rows[:8],
+    }
+
+
 @app.route("/scrims/<int:scrim_id>/timelines/<path:map_name>")
 def scrim_map_timeline(scrim_id: int, map_name: str):
     scrim = get_scrim_or_404(scrim_id)
@@ -246,6 +407,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
         "enemy_protect_rows": [],
         "map_samples": 0,
     }
+    map_specific_intel = _collect_map_specific_intel([], map_name)
     if team_id and team_name:
         team_row = db.execute("SELECT id, name FROM teams WHERE id = ?", (team_id,)).fetchone()
         if team_row is not None:
@@ -262,6 +424,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
             ]
 
         map_draft_intel = _collect_map_draft_intel(source_scrims, map_name)
+        map_specific_intel = _collect_map_specific_intel(source_scrims, map_name)
         draft_timeline = build_draft_phase_timeline(source_scrims)
         map_timeline_row = next(
             (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
@@ -347,6 +510,7 @@ def scrim_map_timeline(scrim_id: int, map_name: str):
         enemy_ban_rows=map_draft_intel["enemy_ban_rows"],
         our_protect_rows=map_draft_intel["our_protect_rows"],
         enemy_protect_rows=map_draft_intel["enemy_protect_rows"],
+        map_specific_intel=map_specific_intel,
         participant_one_label=participant_one_label,
         participant_two_label=participant_two_label,
         is_tournament=False,
@@ -375,6 +539,7 @@ def team_map_timeline(team_id: int, map_name: str):
     top_hero_rows: list[dict] = []
     enemy_top_hero_rows: list[dict] = []
     map_draft_intel = _collect_map_draft_intel(source_scrims, map_name)
+    map_specific_intel = _collect_map_specific_intel(source_scrims, map_name)
 
     draft_timeline = build_draft_phase_timeline(source_scrims)
     map_timeline_row = next(
@@ -462,6 +627,7 @@ def team_map_timeline(team_id: int, map_name: str):
         enemy_ban_rows=map_draft_intel["enemy_ban_rows"],
         our_protect_rows=map_draft_intel["our_protect_rows"],
         enemy_protect_rows=map_draft_intel["enemy_protect_rows"],
+        map_specific_intel=map_specific_intel,
         participant_one_label=participant_one_label,
         participant_two_label=participant_two_label,
         is_tournament=False,
@@ -477,6 +643,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
     perspective = tournament_match.get("our_team_slot", "team1") if tournament_match.get("our_team_slot", "team1") in TEAM_SLOTS else "team1"
     source_scrims = build_tournament_match_scrims(tournament_record, perspective=perspective)
     map_draft_intel = _collect_map_draft_intel(source_scrims, map_name)
+    map_specific_intel = _collect_map_specific_intel(source_scrims, map_name)
     draft_timeline = build_draft_phase_timeline(source_scrims)
     map_timeline_row = next(
         (row for row in draft_timeline.get("maps", []) if row.get("map_name") == map_name),
@@ -572,6 +739,7 @@ def tournament_match_map_timeline(tournament_id: int, match_id: int, map_name: s
         enemy_ban_rows=map_draft_intel["enemy_ban_rows"],
         our_protect_rows=map_draft_intel["our_protect_rows"],
         enemy_protect_rows=map_draft_intel["enemy_protect_rows"],
+        map_specific_intel=map_specific_intel,
         participant_one_label=team1_label,
         participant_two_label=team2_label,
         is_tournament=True,

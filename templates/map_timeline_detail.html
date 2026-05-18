@@ -37,6 +37,126 @@
     </div>
 </section>
 
+{% set map_specific = map_specific_intel or {} %}
+<section class="panel top-gap">
+    <div class="section-kicker">Map Diagnostics</div>
+    <h3>What Is Actually Happening On {{ map_name }}</h3>
+    <div class="panel-intro">Map-specific cuts for side/round context, opponent history, recent games, and direct comp matchups.</div>
+
+    <div class="timeline-diagnostic-grid top-gap">
+        <article class="timeline-team-card">
+            <h4>Side Split</h4>
+            {% if map_specific.side_rows %}
+                <div class="timeline-metric-list top-gap">
+                    {% for row in map_specific.side_rows %}
+                    <div class="timeline-metric-row">
+                        <span>{{ row.label }}</span>
+                        <strong>{{ row.win_rate }}%</strong>
+                        <small>{{ row.wins }}-{{ row.losses }} / {{ sample_warn(row.maps) }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No side split data recorded for this map yet.</p>
+            {% endif %}
+        </article>
+
+        <article class="timeline-team-card">
+            <h4>Round / Submap Split</h4>
+            {% if map_specific.segment_rows %}
+                <div class="timeline-metric-list top-gap">
+                    {% for row in map_specific.segment_rows[:6] %}
+                    <div class="timeline-metric-row">
+                        <span>{{ row.label }}</span>
+                        <strong>{{ row.win_rate }}%</strong>
+                        <small>{{ row.wins }}-{{ row.losses }} / {{ sample_warn(row.maps) }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No round or submap result data recorded yet.</p>
+            {% endif %}
+        </article>
+
+        <article class="timeline-team-card">
+            <h4>Opponent Records</h4>
+            {% if map_specific.opponent_rows %}
+                <div class="timeline-metric-list top-gap">
+                    {% for row in map_specific.opponent_rows[:6] %}
+                    <div class="timeline-metric-row">
+                        <span>{{ row.label }}</span>
+                        <strong>{{ row.win_rate }}%</strong>
+                        <small>{{ row.wins }}-{{ row.losses }}{% if row.last_played %} | {{ row.last_played }}{% endif %}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No opponent split available yet.</p>
+            {% endif %}
+        </article>
+
+        <article class="timeline-team-card">
+            <h4>Recent Results</h4>
+            {% if map_specific.recent_rows %}
+                <div class="timeline-metric-list top-gap">
+                    {% for row in map_specific.recent_rows[:6] %}
+                    <div class="timeline-metric-row">
+                        <span>{{ row.opponent }}</span>
+                        <strong class="{% if row.result == 'Win' %}metric-good{% elif row.result == 'Loss' %}metric-bad{% else %}metric-neutral{% endif %}">{{ row.result }}</strong>
+                        <small>{% if row.date %}{{ row.date }}{% else %}No date{% endif %}{% if row.score %} | {{ row.score }}{% endif %}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No recent map results yet.</p>
+            {% endif %}
+        </article>
+    </div>
+
+    {% if map_specific.comp_matchup_rows %}
+    <div class="table-wrap top-gap">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>{{ participant_one_label }} Comp</th>
+                    <th>{{ participant_two_label }} Comp</th>
+                    <th>Maps</th>
+                    <th>Record</th>
+                    <th>WR</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in map_specific.comp_matchup_rows[:6] %}
+                <tr>
+                    <td>
+                        <span class="timeline-hero-cluster">
+                            {% for hero in row.our_heroes %}
+                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="hero-inline-thumb" title="{{ hero_display_name(hero) }}" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero | urlencode }}'">
+                            {% endfor %}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="timeline-hero-cluster">
+                            {% for hero in row.enemy_heroes %}
+                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="hero-inline-thumb" title="{{ hero_display_name(hero) }}" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ hero | urlencode }}'">
+                            {% endfor %}
+                        </span>
+                    </td>
+                    <td>{{ sample_warn(row.count) }}</td>
+                    <td>{{ row.wins }}-{{ row.losses }}</td>
+                    <td>
+                        <span class="metric-text {% if row.win_rate >= 55 %}metric-good{% elif row.win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">
+                            {{ row.win_rate }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</section>
+
 <section class="panel top-gap">
     <div class="section-kicker">Compositions</div>
     <h3>Most Played Compositions On {{ map_name }}</h3>
