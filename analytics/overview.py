@@ -99,7 +99,6 @@ def build_scrim_analytics(
     ban_position_totals = defaultdict(int)
     enemy_ban_position_totals = defaultdict(int)
     total_filled_protects = 0
-    ban_map_mode_anova_observations = []
     roster_player_keys = {
         (player_name or "").strip().lower()
         for player_name in (roster_player_names or [])
@@ -192,25 +191,6 @@ def build_scrim_analytics(
                 for hero_name in enemy_ban_slots.values()
                 if hero_name
             }
-            map_label = map_name or "Unknown"
-            source_label = (
-                str(scrim.get("source") or scrim.get("event_type") or scrim.get("event") or scrim.get("tournament_name") or "")
-                .strip()
-                .lower()
-                or "scrim"
-            )
-            if map_outcome in {"Win", "Loss"} and our_banned_heroes:
-                ban_map_mode_anova_observations.append(
-                    {
-                        "win": 1.0 if map_outcome == "Win" else 0.0,
-                        "bans": {hero_name.lower() for hero_name in our_banned_heroes},
-                        "mode": globals().get("MAP_MODES", {}).get(map_label, "Other"),
-                        "map": map_label,
-                        "source": source_label,
-                        "side": our_team_slot,
-                    }
-                )
-
             # Ban response likelihood: when we ban X in a slot, what the enemy bans
             # in their corresponding next ban slot.
             for slot in ("ban1", "ban2", "ban3", "ban4"):
@@ -660,11 +640,6 @@ def build_scrim_analytics(
             reverse=True,
         )
         return rows
-
-    ban_map_mode_anova_rows = build_ban_map_mode_anova_rows(
-        ban_map_mode_anova_observations,
-        list(ban_stats.keys()),
-    )
 
     ban_rows = []
     for hero, stats in ban_stats.items():
@@ -1540,7 +1515,6 @@ def build_scrim_analytics(
             "winrate_difference": comp_winrate_difference,
         },
         "ban_rows": ban_rows[:12],
-        "ban_map_mode_anova_rows": ban_map_mode_anova_rows[:12],
         "enemy_ban_rows": enemy_ban_rows[:12],
         "draft_model_methods": {
             "ban_significance": "multifactor_anova",

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% from "_table_macros.html" import stats_table %}
+
+{% block title %}{{ mode_name }} - {{ team.name }}{% endblock %}
+
+{% block content %}
+<div class="hero-detail-page">
+    <div class="team-hero">
+        <div class="team-hero-left">
+            <div>
+                <div class="section-kicker">Mode Report</div>
+                <h2>{{ mode_name }}</h2>
+                <p class="team-record-line">
+                    {{ summary.wins }}W - {{ summary.losses }}L
+                    &bull; {{ summary.win_rate }}% Win Rate
+                    &bull; {{ summary.maps }} maps
+                </p>
+                <p>{{ team.name }} map pool, hero usage, draft priorities, and recent form in this mode.</p>
+            </div>
+        </div>
+        <div class="header-actions team-hero-actions">
+            <a href="{{ url_for('team_detail', team_id=team.id, season=selected_season, map_type=selected_map_type) }}#maps" class="button-secondary">Back to Maps</a>
+        </div>
+    </div>
+
+    <section class="panel">
+        <div class="summary-grid">
+            <section class="stat-card"><strong>Maps</strong><span>{{ summary.maps }}</span></section>
+            <section class="stat-card"><strong>Win Rate</strong><span>{{ summary.win_rate }}%</span></section>
+            <section class="stat-card"><strong>Wins</strong><span>{{ summary.wins }}</span></section>
+            <section class="stat-card"><strong>Losses</strong><span>{{ summary.losses }}</span></section>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Map Pool</div>
+        <h3>{{ mode_name }} Maps</h3>
+        {% if map_rows %}
+            <div class="team-map-grid">
+                {% for row in map_rows %}
+                    {% set rate_tier = 'map-rate-mid' %}
+                    {% if row.win_rate >= 70 %}
+                        {% set rate_tier = 'map-rate-high' %}
+                    {% elif row.win_rate < 50 %}
+                        {% set rate_tier = 'map-rate-low' %}
+                    {% endif %}
+                    <a class="team-map-card {{ rate_tier }}" href="{{ url_for('team_map_timeline', team_id=team.id, map_name=row.map_name) }}">
+                        <div class="team-map-bg {% if not row.image %}team-map-bg-fallback{% endif %}" {% if row.image %}style="background-image:url('{{ row.image }}')"{% endif %}></div>
+                        <div class="team-map-overlay"></div>
+                        <div class="team-map-top">
+                            <span class="team-map-mode">{{ mode_name }}</span>
+                            <span class="team-map-rate">{{ row.win_rate }}%</span>
+                        </div>
+                        <div class="team-map-bottom">
+                            <h4>{{ row.map_name }}</h4>
+                            <p>{{ row.wins }}W - {{ row.losses }}L &bull; {{ sample_warn(row.maps) }} games</p>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">No maps recorded for this mode in the current filters.</p>
+        {% endif %}
+    </section>
+
+    <div class="form-grid hero-detail-main-grid top-gap">
+        <section class="panel">
+            <h3>Hero Context</h3>
+            {% if hero_rows %}
+                {% call stats_table(['Hero', 'Maps', 'Record', 'WR']) %}
+                    {% for row in hero_rows[:12] %}
+                    <tr>
+                        <td>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                            </span>
+                        </td>
+                        <td>{{ sample_warn(row.maps) }}</td>
+                        <td>{{ row.wins }}-{{ row.losses }}</td>
+                        <td>{{ row.win_rate }}%</td>
+                    </tr>
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="empty-text">No hero usage data for this mode yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel">
+            <h3>Opponent Hero Context</h3>
+            {% if enemy_hero_rows %}
+                {% call stats_table(['Hero', 'Maps', 'Record', 'WR']) %}
+                    {% for row in enemy_hero_rows[:12] %}
+                    <tr>
+                        <td>
+                            <span class="hero-inline-cell">
+                                <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                            </span>
+                        </td>
+                        <td>{{ sample_warn(row.maps) }}</td>
+                        <td>{{ row.wins }}-{{ row.losses }}</td>
+                        <td>{{ row.win_rate }}%</td>
+                    </tr>
+                    {% endfor %}
+                {% endcall %}
+            {% else %}
+                <p class="empty-text">No opponent hero data for this mode yet.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Draft</div>
+        <h3>Mode Draft Priorities</h3>
+        <div class="timeline-split-grid">
+            <article class="timeline-team-card">
+                <h4>Bans</h4>
+                {% if ban_rows %}
+                    <div class="timeline-metric-list top-gap">
+                        {% for row in ban_rows[:8] %}
+                            <div class="timeline-metric-row">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                                <strong>{{ row.share }}%</strong>
+                                <small>{{ row.count }} bans</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">No ban data for this mode yet.</p>
+                {% endif %}
+            </article>
+            <article class="timeline-team-card">
+                <h4>Protects</h4>
+                {% if protect_rows %}
+                    <div class="timeline-metric-list top-gap">
+                        {% for row in protect_rows[:8] %}
+                            <div class="timeline-metric-row">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                                <strong>{{ row.share }}%</strong>
+                                <small>{{ row.count }} protects</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">No protect data for this mode yet.</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Recent Form</div>
+        <h3>Recent {{ mode_name }} Maps</h3>
+        {% if recent_rows %}
+            {% call stats_table(['Date', 'Opponent', 'Map', 'Result', 'Score', 'Action']) %}
+                {% for row in recent_rows %}
+                <tr>
+                    <td>{{ row.date or '--' }}</td>
+                    <td>{{ row.opponent }}</td>
+                    <td>{{ row.map_name }}</td>
+                    <td>{{ row.result }}</td>
+                    <td>{{ row.score or '--' }}</td>
+                    <td>
+                        {% if row.scrim_id and row.map_id %}
+                            <a href="{{ url_for('map_detail', scrim_id=row.scrim_id, map_id=row.map_id) }}" class="button-secondary button-small">Open</a>
+                        {% else %}
+                            <span class="muted-label">--</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endcall %}
+        {% else %}
+            <p class="empty-text">No recent mode maps in this filter.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

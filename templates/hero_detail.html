@@ -102,6 +102,40 @@
             </div>
         </article>
     </div>
+    <div class="timeline-split-grid top-gap">
+        <article class="timeline-team-card">
+            <h4>Mode Breakdown</h4>
+            {% if hero_anova.mode_rows %}
+                <div class="timeline-metric-list top-gap">
+                    {% for row in hero_anova.mode_rows %}
+                        <div class="timeline-metric-row">
+                            <span>{{ row.mode }}</span>
+                            <strong>{{ row.win_rate }}%</strong>
+                            <small>{{ sample_warn(row.maps) }} played maps</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No mode split available yet.</p>
+            {% endif %}
+        </article>
+        <article class="timeline-team-card">
+            <h4>Map Breakdown</h4>
+            {% if hero_anova.map_rows %}
+                <div class="timeline-metric-list top-gap">
+                    {% for row in hero_anova.map_rows %}
+                        <div class="timeline-metric-row">
+                            <span>{{ row.map }}</span>
+                            <strong>{{ row.win_rate }}%</strong>
+                            <small>{{ sample_warn(row.maps) }} played maps</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No map split available yet.</p>
+            {% endif %}
+        </article>
+    </div>
 </section>
 {% endif %}
 
