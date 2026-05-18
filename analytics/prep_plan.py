@@ -16,7 +16,7 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
             enemy_slot = "team2" if our_team_slot == "team1" else "team1"
-            map_outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
+            map_outcome = get_map_outcome_for_slot(map_entry, enemy_slot)
             draft = map_entry.get("draft", {})
             enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
             enemy_ban_slots = {

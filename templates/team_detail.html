@@ -493,7 +493,7 @@
                         <div class="section-kicker">Opponent Pressure</div>
                         <h3>Common Ban Pairs &amp; Correlation</h3>
                         <p class="panel-intro">
-                            Opponent bans against {{ team.name }}. Near-lock bans are split out; pair and group WR use {{ team.name }}'s result on those maps. Deadpool role variants are shown when relevant.
+                            Bans opponents used against {{ team.name }}. Near-lock bans are split out; pair and group WR use {{ team.name }}'s result on those maps. Deadpool role variants are shown when relevant.
                         </p>
                         {% if enemy_ban_corr.locked_rows %}
                             <div class="analysis-card-grid top-gap">
@@ -551,7 +551,7 @@
                                 {% endfor %}
                             </div>
                         {% else %}
-                            <p class="empty-text">No non-lock enemy ban pairs to calculate yet.</p>
+                            <p class="empty-text">No non-lock ban pairs to calculate yet.</p>
                         {% endif %}
 
                         {% if enemy_ban_group_pairs or enemy_ban_group_trios or enemy_ban_group_quads %}
