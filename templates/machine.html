@@ -2275,6 +2275,48 @@ function renderReplyHeroStrip(answer, meta) {
             push('Target comp confidence', Number(c.confidence || 0).toFixed(1) + '%', Number(c.win_rate || 0).toFixed(1) + '% projected WR | ' + Number(c.sample || 0).toFixed(0) + ' records', c.target_comp || []);
             return rows;
         }
+        if ((visuals.ban_candidate_details || []).length && (intent === 'ban' || intent === 'ban_impact' || intent === 'check' || intent === 'summary')) {
+            return (visuals.ban_candidate_details || []).slice(0, 6).map(function(row) {
+                const detail = [
+                    row.role ? row.role : '',
+                    row.model_hint ? row.model_hint : '',
+                    row.strategic_caution ? row.strategic_caution : ''
+                ].filter(Boolean).join(' | ');
+                const metric = 'score ' + Number(row.ban_score || 0).toFixed(1)
+                    + ' | net ' + Number(row.strategic_net_value || 0).toFixed(1);
+                const why = 'enemy ' + Number(row.strategic_enemy_value || 0).toFixed(1)
+                    + ' / our cost ' + Number(row.strategic_our_value || 0).toFixed(1)
+                    + ' | theory ' + Number(row.hero_pool_value || 0).toFixed(1);
+                return {
+                    label: detail,
+                    metric: metric,
+                    detail: why,
+                    heroes: [row.hero],
+                    type: 'ban',
+                };
+            });
+        }
+        if ((visuals.protect_candidate_details || []).length && (intent === 'protect' || intent === 'comp' || intent === 'check' || intent === 'summary')) {
+            return (visuals.protect_candidate_details || []).slice(0, 6).map(function(row) {
+                const detail = [
+                    row.role ? row.role : '',
+                    row.model_hint ? row.model_hint : '',
+                    row.strategic_caution ? row.strategic_caution : ''
+                ].filter(Boolean).join(' | ');
+                const metric = 'score ' + Number(row.protect_score || 0).toFixed(1)
+                    + ' | net ' + Number(row.strategic_net_value || 0).toFixed(1);
+                const why = 'our ' + Number(row.strategic_our_value || 0).toFixed(1)
+                    + ' / enemy ' + Number(row.strategic_enemy_value || 0).toFixed(1)
+                    + ' | route ' + Number(row.route_value || 0).toFixed(1);
+                return {
+                    label: detail,
+                    metric: metric,
+                    detail: why,
+                    heroes: [row.hero],
+                    type: 'protect',
+                };
+            });
+        }
         const scored = new Map();
         function addHeroes(heroes, score, detail, metric, type) {
             (heroes || []).forEach(function(hero, index) {
@@ -5067,7 +5109,7 @@ function renderReplyHeroStrip(answer, meta) {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
                 body: JSON.stringify({
-                    message: 'Live draft read: keep it brief and high-signal. Analyze each locked ban/protect slot as comp-path denial or preservation, call out which comps are banned out vs left open, then give pressure, trajectory, and one recommended strategic objective with risks/confidence.',
+                    message: 'Live draft read: keep it brief and high-signal. Follow the full draft phase-by-phase. Analyze each locked ban/protect slot as route denial or preservation. Do not name projected comps until every draft phase is complete; before then, talk only pressure, trajectory, next action, risks, and confidence.',
                     context: drBuildLiveAiContext(snapshot),
                 }),
             });

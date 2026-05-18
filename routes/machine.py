@@ -123,6 +123,341 @@ def _machine_chat_row_list(rows: list[dict], formatter, limit: int = 5) -> str:
     return "; ".join(parts) if parts else "none"
 
 
+def _machine_hero_role(hero_name: str) -> str:
+    try:
+        from draft_engine.hero_theory import get_hero_profile
+        profile = get_hero_profile(hero_name) or {}
+        role = str(profile.get("role") or "").strip()
+        if role:
+            return role
+    except Exception:
+        pass
+    for role_name, heroes in HERO_ROLES.items():
+        if any(str(hero).lower() == str(hero_name or "").strip().lower() for hero in heroes):
+            return role_name
+    return ""
+
+
+def _machine_build_ban_candidate_details(
+    candidate_heroes: list[str],
+    *,
+    a_model: dict,
+    b_model: dict,
+    matchup_model: dict,
+    target_comp: list[str],
+    enemy_comps: list[dict],
+) -> list[dict]:
+    """Score ban candidates with Marvel Rivals hero theory plus matchup history."""
+    try:
+        from draft_engine.hero_theory import get_hero_profile, get_hero_score
+    except Exception:
+        get_hero_profile = lambda _hero: None
+        get_hero_score = lambda _hero: None
+
+    priority_value = {"high": 18.0, "medium": 10.0, "low": 4.0}
+    role_alias = {"Vanguard": "Tank", "Duelist": "DPS", "Strategist": "Support"}
+    target_comp_keys = {str(hero or "").strip().lower() for hero in target_comp}
+
+    def indexed(rows: list[dict]) -> dict[str, dict]:
+        return {
+            str(row.get("hero", "") or "").strip().lower(): row
+            for row in rows or []
+            if str(row.get("hero", "") or "").strip()
+        }
+
+    our_pool = indexed(a_model.get("hero_pool_rows", []))
+    enemy_pool = indexed(b_model.get("hero_pool_rows", []))
+    our_comfort = indexed(a_model.get("comfort_core_rows", []))
+    enemy_comfort = indexed(b_model.get("comfort_core_rows", []))
+    volatility = {
+        str(row.get("hero", "") or "").strip().lower(): row
+        for row in matchup_model.get("volatile_matchup_rows", []) or []
+        if str(row.get("hero", "") or "").strip()
+    }
+    force_rows = matchup_model.get("force_matchup_rows", []) or []
+
+    rows = []
+    seen = set()
+    for raw_hero in candidate_heroes or []:
+        hero = str(raw_hero or "").strip()
+        hero_key = hero.lower()
+        if not hero or hero_key in seen:
+            continue
+        seen.add(hero_key)
+
+        profile = get_hero_profile(hero) or {}
+        scores = get_hero_score(hero) or {}
+        role = str(profile.get("role") or "").strip() or _machine_hero_role(hero)
+        ban_priority = str(profile.get("ban_priority") or "medium").strip().lower()
+        strategic_score = float(scores.get("strategic_contribution") or 5)
+        stability = float(scores.get("stability") or 5)
+        engage = float(scores.get("engage_score") or 5)
+        poke = float(scores.get("poke_score") or 5)
+        peel = float(scores.get("peel_score") or 5)
+        sustain = float(scores.get("sustain_score") or 5)
+        execution_burden = float(scores.get("execution_burden") or scores.get("execution_difficulty") or 5)
+        pressure_type = str(scores.get("pressure_type") or profile.get("archetype") or "").strip()
+
+        enemy_row = enemy_pool.get(hero_key) or enemy_comfort.get(hero_key) or {}
+        our_row = our_pool.get(hero_key) or our_comfort.get(hero_key) or {}
+        enemy_dependency = (
+            float(enemy_row.get("comfort_rate", 0) or 0) * 0.56
+            + float(enemy_row.get("adjusted_win_rate", 0) or enemy_row.get("raw_win_rate", 0) or 0) * 0.24
+            + float(enemy_row.get("profile_score", 0) or 0) * 0.20
+        )
+        our_dependency = (
+            float(our_row.get("comfort_rate", 0) or 0) * 0.56
+            + float(our_row.get("adjusted_win_rate", 0) or our_row.get("raw_win_rate", 0) or 0) * 0.24
+            + float(our_row.get("profile_score", 0) or 0) * 0.20
+        )
+
+        comp_hits = []
+        for comp in enemy_comps or []:
+            comp_heroes = [str(h or "").strip() for h in comp.get("heroes", [])]
+            if hero_key in {h.lower() for h in comp_heroes}:
+                comp_hits.append(comp)
+        top_comp_hit = comp_hits[0] if comp_hits else {}
+        comp_path_impact = (
+            float(top_comp_hit.get("rate", 0) or 0) * 0.42
+            + float(top_comp_hit.get("win_rate", 0) or 0) * 0.24
+            + float(top_comp_hit.get("confidence", 0) or 0) * 0.16
+        ) if top_comp_hit else 0.0
+
+        path_impact = 0.0
+        for row in force_rows:
+            if hero_key not in {str(h or "").strip().lower() for h in row.get("our_bans", [])}:
+                continue
+            path_impact = max(
+                path_impact,
+                float(row.get("enemy_blocked_count", 0) or 0) * 8.0
+                + float(row.get("enemy_choice_gap", 0) or 0) * 0.9
+                + (100.0 - float(row.get("enemy_preserved_ratio", 100) or 100)) * 0.22,
+            )
+
+        volatile = volatility.get(hero_key) or {}
+        enemy_stat_impact = max(0.0, float(volatile.get("team_b_delta", 0) or 0)) + comp_path_impact
+        our_stat_cost = max(0.0, float(volatile.get("team_a_delta", 0) or 0))
+        if hero_key in target_comp_keys:
+            our_stat_cost += 22.0
+        elif our_comfort.get(hero_key):
+            our_stat_cost += 11.0
+
+        hero_pool_value = (
+            strategic_score * 6.4
+            + max(engage, poke, peel, sustain) * 2.2
+            + priority_value.get(ban_priority, 10.0)
+            + max(0.0, 8.0 - execution_burden) * 1.2
+        )
+        strategic_enemy_value = enemy_dependency + enemy_stat_impact + path_impact + hero_pool_value * 0.26
+        strategic_our_value = our_dependency + our_stat_cost + (hero_pool_value * 0.10 if hero_key in target_comp_keys else 0.0)
+        strategic_net_value = strategic_enemy_value - strategic_our_value
+        ban_score = (
+            strategic_enemy_value
+            + hero_pool_value * 0.36
+            - strategic_our_value * 0.62
+            - max(0.0, stability - 7.0) * 1.8
+        )
+
+        strategic_caution = ""
+        why_not_reason = ""
+        if hero_key in target_comp_keys:
+            strategic_caution = "costs our projected comp path"
+            why_not_reason = "also removes one of our projected comp pieces"
+        elif our_dependency >= enemy_dependency and our_dependency >= 22:
+            strategic_caution = "high self-cost"
+            why_not_reason = "our history values this hero as much as theirs"
+        elif not enemy_row and not comp_hits and not path_impact:
+            strategic_caution = "thin enemy signal"
+            why_not_reason = "mostly theory-driven; limited opponent-specific evidence"
+
+        if ban_score >= 76 and strategic_net_value > 18:
+            model_hint = "excellent net candidate"
+        elif strategic_net_value > 8:
+            model_hint = "good net candidate"
+        elif strategic_net_value > -4:
+            model_hint = "situational candidate"
+        else:
+            model_hint = "costly candidate"
+
+        rows.append(
+            {
+                "hero": hero,
+                "role": role,
+                "role_alias": role_alias.get(role, role),
+                "archetype": profile.get("archetype", ""),
+                "pressure_type": pressure_type,
+                "ban_priority": ban_priority,
+                "strategic_net_value": round(strategic_net_value, 1),
+                "strategic_enemy_value": round(strategic_enemy_value, 1),
+                "strategic_our_value": round(strategic_our_value, 1),
+                "ban_score": round(ban_score, 1),
+                "enemy_dependency": round(enemy_dependency, 1),
+                "our_dependency": round(our_dependency, 1),
+                "enemy_stat_impact": round(enemy_stat_impact, 1),
+                "our_stat_cost": round(our_stat_cost, 1),
+                "hero_pool_value": round(hero_pool_value, 1),
+                "path_impact": round(path_impact, 1),
+                "strategic_caution": strategic_caution,
+                "why_not_reason": why_not_reason,
+                "model_hint": model_hint,
+            }
+        )
+
+    rows.sort(key=lambda row: (float(row.get("ban_score", 0) or 0), float(row.get("strategic_net_value", 0) or 0)), reverse=True)
+    return rows
+
+
+def _machine_build_protect_candidate_details(
+    candidate_heroes: list[str],
+    *,
+    a_model: dict,
+    b_model: dict,
+    matchup_model: dict,
+    target_comp: list[str],
+    enemy_expected_bans: list[str],
+) -> list[dict]:
+    """Score protect candidates with Marvel Rivals hero theory plus route preservation."""
+    try:
+        from draft_engine.hero_theory import get_hero_profile, get_hero_score
+    except Exception:
+        get_hero_profile = lambda _hero: None
+        get_hero_score = lambda _hero: None
+
+    priority_value = {"high": 12.0, "medium": 8.0, "low": 4.0}
+    role_alias = {"Vanguard": "Tank", "Duelist": "DPS", "Strategist": "Support"}
+    target_comp_keys = {str(hero or "").strip().lower() for hero in target_comp}
+    enemy_expected_ban_keys = {str(hero or "").strip().lower() for hero in enemy_expected_bans}
+
+    def indexed(rows: list[dict]) -> dict[str, dict]:
+        return {
+            str(row.get("hero", "") or "").strip().lower(): row
+            for row in rows or []
+            if str(row.get("hero", "") or "").strip()
+        }
+
+    our_pool = indexed(a_model.get("hero_pool_rows", []))
+    enemy_pool = indexed(b_model.get("hero_pool_rows", []))
+    our_comfort = indexed(a_model.get("comfort_core_rows", []))
+    enemy_comfort = indexed(b_model.get("comfort_core_rows", []))
+    volatility = {
+        str(row.get("hero", "") or "").strip().lower(): row
+        for row in matchup_model.get("volatile_matchup_rows", []) or []
+        if str(row.get("hero", "") or "").strip()
+    }
+
+    route_protects = set()
+    for row in matchup_model.get("force_matchup_rows", []) or []:
+        route_protects.update(str(hero or "").strip().lower() for hero in row.get("our_protects", []) if str(hero or "").strip())
+
+    rows = []
+    seen = set()
+    for raw_hero in candidate_heroes or []:
+        hero = str(raw_hero or "").strip()
+        hero_key = hero.lower()
+        if not hero or hero_key in seen:
+            continue
+        seen.add(hero_key)
+
+        profile = get_hero_profile(hero) or {}
+        scores = get_hero_score(hero) or {}
+        role = str(profile.get("role") or "").strip() or _machine_hero_role(hero)
+        protect_priority = str(profile.get("ban_priority") or "medium").strip().lower()
+        strategic_score = float(scores.get("strategic_contribution") or 5)
+        stability = float(scores.get("stability") or 5)
+        engage = float(scores.get("engage_score") or 5)
+        poke = float(scores.get("poke_score") or 5)
+        peel = float(scores.get("peel_score") or 5)
+        sustain = float(scores.get("sustain_score") or 5)
+        execution_burden = float(scores.get("execution_burden") or scores.get("execution_difficulty") or 5)
+        pressure_type = str(scores.get("pressure_type") or profile.get("archetype") or "").strip()
+
+        our_row = our_pool.get(hero_key) or our_comfort.get(hero_key) or {}
+        enemy_row = enemy_pool.get(hero_key) or enemy_comfort.get(hero_key) or {}
+        our_dependency = (
+            float(our_row.get("comfort_rate", 0) or 0) * 0.56
+            + float(our_row.get("adjusted_win_rate", 0) or our_row.get("raw_win_rate", 0) or 0) * 0.24
+            + float(our_row.get("profile_score", 0) or 0) * 0.20
+        )
+        enemy_dependency = (
+            float(enemy_row.get("comfort_rate", 0) or 0) * 0.56
+            + float(enemy_row.get("adjusted_win_rate", 0) or enemy_row.get("raw_win_rate", 0) or 0) * 0.24
+            + float(enemy_row.get("profile_score", 0) or 0) * 0.20
+        )
+
+        route_value = 0.0
+        if hero_key in target_comp_keys:
+            route_value += 28.0
+        if hero_key in route_protects:
+            route_value += 18.0
+        enemy_ban_pressure = 18.0 if hero_key in enemy_expected_ban_keys else 0.0
+
+        volatile = volatility.get(hero_key) or {}
+        our_stat_impact = max(0.0, float(volatile.get("team_a_delta", 0) or 0))
+        enemy_stat_cost = max(0.0, float(volatile.get("team_b_delta", 0) or 0))
+
+        hero_pool_value = (
+            strategic_score * 5.8
+            + max(stability, peel, sustain, engage, poke) * 2.0
+            + priority_value.get(protect_priority, 8.0)
+            + max(0.0, 8.0 - execution_burden) * 1.1
+        )
+        strategic_our_value = our_dependency + route_value + enemy_ban_pressure + our_stat_impact + hero_pool_value * 0.28
+        strategic_enemy_value = enemy_dependency + enemy_stat_cost + (hero_pool_value * 0.10 if enemy_comfort.get(hero_key) else 0.0)
+        strategic_net_value = strategic_our_value - strategic_enemy_value
+        protect_score = (
+            strategic_our_value
+            + hero_pool_value * 0.34
+            - strategic_enemy_value * 0.48
+            + max(0.0, stability - 6.0) * 1.6
+        )
+
+        strategic_caution = ""
+        why_not_reason = ""
+        if hero_key not in target_comp_keys and hero_key not in route_protects and our_dependency < 18:
+            strategic_caution = "thin route value"
+            why_not_reason = "does not clearly preserve the projected comp path"
+        elif enemy_dependency > our_dependency + 10:
+            strategic_caution = "shared/enemy value"
+            why_not_reason = "protecting it may preserve a hero the enemy also values"
+
+        if protect_score >= 76 and strategic_net_value > 18:
+            model_hint = "excellent route preserve"
+        elif strategic_net_value > 8:
+            model_hint = "good protect candidate"
+        elif strategic_net_value > -4:
+            model_hint = "situational protect"
+        else:
+            model_hint = "low-value protect"
+
+        rows.append(
+            {
+                "hero": hero,
+                "role": role,
+                "role_alias": role_alias.get(role, role),
+                "archetype": profile.get("archetype", ""),
+                "pressure_type": pressure_type,
+                "protect_priority": protect_priority,
+                "strategic_net_value": round(strategic_net_value, 1),
+                "strategic_our_value": round(strategic_our_value, 1),
+                "strategic_enemy_value": round(strategic_enemy_value, 1),
+                "protect_score": round(protect_score, 1),
+                "our_dependency": round(our_dependency, 1),
+                "enemy_dependency": round(enemy_dependency, 1),
+                "our_stat_impact": round(our_stat_impact, 1),
+                "enemy_stat_cost": round(enemy_stat_cost, 1),
+                "route_value": round(route_value, 1),
+                "enemy_ban_pressure": round(enemy_ban_pressure, 1),
+                "hero_pool_value": round(hero_pool_value, 1),
+                "strategic_caution": strategic_caution,
+                "why_not_reason": why_not_reason,
+                "model_hint": model_hint,
+            }
+        )
+
+    rows.sort(key=lambda row: (float(row.get("protect_score", 0) or 0), float(row.get("strategic_net_value", 0) or 0)), reverse=True)
+    return rows
+
+
 def _machine_agent_parse_slot_compare(message: str) -> dict | None:
     q = (message or "").strip().lower()
     if not q or not any(word in q for word in ("ban", "banning", "third", "fourth", "3rd", "4th", "difference", "compare")):
@@ -568,6 +903,7 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         )
 
     recommended_bans = []
+    enemy_expected_bans = []
     recommended_protects = []
     target_comp = []
 
@@ -589,6 +925,10 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             add_unique(target_comp, row.get("our_comp", []), 6)
     add_unique(recommended_bans, [r.get("hero", "") for r in model.get("volatile_matchup_rows", [])], 6)
     add_unique(recommended_bans, [r.get("hero", "") for r in b_model.get("comfort_core_rows", [])], 6)
+    for row in b_model.get("ban_line_rows", [])[:5]:
+        add_unique(enemy_expected_bans, row.get("bans", []), 8)
+    if not enemy_expected_bans:
+        add_unique(enemy_expected_bans, [r.get("hero", "") for r in a_model.get("comfort_core_rows", [])], 8)
     if not target_comp:
         comp_row = (a_model.get("comp_rows") or [{}])[0]
         add_unique(target_comp, comp_row.get("heroes", []), 6)
@@ -602,6 +942,37 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         }
         for row in b_model.get("comp_rows", [])[:4]
     ]
+    ban_candidate_pool = []
+    add_unique(ban_candidate_pool, recommended_bans, 10)
+    add_unique(ban_candidate_pool, [r.get("hero", "") for r in b_model.get("comfort_core_rows", [])], 10)
+    for comp in enemy_comps[:3]:
+        add_unique(ban_candidate_pool, comp.get("heroes", []), 10)
+    add_unique(ban_candidate_pool, [r.get("hero", "") for r in model.get("volatile_matchup_rows", [])], 10)
+    ban_candidate_details = _machine_build_ban_candidate_details(
+        ban_candidate_pool,
+        a_model=a_model,
+        b_model=b_model,
+        matchup_model=model,
+        target_comp=target_comp,
+        enemy_comps=enemy_comps,
+    )
+    if ban_candidate_details:
+        recommended_bans = [row["hero"] for row in ban_candidate_details[:6]]
+    protect_candidate_pool = []
+    add_unique(protect_candidate_pool, recommended_protects, 10)
+    add_unique(protect_candidate_pool, target_comp, 10)
+    add_unique(protect_candidate_pool, [r.get("hero", "") for r in a_model.get("comfort_core_rows", [])], 10)
+    add_unique(protect_candidate_pool, [r.get("hero", "") for r in model.get("contested_heroes", [])], 10)
+    protect_candidate_details = _machine_build_protect_candidate_details(
+        protect_candidate_pool,
+        a_model=a_model,
+        b_model=b_model,
+        matchup_model=model,
+        target_comp=target_comp,
+        enemy_expected_bans=enemy_expected_bans,
+    )
+    if protect_candidate_details:
+        recommended_protects = [row["hero"] for row in protect_candidate_details[:3]]
     pivot_predictions = [
         {
             "base": row.get("enemy_base", row.get("base_heroes", []))[:6],
@@ -704,7 +1075,29 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         f"Filters: season={season_value or 'all'}, map={selected_map_name or 'all'}, sources={_machine_chat_join(source_label) or 'none'}.",
         f"Data volume: {team_a['name']} {len(a_history)} records, {team_b['name']} {len(b_history)} records.",
         f"Recommended ban targets: {_machine_chat_join(recommended_bans, 6)}.",
+        "Ban candidate detail: "
+        + _machine_chat_row_list(
+            ban_candidate_details,
+            lambda r: (
+                f"{r.get('hero')} ({r.get('role')}, score {r.get('ban_score')}, "
+                f"net {r.get('strategic_net_value')}, enemy {r.get('strategic_enemy_value')}, "
+                f"our cost {r.get('strategic_our_value')}, hint {r.get('model_hint')})"
+            ),
+            6,
+        )
+        + ".",
         f"Recommended protects: {_machine_chat_join(recommended_protects, 3)}.",
+        "Protect candidate detail: "
+        + _machine_chat_row_list(
+            protect_candidate_details,
+            lambda r: (
+                f"{r.get('hero')} ({r.get('role')}, score {r.get('protect_score')}, "
+                f"net {r.get('strategic_net_value')}, our value {r.get('strategic_our_value')}, "
+                f"enemy value {r.get('strategic_enemy_value')}, hint {r.get('model_hint')})"
+            ),
+            6,
+        )
+        + ".",
         f"Target comp path: {_machine_chat_join(target_comp, 6)}.",
         f"{team_a['name']} comfort heroes: {comfort_rows(a_model)}.",
         f"{team_b['name']} comfort heroes: {comfort_rows(b_model)}.",
@@ -761,7 +1154,10 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         "model_status": model.get("status", "ready"),
         "visuals": {
             "recommended_bans": recommended_bans[:6],
+            "ban_candidate_details": ban_candidate_details[:8],
+            "enemy_expected_bans": enemy_expected_bans[:6],
             "recommended_protects": recommended_protects[:3],
+            "protect_candidate_details": protect_candidate_details[:8],
             "target_comp": target_comp[:6],
             "our_comfort": [
                 row.get("hero", "")
@@ -1522,6 +1918,12 @@ def _machine_agent_filter_visuals(intent: str, visuals: dict) -> dict:
         "summary": ("recommended_bans", "target_comp", "enemy_comfort"),
     }
     selected = {key: visuals.get(key, []) for key in keys_by_intent.get(intent, ()) if visuals.get(key)}
+    if visuals.get("ban_candidate_details"):
+        selected["ban_candidate_details"] = visuals["ban_candidate_details"]
+    if visuals.get("protect_candidate_details"):
+        selected["protect_candidate_details"] = visuals["protect_candidate_details"]
+    if visuals.get("enemy_expected_bans"):
+        selected["enemy_expected_bans"] = visuals["enemy_expected_bans"]
     if visuals.get("live_decision"):
         selected["live_decision"] = visuals["live_decision"]
     if intent == "map":
@@ -1554,21 +1956,49 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
     comp_tree = visuals.get("comp_tree") or {}
     confidence = visuals.get("confidence") or {}
     map_rows = visuals.get("map_consensus", []) or []
+    ban_candidate_details = visuals.get("ban_candidate_details", []) or []
+    protect_candidate_details = visuals.get("protect_candidate_details", []) or []
 
     lines = context_text.splitlines()
     if intent == "ban":
         ban_seq = (visuals.get("recommended_bans") or [])[:4]
         seq_line = " | ".join(f"Ban {i+1}: {h}" for i, h in enumerate(ban_seq))
         seq_part = ("Likely sequence: " + seq_line + ".\n\n") if seq_line else ""
+        detail_lines = []
+        for row in ban_candidate_details[:3]:
+            hero = row.get("hero", "")
+            if not hero:
+                continue
+            detail_lines.append(
+                f"- {hero} ({row.get('role') or row.get('role_alias') or 'Hero'}): "
+                f"score {row.get('ban_score', 0)}, net {row.get('strategic_net_value', 0)}, "
+                f"enemy {row.get('strategic_enemy_value', 0)}, our cost {row.get('strategic_our_value', 0)}"
+                + (f" - {row.get('model_hint')}" if row.get("model_hint") else "")
+            )
+        detail_part = ("Marvel Rivals candidate model:\n" + "\n".join(detail_lines) + "\n\n") if detail_lines else ""
         return (
             f"Top likely bans right now: {ban_line}.\n\n"
             f"{seq_part}"
+            f"{detail_part}"
             f"If you name your first ban, I can re-rank this sequence conditionally."
         )
     elif intent == "protect":
+        detail_lines = []
+        for row in protect_candidate_details[:3]:
+            hero = row.get("hero", "")
+            if not hero:
+                continue
+            detail_lines.append(
+                f"- {hero} ({row.get('role') or row.get('role_alias') or 'Hero'}): "
+                f"score {row.get('protect_score', 0)}, net {row.get('strategic_net_value', 0)}, "
+                f"our value {row.get('strategic_our_value', 0)}, enemy value {row.get('strategic_enemy_value', 0)}"
+                + (f" - {row.get('model_hint')}" if row.get("model_hint") else "")
+            )
+        detail_part = ("\n\nMarvel Rivals protect model:\n" + "\n".join(detail_lines)) if detail_lines else ""
         return (
             f"Protect {protect_line or 'our core enablers'} first.\n\n"
             f"That keeps {comp_line or 'the target comp'} live."
+            f"{detail_part}"
         )
     elif intent == "comp":
         our_comp_rows = visuals.get("our_comp_rows") or []
@@ -2022,6 +2452,10 @@ def _machine_agent_draft_live_context_hint(chat_context: dict) -> str:
         lines.append("- Enemy protects: " + ", ".join(enemy_protects[:4]))
     if open_slots:
         lines.append("- Open draft slots: " + ", ".join(open_slots[:8]))
+    if current_phase:
+        lines.append("- Do not name projected comps yet; wait until every draft phase is complete.")
+    else:
+        lines.append("- Draft phase is complete; projected comps may now be named.")
     lines.append("Use this board as live state for reasoning and adaptation analysis.")
     return "\n".join(lines)
 
@@ -2037,6 +2471,7 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
     team_b = chat_context.get("team_b_name") or "the enemy"
     current_phase = draft_live.get("current_phase") or {}
     next_team = current_phase.get("next_team")
+    draft_complete = not current_phase
     locked = {
         _canonical_draft_hero(str(hero or "").strip()).lower()
         for hero in (
@@ -2047,7 +2482,6 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         )
         if str(hero or "").strip()
     }
-
     def _clean_heroes(values, limit: int = 6) -> list[str]:
         heroes = []
         seen = set()
@@ -2061,8 +2495,31 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 break
         return heroes
 
+    our_locked_bans = _clean_heroes(draft_live.get("our_bans"), 4)
+    enemy_locked_bans = _clean_heroes(draft_live.get("enemy_bans"), 4)
+    our_locked_protects = _clean_heroes(draft_live.get("our_protects"), 2)
+    enemy_locked_protects = _clean_heroes(draft_live.get("enemy_protects"), 2)
+
     candidate_bans = [
         hero for hero in _clean_heroes(visuals.get("recommended_bans"), 8)
+        if hero.lower() not in locked
+    ]
+    candidate_detail_lookup = {
+        str(row.get("hero", "") or "").strip().lower(): row
+        for row in visuals.get("ban_candidate_details", []) or []
+        if str(row.get("hero", "") or "").strip()
+    }
+    protect_detail_lookup = {
+        str(row.get("hero", "") or "").strip().lower(): row
+        for row in visuals.get("protect_candidate_details", []) or []
+        if str(row.get("hero", "") or "").strip()
+    }
+    candidate_protects = [
+        hero for hero in _clean_heroes(visuals.get("recommended_protects"), 5)
+        if hero.lower() not in locked
+    ]
+    enemy_next_bans = [
+        hero for hero in _clean_heroes(visuals.get("enemy_expected_bans"), 8)
         if hero.lower() not in locked
     ]
     enemy_comfort_list = _clean_heroes(visuals.get("enemy_comfort"), 10)
@@ -2122,10 +2579,16 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         reasons = []
         if closes:
             top = closes[0]
-            reasons.append(
-                f"hits enemy comp path {_machine_chat_join(top['heroes'], 4)}"
-                + (f" ({top.get('rate', 0)}% rate)" if top.get("rate") else "")
-            )
+            if draft_complete:
+                reasons.append(
+                    f"hits enemy comp path {_machine_chat_join(top['heroes'], 4)}"
+                    + (f" ({top.get('rate', 0)}% rate)" if top.get("rate") else "")
+                )
+            else:
+                reasons.append(
+                    "pressures an enemy route"
+                    + (f" ({top.get('rate', 0)}% route signal)" if top.get("rate") else "")
+                )
         if hero in enemy_comfort:
             reasons.append("removes enemy comfort/core access")
         volatile = volatile_rows.get(hero)
@@ -2138,20 +2601,48 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
             hit = pivot_hits[0]
             if hit["type"] == "forces_pivot":
                 reasons.append(
-                    f"breaks their starting shell and pushes them toward {_machine_chat_join(hit.get('to', []), 3)}"
+                    f"breaks their starting shell"
+                    + (f" and pushes them toward {_machine_chat_join(hit.get('to', []), 3)}" if draft_complete else "")
                 )
             else:
                 reasons.append(
-                    f"blocks their fallback into {_machine_chat_join(hit.get('to', []), 3)}"
+                    f"blocks their fallback"
+                    + (f" into {_machine_chat_join(hit.get('to', []), 3)}" if draft_complete else "")
                 )
         if not reasons:
             reasons.append("keeps pressure on the highest ranked remaining ban target")
+        detail = candidate_detail_lookup.get(hero.lower()) or {}
+        if detail.get("model_hint"):
+            reasons.append(
+                f"{detail.get('model_hint')} (score {detail.get('ban_score')}, net {detail.get('strategic_net_value')})"
+            )
 
         next_ban_rows.append({
             "hero": hero,
+            "detail": detail,
             "reasons": reasons[:3],
             "closes": closes[:2],
             "pivot_paths": pivot_hits[:2],
+        })
+
+    next_protect_rows = []
+    for hero in candidate_protects[:3]:
+        detail = protect_detail_lookup.get(hero.lower()) or {}
+        reasons = []
+        if hero in _clean_heroes(visuals.get("target_comp"), 6):
+            reasons.append("preserves our projected comp route")
+        if detail.get("enemy_ban_pressure"):
+            reasons.append("denies their likely ban response")
+        if detail.get("model_hint"):
+            reasons.append(
+                f"{detail.get('model_hint')} (score {detail.get('protect_score')}, net {detail.get('strategic_net_value')})"
+            )
+        if not reasons:
+            reasons.append("keeps a high-value route piece open")
+        next_protect_rows.append({
+            "hero": hero,
+            "detail": detail,
+            "reasons": reasons[:3],
         })
 
     possible_pivots = []
@@ -2181,7 +2672,13 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         lines.append("- Next ban candidates:")
         for row in next_ban_rows[:3]:
             lines.append(f"  - {row['hero']}: " + "; ".join(row["reasons"]))
-    if possible_pivots:
+    if next_protect_rows:
+        lines.append("- Next protect candidates:")
+        for row in next_protect_rows[:3]:
+            lines.append(f"  - {row['hero']}: " + "; ".join(row["reasons"]))
+    if enemy_next_bans:
+        lines.append("- Enemy likely next bans: " + _machine_chat_join(enemy_next_bans, 4))
+    if possible_pivots and draft_complete:
         lines.append("- Possible pivot paths:")
         for row in possible_pivots[:3]:
             pressure = _machine_chat_join(row.get("pressure_bans", []), 3)
@@ -2193,17 +2690,25 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 f" -> {_machine_chat_join(row['pivot'], 4)}"
                 f" ({row.get('diff_count', 0)} hero shift{pressure_text}{counter_text})"
             )
-    lines.append("Explain the recommended next ban by what route it blocks, what fallback it leaves, remaining risk, and confidence.")
+    lines.append("Explain the recommended next action by whether it blocks an enemy route or preserves our route, what fallback it leaves, remaining risk, and confidence.")
 
     return "\n".join(lines), {
         "next_bans": next_ban_rows,
-        "possible_pivots": possible_pivots,
-        "our_projected_path": _clean_heroes(visuals.get("target_comp"), 6),
-        "their_projected_path": _clean_heroes((enemy_comp_rows[0] or {}).get("heroes"), 6) if enemy_comp_rows else [],
-        "their_projected_rate": (enemy_comp_rows[0] or {}).get("rate", 0) if enemy_comp_rows else 0,
-        "their_projected_wr": (enemy_comp_rows[0] or {}).get("win_rate", 0) if enemy_comp_rows else 0,
+        "next_protects": next_protect_rows,
+        "enemy_next_bans": enemy_next_bans[:4],
+        "possible_pivots": possible_pivots if draft_complete else [],
+        "our_projected_path": _clean_heroes(visuals.get("target_comp"), 6) if draft_complete else [],
+        "their_projected_path": _clean_heroes((enemy_comp_rows[0] or {}).get("heroes"), 6) if draft_complete and enemy_comp_rows else [],
+        "their_projected_rate": (enemy_comp_rows[0] or {}).get("rate", 0) if draft_complete and enemy_comp_rows else 0,
+        "their_projected_wr": (enemy_comp_rows[0] or {}).get("win_rate", 0) if draft_complete and enemy_comp_rows else 0,
         "team_a": team_a,
         "team_b": team_b,
+        "current_phase": current_phase,
+        "draft_complete": draft_complete,
+        "our_locked_bans": our_locked_bans,
+        "enemy_locked_bans": enemy_locked_bans,
+        "our_locked_protects": our_locked_protects,
+        "enemy_locked_protects": enemy_locked_protects,
     }
 
 
@@ -2211,20 +2716,48 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     if not decision_data:
         return ""
     next_bans = decision_data.get("next_bans") or []
+    next_protects = decision_data.get("next_protects") or []
+    enemy_next_bans = decision_data.get("enemy_next_bans") or []
     pivots = decision_data.get("possible_pivots") or []
     our_path = decision_data.get("our_projected_path") or []
     their_path = decision_data.get("their_projected_path") or []
     their_rate = decision_data.get("their_projected_rate") or 0
     their_wr = decision_data.get("their_projected_wr") or 0
-    if not next_bans and not pivots:
+    our_locked_bans = decision_data.get("our_locked_bans") or []
+    enemy_locked_bans = decision_data.get("enemy_locked_bans") or []
+    our_locked_protects = decision_data.get("our_locked_protects") or []
+    enemy_locked_protects = decision_data.get("enemy_locked_protects") or []
+    draft_complete = bool(decision_data.get("draft_complete"))
+    if not next_bans and not next_protects and not pivots and not enemy_next_bans:
         return ""
 
-    lines = ["Live draft read:"]
     explained_pivot = ""
-    if our_path or their_path:
-        path_bits = []
-        if our_path:
-            path_bits.append(f"our projected path: {_machine_chat_join(our_path, 6)}")
+    top = next_bans[0] if next_bans else {}
+    top_protect = next_protects[0] if next_protects else {}
+    top_hero = top.get("hero") or "their highest-value remaining route piece"
+    top_protect_hero = top_protect.get("hero") or ""
+    top_enemy_ban = enemy_next_bans[0] if enemy_next_bans else ""
+    next_ban_number = len(our_locked_bans) + 1
+    next_protect_number = len(our_locked_protects) + 1
+
+    lines = ["Live draft read:"]
+    if our_locked_bans:
+        lines.append(f"We are banning: {_machine_chat_join(our_locked_bans, 4)}.")
+    else:
+        lines.append("We are banning first from a clean board.")
+    if top_enemy_ban:
+        lines.append(f"They will likely ban next: {top_enemy_ban}.")
+    elif enemy_locked_bans:
+        lines.append(f"Their ban line so far: {_machine_chat_join(enemy_locked_bans, 4)}.")
+    current_phase = decision_data.get("current_phase") or {}
+    next_team = current_phase.get("next_team")
+    open_protect_turn = next_team == "a" and next_protect_hero and len(our_locked_protects) < 2
+    if open_protect_turn:
+        lines.append(f"We should protect: {top_protect_hero} (protect {next_protect_number}).")
+    else:
+        lines.append(f"We should ban: {top_hero} (ban {next_ban_number}).")
+
+    if draft_complete and (our_path or their_path):
         if their_path:
             metrics = []
             if their_rate:
@@ -2232,15 +2765,32 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
             if their_wr:
                 metrics.append(f"{float(their_wr):.1f}% WR")
             metric_text = f" ({', '.join(metrics)})" if metrics else ""
-            path_bits.append(f"their projected path: {_machine_chat_join(their_path, 6)}{metric_text}")
-        lines.append("Current projection: " + " | ".join(path_bits) + ".")
-    if next_bans:
-        top = next_bans[0]
-        top_hero = top.get("hero", "the top remaining target")
-        lines.append(f"Recommended next ban: {top_hero}.")
+            lines.append(f"Enemy comp: {_machine_chat_join(their_path, 6)}{metric_text}.")
+        if our_path:
+            lines.append(f"Our comp: {_machine_chat_join(our_path, 6)}.")
+    elif not draft_complete:
+        lines.append("Comp reveal: held until the draft phase is complete.")
+    if our_locked_protects:
+        lines.append(f"Our protects: {_machine_chat_join(our_locked_protects, 2)}.")
+    if enemy_locked_protects:
+        lines.append(f"Their protects: {_machine_chat_join(enemy_locked_protects, 2)}.")
+
+    if next_bans and not open_protect_turn:
         reasons = list(top.get("reasons") or [])
         paths = top.get("pivot_paths") or []
         closes = top.get("closes") or []
+        detail = top.get("detail") or {}
+        if detail:
+            role_label = detail.get("role") or detail.get("role_alias") or ""
+            lines.append(
+                "Candidate model: "
+                f"{top_hero}"
+                + (f" ({role_label})" if role_label else "")
+                + f" | ban score {detail.get('ban_score', 0)}"
+                + f" | net {detail.get('strategic_net_value', 0)}"
+                + f" | enemy value {detail.get('strategic_enemy_value', 0)}"
+                + f" | our cost {detail.get('strategic_our_value', 0)}."
+            )
         if closes:
             close = closes[0]
             metric_bits = []
@@ -2251,13 +2801,20 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
             if close.get("confidence"):
                 metric_bits.append(f"{float(close.get('confidence') or 0):.1f}% confidence")
             if metric_bits:
-                lines.append(f"Numerical reference: this touches their {_machine_chat_join(close.get('heroes', []), 4)} path ({', '.join(metric_bits)}).")
+                if draft_complete:
+                    lines.append(f"Numerical reference: this touches their {_machine_chat_join(close.get('heroes', []), 4)} path ({', '.join(metric_bits)}).")
+                else:
+                    lines.append(f"Numerical reference: this touches an enemy route ({', '.join(metric_bits)}).")
                 reasons = [
                     reason for reason in reasons
                     if not reason.startswith("hits enemy comp path ")
                 ]
         if reasons:
-            lines.append("Why: " + "; ".join(reasons[:3]) + ".")
+            lines.append("Reason: " + "; ".join(reasons[:3]) + ".")
+        if detail and detail.get("strategic_caution"):
+            lines.append(f"Caution: {detail.get('strategic_caution')}.")
+        if detail and detail.get("why_not_reason"):
+            lines.append(f"Why not: {detail.get('why_not_reason')}.")
         if paths:
             path = paths[0]
             base_text = _machine_chat_join(path.get("from", []), 4)
@@ -2266,14 +2823,40 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
             shift = int(path.get("diff_count") or 0)
             shift_text = f" ({shift}-hero shift)" if shift else ""
             if path.get("type") == "forces_pivot":
-                lines.append(
-                    f"Pivot impact: banning {top_hero} attacks their base shell ({base_text}) and likely pushes them toward {pivot_text}{shift_text}."
-                )
+                if draft_complete:
+                    lines.append(
+                        f"Coach note: banning {top_hero} attacks their base shell ({base_text}) and likely pushes them toward {pivot_text}{shift_text}."
+                    )
+                else:
+                    lines.append(f"Coach note: banning {top_hero} attacks their base shell; comp path withheld until draft completion.")
             else:
-                lines.append(
-                    f"Pivot impact: banning {top_hero} blocks their likely fallback into {pivot_text}{shift_text}; if they stay on {base_text}, that route is less flexible."
-                )
-    if pivots:
+                if draft_complete:
+                    lines.append(
+                        f"Coach note: banning {top_hero} blocks their likely fallback into {pivot_text}{shift_text}; if they stay on {base_text}, that route is less flexible."
+                    )
+                else:
+                    lines.append(f"Coach note: banning {top_hero} blocks a fallback route; comp path withheld until draft completion.")
+    if open_protect_turn and top_protect:
+        detail = top_protect.get("detail") or {}
+        if detail:
+            role_label = detail.get("role") or detail.get("role_alias") or ""
+            lines.append(
+                "Protect model: "
+                f"{top_protect_hero}"
+                + (f" ({role_label})" if role_label else "")
+                + f" | protect score {detail.get('protect_score', 0)}"
+                + f" | net {detail.get('strategic_net_value', 0)}"
+                + f" | our value {detail.get('strategic_our_value', 0)}"
+                + f" | enemy value {detail.get('strategic_enemy_value', 0)}."
+            )
+        reasons = list(top_protect.get("reasons") or [])
+        if reasons:
+            lines.append("Protect reason: " + "; ".join(reasons[:3]) + ".")
+        if detail and detail.get("strategic_caution"):
+            lines.append(f"Protect caution: {detail.get('strategic_caution')}.")
+        if detail and detail.get("why_not_reason"):
+            lines.append(f"Why not protect: {detail.get('why_not_reason')}.")
+    if pivots and draft_complete:
         row = pivots[0]
         base_text = _machine_chat_join(row.get("base", []), 4)
         pivot_text = _machine_chat_join(row.get("pivot", []), 4)
@@ -2288,6 +2871,46 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     lines.append("Risk: if this does not remove a core route piece, they may still reach a clean fallback comp.")
     lines.append("Confidence: Medium unless this board has a repeated sample in the selected filters.")
     return "\n".join(lines)
+
+
+def _machine_agent_hide_live_comps_until_complete(meta: dict, chat_context: dict) -> None:
+    draft_live = chat_context.get("draft_live")
+    if not isinstance(draft_live, dict) or not draft_live.get("active"):
+        return
+    if not isinstance(draft_live.get("current_phase"), dict):
+        return
+    visuals = meta.get("visuals")
+    if not isinstance(visuals, dict):
+        return
+
+    for key in (
+        "target_comp",
+        "enemy_comps",
+        "our_comp_rows",
+        "pivot_predictions",
+        "comp_tree",
+        "likely_next_pick",
+    ):
+        visuals.pop(key, None)
+
+    coach_read = visuals.get("coach_read")
+    if isinstance(coach_read, dict):
+        for key in ("expected_primary_comp", "expected_pivot", "our_answer"):
+            coach_read.pop(key, None)
+
+    confidence = visuals.get("confidence")
+    if isinstance(confidence, dict):
+        confidence.pop("target_comp", None)
+
+    hero_focus = visuals.get("hero_focus")
+    if isinstance(hero_focus, dict):
+        hero_focus.pop("in_target_comp", None)
+
+    live_decision = visuals.get("live_decision")
+    if isinstance(live_decision, dict):
+        live_decision["our_projected_path"] = []
+        live_decision["their_projected_path"] = []
+        live_decision["possible_pivots"] = []
 
 
 def _machine_agent_live_draft_fallback(chat_context: dict) -> str:
@@ -2597,6 +3220,7 @@ def api_machine_chat_stream():
                     "team_a_name": meta.get("team_a") or chat_context.get("team_a_name", ""),
                     "team_b_name": meta.get("team_b") or chat_context.get("team_b_name", ""),
                 }
+                _machine_agent_hide_live_comps_until_complete(meta, chat_context)
                 meta["reasoning_mode"] = "agentic"
                 meta["response_engine"] = "openai" if agent_answer else "local_draft"
 
@@ -2892,6 +3516,7 @@ def _api_machine_chat_inner():
         "team_a_name": meta.get("team_a") or chat_context.get("team_a_name", ""),
         "team_b_name": meta.get("team_b") or chat_context.get("team_b_name", ""),
     }
+    _machine_agent_hide_live_comps_until_complete(meta, chat_context)
     meta["reasoning_mode"] = "agentic"
     meta["response_engine"] = "openai" if agent_answer else "local_draft"
 
