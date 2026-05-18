@@ -487,26 +487,25 @@
             {% set enemy_ban_group_trios = enemy_ban_corr.group_rows_by_size.get(3, []) %}
             {% set enemy_ban_group_quads = enemy_ban_corr.group_rows_by_size.get(4, []) %}
             <details class="dense-collapsible top-gap" id="team-enemy-ban-cooccurrence">
-                <summary>Enemy Ban Pairs &amp; Correlation</summary>
+                <summary>Ban Pairs &amp; Correlation</summary>
                 <div class="dense-collapsible-body">
                     <section class="panel panel-soft-red">
-                        <div class="section-kicker">Enemy Ban Impact</div>
-                        <h3>Common Enemy Ban Pairs &amp; Correlation</h3>
+                        <div class="section-kicker">Opponent Pressure</div>
+                        <h3>Common Ban Pairs &amp; Correlation</h3>
                         <p class="panel-intro">
-                            This mirrors the prep co-occurrence module, but uses opponent bans against {{ team.name }}. Near-lock enemy bans are separated first, and the W-L/WR columns show how {{ team.name }} performed when that enemy ban pair or group appeared.
-                            Deadpool entries show the role variant and canonical key so Tankpool, DpsPool, and SupportPool stay distinct.
+                            Opponent bans against {{ team.name }}. Near-lock bans are split out; pair and group WR use {{ team.name }}'s result on those maps. Deadpool role variants are shown when relevant.
                         </p>
                         {% if enemy_ban_corr.locked_rows %}
                             <div class="analysis-card-grid top-gap">
                                 {% for row in enemy_ban_corr.locked_rows %}
                                 <article class="analysis-card signal-card signal-card-danger">
-                                    <div class="section-kicker">Near-Lock Enemy Ban</div>
+                                    <div class="section-kicker">Near-Lock Ban</div>
                                     <div class="analysis-card-header">
                                         <span class="hero-inline-cell">
                                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                             <span class="hero-inline-meta">
                                                 <span>{{ hero_display_name(row.hero) }}{% if hero_pool_label(row.hero) %} ({{ hero_pool_label(row.hero) }}){% endif %}</span>
-                                                <small class="hero-sub-label">{{ row.hero }} - {{ row.count }} enemy bans - {{ row.rate }}%{% if row.low_sample %} - Low sample{% endif %}</small>
+                                                <small class="hero-sub-label">{% if hero_pool_label(row.hero) %}{{ row.hero }} | {% endif %}{{ row.count }} bans | {{ row.rate }}%{% if row.low_sample %} | Low sample{% endif %}</small>
                                             </span>
                                         </span>
                                         <span class="metric-text metric-bad">{{ row.rate }}%</span>
@@ -525,7 +524,7 @@
                                             <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                             <span class="hero-inline-meta">
                                                 <span>{{ hero_display_name(row.hero) }}{% if hero_pool_label(row.hero) %} ({{ hero_pool_label(row.hero) }}){% endif %}</span>
-                                                <small class="hero-sub-label">{{ row.hero }} - {{ row.count }} enemy bans - {{ row.rate }}%</small>
+                                                <small class="hero-sub-label">{% if hero_pool_label(row.hero) %}{{ row.hero }} | {% endif %}{{ row.count }} bans | {{ row.rate }}%</small>
                                             </span>
                                         </span>
                                     </div>
@@ -537,8 +536,8 @@
                                                 <span class="hero-inline-meta">
                                                     <span>{{ hero_display_name(partner.hero) }}{% if hero_pool_label(partner.hero) %} ({{ hero_pool_label(partner.hero) }}){% endif %}</span>
                                                     <small class="hero-sub-label">
-                                                        {{ partner.hero }} - {{ partner.co_count }} co-bans{% if partner.co_count < 3 %} - Low{% endif %}
-                                                        {% if partner.win_rate is not none %} - {{ partner.wins }}-{{ partner.losses }} - {{ partner.win_rate }}% WR{% endif %}
+                                                        {% if hero_pool_label(partner.hero) %}{{ partner.hero }} | {% endif %}{{ partner.co_count }} co-bans{% if partner.co_count < 3 %} | Low sample{% endif %}
+                                                        {% if partner.win_rate is not none %} | {{ partner.wins }}-{{ partner.losses }} | {{ partner.win_rate }}% WR{% endif %}
                                                     </small>
                                                 </span>
                                             </span>
@@ -561,7 +560,7 @@
                                     <thead>
                                         <tr>
                                             <th>Group</th>
-                                            <th>Enemy Bans Together</th>
+                                            <th>Bans Together</th>
                                             <th>Occurrences</th>
                                             <th>{{ team.name }} Record</th>
                                             <th>{{ team.name }} WR</th>

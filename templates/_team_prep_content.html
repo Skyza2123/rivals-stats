@@ -120,7 +120,7 @@
     <summary>Draft Co-occurrence</summary>
     <div class="dense-collapsible-body">
         <section class="panel panel-soft-red">
-            <div class="section-kicker">Enemy Ban Patterns</div>
+            <div class="section-kicker">Ban Patterns</div>
             <h3>Common Ban Pairs &amp; Correlation</h3>
             <p class="panel-intro">
                 Near-lock bans are separated first. The co-occurrence cards below exclude those heroes so automatic bans do not distort the pair reads. <strong>Correlation</strong> is the rate that the paired hero also appears when the main hero is banned.
@@ -233,10 +233,10 @@
         </section>
 
         <section class="panel panel-soft-blue top-gap">
-            <div class="section-kicker">Enemy Protect Patterns</div>
+            <div class="section-kicker">Protect Patterns</div>
             <h3>Common Protect Pairs &amp; Correlation</h3>
             <p class="panel-intro">
-                Near-lock protects are separated first, then the remaining protect pairings show what they tend to preserve together.
+                Near-lock protects are separated first, then the remaining protect pairings show what they tend to preserve together. WR is the map result when that protect appears, and ban response is the most common ban paired with that protect.
                 <span class="sample-warning-inline">Low = fewer than 3 co-protects.</span>
             </p>
             {% if prep_perma_protect_rows %}
@@ -249,7 +249,12 @@
                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                 <span class="hero-inline-meta">
                                     <span>{{ hero_display_name(row.hero) }}{% if hero_pool_label(row.hero) %} ({{ hero_pool_label(row.hero) }}){% endif %}</span>
-                                    <small class="hero-sub-label">{{ row.hero }} - {{ row.count }} protects - {{ row.rate }}%{% if row.low_sample %} - Low sample{% endif %}</small>
+                                    <small class="hero-sub-label">
+                                        {{ row.hero }} - {{ row.count }} protects - {{ row.rate }}%
+                                        {% if row.win_rate is not none %} - {{ row.wins }}-{{ row.losses }} - {{ row.win_rate }}% WR{% endif %}
+                                        {% if row.top_ban_response %} - Ban response: {{ hero_display_name(row.top_ban_response.hero) }}{% if hero_pool_label(row.top_ban_response.hero) %} ({{ hero_pool_label(row.top_ban_response.hero) }}){% endif %} {{ row.top_ban_response.rate }}% ({{ row.top_ban_response.count }}){% endif %}
+                                        {% if row.low_sample %} - Low sample{% endif %}
+                                    </small>
                                 </span>
                             </span>
                             <span class="metric-text metric-good">{{ row.rate }}%</span>
@@ -267,7 +272,11 @@
                                 <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
                                 <span class="hero-inline-meta">
                                     <span>{{ hero_display_name(row.hero) }}{% if hero_pool_label(row.hero) %} ({{ hero_pool_label(row.hero) }}){% endif %}</span>
-                                    <small class="hero-sub-label">{{ row.hero }} - {{ row.count }} protects - {{ row.rate }}%</small>
+                                    <small class="hero-sub-label">
+                                        {{ row.hero }} - {{ row.count }} protects - {{ row.rate }}%
+                                        {% if row.win_rate is not none %} - {{ row.wins }}-{{ row.losses }} - {{ row.win_rate }}% WR{% endif %}
+                                        {% if row.top_ban_response %} - Ban response: {{ hero_display_name(row.top_ban_response.hero) }}{% if hero_pool_label(row.top_ban_response.hero) %} ({{ hero_pool_label(row.top_ban_response.hero) }}){% endif %} {{ row.top_ban_response.rate }}% ({{ row.top_ban_response.count }}){% endif %}
+                                    </small>
                                 </span>
                             </span>
                         </div>
@@ -278,7 +287,10 @@
                                     <img src="{{ hero_image_url(partner.hero) }}" alt="{{ partner.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ partner.hero | urlencode }}'">
                                     <span class="hero-inline-meta">
                                         <span>{{ hero_display_name(partner.hero) }}{% if hero_pool_label(partner.hero) %} ({{ hero_pool_label(partner.hero) }}){% endif %}</span>
-                                        <small class="hero-sub-label">{{ partner.hero }} - {{ partner.co_count }} co-protects{% if partner.co_count < 3 %} - Low{% endif %}</small>
+                                        <small class="hero-sub-label">
+                                            {{ partner.hero }} - {{ partner.co_count }} co-protects{% if partner.co_count < 3 %} - Low{% endif %}
+                                            {% if partner.win_rate is not none %} - {{ partner.wins }}-{{ partner.losses }} - {{ partner.win_rate }}% WR{% endif %}
+                                        </small>
                                     </span>
                                 </span>
                                 <span class="metric-text {% if partner.correlation >= 70 %}metric-good{% elif partner.correlation >= 40 %}metric-warn{% else %}metric-neutral{% endif %}">

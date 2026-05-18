@@ -6,8 +6,8 @@
 
 def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
     by_kind = {
-        "ban": {"counts": defaultdict(int), "drafts": []},
-        "protect": {"counts": defaultdict(int), "drafts": []},
+        "ban": {"counts": defaultdict(int), "results": defaultdict(lambda: {"wins": 0, "losses": 0}), "drafts": []},
+        "protect": {"counts": defaultdict(int), "results": defaultdict(lambda: {"wins": 0, "losses": 0}), "ban_responses": defaultdict(lambda: defaultdict(int)), "drafts": []},
     }
 
     for scrim in prep_scrims:
@@ -19,6 +19,21 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
             map_outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
             draft = map_entry.get("draft", {})
             enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
+            enemy_ban_slots = {
+                slot_key: _canonical_draft_hero(enemy_draft.get(slot_key, ""))
+                for slot_key in ("ban1", "ban2", "ban3", "ban4")
+            }
+            protect_ban_responses = defaultdict(list)
+            protect1_hero = _canonical_draft_hero(enemy_draft.get("protect1", ""))
+            protect2_hero = _canonical_draft_hero(enemy_draft.get("protect2", ""))
+            if protect1_hero:
+                protect_ban_responses[protect1_hero].extend(
+                    hero_name
+                    for hero_name in (enemy_ban_slots.get("ban2"), enemy_ban_slots.get("ban3"), enemy_ban_slots.get("ban4"))
+                    if hero_name
+                )
+            if protect2_hero and enemy_ban_slots.get("ban4"):
+                protect_ban_responses[protect2_hero].append(enemy_ban_slots["ban4"])
 
             for slot_kind in ("ban", "protect"):
                 picked_heroes = sorted(
@@ -33,6 +48,23 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
                 by_kind[slot_kind]["drafts"].append({"heroes": picked_heroes, "outcome": map_outcome})
                 for hero_name in picked_heroes:
                     by_kind[slot_kind]["counts"][hero_name] += 1
+                    if map_outcome == "Win":
+                        by_kind[slot_kind]["results"][hero_name]["wins"] += 1
+                    elif map_outcome == "Loss":
+                        by_kind[slot_kind]["results"][hero_name]["losses"] += 1
+                    if slot_kind == "protect":
+                        for ban_hero in protect_ban_responses.get(hero_name, []):
+                            by_kind[slot_kind]["ban_responses"][hero_name][ban_hero] += 1
+
+    def _top_ban_response(response_counts: dict, total: int) -> dict | None:
+        if not response_counts or not total:
+            return None
+        hero_name, count = sorted(response_counts.items(), key=lambda item: item[1], reverse=True)[0]
+        return {
+            "hero": hero_name,
+            "count": count,
+            "rate": round((count / total) * 100, 1),
+        }
 
     def _finalize(
         kind_data: dict,
@@ -43,6 +75,8 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
         lock_threshold: float = 90.0,
     ) -> dict:
         enemy_pick_counts = kind_data["counts"]
+        pick_results = kind_data.get("results", {})
+        ban_response_counts = kind_data.get("ban_responses", {})
         draft_rows = kind_data["drafts"]
         draft_count = len(draft_rows)
         locked_hero_keys = {
@@ -55,6 +89,15 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
                 "hero": hero_name,
                 "count": pick_count,
                 "rate": round((pick_count / draft_count) * 100, 1) if draft_count else 0,
+                "wins": pick_results.get(hero_name, {}).get("wins", 0),
+                "losses": pick_results.get(hero_name, {}).get("losses", 0),
+                "win_rate": round(
+                    (pick_results.get(hero_name, {}).get("wins", 0) / (
+                        pick_results.get(hero_name, {}).get("wins", 0) + pick_results.get(hero_name, {}).get("losses", 0)
+                    )) * 100,
+                    1,
+                ) if (pick_results.get(hero_name, {}).get("wins", 0) + pick_results.get(hero_name, {}).get("losses", 0)) else None,
+                "top_ban_response": _top_ban_response(ban_response_counts.get(hero_name, {}), pick_count),
                 "low_sample": draft_count < 3,
             }
             for hero_name, pick_count in enemy_pick_counts.items()
@@ -97,6 +140,9 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
 
         rows = []
         for hero_name, pick_count in eligible_pick_counts.items():
+            hero_wins = pick_results.get(hero_name, {}).get("wins", 0)
+            hero_losses = pick_results.get(hero_name, {}).get("losses", 0)
+            hero_decided = hero_wins + hero_losses
             partner_rows = []
             for partner_hero, co_stats in co_pick_counts[hero_name].items():
                 partner_pick_count = eligible_pick_counts.get(partner_hero, 0)
@@ -127,6 +173,10 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
                     "hero": hero_name,
                     "count": pick_count,
                     "rate": round((pick_count / draft_count) * 100, 1) if draft_count else 0,
+                    "wins": hero_wins,
+                    "losses": hero_losses,
+                    "win_rate": round((hero_wins / hero_decided) * 100, 1) if hero_decided else None,
+                    "top_ban_response": _top_ban_response(ban_response_counts.get(hero_name, {}), pick_count),
                     "partners": partner_rows[:partner_limit],
                 }
             )
