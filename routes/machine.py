@@ -11,6 +11,15 @@ _MACHINE_CHAT_RESPONSE_CACHE: dict[tuple, dict] = {}
 _MACHINE_CHAT_RESPONSE_CACHE_TTL_SECONDS = 60
 _MACHINE_CHAT_RESPONSE_CACHE_MAX_ITEMS = 96
 
+MACHINE_DRAFT_METHOD_MAP = {
+    "ban_significance": "multifactor_anova",
+    "hero_interactions": "graph_network_models",
+    "draft_prediction": "gradient_boosting",
+    "pick_sequencing": "markov_tree_search",
+    "synergy_clustering": "embeddings_kmeans",
+    "volatile_bans": "permutation_importance",
+}
+
 
 def _draft_reasoner_cache_prune(now_ts: float) -> None:
     expired = [
@@ -138,6 +147,270 @@ def _machine_hero_role(hero_name: str) -> str:
     return ""
 
 
+def _machine_build_ban_anova_rows(team_history: list[dict], candidate_heroes: list[str]) -> dict[str, dict]:
+    """Estimate ban significance with a multifactor ANOVA-style partial F test.
+
+    Response is opponent loss rate from this team's perspective. Predictors are:
+    candidate ban presence + map mode + map name + source + side. This keeps the
+    ban signal from being credited for context effects like map pool or data source.
+    """
+    try:
+        import numpy as np
+    except Exception:
+        return {}
+
+    candidate_keys = {
+        _canonical_draft_hero(hero).lower(): _canonical_draft_hero(hero)
+        for hero in candidate_heroes or []
+        if _canonical_draft_hero(hero)
+    }
+    if not candidate_keys:
+        return {}
+
+    rows = []
+    for scrim in team_history or []:
+        source = "tournament" if (scrim.get("source") or scrim.get("event") or scrim.get("tournament_name")) else "scrim"
+        for map_entry in scrim.get("maps", []) or []:
+            team_slot = map_entry.get("our_team_slot", "team1")
+            if team_slot not in TEAM_SLOTS:
+                team_slot = "team1"
+            outcome = get_map_outcome_for_slot(map_entry, team_slot)
+            if outcome not in {"Win", "Loss"}:
+                continue
+            draft = map_entry.get("draft", {})
+            if not isinstance(draft, dict):
+                continue
+            opponent_slot = opposite_team_slot(team_slot)
+            opponent_draft = draft.get(opponent_slot, {})
+            if not isinstance(opponent_draft, dict):
+                continue
+            opponent_bans = {
+                _canonical_draft_hero(opponent_draft.get(slot_key, "")).lower()
+                for slot_key in ("ban1", "ban2", "ban3", "ban4")
+                if _canonical_draft_hero(opponent_draft.get(slot_key, ""))
+            }
+            if not opponent_bans:
+                continue
+            map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip() or "Unknown"
+            rows.append(
+                {
+                    "loss": 1.0 if outcome == "Loss" else 0.0,
+                    "bans": opponent_bans,
+                    "mode": MAP_MODES.get(map_name, "Other"),
+                    "map": map_name,
+                    "source": source,
+                    "side": team_slot,
+                }
+            )
+
+    if len(rows) < 8:
+        return {}
+
+    def build_matrix(items: list[dict], include_ban: bool, hero_key: str):
+        columns = [[1.0] * len(items)]
+        if include_ban:
+            columns.append([1.0 if hero_key in row["bans"] else 0.0 for row in items])
+        for factor in ("mode", "map", "source", "side"):
+            values = sorted({str(row.get(factor) or "") for row in items})
+            if len(values) <= 1:
+                continue
+            for value in values[1:]:
+                columns.append([1.0 if str(row.get(factor) or "") == value else 0.0 for row in items])
+        return np.asarray(columns, dtype=float).T
+
+    y = np.asarray([row["loss"] for row in rows], dtype=float)
+
+    def sse_for(matrix) -> tuple[float, int]:
+        beta, *_ = np.linalg.lstsq(matrix, y, rcond=None)
+        residuals = y - matrix.dot(beta)
+        rank = int(np.linalg.matrix_rank(matrix))
+        return float(np.sum(residuals ** 2)), max(0, len(y) - rank)
+
+    results = {}
+    for hero_key, hero_name in candidate_keys.items():
+        present_count = sum(1 for row in rows if hero_key in row["bans"])
+        absent_count = len(rows) - present_count
+        if present_count < 2 or absent_count < 2:
+            results[hero_key] = {
+                "hero": hero_name,
+                "sample": len(rows),
+                "ban_present_maps": present_count,
+                "ban_absent_maps": absent_count,
+                "status": "insufficient",
+                "significance": "insufficient sample",
+            }
+            continue
+        try:
+            full = build_matrix(rows, True, hero_key)
+            reduced = build_matrix(rows, False, hero_key)
+            sse_full, df_full = sse_for(full)
+            sse_reduced, df_reduced = sse_for(reduced)
+        except Exception:
+            continue
+        df_num = max(1, df_reduced - df_full)
+        if df_full <= 0 or sse_full <= 0 or sse_reduced < sse_full:
+            f_stat = 0.0
+            partial_eta = 0.0
+        else:
+            ss_effect = max(0.0, sse_reduced - sse_full)
+            f_stat = (ss_effect / df_num) / (sse_full / df_full)
+            partial_eta = ss_effect / (ss_effect + sse_full) if (ss_effect + sse_full) else 0.0
+        present_loss = sum(row["loss"] for row in rows if hero_key in row["bans"]) / present_count
+        absent_loss = sum(row["loss"] for row in rows if hero_key not in row["bans"]) / absent_count
+        lift = (present_loss - absent_loss) * 100.0
+        if present_count < 3 or absent_count < 3:
+            significance = "low sample"
+        elif f_stat >= 6.8 and partial_eta >= 0.10:
+            significance = "strong"
+        elif f_stat >= 3.8 and partial_eta >= 0.05:
+            significance = "moderate"
+        elif f_stat >= 2.0 and partial_eta >= 0.025:
+            significance = "weak"
+        else:
+            significance = "not significant"
+        results[hero_key] = {
+            "hero": hero_name,
+            "sample": len(rows),
+            "ban_present_maps": present_count,
+            "ban_absent_maps": absent_count,
+            "enemy_loss_when_banned": round(present_loss * 100, 1),
+            "enemy_loss_when_open": round(absent_loss * 100, 1),
+            "loss_lift_pp": round(lift, 1),
+            "f_stat": round(f_stat, 3),
+            "df_num": df_num,
+            "df_den": df_full,
+            "partial_eta_sq": round(partial_eta, 4),
+            "significance": significance,
+            "status": "ready",
+            "factors": ["ban_presence", "map_mode", "map_name", "source", "side"],
+        }
+    return results
+
+
+def _machine_build_ban_permutation_importance(team_history: list[dict], candidate_heroes: list[str]) -> dict[str, dict]:
+    """Estimate volatile-ban importance by permuting ban-presence features in a local linear model."""
+    try:
+        import numpy as np
+    except Exception:
+        return {}
+
+    candidate_names = []
+    seen = set()
+    for hero in candidate_heroes or []:
+        canonical = _canonical_draft_hero(hero)
+        key = canonical.lower()
+        if canonical and key not in seen:
+            candidate_names.append(canonical)
+            seen.add(key)
+    if not candidate_names:
+        return {}
+    candidate_keys = [hero.lower() for hero in candidate_names]
+
+    rows = []
+    for scrim in team_history or []:
+        source = "tournament" if (scrim.get("source") or scrim.get("event") or scrim.get("tournament_name")) else "scrim"
+        for map_entry in scrim.get("maps", []) or []:
+            team_slot = map_entry.get("our_team_slot", "team1")
+            if team_slot not in TEAM_SLOTS:
+                team_slot = "team1"
+            outcome = get_map_outcome_for_slot(map_entry, team_slot)
+            if outcome not in {"Win", "Loss"}:
+                continue
+            draft = map_entry.get("draft", {})
+            if not isinstance(draft, dict):
+                continue
+            opponent_draft = draft.get(opposite_team_slot(team_slot), {})
+            if not isinstance(opponent_draft, dict):
+                continue
+            opponent_bans = {
+                _canonical_draft_hero(opponent_draft.get(slot_key, "")).lower()
+                for slot_key in ("ban1", "ban2", "ban3", "ban4")
+                if _canonical_draft_hero(opponent_draft.get(slot_key, ""))
+            }
+            if not opponent_bans:
+                continue
+            map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip() or "Unknown"
+            rows.append(
+                {
+                    "loss": 1.0 if outcome == "Loss" else 0.0,
+                    "bans": opponent_bans,
+                    "mode": MAP_MODES.get(map_name, "Other"),
+                    "map": map_name,
+                    "source": source,
+                    "side": team_slot,
+                }
+            )
+
+    if len(rows) < 8:
+        return {}
+
+    columns = [[1.0] * len(rows)]
+    candidate_column_indexes = {}
+    for hero_key in candidate_keys:
+        candidate_column_indexes[hero_key] = len(columns)
+        columns.append([1.0 if hero_key in row["bans"] else 0.0 for row in rows])
+    for factor in ("mode", "map", "source", "side"):
+        values = sorted({str(row.get(factor) or "") for row in rows})
+        if len(values) <= 1:
+            continue
+        for value in values[1:]:
+            columns.append([1.0 if str(row.get(factor) or "") == value else 0.0 for row in rows])
+
+    try:
+        x = np.asarray(columns, dtype=float).T
+        y = np.asarray([row["loss"] for row in rows], dtype=float)
+        beta, *_ = np.linalg.lstsq(x, y, rcond=None)
+        pred = x.dot(beta)
+        baseline_mse = float(np.mean((y - pred) ** 2))
+    except Exception:
+        return {}
+
+    results = {}
+    for hero_name, hero_key in zip(candidate_names, candidate_keys):
+        present_count = int(sum(1 for row in rows if hero_key in row["bans"]))
+        absent_count = len(rows) - present_count
+        col_idx = candidate_column_indexes.get(hero_key)
+        if col_idx is None or present_count < 2 or absent_count < 2:
+            results[hero_key] = {
+                "hero": hero_name,
+                "status": "insufficient",
+                "sample": len(rows),
+                "ban_present_maps": present_count,
+                "ban_absent_maps": absent_count,
+            }
+            continue
+        permuted = x.copy()
+        shift = max(1, len(rows) // 2)
+        permuted[:, col_idx] = np.roll(permuted[:, col_idx], shift)
+        perm_pred = permuted.dot(beta)
+        perm_mse = float(np.mean((y - perm_pred) ** 2))
+        mse_lift = max(0.0, perm_mse - baseline_mse)
+        relative_lift = (mse_lift / baseline_mse) if baseline_mse > 0 else 0.0
+        if relative_lift >= 0.25:
+            importance = "high"
+        elif relative_lift >= 0.10:
+            importance = "medium"
+        elif relative_lift >= 0.04:
+            importance = "low"
+        else:
+            importance = "minimal"
+        results[hero_key] = {
+            "hero": hero_name,
+            "status": "ready",
+            "method": "permutation_importance",
+            "sample": len(rows),
+            "ban_present_maps": present_count,
+            "ban_absent_maps": absent_count,
+            "baseline_mse": round(baseline_mse, 5),
+            "permuted_mse": round(perm_mse, 5),
+            "mse_lift": round(mse_lift, 5),
+            "relative_lift": round(relative_lift, 4),
+            "importance": importance,
+            "factors": ["candidate_bans", "map_mode", "map_name", "source", "side"],
+        }
+    return results
+
+
 def _machine_build_ban_candidate_details(
     candidate_heroes: list[str],
     *,
@@ -146,6 +419,8 @@ def _machine_build_ban_candidate_details(
     matchup_model: dict,
     target_comp: list[str],
     enemy_comps: list[dict],
+    ban_significance: dict[str, dict] | None = None,
+    permutation_importance: dict[str, dict] | None = None,
 ) -> list[dict]:
     """Score ban candidates with Marvel Rivals hero theory plus matchup history."""
     try:
@@ -175,6 +450,8 @@ def _machine_build_ban_candidate_details(
         if str(row.get("hero", "") or "").strip()
     }
     force_rows = matchup_model.get("force_matchup_rows", []) or []
+    ban_significance = ban_significance or {}
+    permutation_importance = permutation_importance or {}
 
     rows = []
     seen = set()
@@ -248,12 +525,32 @@ def _machine_build_ban_candidate_details(
             + priority_value.get(ban_priority, 10.0)
             + max(0.0, 8.0 - execution_burden) * 1.2
         )
+        anova = ban_significance.get(hero_key) or {}
+        permutation = permutation_importance.get(hero_key) or {}
+        anova_bonus = 0.0
+        if anova.get("status") == "ready" and float(anova.get("loss_lift_pp", 0) or 0) > 0:
+            if anova.get("significance") == "strong":
+                anova_bonus = min(18.0, float(anova.get("loss_lift_pp", 0) or 0) * 0.45)
+            elif anova.get("significance") == "moderate":
+                anova_bonus = min(12.0, float(anova.get("loss_lift_pp", 0) or 0) * 0.32)
+            elif anova.get("significance") == "weak":
+                anova_bonus = min(6.0, float(anova.get("loss_lift_pp", 0) or 0) * 0.18)
+        permutation_bonus = 0.0
+        if permutation.get("status") == "ready":
+            if permutation.get("importance") == "high":
+                permutation_bonus = min(14.0, float(permutation.get("relative_lift", 0) or 0) * 32.0)
+            elif permutation.get("importance") == "medium":
+                permutation_bonus = min(8.0, float(permutation.get("relative_lift", 0) or 0) * 22.0)
+            elif permutation.get("importance") == "low":
+                permutation_bonus = min(4.0, float(permutation.get("relative_lift", 0) or 0) * 12.0)
         strategic_enemy_value = enemy_dependency + enemy_stat_impact + path_impact + hero_pool_value * 0.26
         strategic_our_value = our_dependency + our_stat_cost + (hero_pool_value * 0.10 if hero_key in target_comp_keys else 0.0)
         strategic_net_value = strategic_enemy_value - strategic_our_value
         ban_score = (
             strategic_enemy_value
             + hero_pool_value * 0.36
+            + anova_bonus
+            + permutation_bonus
             - strategic_our_value * 0.62
             - max(0.0, stability - 7.0) * 1.8
         )
@@ -297,6 +594,10 @@ def _machine_build_ban_candidate_details(
                 "our_stat_cost": round(our_stat_cost, 1),
                 "hero_pool_value": round(hero_pool_value, 1),
                 "path_impact": round(path_impact, 1),
+                "anova_significance": anova,
+                "anova_bonus": round(anova_bonus, 1),
+                "permutation_importance": permutation,
+                "permutation_bonus": round(permutation_bonus, 1),
                 "strategic_caution": strategic_caution,
                 "why_not_reason": why_not_reason,
                 "model_hint": model_hint,
@@ -948,6 +1249,8 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
     for comp in enemy_comps[:3]:
         add_unique(ban_candidate_pool, comp.get("heroes", []), 10)
     add_unique(ban_candidate_pool, [r.get("hero", "") for r in model.get("volatile_matchup_rows", [])], 10)
+    ban_anova_significance = _machine_build_ban_anova_rows(b_history, ban_candidate_pool)
+    ban_permutation_importance = _machine_build_ban_permutation_importance(b_history, ban_candidate_pool)
     ban_candidate_details = _machine_build_ban_candidate_details(
         ban_candidate_pool,
         a_model=a_model,
@@ -955,6 +1258,8 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         matchup_model=model,
         target_comp=target_comp,
         enemy_comps=enemy_comps,
+        ban_significance=ban_anova_significance,
+        permutation_importance=ban_permutation_importance,
     )
     if ban_candidate_details:
         recommended_bans = [row["hero"] for row in ban_candidate_details[:6]]
@@ -1074,6 +1379,9 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         f"Matchup: {team_a['name']} vs {team_b['name']}.",
         f"Filters: season={season_value or 'all'}, map={selected_map_name or 'all'}, sources={_machine_chat_join(source_label) or 'none'}.",
         f"Data volume: {team_a['name']} {len(a_history)} records, {team_b['name']} {len(b_history)} records.",
+        "Model method map: "
+        + "; ".join(f"{task}={method}" for task, method in MACHINE_DRAFT_METHOD_MAP.items())
+        + ".",
         f"Recommended ban targets: {_machine_chat_join(recommended_bans, 6)}.",
         "Ban candidate detail: "
         + _machine_chat_row_list(
@@ -1081,7 +1389,13 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             lambda r: (
                 f"{r.get('hero')} ({r.get('role')}, score {r.get('ban_score')}, "
                 f"net {r.get('strategic_net_value')}, enemy {r.get('strategic_enemy_value')}, "
-                f"our cost {r.get('strategic_our_value')}, hint {r.get('model_hint')})"
+                f"our cost {r.get('strategic_our_value')}, "
+                f"ANOVA {r.get('anova_significance', {}).get('significance', 'n/a')} "
+                f"F={r.get('anova_significance', {}).get('f_stat', 0)}, "
+                f"lift={r.get('anova_significance', {}).get('loss_lift_pp', 0)}pp, "
+                f"perm={r.get('permutation_importance', {}).get('importance', 'n/a')} "
+                f"rel={r.get('permutation_importance', {}).get('relative_lift', 0)}, "
+                f"hint {r.get('model_hint')})"
             ),
             6,
         )
@@ -1155,6 +1469,9 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         "visuals": {
             "recommended_bans": recommended_bans[:6],
             "ban_candidate_details": ban_candidate_details[:8],
+            "ban_anova_significance": ban_anova_significance,
+            "ban_permutation_importance": ban_permutation_importance,
+            "model_method_map": MACHINE_DRAFT_METHOD_MAP,
             "enemy_expected_bans": enemy_expected_bans[:6],
             "recommended_protects": recommended_protects[:3],
             "protect_candidate_details": protect_candidate_details[:8],
@@ -1969,10 +2286,27 @@ def _machine_agent_answer_for_intent(message: str, context_text: str, meta: dict
             hero = row.get("hero", "")
             if not hero:
                 continue
+            anova = row.get("anova_significance") or {}
+            anova_text = ""
+            if anova:
+                anova_text = (
+                    f", ANOVA {anova.get('significance', 'n/a')}"
+                    f" F={anova.get('f_stat', 0)}"
+                    f" lift={anova.get('loss_lift_pp', 0)}pp"
+                )
+            permutation = row.get("permutation_importance") or {}
+            permutation_text = ""
+            if permutation:
+                permutation_text = (
+                    f", permutation {permutation.get('importance', 'n/a')}"
+                    f" rel={permutation.get('relative_lift', 0)}"
+                )
             detail_lines.append(
                 f"- {hero} ({row.get('role') or row.get('role_alias') or 'Hero'}): "
                 f"score {row.get('ban_score', 0)}, net {row.get('strategic_net_value', 0)}, "
                 f"enemy {row.get('strategic_enemy_value', 0)}, our cost {row.get('strategic_our_value', 0)}"
+                f"{anova_text}"
+                f"{permutation_text}"
                 + (f" - {row.get('model_hint')}" if row.get("model_hint") else "")
             )
         detail_part = ("Marvel Rivals candidate model:\n" + "\n".join(detail_lines) + "\n\n") if detail_lines else ""
@@ -2613,8 +2947,23 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
             reasons.append("keeps pressure on the highest ranked remaining ban target")
         detail = candidate_detail_lookup.get(hero.lower()) or {}
         if detail.get("model_hint"):
+            anova = detail.get("anova_significance") or {}
+            anova_text = ""
+            if anova:
+                anova_text = (
+                    f", ANOVA {anova.get('significance', 'n/a')}"
+                    f" F={anova.get('f_stat', 0)}"
+                    f" lift={anova.get('loss_lift_pp', 0)}pp"
+                )
+            permutation = detail.get("permutation_importance") or {}
+            permutation_text = ""
+            if permutation:
+                permutation_text = (
+                    f", permutation {permutation.get('importance', 'n/a')}"
+                    f" rel={permutation.get('relative_lift', 0)}"
+                )
             reasons.append(
-                f"{detail.get('model_hint')} (score {detail.get('ban_score')}, net {detail.get('strategic_net_value')})"
+                f"{detail.get('model_hint')} (score {detail.get('ban_score')}, net {detail.get('strategic_net_value')}{anova_text}{permutation_text})"
             )
 
         next_ban_rows.append({
@@ -2782,6 +3131,21 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         detail = top.get("detail") or {}
         if detail:
             role_label = detail.get("role") or detail.get("role_alias") or ""
+            anova = detail.get("anova_significance") or {}
+            anova_suffix = ""
+            if anova:
+                anova_suffix = (
+                    f" | ANOVA {anova.get('significance', 'n/a')}"
+                    f" F {anova.get('f_stat', 0)}"
+                    f" lift {anova.get('loss_lift_pp', 0)}pp"
+                )
+            permutation = detail.get("permutation_importance") or {}
+            permutation_suffix = ""
+            if permutation:
+                permutation_suffix = (
+                    f" | permutation {permutation.get('importance', 'n/a')}"
+                    f" rel {permutation.get('relative_lift', 0)}"
+                )
             lines.append(
                 "Candidate model: "
                 f"{top_hero}"
@@ -2789,7 +3153,9 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
                 + f" | ban score {detail.get('ban_score', 0)}"
                 + f" | net {detail.get('strategic_net_value', 0)}"
                 + f" | enemy value {detail.get('strategic_enemy_value', 0)}"
-                + f" | our cost {detail.get('strategic_our_value', 0)}."
+                + f" | our cost {detail.get('strategic_our_value', 0)}"
+                + f"{anova_suffix}"
+                + f"{permutation_suffix}."
             )
         if closes:
             close = closes[0]

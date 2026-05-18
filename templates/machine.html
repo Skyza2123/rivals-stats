@@ -2287,10 +2287,18 @@ function renderReplyHeroStrip(answer, meta) {
                 const why = 'enemy ' + Number(row.strategic_enemy_value || 0).toFixed(1)
                     + ' / our cost ' + Number(row.strategic_our_value || 0).toFixed(1)
                     + ' | theory ' + Number(row.hero_pool_value || 0).toFixed(1);
+                const anova = row.anova_significance || {};
+                const anovaText = anova.significance
+                    ? ' | ANOVA ' + anova.significance + ' F ' + Number(anova.f_stat || 0).toFixed(2) + ' lift ' + Number(anova.loss_lift_pp || 0).toFixed(1) + 'pp'
+                    : '';
+                const perm = row.permutation_importance || {};
+                const permText = perm.importance
+                    ? ' | Perm ' + perm.importance + ' rel ' + Number(perm.relative_lift || 0).toFixed(3)
+                    : '';
                 return {
                     label: detail,
                     metric: metric,
-                    detail: why,
+                    detail: why + anovaText + permText,
                     heroes: [row.hero],
                     type: 'ban',
                 };

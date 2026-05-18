@@ -99,6 +99,7 @@ def build_scrim_analytics(
     ban_position_totals = defaultdict(int)
     enemy_ban_position_totals = defaultdict(int)
     total_filled_protects = 0
+    ban_map_mode_anova_observations = []
     roster_player_keys = {
         (player_name or "").strip().lower()
         for player_name in (roster_player_names or [])
@@ -191,6 +192,24 @@ def build_scrim_analytics(
                 for hero_name in enemy_ban_slots.values()
                 if hero_name
             }
+            map_label = map_name or "Unknown"
+            source_label = (
+                str(scrim.get("source") or scrim.get("event_type") or scrim.get("event") or scrim.get("tournament_name") or "")
+                .strip()
+                .lower()
+                or "scrim"
+            )
+            if map_outcome in {"Win", "Loss"} and our_banned_heroes:
+                ban_map_mode_anova_observations.append(
+                    {
+                        "win": 1.0 if map_outcome == "Win" else 0.0,
+                        "bans": {hero_name.lower() for hero_name in our_banned_heroes},
+                        "mode": globals().get("MAP_MODES", {}).get(map_label, "Other"),
+                        "map": map_label,
+                        "source": source_label,
+                        "side": our_team_slot,
+                    }
+                )
 
             # Ban response likelihood: when we ban X in a slot, what the enemy bans
             # in their corresponding next ban slot.
@@ -478,6 +497,175 @@ def build_scrim_analytics(
     def pct(part: int, whole: int) -> float:
         return round((part / whole) * 100, 1) if whole else 0.0
 
+    def build_ban_map_mode_anova_rows(observations: list[dict], candidate_heroes: list[str]) -> list[dict]:
+        try:
+            import numpy as np
+        except Exception:
+            return []
+
+        candidate_keys = {
+            canonical_hero(hero_name).lower(): canonical_hero(hero_name)
+            for hero_name in candidate_heroes
+            if canonical_hero(hero_name)
+        }
+        if len(observations) < 8 or not candidate_keys:
+            return []
+
+        def build_matrix(items: list[dict], factors: tuple[str, ...]):
+            columns = [[1.0] * len(items)]
+            for factor in factors:
+                values = sorted({str(row.get(factor) or "") for row in items})
+                if len(values) <= 1:
+                    continue
+                for value in values[1:]:
+                    columns.append([1.0 if str(row.get(factor) or "") == value else 0.0 for row in items])
+            return np.asarray(columns, dtype=float).T
+
+        def sse_for(matrix, y_values) -> tuple[float, int]:
+            beta, *_ = np.linalg.lstsq(matrix, y_values, rcond=None)
+            residuals = y_values - matrix.dot(beta)
+            rank = int(np.linalg.matrix_rank(matrix))
+            return float(np.sum(residuals ** 2)), max(0, len(y_values) - rank)
+
+        def pct_local(part: int, whole: int) -> float:
+            return round((part / whole) * 100, 1) if whole else 0.0
+
+        rows = []
+        for hero_key, hero_name in candidate_keys.items():
+            hero_observations = [row for row in observations if hero_key in row["bans"]]
+            if len(hero_observations) < 4:
+                rows.append(
+                    {
+                        "hero": hero_name,
+                        "sample": len(hero_observations),
+                        "status": "insufficient",
+                        "significance": "insufficient sample",
+                    }
+                )
+                continue
+
+            y = np.asarray([row["win"] for row in hero_observations], dtype=float)
+            mode_rows = []
+            for mode_name in sorted({row.get("mode") or "Other" for row in hero_observations}):
+                mode_items = [row for row in hero_observations if (row.get("mode") or "Other") == mode_name]
+                wins = sum(1 for row in mode_items if row["win"] >= 1.0)
+                mode_rows.append(
+                    {
+                        "mode": mode_name,
+                        "maps": len(mode_items),
+                        "win_rate": pct_local(wins, len(mode_items)),
+                    }
+                )
+            mode_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+            map_rows = []
+            for map_name_value in sorted({row.get("map") or "Unknown" for row in hero_observations}):
+                map_items = [row for row in hero_observations if (row.get("map") or "Unknown") == map_name_value]
+                wins = sum(1 for row in map_items if row["win"] >= 1.0)
+                map_rows.append(
+                    {
+                        "map": map_name_value,
+                        "maps": len(map_items),
+                        "win_rate": pct_local(wins, len(map_items)),
+                    }
+                )
+            map_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+            if len(mode_rows) <= 1 and len(map_rows) <= 1:
+                rows.append(
+                    {
+                        "hero": hero_name,
+                        "sample": len(hero_observations),
+                        "status": "insufficient",
+                        "significance": "single map/mode",
+                        "mode_rows": mode_rows[:4],
+                        "map_rows": map_rows[:4],
+                    }
+                )
+                continue
+
+            try:
+                reduced = build_matrix(hero_observations, ("source", "side"))
+                full = build_matrix(hero_observations, ("source", "side", "mode", "map"))
+                sse_reduced, df_reduced = sse_for(reduced, y)
+                sse_full, df_full = sse_for(full, y)
+            except Exception:
+                continue
+
+            df_num = max(1, df_reduced - df_full)
+            if df_full <= 0 or sse_full <= 0 or sse_reduced < sse_full:
+                f_stat = 0.0
+                partial_eta = 0.0
+            else:
+                ss_effect = max(0.0, sse_reduced - sse_full)
+                f_stat = (ss_effect / df_num) / (sse_full / df_full)
+                partial_eta = ss_effect / (ss_effect + sse_full) if (ss_effect + sse_full) else 0.0
+
+            best_map = max(map_rows, key=lambda row: (row["win_rate"], row["maps"])) if map_rows else None
+            worst_map = min(map_rows, key=lambda row: (row["win_rate"], -row["maps"])) if map_rows else None
+            best_mode = max(mode_rows, key=lambda row: (row["win_rate"], row["maps"])) if mode_rows else None
+            worst_mode = min(mode_rows, key=lambda row: (row["win_rate"], -row["maps"])) if mode_rows else None
+            map_spread = round((best_map["win_rate"] - worst_map["win_rate"]), 1) if best_map and worst_map else 0.0
+            mode_spread = round((best_mode["win_rate"] - worst_mode["win_rate"]), 1) if best_mode and worst_mode else 0.0
+
+            if len(hero_observations) < 6:
+                significance = "low sample"
+            elif f_stat >= 6.8 and partial_eta >= 0.10:
+                significance = "strong"
+            elif f_stat >= 3.8 and partial_eta >= 0.05:
+                significance = "moderate"
+            elif f_stat >= 2.0 and partial_eta >= 0.025:
+                significance = "weak"
+            else:
+                significance = "not significant"
+
+            rows.append(
+                {
+                    "hero": hero_name,
+                    "sample": len(hero_observations),
+                    "win_rate": pct_local(int(sum(y)), len(hero_observations)),
+                    "f_stat": round(f_stat, 3),
+                    "df_num": df_num,
+                    "df_den": df_full,
+                    "partial_eta_sq": round(partial_eta, 4),
+                    "map_spread": map_spread,
+                    "mode_spread": mode_spread,
+                    "best_map": best_map,
+                    "worst_map": worst_map,
+                    "best_mode": best_mode,
+                    "worst_mode": worst_mode,
+                    "mode_rows": mode_rows[:4],
+                    "map_rows": map_rows[:4],
+                    "significance": significance,
+                    "status": "ready",
+                    "factors": ["map_mode", "map_name", "source", "side"],
+                }
+            )
+
+        significance_rank = {
+            "strong": 5,
+            "moderate": 4,
+            "weak": 3,
+            "low sample": 2,
+            "not significant": 1,
+            "single map/mode": 0,
+            "insufficient sample": 0,
+        }
+        rows.sort(
+            key=lambda row: (
+                significance_rank.get(row.get("significance", ""), 0),
+                row.get("map_spread", 0) + row.get("mode_spread", 0),
+                row.get("sample", 0),
+            ),
+            reverse=True,
+        )
+        return rows
+
+    ban_map_mode_anova_rows = build_ban_map_mode_anova_rows(
+        ban_map_mode_anova_observations,
+        list(ban_stats.keys()),
+    )
+
     ban_rows = []
     for hero, stats in ban_stats.items():
         ban_rows.append(
@@ -496,6 +684,8 @@ def build_scrim_analytics(
                 "hero": hero,
                 "count": stats["count"],
                 "ban_rate": pct(stats["count"], total_enemy_filled_bans),
+                "win_rate": pct(stats["wins"], stats["count"]),
+                "loss_rate": pct(stats["losses"], stats["count"]),
             }
         )
     enemy_ban_rows.sort(key=lambda r: r["count"], reverse=True)
@@ -1350,7 +1540,16 @@ def build_scrim_analytics(
             "winrate_difference": comp_winrate_difference,
         },
         "ban_rows": ban_rows[:12],
+        "ban_map_mode_anova_rows": ban_map_mode_anova_rows[:12],
         "enemy_ban_rows": enemy_ban_rows[:12],
+        "draft_model_methods": {
+            "ban_significance": "multifactor_anova",
+            "hero_interactions": "graph_network_models",
+            "draft_prediction": "gradient_boosting",
+            "pick_sequencing": "markov_tree_search",
+            "synergy_clustering": "embeddings_kmeans",
+            "volatile_bans": "permutation_importance",
+        },
         "ban_position_rows": ban_position_rows,
         "enemy_ban_position_rows": enemy_ban_position_rows,
         "ban_phase_variation": {
