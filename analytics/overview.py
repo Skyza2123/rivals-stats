@@ -827,7 +827,7 @@ def build_scrim_analytics(
         limit: int = 8,
         partner_limit: int = 4,
         group_limit: int = 8,
-        lock_threshold: float = 90.0,
+        lock_threshold: float = 95.0,
     ) -> dict:
         ban_counts = defaultdict(int)
         draft_rows = []

@@ -208,7 +208,7 @@ def build_prep_draft_correlation_bundle(prep_scrims: list[dict]) -> dict:
         }
 
     return {
-        "ban": _finalize(by_kind["ban"]),
+        "ban": _finalize(by_kind["ban"], lock_threshold=95.0),
         "protect": _finalize(by_kind["protect"]),
     }
 
