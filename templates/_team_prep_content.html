@@ -108,11 +108,48 @@
 
 <nav class="chip-nav top-gap" aria-label="Overview sections">
     <a href="#prep-scout" class="chip-nav-link">Scouting Snapshot</a>
+    <a href="#prep-hero-map-finder" class="chip-nav-link">Hero Map Finder</a>
     <a href="#prep-open-hero" class="chip-nav-link">Open Hero Impact</a>
     <a href="#prep-expected-comps" class="chip-nav-link">Expected Comps</a>
     <a href="#prep-player-pivots" class="chip-nav-link">Player Ban Pivots</a>
     <a href="#prep-ban-cooccurrence" class="chip-nav-link">Draft Co-occurrence</a>
 </nav>
+
+<section class="panel panel-soft-green top-gap" id="prep-hero-map-finder">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Hero Map Finder</div>
+            <h3>Pick A Hero To Open Their Prep Maps</h3>
+            <p class="panel-intro">Choose a hero, then click any map image to open the full map page for that scrim.</p>
+        </div>
+        {% if prep_hero_map_lookup %}
+        <div class="header-actions">
+            <label for="prepHeroMapSelect" class="sr-only">Hero</label>
+            <select id="prepHeroMapSelect" class="team-range-select">
+                {% for row in prep_hero_map_lookup %}
+                    <option value="{{ row.hero }}">{{ hero_display_name(row.hero) }} - {{ row.maps }} maps</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if prep_hero_map_lookup %}
+        <script id="prepHeroMapLookupData" type="application/json">{{ prep_hero_map_lookup | tojson }}</script>
+        <div class="prep-hero-picker top-gap" aria-label="Hero map selector">
+            {% for row in prep_hero_map_lookup[:18] %}
+                <button type="button" class="prep-hero-map-btn" data-hero="{{ row.hero }}" data-image="{{ hero_image_url(row.hero) }}" title="{{ hero_display_name(row.hero) }}">
+                    <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" onerror="this.src='https://via.placeholder.com/44/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                    <span>{{ row.maps }}</span>
+                </button>
+            {% endfor %}
+        </div>
+        <div id="prepHeroMapSummary" class="prep-hero-map-summary top-gap"></div>
+        <div id="prepHeroMapResults" class="prep-hero-map-grid top-gap"></div>
+    {% else %}
+        <p class="empty-text">No hero-map data found in this prep filter.</p>
+    {% endif %}
+</section>
 
 
 
@@ -572,6 +609,86 @@
  </div>
 
 <script>
+/* -- Prep Hero Map Finder -------------------------------------------------- */
+(function () {
+    'use strict';
+    var dataEl = document.getElementById('prepHeroMapLookupData');
+    if (!dataEl) return;
+    var rows = [];
+    try { rows = JSON.parse(dataEl.textContent || '[]'); } catch (e) { rows = []; }
+    if (!rows.length) return;
+
+    var select = document.getElementById('prepHeroMapSelect');
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('.prep-hero-map-btn'));
+    var summary = document.getElementById('prepHeroMapSummary');
+    var results = document.getElementById('prepHeroMapResults');
+    var byHero = {};
+    rows.forEach(function (row) { byHero[row.hero] = row; });
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    }
+
+    function mapUrl(row) {
+        return '/scrims/' + encodeURIComponent(row.scrim_id) + '/maps/' + encodeURIComponent(row.map_id);
+    }
+
+    function heroImage(hero) {
+        var btn = buttons.find(function (item) { return item.dataset.hero === hero; });
+        return btn ? btn.dataset.image : '';
+    }
+
+    function resultClass(result) {
+        if (result === 'Win') return 'metric-good';
+        if (result === 'Loss') return 'metric-bad';
+        return 'metric-neutral';
+    }
+
+    function render(hero) {
+        var payload = byHero[hero] || rows[0];
+        if (!payload || !results || !summary) return;
+        if (select && select.value !== payload.hero) {
+            select.value = payload.hero;
+        }
+        buttons.forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.dataset.hero === payload.hero);
+        });
+
+        var firstMap = (payload.rows || [])[0];
+        var heroImg = heroImage(payload.hero);
+        var heroLink = firstMap ? mapUrl(firstMap) : '#';
+        summary.innerHTML =
+            '<a class="prep-hero-map-focus" href="' + escapeHtml(heroLink) + '">'
+            + '<img src="' + escapeHtml(heroImg) + '" alt="' + escapeHtml(payload.hero) + '">'
+            + '<span><strong>' + escapeHtml(payload.hero) + '</strong>'
+            + '<small>' + escapeHtml(payload.maps) + ' maps | ' + escapeHtml(payload.wins) + '-' + escapeHtml(payload.losses) + ' | ' + escapeHtml(payload.win_rate) + '% WR</small></span>'
+            + '</a>';
+
+        results.innerHTML = (payload.rows || []).map(function (row) {
+            var href = mapUrl(row);
+            var image = row.image || '';
+            return '<a class="prep-hero-map-card" href="' + escapeHtml(href) + '">'
+                + '<span class="prep-hero-map-image" style="' + (image ? 'background-image:url(' + escapeHtml(image) + ')' : '') + '"></span>'
+                + '<span class="prep-hero-map-body">'
+                + '<strong>' + escapeHtml(row.map_name || 'Unknown Map') + '</strong>'
+                + '<small>' + escapeHtml(row.mode || 'Other') + ' | ' + escapeHtml(row.opponent_name || 'Unknown') + '</small>'
+                + '<small>' + escapeHtml(row.scrim_date || 'No date') + (row.result ? ' | <span class="' + resultClass(row.result) + '">' + escapeHtml(row.result) + '</span>' : '') + '</small>'
+                + '</span>'
+                + '</a>';
+        }).join('');
+    }
+
+    if (select) {
+        select.addEventListener('change', function () { render(select.value); });
+    }
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () { render(btn.dataset.hero); });
+    });
+    render((select && select.value) || rows[0].hero);
+})();
+
 /* -- Prep Charts (Chart.js) ----------------------------------------------- */
 (function () {
     'use strict';

@@ -875,6 +875,78 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
     }
 
 
+def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
+    hero_rows = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "rows": []})
+
+    for scrim in prep_scrims:
+        scrim_id = scrim.get("id")
+        scrim_date = (scrim.get("scrim_date") or scrim.get("date") or "").strip()
+        opponent_name = (scrim.get("enemy_team") or scrim.get("opponent") or "Unknown").strip() or "Unknown"
+        for map_entry in scrim.get("maps", []):
+            map_id = map_entry.get("id")
+            map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip()
+            if not map_name or not scrim_id or not map_id:
+                continue
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            result = get_map_outcome_for_slot(map_entry, our_team_slot)
+            heroes_this_map = set()
+            for section in map_entry.get("comp", []):
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot, []) or []:
+                    if not isinstance(slot, dict):
+                        continue
+                    hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                    if hero_name:
+                        heroes_this_map.add(hero_name)
+
+            for hero_name in heroes_this_map:
+                payload = hero_rows[hero_name]
+                payload["maps"] += 1
+                if result == "Win":
+                    payload["wins"] += 1
+                elif result == "Loss":
+                    payload["losses"] += 1
+                payload["rows"].append(
+                    {
+                        "scrim_id": scrim_id,
+                        "map_id": map_id,
+                        "map_name": map_name,
+                        "mode": MAP_MODES.get(map_name, "Other"),
+                        "image": get_map_image_url(map_name),
+                        "result": result or "Not Set",
+                        "scrim_date": scrim_date,
+                        "opponent_name": opponent_name,
+                    }
+                )
+
+    rows = []
+    for hero_name, payload in hero_rows.items():
+        maps_played = payload["maps"]
+        payload["rows"].sort(
+            key=lambda row: (
+                row.get("scrim_date", ""),
+                int(row.get("scrim_id") or 0),
+                int(row.get("map_id") or 0),
+            ),
+            reverse=True,
+        )
+        rows.append(
+            {
+                "hero": hero_name,
+                "maps": maps_played,
+                "wins": payload["wins"],
+                "losses": payload["losses"],
+                "win_rate": round((payload["wins"] / maps_played) * 100, 1) if maps_played else 0,
+                "rows": payload["rows"][:24],
+            }
+        )
+    rows.sort(key=lambda row: (row["maps"], row["win_rate"], row["hero"].lower()), reverse=True)
+    return rows
+
+
 def build_team_prep_context(
     *,
     team_scrims: list[dict],
@@ -903,6 +975,7 @@ def build_team_prep_context(
     draft_phase_timeline = build_draft_phase_timeline(prep_scrims)
     prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics, all_scrims=team_scrims)
     prep_draft_correlation = build_prep_draft_correlation_bundle(prep_scrims)
+    prep_hero_map_lookup = build_prep_hero_map_lookup(prep_scrims)
     prep_ban_correlation = prep_draft_correlation["ban"]
     prep_protect_correlation = prep_draft_correlation["protect"]
 
@@ -933,6 +1006,7 @@ def build_team_prep_context(
         "compare_map_rows": compare_map_rows,
         "draft_phase_timeline": draft_phase_timeline,
         "prep_expected_plan": prep_expected_plan,
+        "prep_hero_map_lookup": prep_hero_map_lookup,
         "prep_ban_correlation": prep_ban_correlation,
         "prep_ban_correlation_rows": prep_ban_correlation["cooccurrence_rows"],
         "prep_ban_group_rows_by_size": prep_ban_correlation["group_rows_by_size"],
