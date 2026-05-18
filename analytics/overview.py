@@ -296,7 +296,7 @@ def build_scrim_analytics(
                     draft_soft_mirror_count += 1
 
             for slot_key, hero in our_draft.items():
-                hero_name = (hero or "").strip()
+                hero_name = canonical_hero(hero)
                 if not hero_name:
                     continue
 
@@ -329,7 +329,7 @@ def build_scrim_analytics(
                         protect_stats[hero_name]["losses"] += 1
 
             for slot_key, hero in enemy_draft.items():
-                hero_name = (hero or "").strip()
+                hero_name = canonical_hero(hero)
                 if not hero_name or "ban" not in slot_key:
                     continue
 
@@ -822,6 +822,153 @@ def build_scrim_analytics(
     ban_position_rows = build_ban_position_rows(ban_position_stats, ban_position_totals)
     enemy_ban_position_rows = build_ban_position_rows(enemy_ban_position_stats, enemy_ban_position_totals)
 
+    def build_enemy_ban_correlation_bundle(
+        *,
+        limit: int = 8,
+        partner_limit: int = 4,
+        group_limit: int = 8,
+        lock_threshold: float = 90.0,
+    ) -> dict:
+        ban_counts = defaultdict(int)
+        draft_rows = []
+        for scrim in scrims:
+            for map_entry in scrim.get("maps", []):
+                our_team_slot = map_entry.get("our_team_slot", "team1")
+                if our_team_slot not in TEAM_SLOTS:
+                    our_team_slot = "team1"
+                enemy_slot = opposite_team_slot(our_team_slot)
+                draft = map_entry.get("draft", {})
+                enemy_draft = draft.get(enemy_slot, {}) if isinstance(draft, dict) else {}
+                banned_heroes = sorted(
+                    {
+                        canonical_hero(hero_name)
+                        for slot_key, hero_name in enemy_draft.items()
+                        if "ban" in slot_key and canonical_hero(hero_name)
+                    }
+                )
+                if not banned_heroes:
+                    continue
+                outcome = get_map_outcome_for_slot(map_entry, our_team_slot)
+                draft_rows.append({"heroes": banned_heroes, "outcome": outcome})
+                for hero_name in banned_heroes:
+                    ban_counts[hero_name] += 1
+
+        draft_count = len(draft_rows)
+        locked_hero_keys = {
+            hero_name
+            for hero_name, ban_count in ban_counts.items()
+            if draft_count and pct(ban_count, draft_count) >= lock_threshold
+        }
+        locked_rows = [
+            {
+                "hero": hero_name,
+                "count": ban_count,
+                "rate": pct(ban_count, draft_count),
+                "low_sample": draft_count < 3,
+            }
+            for hero_name, ban_count in ban_counts.items()
+            if hero_name in locked_hero_keys
+        ]
+        locked_rows.sort(key=lambda row: (row["rate"], row["count"], row["hero"]), reverse=True)
+
+        eligible_counts = {
+            hero_name: ban_count
+            for hero_name, ban_count in ban_counts.items()
+            if hero_name not in locked_hero_keys
+        }
+        co_ban_counts = defaultdict(lambda: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}))
+        group_counts = {
+            2: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
+            3: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
+            4: defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
+        }
+
+        for draft_row in draft_rows:
+            outcome = draft_row.get("outcome", "")
+            co_heroes = [hero_name for hero_name in draft_row["heroes"] if hero_name not in locked_hero_keys]
+            for hero_name in co_heroes:
+                for partner_hero in co_heroes:
+                    if partner_hero == hero_name:
+                        continue
+                    co_ban_counts[hero_name][partner_hero]["count"] += 1
+                    if outcome == "Win":
+                        co_ban_counts[hero_name][partner_hero]["wins"] += 1
+                    elif outcome == "Loss":
+                        co_ban_counts[hero_name][partner_hero]["losses"] += 1
+            for group_size in (2, 3, 4):
+                if len(co_heroes) < group_size:
+                    continue
+                for group_key in combinations(co_heroes, group_size):
+                    group_counts[group_size][group_key]["count"] += 1
+                    if outcome == "Win":
+                        group_counts[group_size][group_key]["wins"] += 1
+                    elif outcome == "Loss":
+                        group_counts[group_size][group_key]["losses"] += 1
+
+        cooccurrence_rows = []
+        for hero_name, ban_count in eligible_counts.items():
+            partner_rows = []
+            for partner_hero, co_stats in co_ban_counts[hero_name].items():
+                partner_count = eligible_counts.get(partner_hero, 0)
+                if not partner_count:
+                    continue
+                decided = co_stats["wins"] + co_stats["losses"]
+                co_count = co_stats["count"]
+                partner_rows.append(
+                    {
+                        "hero": partner_hero,
+                        "count": partner_count,
+                        "co_count": co_count,
+                        "wins": co_stats["wins"],
+                        "losses": co_stats["losses"],
+                        "win_rate": pct(co_stats["wins"], decided) if decided else None,
+                        "correlation": pct(co_count, ban_count),
+                        "mutual_correlation": round(
+                            ((co_count / ban_count) * (co_count / partner_count)) ** 0.5 * 100,
+                            1,
+                        ) if ban_count and partner_count else 0,
+                    }
+                )
+            partner_rows.sort(key=lambda row: (row["co_count"], row["correlation"], row["count"]), reverse=True)
+            if partner_rows:
+                cooccurrence_rows.append(
+                    {
+                        "hero": hero_name,
+                        "count": ban_count,
+                        "rate": pct(ban_count, draft_count),
+                        "partners": partner_rows[:partner_limit],
+                    }
+                )
+
+        cooccurrence_rows.sort(key=lambda row: (row["count"], row["rate"], len(row["partners"])), reverse=True)
+
+        group_rows_by_size = {}
+        for group_size, groups in group_counts.items():
+            group_rows = []
+            for heroes, stats in groups.items():
+                decided = stats["wins"] + stats["losses"]
+                group_rows.append(
+                    {
+                        "heroes": list(heroes),
+                        "count": stats["count"],
+                        "wins": stats["wins"],
+                        "losses": stats["losses"],
+                        "win_rate": pct(stats["wins"], decided) if decided else None,
+                    }
+                )
+            group_rows.sort(key=lambda row: (row["count"], row["wins"]), reverse=True)
+            group_rows_by_size[group_size] = group_rows[:group_limit]
+
+        return {
+            "locked_rows": locked_rows,
+            "cooccurrence_rows": cooccurrence_rows[:limit],
+            "group_rows_by_size": group_rows_by_size,
+            "draft_count": draft_count,
+            "lock_threshold": lock_threshold,
+        }
+
+    enemy_ban_correlation = build_enemy_ban_correlation_bundle()
+
     def add_ban_position_insights(primary_rows: list[dict], secondary_rows: list[dict]) -> None:
         secondary_lookup = {row["slot_key"]: row for row in secondary_rows}
         for row in primary_rows:
@@ -1213,6 +1360,7 @@ def build_scrim_analytics(
         "mirror_rates": mirror_rates,
         "comp_archetype_rows": comp_archetype_rows,
         "ban_diff_rows": ban_diff_rows[:12],
+        "enemy_ban_correlation": enemy_ban_correlation,
         "ban_next_rows": ban_next_rows[:12],
         "ban_to_protect_rows": ban_to_protect_rows[:12],
         "draft_route_rows": draft_route_rows[:16],

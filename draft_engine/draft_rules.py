@@ -26,6 +26,30 @@ from __future__ import annotations
 
 DRAFT_DECISION_FRAMEWORK: dict[str, object] = {
 
+    "coach_theory_principles": {
+        "description": "Coach-level theory for turning stats into play, protect, ban, and comp decisions.",
+        "principles": [
+            "Use stats to find anomalies first: anything that stands out strongly positive or negative is the starting point for the draft read.",
+            "Try to create situations where the opponent is pushed into their negative anomalies and kept away from their positive anomalies.",
+            "Choose the best-in-slot comp your team still has available for the map type being played.",
+            "Perma bans come first when a hero is too strong to leave open as a one-sided advantage for the enemy.",
+            "Certain bans force certain comps by removing lynchpin heroes. If the lynchpin disappears, the full comp can become too weak to play.",
+            "Hero compatibility starts with who is strongest at the time, then checks whether those heroes share a real win condition on the current map.",
+        ],
+        "lynchpin_examples": [
+            {
+                "comp": "Hulk fastball",
+                "lynchpins": ["Wolverine"],
+                "logic": "If Wolverine is removed, Hulk fastball loses the hero that turns Hulk's setup into reliable kill pressure.",
+            },
+            {
+                "comp": "Front-to-back",
+                "lynchpins": ["Loki", "Groot"],
+                "logic": "If Loki or Groot is removed, the comp loses key sustain, deception, walls, or space control that lets it hold the line.",
+            },
+        ],
+    },
+
     "stat_based_decisions": {
         "description": (
             "How to use match stats to decide what to play, protect, and ban."
@@ -121,6 +145,7 @@ DRAFT_DECISION_FRAMEWORK: dict[str, object] = {
     "hero_compatibility": {
         "description": "What makes heroes in a comp compatible with each other.",
         "principles": [
+            "Current strength first: the best comp starts from the strongest available heroes in the current patch, map, and draft state.",
             "Range diversity: good comps have threats at multiple ranges. All six heroes at the same range compete for the same space and lose to one counter.",
             "Win condition alignment: every hero in the comp should enable the same win condition. Dive tank + brawl duelist + poke support = three unrelated heroes, not a comp.",
             "Sustain timing match: supports must heal at the tempo the comp creates. Dive needs instant burst recovery (Cloak & Dagger, Luna Snow). Brawl needs sustained throughput (Rocket, Luna Snow). Mixing a dive comp with a slow-sustain support creates a gap between when fights happen and when healing arrives.",
@@ -130,6 +155,30 @@ DRAFT_DECISION_FRAMEWORK: dict[str, object] = {
         ],
     },
 }
+
+
+def get_draft_decision_theory_prompt() -> str:
+    """
+    Return the compact coach-theory block used by the machine prompt.
+    Keep this short so live draft calls stay fast and focused.
+    """
+    coach = DRAFT_DECISION_FRAMEWORK.get("coach_theory_principles", {})
+    principles = coach.get("principles", [])
+    examples = coach.get("lynchpin_examples", [])
+
+    lines = [
+        "Use this theory when choosing what to play, protect, and ban:",
+    ]
+    for item in principles:
+        lines.append(f"- {item}")
+    if examples:
+        lines.append("Lynchpin ban examples:")
+        for example in examples:
+            comp = example.get("comp", "Unknown comp")
+            lynchpins = ", ".join(example.get("lynchpins", []))
+            logic = example.get("logic", "")
+            lines.append(f"- {comp}: remove {lynchpins}. {logic}")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------

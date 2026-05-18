@@ -696,8 +696,16 @@ def build_draft_system_prompt(
             f'When the user says "we", "our team", or "us", they mean **{personal_team}**.'
         )
 
-    # ── Hero theory injection ──────────────────────────────────────────────
-    # Only inject for intents where hero knowledge changes the answer.
+    # Draft decision theory injection.
+    try:
+        from draft_engine.draft_rules import get_draft_decision_theory_prompt
+        decision_theory = get_draft_decision_theory_prompt()
+        if decision_theory:
+            parts.append("## Draft Decision Theory\n" + decision_theory)
+    except Exception:
+        pass  # never break prompt building because of a missing theory helper
+
+    # Hero theory injection. Only inject for intents where hero knowledge changes the answer.
     _theory_intents = {"ban", "protect", "comp", "enemy_comps", "ban_impact",
                        "player_pivot", "hero_volatility", "pivot", "comfort", "contested"}
     if intent in _theory_intents or hero_names:

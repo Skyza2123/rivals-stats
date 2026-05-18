@@ -23,6 +23,7 @@ def _load_json_dict(filename: str) -> dict:
 
 
 HERO_THEORY_DATA: dict[str, object] = _load_json_dict("hero_theory_data.json")
+DRAFT_DECISION_THEORY: dict[str, object] = HERO_THEORY_DATA.get("draft_decision_theory", {})
 ROLES: dict[str, str] = HERO_THEORY_DATA["roles"]
 ARCHETYPES: dict[str, str] = HERO_THEORY_DATA["archetypes"]
 SUBROLES: dict[str, str] = HERO_THEORY_DATA["subroles"]
@@ -201,6 +202,11 @@ def get_heroes_for_prompt(hero_names: list[str]) -> str:
                 + (f" Countered by: {counters}." if counters else "")
             )
     return "\n".join(lines) if lines else ""
+
+
+def get_draft_decision_theory() -> dict[str, object]:
+    """Return the structured draft decision theory stored with hero theory data."""
+    return dict(DRAFT_DECISION_THEORY)
 
 
 # ---------------------------------------------------------------------------

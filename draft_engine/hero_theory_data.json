@@ -1,6 +1,57 @@
 {
   "version": 1,
   "description": "Canonical Marvel Rivals hero theory data consumed by draft_engine.hero_theory.",
+  "draft_decision_theory": {
+    "stats_usage": {
+      "principle": "Use stats to identify positive and negative anomalies, then draft toward situations that expose enemy negatives and deny enemy positives.",
+      "play": "Pick toward our strongest positive anomalies when the map type and current bans still support them.",
+      "protect": "Protect heroes that preserve our positive anomalies, core comp paths, or best-in-slot map plan.",
+      "ban": "Ban heroes that create enemy one-sided advantages, enemy positive anomalies, or comp paths we cannot comfortably answer."
+    },
+    "comp_selection": {
+      "principle": "Choose the best-in-slot comp still available for the map type being played.",
+      "checks": [
+        "Confirm the map type favors the comp's fight shape.",
+        "Confirm the key heroes are still open or protected.",
+        "Confirm the team has enough comfort to execute it.",
+        "If a lynchpin is banned, pivot to the next intact comp path."
+      ]
+    },
+    "perma_ban_logic": {
+      "principle": "Perma bans come first when a hero is too strong to allow as a one-sided enemy advantage.",
+      "decision_rule": "If leaving the hero open gives the opponent a dominant option that we cannot mirror, counter, or trade against, remove it before shaping narrower comp paths."
+    },
+    "ban_forcing_theory": {
+      "principle": "Certain bans force certain comps by removing lynchpin heroes. If the lynchpin is gone, the comp can become too weak to play.",
+      "examples": [
+        {
+          "comp": "Hulk fastball",
+          "lynchpins": [
+            "Wolverine"
+          ],
+          "effect": "Removing Wolverine cuts the conversion piece that makes the fastball reliably threatening."
+        },
+        {
+          "comp": "Front-to-back",
+          "lynchpins": [
+            "Loki",
+            "Groot"
+          ],
+          "effect": "Removing Loki or Groot weakens the sustain, deception, walling, or space control that lets the comp hold its line."
+        }
+      ]
+    },
+    "hero_compatibility": {
+      "principle": "Heroes are compatible when they are among the strongest available at the time and their strengths share the same map-specific win condition.",
+      "checks": [
+        "Current hero strength",
+        "Map fit",
+        "Shared win condition",
+        "Sustain and tempo match",
+        "No single ban or counter removes the entire plan"
+      ]
+    }
+  },
   "aliases": {
     "doctor strange": "Dr. Strange",
     "dr strange": "Dr. Strange",
