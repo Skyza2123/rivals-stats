@@ -145,6 +145,7 @@
             {% endfor %}
         </div>
         <div id="prepHeroMapSummary" class="prep-hero-map-summary top-gap"></div>
+        <div id="prepHeroAnovaSummary" class="table-wrap top-gap"></div>
         <div id="prepHeroMapResults" class="prep-hero-map-grid top-gap"></div>
     {% else %}
         <p class="empty-text">No hero-map data found in this prep filter.</p>
@@ -621,6 +622,7 @@
     var select = document.getElementById('prepHeroMapSelect');
     var buttons = Array.prototype.slice.call(document.querySelectorAll('.prep-hero-map-btn'));
     var summary = document.getElementById('prepHeroMapSummary');
+    var anovaSummary = document.getElementById('prepHeroAnovaSummary');
     var results = document.getElementById('prepHeroMapResults');
     var byHero = {};
     rows.forEach(function (row) { byHero[row.hero] = row; });
@@ -646,6 +648,20 @@
         return 'metric-neutral';
     }
 
+    function metricLabel(key) {
+        if (key === 'play_rate') return 'Play Rate';
+        if (key === 'ban_rate') return 'Ban Rate';
+        if (key === 'protect_rate') return 'Protect Rate';
+        return key;
+    }
+
+    function scoreClass(significance) {
+        if (significance === 'strong') return 'metric-bad';
+        if (significance === 'moderate') return 'metric-warn';
+        if (significance === 'weak') return 'metric-neutral';
+        return 'metric-neutral';
+    }
+
     function render(hero) {
         var payload = byHero[hero] || rows[0];
         if (!payload || !results || !summary) return;
@@ -665,6 +681,38 @@
             + '<span><strong>' + escapeHtml(payload.hero) + '</strong>'
             + '<small>' + escapeHtml(payload.maps) + ' maps | ' + escapeHtml(payload.wins) + '-' + escapeHtml(payload.losses) + ' | ' + escapeHtml(payload.win_rate) + '% WR</small></span>'
             + '</a>';
+
+        if (anovaSummary) {
+            var metricKeys = ['play_rate', 'ban_rate', 'protect_rate'];
+            var anova = payload.anova || {};
+            var rowsHtml = metricKeys.map(function (key) {
+                var stats = anova[key] || {};
+                if (stats.status !== 'ready') {
+                    return '<tr>'
+                        + '<td>' + escapeHtml(metricLabel(key)) + '</td>'
+                        + '<td colspan="4">Insufficient sample</td>'
+                        + '</tr>';
+                }
+                var mapF = Number((stats.map_effect || {}).f_stat || 0).toFixed(2);
+                var modeF = Number((stats.mode_effect || {}).f_stat || 0).toFixed(2);
+                var mapEta = Number((stats.map_effect || {}).partial_eta_sq || 0).toFixed(3);
+                var modeEta = Number((stats.mode_effect || {}).partial_eta_sq || 0).toFixed(3);
+                var sig = stats.significance || 'not significant';
+                return '<tr>'
+                    + '<td>' + escapeHtml(metricLabel(key)) + '</td>'
+                    + '<td>F ' + mapF + ' | eta2 ' + mapEta + '</td>'
+                    + '<td>F ' + modeF + ' | eta2 ' + modeEta + '</td>'
+                    + '<td>' + escapeHtml(String(stats.sample || 0)) + '</td>'
+                    + '<td><span class="metric-text ' + scoreClass(sig) + '">' + escapeHtml(sig) + '</span></td>'
+                    + '</tr>';
+            }).join('');
+
+            anovaSummary.innerHTML = ''
+                + '<table class="stats-table">'
+                + '<thead><tr><th>ANOVA Metric</th><th>Map Effect</th><th>Mode Effect</th><th>Sample</th><th>Signal</th></tr></thead>'
+                + '<tbody>' + rowsHtml + '</tbody>'
+                + '</table>';
+        }
 
         results.innerHTML = (payload.rows || []).map(function (row) {
             var href = mapUrl(row);

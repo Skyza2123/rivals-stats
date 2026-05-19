@@ -151,7 +151,7 @@ def _machine_build_ban_anova_rows(team_history: list[dict], candidate_heroes: li
     """Estimate ban significance with a multifactor ANOVA-style partial F test.
 
     Response is opponent loss rate from this team's perspective. Predictors are:
-    candidate ban presence + map mode + map name + source + side. This keeps the
+    candidate ban presence + map mode + map name + submap + round + source + side. This keeps the
     ban signal from being credited for context effects like map pool or data source.
     """
     try:
@@ -192,12 +192,20 @@ def _machine_build_ban_anova_rows(team_history: list[dict], candidate_heroes: li
             if not opponent_bans:
                 continue
             map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip() or "Unknown"
+            section_rows = [section for section in map_entry.get("comp", []) if isinstance(section, dict)]
+            submap_labels = []
+            for section in section_rows:
+                submap_name = (section.get("submap") or "").strip()
+                if submap_name and submap_name not in submap_labels:
+                    submap_labels.append(submap_name)
             rows.append(
                 {
                     "loss": 1.0 if outcome == "Loss" else 0.0,
                     "bans": opponent_bans,
                     "mode": MAP_MODES.get(map_name, "Other"),
                     "map": map_name,
+                    "submap": submap_labels[0] if submap_labels else "Unknown Submap",
+                    "round": str(len(section_rows) or 1),
                     "source": source,
                     "side": team_slot,
                 }
@@ -210,7 +218,7 @@ def _machine_build_ban_anova_rows(team_history: list[dict], candidate_heroes: li
         columns = [[1.0] * len(items)]
         if include_ban:
             columns.append([1.0 if hero_key in row["bans"] else 0.0 for row in items])
-        for factor in ("mode", "map", "source", "side"):
+        for factor in ("mode", "map", "submap", "round", "source", "side"):
             values = sorted({str(row.get(factor) or "") for row in items})
             if len(values) <= 1:
                 continue
@@ -282,7 +290,7 @@ def _machine_build_ban_anova_rows(team_history: list[dict], candidate_heroes: li
             "partial_eta_sq": round(partial_eta, 4),
             "significance": significance,
             "status": "ready",
-            "factors": ["ban_presence", "map_mode", "map_name", "source", "side"],
+            "factors": ["ban_presence", "map_mode", "map_name", "submap", "round", "source", "side"],
         }
     return results
 

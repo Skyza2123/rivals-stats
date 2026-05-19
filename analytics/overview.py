@@ -566,7 +566,7 @@ def build_scrim_analytics(
 
             try:
                 reduced = build_matrix(hero_observations, ("source", "side"))
-                full = build_matrix(hero_observations, ("source", "side", "mode", "map"))
+                full = build_matrix(hero_observations, ("source", "side", "mode", "map", "submap", "round"))
                 sse_reduced, df_reduced = sse_for(reduced, y)
                 sse_full, df_full = sse_for(full, y)
             except Exception:
@@ -618,7 +618,7 @@ def build_scrim_analytics(
                     "map_rows": map_rows[:4],
                     "significance": significance,
                     "status": "ready",
-                    "factors": ["map_mode", "map_name", "source", "side"],
+                    "factors": ["map_mode", "map_name", "submap", "round", "source", "side"],
                 }
             )
 

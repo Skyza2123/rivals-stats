@@ -314,11 +314,19 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                 or "scrim"
             )
             if result in {"Win", "Loss"}:
+                section_rows = [section for section in map_entry.get("comp", []) if isinstance(section, dict)]
+                submap_labels = []
+                for section in section_rows:
+                    submap_name = (section.get("submap") or "").strip()
+                    if submap_name and submap_name not in submap_labels:
+                        submap_labels.append(submap_name)
                 hero_map_mode_observations.append(
                     {
                         "win": 1.0 if result == "Win" else 0.0,
                         "mode": MAP_MODES.get(map_name, "Other") if map_name else "Other",
                         "map": map_name or "Unknown Map",
+                        "submap": submap_labels[0] if submap_labels else "Unknown Submap",
+                        "round": str(len(section_rows) or 1),
                         "source": source_label,
                         "side": our_team_slot,
                     }
@@ -456,6 +464,20 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             mode_rows.append({"mode": mode_name, "maps": len(mode_items), "win_rate": pct(wins, len(mode_items))})
         mode_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
 
+        submap_rows = []
+        for submap_name in sorted({row.get("submap") or "Unknown Submap" for row in observations}):
+            submap_items = [row for row in observations if (row.get("submap") or "Unknown Submap") == submap_name]
+            wins = sum(1 for row in submap_items if row["win"] >= 1.0)
+            submap_rows.append({"submap": submap_name, "maps": len(submap_items), "win_rate": pct(wins, len(submap_items))})
+        submap_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
+        round_rows = []
+        for round_name in sorted({str(row.get("round") or "1") for row in observations}):
+            round_items = [row for row in observations if str(row.get("round") or "1") == round_name]
+            wins = sum(1 for row in round_items if row["win"] >= 1.0)
+            round_rows.append({"round": round_name, "maps": len(round_items), "win_rate": pct(wins, len(round_items))})
+        round_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
+
         map_anova_rows = []
         for map_name_value in sorted({row.get("map") or "Unknown Map" for row in observations}):
             map_items = [row for row in observations if (row.get("map") or "Unknown Map") == map_name_value]
@@ -463,19 +485,21 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             map_anova_rows.append({"map": map_name_value, "maps": len(map_items), "win_rate": pct(wins, len(map_items))})
         map_anova_rows.sort(key=lambda row: (row["maps"], row["win_rate"]), reverse=True)
 
-        if len(mode_rows) <= 1 and len(map_anova_rows) <= 1:
+        if len(mode_rows) <= 1 and len(map_anova_rows) <= 1 and len(submap_rows) <= 1 and len(round_rows) <= 1:
             return {
                 "status": "insufficient",
                 "significance": "single map/mode",
                 "sample": len(observations),
                 "mode_rows": mode_rows[:4],
                 "map_rows": map_anova_rows[:4],
+                "submap_rows": submap_rows[:4],
+                "round_rows": round_rows[:4],
             }
 
         try:
             y = np.asarray([row["win"] for row in observations], dtype=float)
             reduced = build_matrix(observations, ("source", "side"))
-            full = build_matrix(observations, ("source", "side", "mode", "map"))
+            full = build_matrix(observations, ("source", "side", "mode", "map", "submap", "round"))
             sse_reduced, df_reduced = sse_for(reduced, y)
             sse_full, df_full = sse_for(full, y)
         except Exception:
@@ -494,8 +518,14 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         worst_map = min(map_anova_rows, key=lambda row: (row["win_rate"], -row["maps"])) if map_anova_rows else None
         best_mode = max(mode_rows, key=lambda row: (row["win_rate"], row["maps"])) if mode_rows else None
         worst_mode = min(mode_rows, key=lambda row: (row["win_rate"], -row["maps"])) if mode_rows else None
+        best_submap = max(submap_rows, key=lambda row: (row["win_rate"], row["maps"])) if submap_rows else None
+        worst_submap = min(submap_rows, key=lambda row: (row["win_rate"], -row["maps"])) if submap_rows else None
+        best_round = max(round_rows, key=lambda row: (row["win_rate"], row["maps"])) if round_rows else None
+        worst_round = min(round_rows, key=lambda row: (row["win_rate"], -row["maps"])) if round_rows else None
         map_spread = round((best_map["win_rate"] - worst_map["win_rate"]), 1) if best_map and worst_map else 0.0
         mode_spread = round((best_mode["win_rate"] - worst_mode["win_rate"]), 1) if best_mode and worst_mode else 0.0
+        submap_spread = round((best_submap["win_rate"] - worst_submap["win_rate"]), 1) if best_submap and worst_submap else 0.0
+        round_spread = round((best_round["win_rate"] - worst_round["win_rate"]), 1) if best_round and worst_round else 0.0
 
         if len(observations) < 6:
             significance = "low sample"
@@ -523,9 +553,17 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
             "worst_map": worst_map,
             "best_mode": best_mode,
             "worst_mode": worst_mode,
+            "best_submap": best_submap,
+            "worst_submap": worst_submap,
+            "best_round": best_round,
+            "worst_round": worst_round,
             "mode_rows": mode_rows[:4],
             "map_rows": map_anova_rows[:4],
-            "factors": ["map_mode", "map_name", "source", "side"],
+            "submap_rows": submap_rows[:4],
+            "round_rows": round_rows[:4],
+            "submap_spread": submap_spread,
+            "round_spread": round_spread,
+            "factors": ["map_mode", "map_name", "submap", "round", "source", "side"],
         }
 
     map_mode_anova = build_hero_map_mode_anova(hero_map_mode_observations)

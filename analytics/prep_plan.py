@@ -877,8 +877,15 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
 
 def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
     hero_rows = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "rows": []})
+    anova_observations = []
 
     for scrim in prep_scrims:
+        source_label = (
+            str(scrim.get("source") or scrim.get("event_type") or scrim.get("event") or scrim.get("tournament_name") or "")
+            .strip()
+            .lower()
+            or "scrim"
+        )
         scrim_id = scrim.get("id")
         scrim_date = (scrim.get("scrim_date") or scrim.get("date") or "").strip()
         opponent_name = (scrim.get("enemy_team") or scrim.get("opponent") or "Unknown").strip() or "Unknown"
@@ -890,8 +897,20 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
+            draft = map_entry.get("draft", {}) if isinstance(map_entry.get("draft", {}), dict) else {}
+            our_draft = draft.get(our_team_slot, {}) if isinstance(draft.get(our_team_slot, {}), dict) else {}
             result = get_map_outcome_for_slot(map_entry, our_team_slot)
             heroes_this_map = set()
+            banned_this_map = {
+                _canonical_draft_hero(our_draft.get(slot_key, ""))
+                for slot_key in ("ban1", "ban2", "ban3", "ban4")
+                if _canonical_draft_hero(our_draft.get(slot_key, ""))
+            }
+            protected_this_map = {
+                _canonical_draft_hero(our_draft.get(slot_key, ""))
+                for slot_key in ("protect1", "protect2")
+                if _canonical_draft_hero(our_draft.get(slot_key, ""))
+            }
             for section in map_entry.get("comp", []):
                 if not isinstance(section, dict):
                     continue
@@ -901,6 +920,21 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                     hero_name = _canonical_draft_hero(slot.get("hero", ""))
                     if hero_name:
                         heroes_this_map.add(hero_name)
+
+            tracked_heroes = heroes_this_map | banned_this_map | protected_this_map
+            for hero_name in tracked_heroes:
+                anova_observations.append(
+                    {
+                        "hero": hero_name,
+                        "mode": MAP_MODES.get(map_name, "Other"),
+                        "map": map_name,
+                        "source": source_label,
+                        "side": our_team_slot,
+                        "play": 1.0 if hero_name in heroes_this_map else 0.0,
+                        "ban": 1.0 if hero_name in banned_this_map else 0.0,
+                        "protect": 1.0 if hero_name in protected_this_map else 0.0,
+                    }
+                )
 
             for hero_name in heroes_this_map:
                 payload = hero_rows[hero_name]
@@ -922,6 +956,80 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                     }
                 )
 
+    def _metric_anova(observations: list[dict], metric_key: str) -> dict:
+        try:
+            import numpy as np
+        except Exception:
+            return {"status": "unavailable", "reason": "numpy missing"}
+
+        if len(observations) < 8:
+            return {"status": "insufficient", "sample": len(observations)}
+
+        def build_matrix(items: list[dict], factors: tuple[str, ...]):
+            columns = [[1.0] * len(items)]
+            for factor in factors:
+                values = sorted({str(row.get(factor) or "") for row in items})
+                if len(values) <= 1:
+                    continue
+                for value in values[1:]:
+                    columns.append([1.0 if str(row.get(factor) or "") == value else 0.0 for row in items])
+            return np.asarray(columns, dtype=float).T
+
+        def sse_for(matrix, y_values) -> tuple[float, int]:
+            beta, *_ = np.linalg.lstsq(matrix, y_values, rcond=None)
+            residuals = y_values - matrix.dot(beta)
+            rank = int(np.linalg.matrix_rank(matrix))
+            return float(np.sum(residuals ** 2)), max(0, len(y_values) - rank)
+
+        def effect_for(target_factor: str, control_factors: tuple[str, ...]) -> dict:
+            y = np.asarray([row.get(metric_key, 0.0) for row in observations], dtype=float)
+            full_factors = control_factors + (target_factor,)
+            reduced = build_matrix(observations, control_factors)
+            full = build_matrix(observations, full_factors)
+            sse_reduced, df_reduced = sse_for(reduced, y)
+            sse_full, df_full = sse_for(full, y)
+            df_num = max(1, df_reduced - df_full)
+            if df_full <= 0 or sse_full <= 0 or sse_reduced < sse_full:
+                return {"f_stat": 0.0, "partial_eta_sq": 0.0}
+            ss_effect = max(0.0, sse_reduced - sse_full)
+            f_stat = (ss_effect / df_num) / (sse_full / df_full)
+            partial_eta = ss_effect / (ss_effect + sse_full) if (ss_effect + sse_full) else 0.0
+            return {"f_stat": round(f_stat, 3), "partial_eta_sq": round(partial_eta, 4)}
+
+        map_effect = effect_for("map", ("source", "side", "mode"))
+        mode_effect = effect_for("mode", ("source", "side", "map"))
+
+        if max(map_effect.get("f_stat", 0.0), mode_effect.get("f_stat", 0.0)) >= 6.8:
+            significance = "strong"
+        elif max(map_effect.get("f_stat", 0.0), mode_effect.get("f_stat", 0.0)) >= 3.8:
+            significance = "moderate"
+        elif max(map_effect.get("f_stat", 0.0), mode_effect.get("f_stat", 0.0)) >= 2.0:
+            significance = "weak"
+        else:
+            significance = "not significant"
+
+        return {
+            "status": "ready",
+            "sample": len(observations),
+            "significance": significance,
+            "map_effect": map_effect,
+            "mode_effect": mode_effect,
+        }
+
+    hero_anova_lookup = {}
+    observations_by_hero = defaultdict(list)
+    for obs in anova_observations:
+        hero_key = obs.get("hero") or ""
+        if hero_key:
+            observations_by_hero[hero_key].append(obs)
+
+    for hero_name, hero_observations in observations_by_hero.items():
+        hero_anova_lookup[hero_name] = {
+            "play_rate": _metric_anova(hero_observations, "play"),
+            "ban_rate": _metric_anova(hero_observations, "ban"),
+            "protect_rate": _metric_anova(hero_observations, "protect"),
+        }
+
     rows = []
     for hero_name, payload in hero_rows.items():
         maps_played = payload["maps"]
@@ -940,6 +1048,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                 "wins": payload["wins"],
                 "losses": payload["losses"],
                 "win_rate": round((payload["wins"] / maps_played) * 100, 1) if maps_played else 0,
+                "anova": hero_anova_lookup.get(hero_name, {}),
                 "rows": payload["rows"][:24],
             }
         )
