@@ -120,7 +120,7 @@
         <div>
             <div class="section-kicker">Hero Context Tracker</div>
             <h3>Pick A Hero To See All Map Involvement</h3>
-            <p class="panel-intro">Shows every map where the hero was played, banned, or protected, plus ANOVA map/mode impact for play rate, ban rate, and protect rate.</p>
+            <p class="panel-intro">Shows every map where the hero was played, banned, or protected, plus ANOVA map/mode impact on winrate when the hero is played, banned, or protected.</p>
         </div>
         {% if prep_hero_map_lookup %}
         <div class="header-actions">
@@ -146,7 +146,7 @@
         </div>
         <div id="prepHeroMapSummary" class="prep-hero-map-summary top-gap"></div>
         <div id="prepHeroAnovaSummary" class="table-wrap top-gap"></div>
-        <div id="prepHeroMapResults" class="prep-hero-map-grid top-gap"></div>
+        <div id="prepHeroMapResults" class="top-gap"></div>
     {% else %}
         <p class="empty-text">No hero-map data found in this prep filter.</p>
     {% endif %}
@@ -639,9 +639,9 @@
     }
 
     function metricLabel(key) {
-        if (key === 'play_rate') return 'Play Rate';
-        if (key === 'ban_rate') return 'Ban Rate';
-        if (key === 'protect_rate') return 'Protect Rate';
+        if (key === 'play_rate') return 'Play WR';
+        if (key === 'ban_rate') return 'Ban WR';
+        if (key === 'protect_rate') return 'Protect WR';
         return key;
     }
 
@@ -691,6 +691,7 @@
                 grouped[key] = {
                     map_name: mapName,
                     mode: mode,
+                    image: row.image || '',
                     appearances: 0,
                     played: 0,
                     banned: 0,
@@ -775,7 +776,7 @@
         });
         var dimensions = [
             { key: 'was_played', label: 'Playing Hero' },
-            { key: 'was_banned', label: 'Banning Hero' },
+            { key: 'was_banned', label: 'Enemy Banned Hero' },
             { key: 'was_protected', label: 'Protecting Hero' }
         ];
         return dimensions.map(function (dimension) {
@@ -807,8 +808,34 @@
         if (row.signal === 'insufficient') return 'Not enough sample';
         if (row.delta == null) return 'No clear comparison baseline';
         if (row.signal === 'none') return 'No clear winrate link';
-        var direction = row.delta >= 0 ? 'Higher WR when active' : 'Lower WR when active';
+        var direction = row.delta >= 0 ? 'Higher active WR' : 'Lower active WR';
         return direction + ' (' + (row.delta >= 0 ? '+' : '') + formatStat(row.delta, 1) + '%)';
+    }
+
+    function buildOverallIndicator(influenceRows) {
+        var linkedRows = (influenceRows || []).filter(function (row) {
+            return row.delta != null && (row.signal === 'strong' || row.signal === 'moderate' || row.signal === 'weak');
+        }).sort(function (a, b) {
+            return Math.abs(b.delta || 0) - Math.abs(a.delta || 0);
+        });
+
+        if (!linkedRows.length) {
+            return {
+                css: 'metric-neutral',
+                text: 'Current sample does not show a clear winrate link by play, ban, or protect state.'
+            };
+        }
+
+        var topRows = linkedRows.slice(0, 2).map(function (row) {
+            var action = row.label.replace(' Hero', '').toLowerCase();
+            var direction = row.delta >= 0 ? 'raises' : 'drops';
+            return action + ' ' + direction + ' WR by ' + Math.abs(Number(row.delta || 0)).toFixed(1) + '%';
+        });
+
+        return {
+            css: 'metric-warn',
+            text: 'Strongest links: ' + topRows.join('; ') + '.'
+        };
     }
 
     function render(hero) {
@@ -836,9 +863,7 @@
             var metricKeys = ['play_rate', 'ban_rate', 'protect_rate'];
             var anova = payload.anova || {};
             var influenceRows = buildWinrateInfluenceRows(payload.rows || []);
-            var overallLinked = influenceRows.some(function (row) {
-                return row.signal === 'strong' || row.signal === 'moderate' || row.signal === 'weak';
-            });
+            var overallIndicator = buildOverallIndicator(influenceRows);
             var rowsHtml = metricKeys.map(function (key) {
                 var stats = anova[key] || {};
                 if (stats.status !== 'ready') {
@@ -883,15 +908,15 @@
                 + '<section class="stat-card"><strong>Map Effect</strong><span class="metric-text ' + scoreClass(strongestMap.significance) + '">' + escapeHtml(strongestMap.significance) + '</span><small>' + escapeHtml(strongestMap.metric || 'N/A') + ' | F = ' + formatStat(strongestMap.fStat || 0, 2) + '</small></section>'
                 + '<section class="stat-card"><strong>Mode Effect</strong><span class="metric-text ' + scoreClass(strongestMode.significance) + '">' + escapeHtml(strongestMode.significance) + '</span><small>' + escapeHtml(strongestMode.metric || 'N/A') + ' | F = ' + formatStat(strongestMode.fStat || 0, 2) + '</small></section>'
                 + '</div>'
-                + '<div class="table-wrap top-gap">'
-                + '<p class="panel-intro">Overall indicator: <span class="metric-text ' + (overallLinked ? 'metric-warn' : 'metric-neutral') + '">' + (overallLinked ? 'Winrate appears tied to when this hero is played, banned, or protected in specific maps/modes.' : 'Current sample does not show a clear map/mode winrate link for play, ban, or protect states.') + '</span></p>'
+                + '<p class="panel-intro top-gap">Overall indicator: <span class="metric-text ' + overallIndicator.css + '">' + escapeHtml(overallIndicator.text) + '</span></p>'
+                + '<div class="table-wrap">'
                 + '<table class="stats-table">'
-                + '<thead><tr><th>Draft Action</th><th>Winrate Influence</th><th>WR When Active</th><th>WR When Not Active</th><th>Strongest Mode Split</th><th>Strongest Map Split</th></tr></thead>'
+                + '<thead><tr><th>Draft Action</th><th>Winrate Influence</th><th>Active WR</th><th>Inactive WR</th><th>Strongest Mode Split</th><th>Strongest Map Split</th></tr></thead>'
                 + '<tbody>' + influenceHtml + '</tbody>'
                 + '</table>'
                 + '</div>'
                 + '<table class="stats-table">'
-                + '<thead><tr><th>ANOVA Metric</th><th>Map Effect</th><th>Mode Effect</th><th>Sample</th><th>Signal</th></tr></thead>'
+                + '<thead><tr><th>Winrate ANOVA Metric</th><th>Map Effect</th><th>Mode Effect</th><th>Sample</th><th>Signal</th></tr></thead>'
                 + '<tbody>' + rowsHtml + '</tbody>'
                 + '</table>';
         }
@@ -900,27 +925,34 @@
         var mapSignificance = mapSignalTag(strongestMap.significance);
         var modeSignificance = mapSignalTag(strongestMode.significance);
         results.innerHTML = ''
-            + '<div class="table-wrap">'
+            + '<div>'
             + '<p class="panel-intro">Static map list for this hero. Map significance: ' + mapSignificance + ' | Mode significance: ' + modeSignificance + '</p>'
-            + '<table class="stats-table">'
-            + '<thead><tr><th>Map</th><th>Mode</th><th>Appearances</th><th>Played</th><th>Banned</th><th>Protected</th><th>Record</th><th>WR</th></tr></thead>'
-            + '<tbody>'
+            + '<div class="team-map-grid top-gap">'
             + mapRows.map(function (row) {
                 var totalGames = row.wins + row.losses;
                 var winRate = totalGames ? Math.round((row.wins / totalGames) * 1000) / 10 : 0;
-                return '<tr>'
-                    + '<td>' + escapeHtml(row.map_name) + '</td>'
-                    + '<td>' + escapeHtml(row.mode) + '</td>'
-                    + '<td>' + escapeHtml(row.appearances) + '</td>'
-                    + '<td>' + escapeHtml(row.played) + '</td>'
-                    + '<td>' + escapeHtml(row.banned) + '</td>'
-                    + '<td>' + escapeHtml(row.protected) + '</td>'
-                    + '<td>' + escapeHtml(row.wins) + '-' + escapeHtml(row.losses) + '</td>'
-                    + '<td>' + escapeHtml(formatStat(winRate, 1)) + '%</td>'
-                    + '</tr>';
+                var rateTier = 'map-rate-mid';
+                if (winRate >= 70) rateTier = 'map-rate-high';
+                if (winRate < 50) rateTier = 'map-rate-low';
+                return '<article class="team-map-card ' + rateTier + '">'
+                    + '<div class="team-map-bg' + (row.image ? '' : ' team-map-bg-fallback') + '"' + (row.image ? ' style="background-image:url(' + escapeHtml(row.image) + ')"' : '') + '></div>'
+                    + '<div class="team-map-overlay"></div>'
+                    + '<div class="team-map-top">'
+                    + '<span class="team-map-mode">' + escapeHtml(row.mode) + '</span>'
+                    + '<span class="team-map-rate">' + escapeHtml(formatStat(winRate, 1)) + '%</span>'
+                    + '</div>'
+                    + '<div class="team-map-bottom">'
+                    + '<h4>' + escapeHtml(row.map_name) + '</h4>'
+                    + '<p>' + escapeHtml(row.wins) + 'W - ' + escapeHtml(row.losses) + 'L • ' + escapeHtml(row.appearances) + ' maps</p>'
+                    + '<div class="team-map-footer-meta">'
+                    + '<span class="team-map-chip">Played ' + escapeHtml(row.played) + '</span>'
+                    + '<span class="team-map-chip">Banned ' + escapeHtml(row.banned) + '</span>'
+                    + '<span class="team-map-chip">Protected ' + escapeHtml(row.protected) + '</span>'
+                    + '</div>'
+                    + '</div>'
+                    + '</article>';
             }).join('')
-            + '</tbody>'
-            + '</table>'
+            + '</div>'
             + '</div>';
     }
 

@@ -907,14 +907,16 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
+            enemy_team_slot = "team2" if our_team_slot == "team1" else "team1"
             draft = map_entry.get("draft", {}) if isinstance(map_entry.get("draft", {}), dict) else {}
             our_draft = draft.get(our_team_slot, {}) if isinstance(draft.get(our_team_slot, {}), dict) else {}
+            enemy_draft = draft.get(enemy_team_slot, {}) if isinstance(draft.get(enemy_team_slot, {}), dict) else {}
             result = get_map_outcome_for_slot(map_entry, our_team_slot)
             heroes_this_map = set()
             banned_this_map = {
-                _canonical_draft_hero(our_draft.get(slot_key, ""))
+                _canonical_draft_hero(enemy_draft.get(slot_key, ""))
                 for slot_key in ("ban1", "ban2", "ban3", "ban4")
-                if _canonical_draft_hero(our_draft.get(slot_key, ""))
+                if _canonical_draft_hero(enemy_draft.get(slot_key, ""))
             }
             protected_this_map = {
                 _canonical_draft_hero(our_draft.get(slot_key, ""))
@@ -943,6 +945,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                         "play": 1.0 if hero_name in heroes_this_map else 0.0,
                         "ban": 1.0 if hero_name in banned_this_map else 0.0,
                         "protect": 1.0 if hero_name in protected_this_map else 0.0,
+                        "win": 1.0 if result == "Win" else (0.0 if result == "Loss" else None),
                     }
                 )
 
@@ -1045,11 +1048,26 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
         if hero_key:
             observations_by_hero[hero_key].append(obs)
 
+    def _winrate_metric_anova(observations: list[dict], action_key: str) -> dict:
+        scoped = [
+            row
+            for row in observations
+            if row.get(action_key, 0.0) >= 1.0 and row.get("win") is not None
+        ]
+        result = _metric_anova(scoped, "win")
+        if scoped:
+            wins = int(sum(1 for row in scoped if row.get("win") == 1.0))
+            losses = int(sum(1 for row in scoped if row.get("win") == 0.0))
+            result["wins"] = wins
+            result["losses"] = losses
+            result["win_rate"] = round((wins / (wins + losses)) * 100, 1) if (wins + losses) else 0.0
+        return result
+
     for hero_name, hero_observations in observations_by_hero.items():
         hero_anova_lookup[hero_name] = {
-            "play_rate": _metric_anova(hero_observations, "play"),
-            "ban_rate": _metric_anova(hero_observations, "ban"),
-            "protect_rate": _metric_anova(hero_observations, "protect"),
+            "play_rate": _winrate_metric_anova(hero_observations, "play"),
+            "ban_rate": _winrate_metric_anova(hero_observations, "ban"),
+            "protect_rate": _winrate_metric_anova(hero_observations, "protect"),
         }
 
     rows = []
