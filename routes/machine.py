@@ -430,7 +430,7 @@ def _machine_build_ban_candidate_details(
     ban_significance: dict[str, dict] | None = None,
     permutation_importance: dict[str, dict] | None = None,
 ) -> list[dict]:
-    """Score ban candidates with Marvel Rivals hero theory plus matchup history."""
+    """Score ban candidates based on matchup statistics (frequencies, rates, histories)."""
     try:
         from draft_engine.hero_theory import get_hero_profile, get_hero_score
     except Exception:
@@ -625,7 +625,7 @@ def _machine_build_protect_candidate_details(
     target_comp: list[str],
     enemy_expected_bans: list[str],
 ) -> list[dict]:
-    """Score protect candidates with Marvel Rivals hero theory plus route preservation."""
+    """Score protect candidates based on team statistics and play frequency."""
     try:
         from draft_engine.hero_theory import get_hero_profile, get_hero_score
     except Exception:
