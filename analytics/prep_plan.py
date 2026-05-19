@@ -876,7 +876,17 @@ def build_prep_expected_comp_plan(prep_scrims: list[dict], team_players: list[sq
 
 
 def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
-    hero_rows = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "rows": []})
+    hero_rows = defaultdict(
+        lambda: {
+            "maps": 0,
+            "wins": 0,
+            "losses": 0,
+            "played_maps": 0,
+            "banned_maps": 0,
+            "protected_maps": 0,
+            "rows": [],
+        }
+    )
     anova_observations = []
 
     for scrim in prep_scrims:
@@ -936,13 +946,22 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                     }
                 )
 
-            for hero_name in heroes_this_map:
+            for hero_name in tracked_heroes:
                 payload = hero_rows[hero_name]
                 payload["maps"] += 1
                 if result == "Win":
                     payload["wins"] += 1
                 elif result == "Loss":
                     payload["losses"] += 1
+                was_played = hero_name in heroes_this_map
+                was_banned = hero_name in banned_this_map
+                was_protected = hero_name in protected_this_map
+                if was_played:
+                    payload["played_maps"] += 1
+                if was_banned:
+                    payload["banned_maps"] += 1
+                if was_protected:
+                    payload["protected_maps"] += 1
                 payload["rows"].append(
                     {
                         "scrim_id": scrim_id,
@@ -953,6 +972,9 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                         "result": result or "Not Set",
                         "scrim_date": scrim_date,
                         "opponent_name": opponent_name,
+                        "was_played": was_played,
+                        "was_banned": was_banned,
+                        "was_protected": was_protected,
                     }
                 )
 
@@ -1047,6 +1069,9 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                 "maps": maps_played,
                 "wins": payload["wins"],
                 "losses": payload["losses"],
+                "played_maps": payload["played_maps"],
+                "banned_maps": payload["banned_maps"],
+                "protected_maps": payload["protected_maps"],
                 "win_rate": round((payload["wins"] / maps_played) * 100, 1) if maps_played else 0,
                 "anova": hero_anova_lookup.get(hero_name, {}),
                 "rows": payload["rows"][:24],

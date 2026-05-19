@@ -118,9 +118,9 @@
 <section class="panel panel-soft-green top-gap" id="prep-hero-map-finder">
     <div class="panel-header-row">
         <div>
-            <div class="section-kicker">Hero Map Finder</div>
-            <h3>Pick A Hero To Open Their Prep Maps</h3>
-            <p class="panel-intro">Choose a hero, then click any map image to open the full map page for that scrim.</p>
+            <div class="section-kicker">Hero Context Tracker</div>
+            <h3>Pick A Hero To See All Map Involvement</h3>
+            <p class="panel-intro">Shows every map where the hero was played, banned, or protected, plus ANOVA map/mode impact for play rate, ban rate, and protect rate.</p>
         </div>
         {% if prep_hero_map_lookup %}
         <div class="header-actions">
@@ -662,6 +662,32 @@
         return 'metric-neutral';
     }
 
+    function getStrongestEffect(anova, effectKey) {
+        var metricKeys = ['play_rate', 'ban_rate', 'protect_rate'];
+        var best = { metric: '', fStat: 0, significance: 'not significant' };
+        metricKeys.forEach(function (key) {
+            var stats = (anova || {})[key] || {};
+            var effect = stats[effectKey] || {};
+            var fStat = Number(effect.f_stat || 0);
+            if (fStat > best.fStat) {
+                best = {
+                    metric: metricLabel(key),
+                    fStat: fStat,
+                    significance: stats.significance || 'not significant'
+                };
+            }
+        });
+        return best;
+    }
+
+    function involvementTags(row) {
+        var tags = [];
+        if (row.was_played) tags.push('<span class="compare-tag compare-tag-positive">Played</span>');
+        if (row.was_banned) tags.push('<span class="compare-tag compare-tag-negative">Banned</span>');
+        if (row.was_protected) tags.push('<span class="compare-tag compare-tag-neutral">Protected</span>');
+        return tags.join(' ');
+    }
+
     function render(hero) {
         var payload = byHero[hero] || rows[0];
         if (!payload || !results || !summary) return;
@@ -675,11 +701,14 @@
         var firstMap = (payload.rows || [])[0];
         var heroImg = heroImage(payload.hero);
         var heroLink = firstMap ? mapUrl(firstMap) : '#';
+        var strongestMap = getStrongestEffect(payload.anova || {}, 'map_effect');
+        var strongestMode = getStrongestEffect(payload.anova || {}, 'mode_effect');
         summary.innerHTML =
             '<a class="prep-hero-map-focus" href="' + escapeHtml(heroLink) + '">'
             + '<img src="' + escapeHtml(heroImg) + '" alt="' + escapeHtml(payload.hero) + '">'
             + '<span><strong>' + escapeHtml(payload.hero) + '</strong>'
-            + '<small>' + escapeHtml(payload.maps) + ' maps | ' + escapeHtml(payload.wins) + '-' + escapeHtml(payload.losses) + ' | ' + escapeHtml(payload.win_rate) + '% WR</small></span>'
+            + '<small>' + escapeHtml(payload.maps) + ' maps | ' + escapeHtml(payload.wins) + '-' + escapeHtml(payload.losses) + ' | ' + escapeHtml(payload.win_rate) + '% WR</small>'
+            + '<small>Played ' + escapeHtml(payload.played_maps || 0) + ' | Banned ' + escapeHtml(payload.banned_maps || 0) + ' | Protected ' + escapeHtml(payload.protected_maps || 0) + '</small></span>'
             + '</a>';
 
         if (anovaSummary) {
@@ -708,6 +737,10 @@
             }).join('');
 
             anovaSummary.innerHTML = ''
+                + '<div class="summary-grid top-gap">'
+                + '<section class="stat-card"><strong>Map Effect</strong><span class="metric-text ' + scoreClass(strongestMap.significance) + '">' + escapeHtml(strongestMap.significance) + '</span><small>' + escapeHtml(strongestMap.metric || 'N/A') + ' | F ' + Number(strongestMap.fStat || 0).toFixed(2) + '</small></section>'
+                + '<section class="stat-card"><strong>Mode Effect</strong><span class="metric-text ' + scoreClass(strongestMode.significance) + '">' + escapeHtml(strongestMode.significance) + '</span><small>' + escapeHtml(strongestMode.metric || 'N/A') + ' | F ' + Number(strongestMode.fStat || 0).toFixed(2) + '</small></section>'
+                + '</div>'
                 + '<table class="stats-table">'
                 + '<thead><tr><th>ANOVA Metric</th><th>Map Effect</th><th>Mode Effect</th><th>Sample</th><th>Signal</th></tr></thead>'
                 + '<tbody>' + rowsHtml + '</tbody>'
@@ -722,6 +755,7 @@
                 + '<span class="prep-hero-map-body">'
                 + '<strong>' + escapeHtml(row.map_name || 'Unknown Map') + '</strong>'
                 + '<small>' + escapeHtml(row.mode || 'Other') + ' | ' + escapeHtml(row.opponent_name || 'Unknown') + '</small>'
+                + '<small>' + involvementTags(row) + '</small>'
                 + '<small>' + escapeHtml(row.scrim_date || 'No date') + (row.result ? ' | <span class="' + resultClass(row.result) + '">' + escapeHtml(row.result) + '</span>' : '') + '</small>'
                 + '</span>'
                 + '</a>';
