@@ -1074,7 +1074,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                 "protected_maps": payload["protected_maps"],
                 "win_rate": round((payload["wins"] / maps_played) * 100, 1) if maps_played else 0,
                 "anova": hero_anova_lookup.get(hero_name, {}),
-                "rows": payload["rows"][:24],
+                "rows": payload["rows"],
             }
         )
     rows.sort(key=lambda row: (row["maps"], row["win_rate"], row["hero"].lower()), reverse=True)

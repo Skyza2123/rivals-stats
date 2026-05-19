@@ -108,7 +108,7 @@
 
 <nav class="chip-nav top-gap" aria-label="Overview sections">
     <a href="#prep-scout" class="chip-nav-link">Scouting Snapshot</a>
-    <a href="#prep-hero-map-finder" class="chip-nav-link">Hero Map Finder</a>
+    <a href="#prep-hero-map-finder" class="chip-nav-link">Hero Context Tracker</a>
     <a href="#prep-open-hero" class="chip-nav-link">Open Hero Impact</a>
     <a href="#prep-expected-comps" class="chip-nav-link">Expected Comps</a>
     <a href="#prep-player-pivots" class="chip-nav-link">Player Ban Pivots</a>
@@ -136,7 +136,7 @@
 
     {% if prep_hero_map_lookup %}
         <script id="prepHeroMapLookupData" type="application/json">{{ prep_hero_map_lookup | tojson }}</script>
-        <div class="prep-hero-picker top-gap" aria-label="Hero map selector">
+        <div class="prep-hero-picker top-gap" aria-label="Hero context selector">
             {% for row in prep_hero_map_lookup[:18] %}
                 <button type="button" class="prep-hero-map-btn" data-hero="{{ row.hero }}" data-image="{{ hero_image_url(row.hero) }}" title="{{ hero_display_name(row.hero) }}">
                     <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" onerror="this.src='https://via.placeholder.com/44/111827/e6edf3?text={{ row.hero | urlencode }}'">
@@ -610,7 +610,7 @@
  </div>
 
 <script>
-/* -- Prep Hero Map Finder -------------------------------------------------- */
+/* -- Prep Hero Context Tracker --------------------------------------------- */
 (function () {
     'use strict';
     var dataEl = document.getElementById('prepHeroMapLookupData');
@@ -633,19 +633,9 @@
         });
     }
 
-    function mapUrl(row) {
-        return '/scrims/' + encodeURIComponent(row.scrim_id) + '/maps/' + encodeURIComponent(row.map_id);
-    }
-
     function heroImage(hero) {
         var btn = buttons.find(function (item) { return item.dataset.hero === hero; });
         return btn ? btn.dataset.image : '';
-    }
-
-    function resultClass(result) {
-        if (result === 'Win') return 'metric-good';
-        if (result === 'Loss') return 'metric-bad';
-        return 'metric-neutral';
     }
 
     function metricLabel(key) {
@@ -660,6 +650,17 @@
         if (significance === 'moderate') return 'metric-warn';
         if (significance === 'weak') return 'metric-neutral';
         return 'metric-neutral';
+    }
+
+    function formatStat(value, decimals) {
+        var number = Number(value || 0);
+        if (!isFinite(number)) return '--';
+        var abs = Math.abs(number);
+        if (abs > 0 && (abs >= 1000 || abs < 0.01)) {
+            return number.toExponential(2);
+        }
+        var fixed = number.toFixed(decimals);
+        return fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
     }
 
     function getStrongestEffect(anova, effectKey) {
@@ -680,12 +681,134 @@
         return best;
     }
 
-    function involvementTags(row) {
-        var tags = [];
-        if (row.was_played) tags.push('<span class="compare-tag compare-tag-positive">Played</span>');
-        if (row.was_banned) tags.push('<span class="compare-tag compare-tag-negative">Banned</span>');
-        if (row.was_protected) tags.push('<span class="compare-tag compare-tag-neutral">Protected</span>');
-        return tags.join(' ');
+    function buildMapRows(payloadRows) {
+        var grouped = {};
+        (payloadRows || []).forEach(function (row) {
+            var mapName = row.map_name || 'Unknown Map';
+            var mode = row.mode || 'Other';
+            var key = mapName + '||' + mode;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    map_name: mapName,
+                    mode: mode,
+                    appearances: 0,
+                    played: 0,
+                    banned: 0,
+                    protected: 0,
+                    wins: 0,
+                    losses: 0
+                };
+            }
+            grouped[key].appearances += 1;
+            if (row.was_played) grouped[key].played += 1;
+            if (row.was_banned) grouped[key].banned += 1;
+            if (row.was_protected) grouped[key].protected += 1;
+            if (row.result === 'Win') grouped[key].wins += 1;
+            if (row.result === 'Loss') grouped[key].losses += 1;
+        });
+        return Object.keys(grouped).map(function (key) { return grouped[key]; }).sort(function (a, b) {
+            if (b.appearances !== a.appearances) return b.appearances - a.appearances;
+            return a.map_name.localeCompare(b.map_name);
+        });
+    }
+
+    function mapSignalTag(significance) {
+        var label = significance && significance !== 'not significant' ? 'Significant' : 'Not Significant';
+        return '<span class="compare-tag ' + (significance && significance !== 'not significant' ? 'compare-tag-positive' : 'compare-tag-neutral') + '">' + escapeHtml(label) + '</span>';
+    }
+
+    function computeWinRate(rows) {
+        var wins = 0;
+        var losses = 0;
+        (rows || []).forEach(function (row) {
+            if (row.result === 'Win') wins += 1;
+            if (row.result === 'Loss') losses += 1;
+        });
+        var total = wins + losses;
+        return {
+            wins: wins,
+            losses: losses,
+            total: total,
+            winRate: total ? (wins / total) * 100 : null
+        };
+    }
+
+    function strongestContextDelta(rows, groupKey, baselineWinRate) {
+        var grouped = {};
+        (rows || []).forEach(function (row) {
+            var key = String(row[groupKey] || 'Unknown');
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(row);
+        });
+        var best = { key: '', delta: 0, sample: 0, winRate: null };
+        Object.keys(grouped).forEach(function (key) {
+            var stats = computeWinRate(grouped[key]);
+            if (stats.total < 3 || stats.winRate == null || baselineWinRate == null) return;
+            var delta = stats.winRate - baselineWinRate;
+            if (Math.abs(delta) > Math.abs(best.delta)) {
+                best = { key: key, delta: delta, sample: stats.total, winRate: stats.winRate };
+            }
+        });
+        return best;
+    }
+
+    function influenceSignal(delta, withSample, withoutSample) {
+        var absDelta = Math.abs(delta || 0);
+        if (withSample < 5 || withoutSample < 5) return 'insufficient';
+        if (absDelta >= 12) return 'strong';
+        if (absDelta >= 7) return 'moderate';
+        if (absDelta >= 4) return 'weak';
+        return 'none';
+    }
+
+    function influenceClass(signal, delta) {
+        if (signal === 'strong' || signal === 'moderate') {
+            return delta >= 0 ? 'metric-good' : 'metric-bad';
+        }
+        if (signal === 'weak') return 'metric-warn';
+        return 'metric-neutral';
+    }
+
+    function buildWinrateInfluenceRows(payloadRows) {
+        var decidedRows = (payloadRows || []).filter(function (row) {
+            return row.result === 'Win' || row.result === 'Loss';
+        });
+        var dimensions = [
+            { key: 'was_played', label: 'Playing Hero' },
+            { key: 'was_banned', label: 'Banning Hero' },
+            { key: 'was_protected', label: 'Protecting Hero' }
+        ];
+        return dimensions.map(function (dimension) {
+            var withRows = decidedRows.filter(function (row) { return !!row[dimension.key]; });
+            var withoutRows = decidedRows.filter(function (row) { return !row[dimension.key]; });
+            var withStats = computeWinRate(withRows);
+            var withoutStats = computeWinRate(withoutRows);
+            var delta = (withStats.winRate != null && withoutStats.winRate != null)
+                ? (withStats.winRate - withoutStats.winRate)
+                : null;
+            var signal = influenceSignal(delta, withStats.total, withoutStats.total);
+            var modeContext = strongestContextDelta(withRows, 'mode', withStats.winRate);
+            var mapContext = strongestContextDelta(withRows, 'map_name', withStats.winRate);
+            return {
+                label: dimension.label,
+                withSample: withStats.total,
+                withoutSample: withoutStats.total,
+                withWinRate: withStats.winRate,
+                withoutWinRate: withoutStats.winRate,
+                delta: delta,
+                signal: signal,
+                modeContext: modeContext,
+                mapContext: mapContext
+            };
+        });
+    }
+
+    function formatInfluenceSummary(row) {
+        if (row.signal === 'insufficient') return 'Not enough sample';
+        if (row.delta == null) return 'No clear comparison baseline';
+        if (row.signal === 'none') return 'No clear winrate link';
+        var direction = row.delta >= 0 ? 'Higher WR when active' : 'Lower WR when active';
+        return direction + ' (' + (row.delta >= 0 ? '+' : '') + formatStat(row.delta, 1) + '%)';
     }
 
     function render(hero) {
@@ -698,22 +821,24 @@
             btn.classList.toggle('is-active', btn.dataset.hero === payload.hero);
         });
 
-        var firstMap = (payload.rows || [])[0];
         var heroImg = heroImage(payload.hero);
-        var heroLink = firstMap ? mapUrl(firstMap) : '#';
         var strongestMap = getStrongestEffect(payload.anova || {}, 'map_effect');
         var strongestMode = getStrongestEffect(payload.anova || {}, 'mode_effect');
         summary.innerHTML =
-            '<a class="prep-hero-map-focus" href="' + escapeHtml(heroLink) + '">'
+            '<div class="prep-hero-map-focus">'
             + '<img src="' + escapeHtml(heroImg) + '" alt="' + escapeHtml(payload.hero) + '">'
             + '<span><strong>' + escapeHtml(payload.hero) + '</strong>'
             + '<small>' + escapeHtml(payload.maps) + ' maps | ' + escapeHtml(payload.wins) + '-' + escapeHtml(payload.losses) + ' | ' + escapeHtml(payload.win_rate) + '% WR</small>'
             + '<small>Played ' + escapeHtml(payload.played_maps || 0) + ' | Banned ' + escapeHtml(payload.banned_maps || 0) + ' | Protected ' + escapeHtml(payload.protected_maps || 0) + '</small></span>'
-            + '</a>';
+            + '</div>';
 
         if (anovaSummary) {
             var metricKeys = ['play_rate', 'ban_rate', 'protect_rate'];
             var anova = payload.anova || {};
+            var influenceRows = buildWinrateInfluenceRows(payload.rows || []);
+            var overallLinked = influenceRows.some(function (row) {
+                return row.signal === 'strong' || row.signal === 'moderate' || row.signal === 'weak';
+            });
             var rowsHtml = metricKeys.map(function (key) {
                 var stats = anova[key] || {};
                 if (stats.status !== 'ready') {
@@ -722,24 +847,48 @@
                         + '<td colspan="4">Insufficient sample</td>'
                         + '</tr>';
                 }
-                var mapF = Number((stats.map_effect || {}).f_stat || 0).toFixed(2);
-                var modeF = Number((stats.mode_effect || {}).f_stat || 0).toFixed(2);
-                var mapEta = Number((stats.map_effect || {}).partial_eta_sq || 0).toFixed(3);
-                var modeEta = Number((stats.mode_effect || {}).partial_eta_sq || 0).toFixed(3);
+                var mapF = formatStat((stats.map_effect || {}).f_stat, 2);
+                var modeF = formatStat((stats.mode_effect || {}).f_stat, 2);
+                var mapEta = formatStat((stats.map_effect || {}).partial_eta_sq, 3);
+                var modeEta = formatStat((stats.mode_effect || {}).partial_eta_sq, 3);
                 var sig = stats.significance || 'not significant';
                 return '<tr>'
                     + '<td>' + escapeHtml(metricLabel(key)) + '</td>'
-                    + '<td>F ' + mapF + ' | eta2 ' + mapEta + '</td>'
-                    + '<td>F ' + modeF + ' | eta2 ' + modeEta + '</td>'
+                    + '<td>F = ' + mapF + ' | eta^2 = ' + mapEta + '</td>'
+                    + '<td>F = ' + modeF + ' | eta^2 = ' + modeEta + '</td>'
                     + '<td>' + escapeHtml(String(stats.sample || 0)) + '</td>'
                     + '<td><span class="metric-text ' + scoreClass(sig) + '">' + escapeHtml(sig) + '</span></td>'
                     + '</tr>';
             }).join('');
 
+            var influenceHtml = influenceRows.map(function (row) {
+                var modeText = row.modeContext && row.modeContext.key
+                    ? row.modeContext.key + ' (' + (row.modeContext.delta >= 0 ? '+' : '') + formatStat(row.modeContext.delta, 1) + '%, n=' + row.modeContext.sample + ')'
+                    : 'No strong mode split';
+                var mapText = row.mapContext && row.mapContext.key
+                    ? row.mapContext.key + ' (' + (row.mapContext.delta >= 0 ? '+' : '') + formatStat(row.mapContext.delta, 1) + '%, n=' + row.mapContext.sample + ')'
+                    : 'No strong map split';
+                return '<tr>'
+                    + '<td>' + escapeHtml(row.label) + '</td>'
+                    + '<td><span class="metric-text ' + influenceClass(row.signal, row.delta || 0) + '">' + escapeHtml(formatInfluenceSummary(row)) + '</span></td>'
+                    + '<td>' + (row.withWinRate == null ? '--' : escapeHtml(formatStat(row.withWinRate, 1)) + '%') + ' (n=' + escapeHtml(row.withSample) + ')</td>'
+                    + '<td>' + (row.withoutWinRate == null ? '--' : escapeHtml(formatStat(row.withoutWinRate, 1)) + '%') + ' (n=' + escapeHtml(row.withoutSample) + ')</td>'
+                    + '<td>' + escapeHtml(modeText) + '</td>'
+                    + '<td>' + escapeHtml(mapText) + '</td>'
+                    + '</tr>';
+            }).join('');
+
             anovaSummary.innerHTML = ''
                 + '<div class="summary-grid top-gap">'
-                + '<section class="stat-card"><strong>Map Effect</strong><span class="metric-text ' + scoreClass(strongestMap.significance) + '">' + escapeHtml(strongestMap.significance) + '</span><small>' + escapeHtml(strongestMap.metric || 'N/A') + ' | F ' + Number(strongestMap.fStat || 0).toFixed(2) + '</small></section>'
-                + '<section class="stat-card"><strong>Mode Effect</strong><span class="metric-text ' + scoreClass(strongestMode.significance) + '">' + escapeHtml(strongestMode.significance) + '</span><small>' + escapeHtml(strongestMode.metric || 'N/A') + ' | F ' + Number(strongestMode.fStat || 0).toFixed(2) + '</small></section>'
+                + '<section class="stat-card"><strong>Map Effect</strong><span class="metric-text ' + scoreClass(strongestMap.significance) + '">' + escapeHtml(strongestMap.significance) + '</span><small>' + escapeHtml(strongestMap.metric || 'N/A') + ' | F = ' + formatStat(strongestMap.fStat || 0, 2) + '</small></section>'
+                + '<section class="stat-card"><strong>Mode Effect</strong><span class="metric-text ' + scoreClass(strongestMode.significance) + '">' + escapeHtml(strongestMode.significance) + '</span><small>' + escapeHtml(strongestMode.metric || 'N/A') + ' | F = ' + formatStat(strongestMode.fStat || 0, 2) + '</small></section>'
+                + '</div>'
+                + '<div class="table-wrap top-gap">'
+                + '<p class="panel-intro">Overall indicator: <span class="metric-text ' + (overallLinked ? 'metric-warn' : 'metric-neutral') + '">' + (overallLinked ? 'Winrate appears tied to when this hero is played, banned, or protected in specific maps/modes.' : 'Current sample does not show a clear map/mode winrate link for play, ban, or protect states.') + '</span></p>'
+                + '<table class="stats-table">'
+                + '<thead><tr><th>Draft Action</th><th>Winrate Influence</th><th>WR When Active</th><th>WR When Not Active</th><th>Strongest Mode Split</th><th>Strongest Map Split</th></tr></thead>'
+                + '<tbody>' + influenceHtml + '</tbody>'
+                + '</table>'
                 + '</div>'
                 + '<table class="stats-table">'
                 + '<thead><tr><th>ANOVA Metric</th><th>Map Effect</th><th>Mode Effect</th><th>Sample</th><th>Signal</th></tr></thead>'
@@ -747,19 +896,32 @@
                 + '</table>';
         }
 
-        results.innerHTML = (payload.rows || []).map(function (row) {
-            var href = mapUrl(row);
-            var image = row.image || '';
-            return '<a class="prep-hero-map-card" href="' + escapeHtml(href) + '">'
-                + '<span class="prep-hero-map-image" style="' + (image ? 'background-image:url(' + escapeHtml(image) + ')' : '') + '"></span>'
-                + '<span class="prep-hero-map-body">'
-                + '<strong>' + escapeHtml(row.map_name || 'Unknown Map') + '</strong>'
-                + '<small>' + escapeHtml(row.mode || 'Other') + ' | ' + escapeHtml(row.opponent_name || 'Unknown') + '</small>'
-                + '<small>' + involvementTags(row) + '</small>'
-                + '<small>' + escapeHtml(row.scrim_date || 'No date') + (row.result ? ' | <span class="' + resultClass(row.result) + '">' + escapeHtml(row.result) + '</span>' : '') + '</small>'
-                + '</span>'
-                + '</a>';
-        }).join('');
+        var mapRows = buildMapRows(payload.rows || []);
+        var mapSignificance = mapSignalTag(strongestMap.significance);
+        var modeSignificance = mapSignalTag(strongestMode.significance);
+        results.innerHTML = ''
+            + '<div class="table-wrap">'
+            + '<p class="panel-intro">Static map list for this hero. Map significance: ' + mapSignificance + ' | Mode significance: ' + modeSignificance + '</p>'
+            + '<table class="stats-table">'
+            + '<thead><tr><th>Map</th><th>Mode</th><th>Appearances</th><th>Played</th><th>Banned</th><th>Protected</th><th>Record</th><th>WR</th></tr></thead>'
+            + '<tbody>'
+            + mapRows.map(function (row) {
+                var totalGames = row.wins + row.losses;
+                var winRate = totalGames ? Math.round((row.wins / totalGames) * 1000) / 10 : 0;
+                return '<tr>'
+                    + '<td>' + escapeHtml(row.map_name) + '</td>'
+                    + '<td>' + escapeHtml(row.mode) + '</td>'
+                    + '<td>' + escapeHtml(row.appearances) + '</td>'
+                    + '<td>' + escapeHtml(row.played) + '</td>'
+                    + '<td>' + escapeHtml(row.banned) + '</td>'
+                    + '<td>' + escapeHtml(row.protected) + '</td>'
+                    + '<td>' + escapeHtml(row.wins) + '-' + escapeHtml(row.losses) + '</td>'
+                    + '<td>' + escapeHtml(formatStat(winRate, 1)) + '%</td>'
+                    + '</tr>';
+            }).join('')
+            + '</tbody>'
+            + '</table>'
+            + '</div>';
     }
 
     if (select) {
