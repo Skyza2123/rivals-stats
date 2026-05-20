@@ -3,9 +3,10 @@
 {% block title %}{{ match.team1_name }} vs {{ match.team2_name }}{% endblock %}
 
 {% block content %}
+<section class="parser-dash-root parser-page-root">
 <div class="main-header">
     <div>
-        <h2>{{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}</h2>
+        <h1>{{ match.team1_name or 'Team 1' }} vs {{ match.team2_name or 'Team 2' }}</h1>
         <p>
             {{ tournament.tournament_name or 'Tournament' }}
             {% if match.scrim_date or tournament.scrim_date %} &bull; {{ match.scrim_date or tournament.scrim_date }}{% endif %}
@@ -98,6 +99,8 @@
     {% else %}
         <p class="empty-text">No maps added yet.</p>
     {% endif %}
+</section>
+
 </section>
 
 {% if session.get('access_level') == 'edit' %}

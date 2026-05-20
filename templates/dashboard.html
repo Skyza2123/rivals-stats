@@ -3,247 +3,203 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-{% set metric_cards = [
-    ('Total Scrims', total_scrims, 'Matches logged'),
-    ('Tournaments', total_tournaments, 'Brackets tracked'),
-    ('Total Maps', total_maps, 'Map entries'),
-    ('Events', total_events, 'Timeline events'),
-    ('Teams', total_teams, 'Team records'),
-    ('Players', total_players, 'Player records')
-] %}
+<section class="parser-dash-root">
+    <header class="parser-dash-header">
+        <h1>Dashboard</h1>
+    </header>
 
-{% macro hero_rank_panel(title, entries) -%}
-<section class="panel dashboard-rank-panel">
-    <div class="section-kicker">Hero Board</div>
-    <div class="panel-header-row">
-        <h3>{{ title }}</h3>
-        <span class="muted-label">Personal teams</span>
-    </div>
-    {% if entries %}
-        <div class="hero-rank-list">
-            {% for entry in entries %}
-            <div class="hero-rank-row">
-                <span class="hero-rank-num">{{ loop.index }}</span>
-                <img class="hero-rank-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy">
-                <span class="hero-rank-name">{{ entry.hero }}</span>
-                <span class="hero-rank-count">{{ entry.count }}</span>
-            </div>
-            {% endfor %}
+    <div class="parser-dash-controls" role="region" aria-label="Dashboard controls">
+        <div class="parser-dash-controls-left">
+            <label class="parser-dash-control parser-dash-select-wrap">
+                <select id="dashFilter" aria-label="Filter scrims">
+                    <option value="all">Filter: All</option>
+                    <option value="with-team">With Team</option>
+                    <option value="without-team">Without Team</option>
+                </select>
+            </label>
+            <label class="parser-dash-control parser-dash-search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input id="dashSearch" type="search" placeholder="Search..." aria-label="Search scrims">
+            </label>
         </div>
+        <div class="parser-dash-controls-right">
+            <a class="button-secondary parser-dash-upload" href="{{ url_for('scrims') }}">Bulk Upload</a>
+            {% if session.get('access_level') == 'edit' %}
+            <button class="button-link parser-dash-create" id="openDashCreateScrim" type="button">Create Scrim</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <p class="parser-dash-count"><span id="dashVisibleCount">{{ recent_scrims|length }}</span> scrims</p>
+
+    {% if recent_scrims %}
+    <div class="parser-scrim-grid" id="dashScrimGrid">
+        {% for scrim in recent_scrims %}
+        {% set opponent = (scrim.enemy_team or scrim.opponent or 'Unknown') %}
+        {% set team_name = (scrim.team_name or '').strip() %}
+        <a class="parser-scrim-card"
+           href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}"
+           data-opponent="{{ opponent|lower }}"
+           data-team="{{ team_name|lower }}"
+           data-has-team="{{ '1' if team_name else '0' }}">
+            <div class="parser-scrim-title-row">
+                <h3>{{ opponent }}</h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
+            </div>
+            <div class="parser-scrim-meta">
+                <div>{{ scrim.scrim_date or 'No date' }}</div>
+                <div>{{ 'Season ' ~ scrim.season if scrim.season else 'No season' }}</div>
+                <div>{{ (scrim.maps|length) if scrim.maps is defined else 0 }} maps</div>
+            </div>
+            <div class="parser-scrim-team-row">
+                <span class="parser-team-dot" aria-hidden="true"></span>
+                <span>{{ team_name or 'No team assigned' }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <p class="empty-text parser-empty" id="dashEmptyState" hidden>No scrims match this filter.</p>
     {% else %}
-        <p class="empty-text">No data yet.</p>
+    <p class="empty-text parser-empty">No scrims yet. Create your first scrim.</p>
     {% endif %}
 </section>
-{%- endmacro %}
 
-<div class="main-header dashboard-hero-header">
-    <div>
-        <div class="section-kicker">Control Center</div>
-        <h2>Dashboard</h2>
-        <p>Fast read on team activity, draft pressure points, and current prep momentum.</p>
+{% if session.get('access_level') == 'edit' %}
+<div id="dashCreateScrimModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h3>Create Scrim</h3>
+                <p>Create the scrim first, then add maps inside it.</p>
+            </div>
+            <button id="closeDashCreateScrim" class="modal-close" type="button" aria-label="Close">&times;</button>
+        </div>
+
+        <form id="dashCreateScrimForm" action="{{ url_for('create_scrim') }}" method="post">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="dash_create_scrim_team1_id">Team</label>
+                    <select id="dash_create_scrim_team1_id" name="team1_id" required>
+                        <option value="">Select team</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="dash_create_scrim_team2_id">Team</label>
+                    <select id="dash_create_scrim_team2_id" name="team2_id" required>
+                        <option value="">Select team</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="dash_create_scrim_date">Date</label>
+                    <input type="date" id="dash_create_scrim_date" name="scrim_date" value="{{ today }}" required>
+                </div>
+
+                <div class="field">
+                    <label for="dash_create_scrim_season">Season</label>
+                    <input type="text" id="dash_create_scrim_season" name="season" placeholder="e.g. 7 or 7.5" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="dash_create_scrim_notes">General Scrim Notes</label>
+                <textarea id="dash_create_scrim_notes" name="notes" rows="6" placeholder="Overall scrim notes, macro notes, opponent tendencies..."></textarea>
+            </div>
+
+            <div class="button-row">
+                <button type="submit">Create Scrim</button>
+            </div>
+        </form>
     </div>
 </div>
+{% endif %}
 
-<div class="dashboard-layout-flow">
-    <section class="panel dashboard-jump-panel">
-        <div class="section-kicker">Navigation</div>
-        <div class="dashboard-jump-links">
-            <a class="quick-link-chip" href="#dash-overview">Overview</a>
-            <a class="quick-link-chip" href="#dash-draft-intel">Best Comps & Bans</a>
-            <a class="quick-link-chip" href="#dash-teams">Teams</a>
-            <a class="quick-link-chip" href="#dash-activity">Recent Activity</a>
-            <a class="quick-link-chip" href="{{ url_for('team_scouting') }}">Team Scouting</a>
-            <a class="quick-link-chip" href="{{ url_for('machine', tab='reasoner') }}">Draft Reasoner</a>
-        </div>
-    </section>
+<script>
+(function () {
+    var filterEl = document.getElementById('dashFilter');
+    var searchEl = document.getElementById('dashSearch');
+    var gridEl = document.getElementById('dashScrimGrid');
+    var countEl = document.getElementById('dashVisibleCount');
+    var emptyEl = document.getElementById('dashEmptyState');
+    if (!filterEl || !searchEl || !gridEl || !countEl) return;
 
-    <section class="panel panel-toolbar dashboard-command-strip">
-        <div class="section-kicker">Command Deck</div>
-        <div class="page-toolbar">
-            <div class="page-toolbar-group">
-                {% if session.get('access_level') == 'edit' %}
-                <a class="button-link" href="{{ url_for('scrims') }}#create-scrim">Create Scrim</a>
-                <a class="button-secondary btn-muted" href="{{ url_for('tournaments') }}#create-tournament">Create Tournament</a>
-                {% endif %}
-            </div>
-            <div class="page-toolbar-group">
-                <a class="button-secondary btn-muted" href="{{ url_for('teams') }}">Teams</a>
-                <a class="button-secondary btn-muted" href="{{ url_for('scrims') }}">Scrim Log</a>
-            </div>
-        </div>
-    </section>
+    var cards = Array.prototype.slice.call(gridEl.querySelectorAll('.parser-scrim-card'));
 
-    <div class="dashboard-primary-grid">
-    <section class="panel dashboard-metrics-panel" id="dash-overview">
-        <div class="section-kicker">Overview</div>
-        <div class="panel-header-row">
-            <h3>Live Metrics</h3>
-            <span class="muted-label">Current totals</span>
-        </div>
-        <div class="summary-grid dashboard-metric-grid">
-            {% for label, value, helper in metric_cards %}
-            <section class="stat-card">
-                <strong class="dashboard-metric-label">{{ label }}</strong>
-                <span class="dashboard-metric-value">{{ value }}</span>
-                <small class="stat-footnote dashboard-metric-footnote">{{ helper }}</small>
-            </section>
-            {% endfor %}
-        </div>
-    </section>
+    function applyFilters() {
+        var term = (searchEl.value || '').trim().toLowerCase();
+        var mode = filterEl.value;
+        var visible = 0;
 
-    <section class="panel dashboard-teams-panel" id="dash-teams">
-        <div class="section-kicker">Teams</div>
-        <div class="panel-header-row">
-            <h3>Top 8 By Preference</h3>
-            <a href="{{ url_for('teams') }}" class="muted-label">Manage teams</a>
-        </div>
-        {% if all_teams_for_quick_access %}
-            <div class="dash-teams-grid">
-                {% for team in all_teams_for_quick_access %}
-                    <a class="dash-team-card{% if team.is_personal %} dash-team-card-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
-                        <div class="dash-team-logo-wrap">
-                            {% if team.logo_path %}
-                                <img src="{{ team_logo_url(team.logo_path) }}" alt="{{ team.name }}" class="dash-team-logo">
-                            {% else %}
-                                <div class="dash-team-logo-fallback">{{ team.name[0] if team.name else '?' }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="dash-team-info">
-                            <span class="dash-team-name">{{ team.name }}</span>
-                            {% if team.is_personal %}
-                                <span class="dash-team-badge">Personal</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty-text">No teams yet.</p>
-        {% endif %}
-    </section>
-    </div>
+        cards.forEach(function (card) {
+            var opponent = card.getAttribute('data-opponent') || '';
+            var team = card.getAttribute('data-team') || '';
+            var hasTeam = card.getAttribute('data-has-team') === '1';
 
-    <section class="panel dashboard-draft-snapshot" id="dash-draft-intel">
-        <div class="section-kicker">Draft Snapshot</div>
-        <div class="panel-header-row">
-            <h3>Best Comps & Bans</h3>
-            <span class="muted-label">Personal team data</span>
-        </div>
-        <div class="dashboard-snapshot-grid">
-            <article class="dashboard-snapshot-card">
-                <h4>Top Bans</h4>
-                {% if top_bans %}
-                    <div class="hero-rank-list compact">
-                        {% for entry in top_bans %}
-                        <div class="hero-rank-row">
-                            <span class="hero-rank-num">{{ loop.index }}</span>
-                            <img class="hero-rank-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy">
-                            <span class="hero-rank-name">{{ entry.hero }}</span>
-                            <span class="hero-rank-count">{{ entry.count }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-text">No bans yet.</p>
-                {% endif %}
-            </article>
+            var modeOk = mode === 'all'
+                || (mode === 'with-team' && hasTeam)
+                || (mode === 'without-team' && !hasTeam);
+            var searchOk = !term || opponent.indexOf(term) !== -1 || team.indexOf(term) !== -1;
+            var show = modeOk && searchOk;
 
-            <article class="dashboard-snapshot-card">
-                <h4>Top Protects</h4>
-                {% if top_protects %}
-                    <div class="hero-rank-list compact">
-                        {% for entry in top_protects %}
-                        <div class="hero-rank-row">
-                            <span class="hero-rank-num">{{ loop.index }}</span>
-                            <img class="hero-rank-img" src="{{ hero_image_url(entry.hero) }}" alt="{{ entry.hero }}" loading="lazy">
-                            <span class="hero-rank-name">{{ entry.hero }}</span>
-                            <span class="hero-rank-count">{{ entry.count }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-text">No protects yet.</p>
-                {% endif %}
-            </article>
+            card.hidden = !show;
+            if (show) visible += 1;
+        });
 
-            <article class="dashboard-snapshot-card dashboard-comp-shells">
-                <h4>Best Comp Shells</h4>
-                {% if top_comp_shells %}
-                    <div class="dashboard-comp-shell-list">
-                        {% for shell in top_comp_shells %}
-                            <div class="dashboard-comp-shell-item">
-                                <div class="dashboard-comp-shell-heroes">
-                                    {% for hero in shell.heroes[:6] %}
-                                        <img class="hero-rank-img" src="{{ hero_image_url(hero) }}" alt="{{ hero }}" loading="lazy" title="{{ hero }}">
-                                    {% endfor %}
-                                </div>
-                                <div class="dashboard-comp-shell-meta">{{ shell.count }} maps</div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-text">No comp shells yet.</p>
-                {% endif %}
-            </article>
-        </div>
-    </section>
+        countEl.textContent = String(visible);
+        if (emptyEl) emptyEl.hidden = visible !== 0;
+    }
 
-    <div class="dashboard-duo-grid dashboard-activity-grid" id="dash-activity">
-        <section class="panel dashboard-log-panel">
-            <div class="section-kicker">Scrims</div>
-            <div class="panel-header-row">
-                <h3>Recent Scrims</h3>
-                <a href="{{ url_for('scrims') }}">View all</a>
-            </div>
+    filterEl.addEventListener('change', applyFilters);
+    searchEl.addEventListener('input', applyFilters);
+})();
 
-            {% if recent_scrims %}
-                <div class="list-stack">
-                    {% for scrim in recent_scrims %}
-                        <a class="list-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
-                            <div>
-                                <div class="list-title">vs {{ scrim.enemy_team or scrim.opponent }}</div>
-                                <div class="list-subtitle">
-                                    {{ scrim.scrim_date }}{% if scrim.season %} - Season {{ scrim.season }}{% endif %}{% if scrim.team_name %} - {{ scrim.team_name }}{% endif %}
-                                </div>
-                            </div>
-                            <div class="list-meta">
-                                <span class="pill pill-neutral">{{ scrim.maps|length }} maps</span>
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="empty-text">No scrims yet. Create your first scrim.</p>
-            {% endif %}
-        </section>
+(function () {
+    var modal = document.getElementById('dashCreateScrimModal');
+    var openBtn = document.getElementById('openDashCreateScrim');
+    var closeBtn = document.getElementById('closeDashCreateScrim');
+    var team1 = document.getElementById('dash_create_scrim_team1_id');
+    var team2 = document.getElementById('dash_create_scrim_team2_id');
+    if (!modal || !openBtn || !closeBtn || !team1 || !team2) return;
 
-        <section class="panel dashboard-log-panel">
-            <div class="section-kicker">Tournaments</div>
-            <div class="panel-header-row">
-                <h3>Recent Tournaments</h3>
-                <a href="{{ url_for('tournaments') }}">View all</a>
-            </div>
+    function syncTeamOptions() {
+        var team1Value = team1.value;
+        var team2Value = team2.value;
+        Array.prototype.forEach.call(team1.options, function (option) {
+            option.hidden = option.value !== '' && option.value === team2Value;
+        });
+        Array.prototype.forEach.call(team2.options, function (option) {
+            option.hidden = option.value !== '' && option.value === team1Value;
+        });
+    }
 
-            {% if recent_tournaments %}
-                <div class="list-stack">
-                    {% for match in recent_tournaments %}
-                        <a class="list-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
-                            <div>
-                                <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
-                                <div class="list-subtitle">
-                                    {{ match.scrim_date }}{% if match.season %} - Season {{ match.season }}{% endif %}{% if match.team_name %} - {{ match.team_name }} scouting{% endif %}
-                                </div>
-                            </div>
-                            <div class="list-meta">
-                                <span class="pill pill-neutral">{{ match.maps|length }} maps</span>
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="empty-text">No tournaments yet.</p>
-            {% endif %}
-        </section>
-    </div>
-</div>
+    function openModal() {
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        syncTeamOptions();
+    }
+
+    function closeModal() {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    });
+    team1.addEventListener('change', syncTeamOptions);
+    team2.addEventListener('change', syncTeamOptions);
+})();
+</script>
 {% endblock %}

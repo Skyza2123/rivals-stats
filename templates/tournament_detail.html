@@ -3,9 +3,10 @@
 {% block title %}{{ tournament.tournament_name or 'Tournament' }}{% endblock %}
 
 {% block content %}
+<section class="parser-dash-root parser-page-root">
 <div class="main-header">
     <div>
-        <h2>{{ tournament.tournament_name or 'Tournament' }}</h2>
+        <h1>{{ tournament.tournament_name or 'Tournament' }}</h1>
         <p>
             {{ tournament.scrim_date or 'No date set' }}
             {% if tournament.season %} &bull; Season {{ tournament.season }}{% endif %}
@@ -397,22 +398,26 @@
     </div>
 
     {% if match_summaries %}
-        <div class="scrim-box-grid">
+        <div class="parser-scrim-grid">
             {% for match in match_summaries %}
-                <a class="scrim-box-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=match.id) }}">
-                    <div class="scrim-box-head">
-                        <div class="list-title">{{ match.team1_name }} vs {{ match.team2_name }}</div>
-                        <span class="scrim-box-maps">{{ match.maps }} maps</span>
+                <a class="parser-scrim-card" href="{{ url_for('tournament_match_detail', tournament_id=tournament.id, match_id=match.id) }}">
+                    <div class="parser-scrim-title-row">
+                        <h3>{{ match.team1_name }} vs {{ match.team2_name }}</h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
                     </div>
-                    <div class="list-subtitle">
+                    <div class="parser-scrim-meta">
                         {{ match.scrim_date or tournament.scrim_date or 'No date set' }}
+                        • {{ match.maps }} maps
                         {% if match.completed_maps %} • {{ match.completed_maps }} completed{% endif %}
                         {% if match.picked_maps %} • {{ match.picked_maps }} picks logged{% endif %}
                     </div>
                     {% if match.notes %}
                         <div class="summary-box top-gap">{{ match.notes }}</div>
                     {% endif %}
-                    <div class="scrim-box-cta">Open Match →</div>
+                    <div class="parser-scrim-team-row">
+                        <span class="parser-team-dot" aria-hidden="true"></span>
+                        <span>Open Match</span>
+                    </div>
                 </a>
             {% endfor %}
         </div>
@@ -421,6 +426,8 @@
     {% endif %}
 </section>
 </div>
+
+</section>
 
 {% if session.get('access_level') == 'edit' %}
 <form id="deleteTournamentForm" action="{{ url_for('delete_tournament', tournament_id=tournament.id) }}" method="post" style="display:none;"></form>

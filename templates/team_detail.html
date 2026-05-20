@@ -3,78 +3,84 @@
 
 {% block title %}{{ team.name }}{% endblock %}
 
-{% block content %}
 
-<div class="team-hero gap-lg">
-    <div class="team-hero-left">
-        <img class="team-avatar" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
-        <div>
-            <h2>{{ team.name }}</h2>
-            <div class="team-kpi-chips gap-md">
-                {% if team.quality_tag %}
-                    {% set qt = team.quality_tag %}
-                    {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
-                    <span class="team-kpi-chip quality-tag-badge {{ qt_class }}">{{ qt }}</span>
-                {% endif %}
-                <span class="team-kpi-chip">{{ team_scrim_count }} scrims</span>
-                <span class="team-kpi-chip">{{ team_analytics.summary.total_maps }} maps</span>
-                <span class="team-kpi-chip">{{ team_analytics.summary.overall_win_rate }}% win rate</span>
-            </div>
-            <div class="muted-label team-record-line">
-                {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
-            </div>
-            <div class="muted-label team-notes-line">
-                {{ team.notes or 'No team notes yet.' }}
-                &bull;
-                {% if selected_season == 'all' %}
-                    {{ team_scrim_count }} scrims
-                {% elif selected_season == unspecified_season_token %}
-                    {{ team_scrim_count }} scrims with no season set ({{ team_scrim_total_count }} total)
-                {% else %}
-                    {{ team_scrim_count }} scrims in Season {{ selected_season }} ({{ team_scrim_total_count }} total)
-                {% endif %}
+{% block content %}
+<section class="parser-dash-root parser-page-root">
+    <header class="parser-dash-header team-dash-header">
+        <div class="team-header-flex">
+            <img class="team-avatar" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
+            <div>
+                <h1>{{ team.name }}</h1>
+                <div class="team-kpi-chips gap-md">
+                    {% if team.quality_tag %}
+                        {% set qt = team.quality_tag %}
+                        {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
+                        <span class="team-kpi-chip quality-tag-badge {{ qt_class }}">{{ qt }}</span>
+                    {% endif %}
+                    <span class="team-kpi-chip">{{ team_scrim_count }} scrims</span>
+                    <span class="team-kpi-chip">{{ team_analytics.summary.total_maps }} maps</span>
+                    <span class="team-kpi-chip">{{ team_analytics.summary.overall_win_rate }}% win rate</span>
+                </div>
+                <div class="muted-label team-record-line">
+                    {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
+                </div>
+                <div class="muted-label team-notes-line">
+                    {{ team.notes or 'No team notes yet.' }}
+                    &bull;
+                    {% if selected_season == 'all' %}
+                        {{ team_scrim_count }} scrims
+                    {% elif selected_season == unspecified_season_token %}
+                        {{ team_scrim_count }} scrims with no season set ({{ team_scrim_total_count }} total)
+                    {% else %}
+                        {{ team_scrim_count }} scrims in Season {{ selected_season }} ({{ team_scrim_total_count }} total)
+                    {% endif %}
+                </div>
             </div>
         </div>
-    </div>
-    <div class="header-actions team-hero-actions gap-md">
-        <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" class="form-contents">
-            <select name="season" aria-label="Season filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
-                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
-                {% if has_unseasoned_scrims %}
-                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
-                {% endif %}
-                {% for season in season_options %}
-                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
-                {% endfor %}
-            </select>
-            <select name="map_type" aria-label="Map type filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
-                <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
-                {% for map_type in map_type_options %}
-                    <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        <a href="{{ url_for('teams') }}" class="button-secondary">Back to Teams</a>
-    </div>
-</div>
+        <div class="parser-dash-controls team-dash-controls" role="region" aria-label="Team controls">
+            <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" class="page-toolbar-group form-contents">
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="season" aria-label="Season filter" onchange="this.form.submit()">
+                        <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                        {% if has_unseasoned_scrims %}
+                            <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                        {% endif %}
+                        {% for season in season_options %}
+                            <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="map_type" aria-label="Map type filter" onchange="this.form.submit()">
+                        <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
+                        {% for map_type in map_type_options %}
+                            <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </form>
+            <a href="{{ url_for('teams') }}" class="button-secondary btn-muted">Back to Teams</a>
+        </div>
+    </header>
+    <div class="section-divider"></div>
 
-<div class="section-divider"></div>
 
-<div class="team-page-tabs">
-    <div class="tab-bar tab-bar-group">
-        <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
-        <button class="tab-btn" data-tab="prep" type="button">Prep</button>
-        <button class="tab-btn" data-tab="scrims" type="button">Scrims</button>
-        <button class="tab-btn" data-tab="maps" type="button">Maps</button>
-        <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
-        <button class="tab-btn" data-tab="bans" type="button">Bans</button>
-        <button class="tab-btn" data-tab="comps" type="button">Comps</button>
-        <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
-        <button class="tab-btn" data-tab="tournaments" type="button">Tournaments</button>
-        <button class="tab-btn" data-tab="summary" type="button">Summary</button>
-        <button class="tab-btn" data-tab="roster" type="button">Roster</button>
-    </div>
-</div>
+    <nav class="parser-dash-tabs team-dash-tabs">
+        <div class="tab-bar tab-bar-group">
+            <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
+            <button class="tab-btn" data-tab="prep" type="button">Prep</button>
+            <button class="tab-btn" data-tab="scrims" type="button">Scrims</button>
+            <button class="tab-btn" data-tab="maps" type="button">Maps</button>
+            <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
+            <button class="tab-btn" data-tab="bans" type="button">Bans</button>
+            <button class="tab-btn" data-tab="comps" type="button">Comps</button>
+            <button class="tab-btn" data-tab="simulator" type="button">Simulator</button>
+            <button class="tab-btn" data-tab="tournaments" type="button">Tournaments</button>
+            <button class="tab-btn" data-tab="summary" type="button">Summary</button>
+            <button class="tab-btn" data-tab="roster" type="button">Roster</button>
+        </div>
+    </nav>
+
 
 <div class="tab-content" id="tab-overview">
     {% set overview_top_hero = hero_graph_rows[0] if hero_graph_rows else None %}
@@ -92,176 +98,185 @@
         {% endif %}
     {% endfor %}
 
-    <div class="overview-surface">
-
-        <section class="panel overview-quick-panel">
-            <h3>Quick Stats</h3>
-            <div class="overview-quick-grid top-gap">
-                <article class="overview-quick-item">
-                    <span>Last {{ recent_map_visual_rows|length }} Maps</span>
-                    {% set recent_total = activity.wins + activity.losses %}
-                    <strong>{{ ((activity.wins / recent_total) * 100)|round(0, 'floor')|int if recent_total else 0 }}%</strong>
-                    <small>{{ activity.wins }}W - {{ activity.losses }}L</small>
-                </article>
-                <article class="overview-quick-item">
-                    <span>Best Map</span>
-                    <strong>{{ overview_best_map.map_name if overview_best_map else 'N/A' }}</strong>
-                    <small>{% if overview_best_map %}{{ overview_best_map.win_rate }}% WR{% else %}No data{% endif %}</small>
-                </article>
-                <article class="overview-quick-item">
-                    <span>Top Hero</span>
-                    <strong>{{ hero_display_name(overview_top_hero.hero) if overview_top_hero else 'N/A' }}</strong>
-                    <small>{% if overview_top_hero %}{{ overview_top_hero.usage_rate }}% usage{% else %}No data{% endif %}</small>
-                </article>
-                <article class="overview-quick-item">
-                    <span>Draft Identity</span>
-                    <strong>{{ hero_display_name(overview_top_ban.hero) if overview_top_ban else 'N/A' }}</strong>
-                    <small>{% if overview_top_ban %}Ban {{ overview_top_ban.ban_rate }}%{% else %}No data{% endif %}</small>
-                </article>
+    <div class="parser-overview-grid">
+        <!-- Quick Stats Cards -->
+        <div class="parser-overview-stats summary-grid">
+            <div class="stat-card">
+                <strong>Last {{ recent_map_visual_rows|length }} Maps</strong>
+                {% set recent_total = activity.wins + activity.losses %}
+                <span>{{ ((activity.wins / recent_total) * 100)|round(0, 'floor')|int if recent_total else 0 }}%</span>
+                <small>{{ activity.wins }}W - {{ activity.losses }}L</small>
             </div>
-        </section>
+            <div class="stat-card">
+                <strong>Best Map</strong>
+                <span>{{ overview_best_map.map_name if overview_best_map else 'N/A' }}</span>
+                <small>{% if overview_best_map %}{{ overview_best_map.win_rate }}% WR{% else %}No data{% endif %}</small>
+            </div>
+            <div class="stat-card">
+                <strong>Top Hero</strong>
+                <span>{{ hero_display_name(overview_top_hero.hero) if overview_top_hero else 'N/A' }}</span>
+                <small>{% if overview_top_hero %}{{ overview_top_hero.usage_rate }}% usage{% else %}No data{% endif %}</small>
+            </div>
+            <div class="stat-card">
+                <strong>Draft Identity</strong>
+                <span>{{ hero_display_name(overview_top_ban.hero) if overview_top_ban else 'N/A' }}</span>
+                <small>{% if overview_top_ban %}Ban {{ overview_top_ban.ban_rate }}%{% else %}No data{% endif %}</small>
+            </div>
+        </div>
 
-        <div class="overview-main-grid top-gap">
-            <section class="panel overview-roster-panel">
-                <div class="panel-header-row">
-                    <h3>Team Roster</h3>
-                    <span class="muted-label">{{ players|length }} players</span>
-                </div>
-                {% if players %}
-                    <div class="overview-roster-bubbles top-gap">
-                        {% for player in players %}
-                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="overview-player-bubble-card">
-                                <span class="overview-player-bubble">{{ player.name[:2] | upper }}</span>
-                                <strong>{{ player.name }}</strong>
-                                <small>{{ player.role or 'No role' }}</small>
-                            </a>
-                        {% endfor %}
+        <!-- Main Grid: Roster & Activity -->
+        <div class="parser-overview-main">
+            <div class="parser-overview-main-col">
+                <div class="panel parser-overview-roster">
+                    <div class="panel-header-row">
+                        <h3>Team Roster</h3>
+                        <span class="muted-label">{{ players|length }} players</span>
                     </div>
-                {% else %}
-                    <p class="empty-text">No players on roster yet.</p>
-                {% endif %}
-            </section>
-
-            <section class="panel overview-activity-panel">
-                {% set recent_activity = namespace(scrim_ids=[]) %}
-                {% for row in recent_map_visual_rows %}
-                    {% if row.scrim_id and row.scrim_id not in recent_activity.scrim_ids %}
-                        {% set recent_activity.scrim_ids = recent_activity.scrim_ids + [row.scrim_id] %}
-                    {% endif %}
-                {% endfor %}
-                <h3>Recent Activity</h3>
-                <p class="panel-intro">Most recent {{ recent_map_visual_rows|length }} map{{ 's' if recent_map_visual_rows|length != 1 else '' }} in the current filters.</p>
-                <div class="overview-activity-metrics top-gap">
-                    <article>
-                        <strong>{{ recent_activity.scrim_ids|length }}</strong>
-                        <span>Recent Scrims</span>
-                    </article>
-                    <article>
-                        <strong>{{ activity.active_days|length }}</strong>
-                        <span>Active Days</span>
-                    </article>
-                    <article>
-                        <strong>{{ recent_map_visual_rows|length }}</strong>
-                        <span>Recent Maps</span>
-                    </article>
-                </div>
-                {% if recent_map_visual_rows %}
-                    <div class="overview-activity-frame top-gap">
-                        <div class="overview-activity-months" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
-                            {% for month in activity_heatmap.month_labels %}
-                            <span style="grid-column: {{ month.column }};">{{ month.label }}</span>
+                    {% if players %}
+                        <div class="overview-roster-bubbles top-gap">
+                            {% for player in players %}
+                                <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="overview-player-bubble-card">
+                                    <span class="overview-player-bubble">{{ player.name[:2] | upper }}</span>
+                                    <strong>{{ player.name }}</strong>
+                                    <small>{{ player.role or 'No role' }}</small>
+                                </a>
                             {% endfor %}
                         </div>
-                        <div class="overview-activity-grid-wrap">
-                            <div class="overview-activity-days">
-                                <span>Mon</span>
-                                <span>Wed</span>
-                                <span>Fri</span>
-                            </div>
-                            <div class="overview-activity-dots" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
-                                {% for week in activity_heatmap.weeks %}
-                                    {% for day in week %}
-                                        <span
-                                            class="overview-activity-dot overview-activity-dot-{{ day.outcome }}"
-                                            style="--activity-level: {{ day.intensity }};"
-                                            title="{{ day.label }}: {{ day.count }} map{{ 's' if day.count != 1 else '' }}{% if day.count %} ({{ day.wins }}W {{ day.losses }}L){% endif %}"
-                                        ></span>
-                                    {% endfor %}
+                    {% else %}
+                        <p class="empty-text">No players on roster yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="panel parser-overview-maps">
+                    <h3>Top Maps by Playtime</h3>
+                    {% if overview_maps_by_playtime %}
+                        {% set top_maps_max = overview_maps_by_playtime[0].maps %}
+                        <div class="overview-list top-gap">
+                            {% for row in overview_maps_by_playtime[:5] %}
+                                <article class="overview-list-item overview-map-item">
+                                    <img
+                                        class="overview-map-thumb"
+                                        src="/map-image/{{ row.map_name | urlencode }}"
+                                        alt="{{ row.map_name }}"
+                                        loading="lazy"
+                                        onerror="this.src='https://via.placeholder.com/72x72/0f172a/e6edf3?text=Map';"
+                                    >
+                                    <div class="overview-map-content">
+                                        <div class="overview-list-head">
+                                            <strong>{{ row.map_name }}</strong>
+                                            <span>{{ row.maps }} maps</span>
+                                        </div>
+                                        <div class="quick-bar-track">
+                                            <span class="quick-bar-fill" style="--share: {{ ((row.maps / top_maps_max) * 100) if top_maps_max else 0 }}%"></span>
+                                        </div>
+                                        <small>{{ row.win_rate }}% WR • {{ row.mode }}</small>
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No map data available yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="parser-overview-main-col">
+                <div class="panel parser-overview-activity">
+                    {% set recent_activity = namespace(scrim_ids=[]) %}
+                    {% for row in recent_map_visual_rows %}
+                        {% if row.scrim_id and row.scrim_id not in recent_activity.scrim_ids %}
+                            {% set recent_activity.scrim_ids = recent_activity.scrim_ids + [row.scrim_id] %}
+                        {% endif %}
+                    {% endfor %}
+                    <h3>Recent Activity</h3>
+                    <p class="panel-intro">Most recent {{ recent_map_visual_rows|length }} map{{ 's' if recent_map_visual_rows|length != 1 else '' }} in the current filters.</p>
+                    <div class="overview-activity-metrics top-gap">
+                        <article>
+                            <strong>{{ recent_activity.scrim_ids|length }}</strong>
+                            <span>Recent Scrims</span>
+                        </article>
+                        <article>
+                            <strong>{{ activity.active_days|length }}</strong>
+                            <span>Active Days</span>
+                        </article>
+                        <article>
+                            <strong>{{ recent_map_visual_rows|length }}</strong>
+                            <span>Recent Maps</span>
+                        </article>
+                    </div>
+                    {% if recent_map_visual_rows %}
+                        <div class="overview-activity-frame top-gap">
+                            <div class="overview-activity-months" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
+                                {% for month in activity_heatmap.month_labels %}
+                                <span style="grid-column: {{ month.column }};">{{ month.label }}</span>
                                 {% endfor %}
                             </div>
-                        </div>
-                        <div class="overview-activity-legend">
-                            <span>Less</span>
-                            <span class="overview-activity-dot"></span>
-                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 1;"></span>
-                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 2;"></span>
-                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 3;"></span>
-                            <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 4;"></span>
-                            <span>More</span>
-                        </div>
-                    </div>
-                {% else %}
-                    <p class="empty-text">No recent activity data yet.</p>
-                {% endif %}
-            </section>
-        </div>
-
-        <div class="overview-bottom-grid top-gap">
-            <section class="panel">
-                <h3>Top Maps by Playtime</h3>
-                {% if overview_maps_by_playtime %}
-                    {% set top_maps_max = overview_maps_by_playtime[0].maps %}
-                    <div class="overview-list top-gap">
-                        {% for row in overview_maps_by_playtime[:5] %}
-                            <article class="overview-list-item">
-                                <div class="overview-list-head">
-                                    <strong>{{ row.map_name }}</strong>
-                                    <span>{{ row.maps }} maps</span>
+                            <div class="overview-activity-grid-wrap">
+                                <div class="overview-activity-days">
+                                    <span>Mon</span>
+                                    <span>Wed</span>
+                                    <span>Fri</span>
                                 </div>
-                                <div class="quick-bar-track">
-                                    <span class="quick-bar-fill" style="--share: {{ ((row.maps / top_maps_max) * 100) if top_maps_max else 0 }}%"></span>
+                                <div class="overview-activity-dots" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
+                                    {% for week in activity_heatmap.weeks %}
+                                        {% for day in week %}
+                                            <span
+                                                class="overview-activity-dot overview-activity-dot-{{ day.outcome }}"
+                                                style="--activity-level: {{ day.intensity }};"
+                                                title="{{ day.label }}: {{ day.count }} map{{ 's' if day.count != 1 else '' }}{% if day.count %} ({{ day.wins }}W {{ day.losses }}L){% endif %}"
+                                            ></span>
+                                        {% endfor %}
+                                    {% endfor %}
                                 </div>
-                                <small>{{ row.win_rate }}% WR • {{ row.mode }}</small>
-                            </article>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="empty-text">No map data available yet.</p>
-                {% endif %}
-            </section>
-
-            <section class="panel">
-                <h3>Strengths & Weaknesses</h3>
-                <div class="overview-strength-grid top-gap">
-                    <article class="overview-strength-card">
-                        <span class="compare-tag compare-tag-positive">Strength</span>
-                        <p>
-                            {% if team_analytics.summary.overall_win_rate >= 55 %}
-                                Team is running above target at {{ team_analytics.summary.overall_win_rate }}% win rate.
-                            {% elif overview_top_protect %}
-                                Protecting {{ hero_display_name(overview_top_protect.hero) }} is a consistent setup pattern ({{ overview_top_protect.protect_rate }}%).
-                            {% else %}
-                                Build consistency around your strongest map and repeatable draft openers.
-                            {% endif %}
-                        </p>
-                    </article>
-                    <article class="overview-strength-card">
-                        <span class="compare-tag compare-tag-negative">Weakness</span>
-                        <p>
-                            {% if overview_worst_map and overview_worst_map.win_rate < 45 %}
-                                {{ overview_worst_map.map_name }} is a pressure point at {{ overview_worst_map.win_rate }}% WR.
-                            {% elif overview_top_hero and overview_top_hero.usage_rate >= 30 %}
-                                Hero pool leans heavily on {{ hero_display_name(overview_top_hero.hero) }} ({{ overview_top_hero.usage_rate }}% usage).
-                            {% else %}
-                                Low sample in key segments can hide weak map-mode pockets.
-                            {% endif %}
-                        </p>
-                    </article>
+                            </div>
+                            <div class="overview-activity-legend">
+                                <span>Less</span>
+                                <span class="overview-activity-dot"></span>
+                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 1;"></span>
+                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 2;"></span>
+                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 3;"></span>
+                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 4;"></span>
+                                <span>More</span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No recent activity data yet.</p>
+                    {% endif %}
                 </div>
-            </section>
+
+                <div class="panel parser-overview-strengths">
+                    <h3>Strengths & Weaknesses</h3>
+                    <div class="overview-strength-grid top-gap">
+                        <article class="overview-strength-card">
+                            <span class="compare-tag compare-tag-positive">Strength</span>
+                            <p>
+                                {% if team_analytics.summary.overall_win_rate >= 55 %}
+                                    Team is running above target at {{ team_analytics.summary.overall_win_rate }}% win rate.
+                                {% elif overview_top_protect %}
+                                    Protecting {{ hero_display_name(overview_top_protect.hero) }} is a consistent setup pattern ({{ overview_top_protect.protect_rate }}%).
+                                {% else %}
+                                    Build consistency around your strongest map and repeatable draft openers.
+                                {% endif %}
+                            </p>
+                        </article>
+                        <article class="overview-strength-card">
+                            <span class="compare-tag compare-tag-negative">Weakness</span>
+                            <p>
+                                {% if overview_worst_map and overview_worst_map.win_rate < 45 %}
+                                    {{ overview_worst_map.map_name }} is a pressure point at {{ overview_worst_map.win_rate }}% WR.
+                                {% elif overview_top_hero and overview_top_hero.usage_rate >= 30 %}
+                                    Hero pool leans heavily on {{ hero_display_name(overview_top_hero.hero) }} ({{ overview_top_hero.usage_rate }}% usage).
+                                {% else %}
+                                    Low sample in key segments can hide weak map-mode pockets.
+                                {% endif %}
+                            </p>
+                        </article>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <section class="panel top-gap">
+        <!-- Hero Pool Section -->
+        <div class="panel parser-overview-hero-pool">
             <h3>Hero Pool</h3>
             {% if players %}
                 <div class="pool-roster">
@@ -307,7 +322,7 @@
             {% else %}
                 <p class="empty-text">No hero data yet.</p>
             {% endif %}
-        </section>
+        </div>
     </div>
 </div>
 

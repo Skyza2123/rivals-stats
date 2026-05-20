@@ -3,44 +3,45 @@
 {% block title %}Tournaments{% endblock %}
 
 {% block content %}
-<div class="main-header">
-    <div>
-        <h2>Tournaments</h2>
-        <p>Create named tournaments, then add teams inside the tournament view.</p>
-    </div>
-</div>
+<section class="parser-dash-root">
+    <header class="parser-dash-header">
+        <h1>Tournaments</h1>
+    </header>
 
-<section class="panel panel-toolbar">
-    <div class="page-toolbar">
-        <form method="GET" action="{{ url_for('tournaments') }}" class="page-toolbar-group form-contents">
-            <select name="season" aria-label="Filter by season" class="team-range-select" onchange="this.form.submit()">
-                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
-                {% if has_unseasoned_tournaments %}
-                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
-                {% endif %}
-                {% for season in season_options %}
-                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
-                {% endfor %}
-            </select>
-            <select name="team_id" aria-label="Filter by owner team" class="team-range-select" onchange="this.form.submit()">
-                <option value="">All Owner Teams</option>
-                {% for team in teams %}
-                    <option value="{{ team.id }}" {% if selected_team_id == team.id|string %}selected{% endif %}>{{ team.name }}</option>
-                {% endfor %}
-            </select>
-        </form>
+    <div class="parser-dash-controls" role="region" aria-label="Tournament controls">
+        <div class="parser-dash-controls-left">
+            <form method="GET" action="{{ url_for('tournaments') }}" class="page-toolbar-group form-contents">
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="season" aria-label="Filter by season" onchange="this.form.submit()">
+                        <option value="all" {% if selected_season == 'all' %}selected{% endif %}>Filter: All Seasons</option>
+                        {% if has_unseasoned_tournaments %}
+                            <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                        {% endif %}
+                        {% for season in season_options %}
+                            <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="team_id" aria-label="Filter by owner team" onchange="this.form.submit()">
+                        <option value="">Owner: All Teams</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}" {% if selected_team_id == team.id|string %}selected{% endif %}>{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </form>
+        </div>
         {% if session.get('access_level') == 'edit' %}
-        <div class="page-toolbar-group">
-            <button id="openTournamentModal" class="button-secondary" type="button">Open Tournament</button>
-            <button id="createTournamentButton" class="button-link" type="button">+ Create Tournament</button>
+        <div class="parser-dash-controls-right">
+            <button id="openTournamentModal" class="button-secondary parser-dash-upload" type="button">Open Tournament</button>
+            <button id="createTournamentButton" class="button-link parser-dash-create" type="button">Create Tournament</button>
         </div>
         {% endif %}
     </div>
-</section>
 
-<section class="panel top-gap">
     <div class="page-filterbar">
-        <p class="page-filtertext">
+        <p class="parser-dash-count page-filtertext">
             {% if selected_season == 'all' and not selected_team_id %}
                 Showing all <strong>{{ tournaments|length }}</strong> tournaments
             {% else %}
@@ -53,22 +54,27 @@
     </div>
 
     {% if tournaments %}
-        <div class="scrim-box-grid">
+        <div class="parser-scrim-grid">
             {% for match in tournaments %}
-                <a class="scrim-box-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
-                    <div class="scrim-box-head">
-                        <div class="list-title">{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</div>
-                        <span class="scrim-box-maps">{{ match.matches|length }} matches</span>
+                <a class="parser-scrim-card" href="{{ url_for('tournament_detail', tournament_id=match.id) }}">
+                    <div class="parser-scrim-title-row">
+                        <h3>{{ match.tournament_name or (match.team1_name ~ ' vs ' ~ match.team2_name if match.team1_name and match.team2_name else 'Untitled Tournament') }}</h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
                     </div>
-                    <div class="list-subtitle">
-                        {{ match.scrim_date }}{% if match.season %} • Season {{ match.season }}{% endif %}{% if match.team_name %} • Focus: {{ match.team_name }}{% endif %} • {{ match.tournament_teams|length }} teams
+                    <div class="parser-scrim-meta">
+                        <div>{{ match.scrim_date or 'No date set' }}{% if match.season %} • Season {{ match.season }}{% endif %}</div>
+                        <div>{% if match.team_name %}Focus: {{ match.team_name }}{% else %}No focus team{% endif %}</div>
+                        <div>{{ match.tournament_teams|length }} teams • {{ match.matches|length }} matches</div>
                     </div>
-                    <div class="scrim-box-cta">Open Tournament →</div>
+                    <div class="parser-scrim-team-row">
+                        <span class="parser-team-dot" aria-hidden="true"></span>
+                        <span>Open Tournament</span>
+                    </div>
                 </a>
             {% endfor %}
         </div>
     {% else %}
-        <p class="empty-text">No tournaments created yet.</p>
+        <p class="empty-text parser-empty">No tournaments created yet.</p>
     {% endif %}
 </section>
 

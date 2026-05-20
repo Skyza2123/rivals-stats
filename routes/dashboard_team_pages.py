@@ -163,6 +163,8 @@ def dashboard():
         for scrim in SCRIMS
     )
     dashboard_default_season = get_current_season_from_recent_scrim(SCRIMS)
+    teams = db.execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    today = date.today().strftime("%Y-%m-%d")
 
     return render_template(
         "dashboard.html",
@@ -187,6 +189,8 @@ def dashboard():
         dashboard_season_options=dashboard_season_options,
         dashboard_default_season=dashboard_default_season,
         dashboard_has_unseasoned_scrims=dashboard_has_unseasoned_scrims,
+        teams=teams,
+        today=today,
         map_type_options=MAP_TYPES,
         maps=MAPS,
         hero_roles=HERO_ROLES,

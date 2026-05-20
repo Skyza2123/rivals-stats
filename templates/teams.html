@@ -2,11 +2,11 @@
 
 {% block title %}Teams{% endblock %}
 
-{% block content %}
 
-<div class="main-header gap-lg">
-    <div>
-        <h2>Team Database</h2>
+{% block content %}
+<section class="parser-dash-root parser-page-root">
+    <header class="parser-dash-header">
+        <h1>Teams</h1>
         <p class="muted-label">Store every team in one database, then pin favorites to Personal for quick access.</p>
         {% if selected_season != 'all' %}
             <p class="teams-filter-note muted-label">
@@ -20,38 +20,41 @@
                 <a href="{{ url_for('teams') }}">Clear ×</a>
             </p>
         {% endif %}
-    </div>
-</div>
+    </header>
 
-<section class="panel panel-toolbar">
-    <div class="page-toolbar">
-        <form method="GET" action="{{ url_for('teams') }}" class="page-toolbar-group form-contents">
-            <select name="season" aria-label="Season filter" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
-                <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
-                {% if has_unseasoned_scrims %}
-                    <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
-                {% endif %}
-                {% for season in season_options %}
-                    <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
-                {% endfor %}
-            </select>
-            <select name="sort" aria-label="Team sort" class="team-range-select team-range-select-soft" onchange="this.form.submit()">
-                <option value="quality" {% if selected_sort == 'quality' %}selected{% endif %}>Sort: Quality</option>
-                <option value="win_rate" {% if selected_sort == 'win_rate' %}selected{% endif %}>Sort: Win Rate</option>
-                <option value="last_played" {% if selected_sort == 'last_played' %}selected{% endif %}>Sort: Last Played</option>
-                <option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Sort: Name</option>
-            </select>
-        </form>
-        <div class="page-toolbar-group">
+    <div class="parser-dash-controls" role="region" aria-label="Teams controls">
+        <div class="parser-dash-controls-left">
+            <form method="GET" action="{{ url_for('teams') }}" class="page-toolbar-group form-contents">
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="season" aria-label="Season filter" onchange="this.form.submit()">
+                        <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                        {% if has_unseasoned_scrims %}
+                            <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                        {% endif %}
+                        {% for season in season_options %}
+                            <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="sort" aria-label="Team sort" onchange="this.form.submit()">
+                        <option value="quality" {% if selected_sort == 'quality' %}selected{% endif %}>Sort: Quality</option>
+                        <option value="win_rate" {% if selected_sort == 'win_rate' %}selected{% endif %}>Sort: Win Rate</option>
+                        <option value="last_played" {% if selected_sort == 'last_played' %}selected{% endif %}>Sort: Last Played</option>
+                        <option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Sort: Name</option>
+                    </select>
+                </label>
+            </form>
+        </div>
+        <div class="parser-dash-controls-right">
             {% if session.get('access_level') == 'edit' %}
-            <button id="openAddTeamModal" type="button" class="btn-sm">New Team</button>
+            <button id="openAddTeamModal" type="button" class="button-secondary parser-dash-upload">New Team</button>
             {% endif %}
             <a href="{{ url_for('dashboard') }}" class="button-secondary btn-muted">Dashboard</a>
         </div>
     </div>
-</section>
 
-<div class="section-divider"></div>
+    <div class="section-divider"></div>
 
 {% macro team_card(team, selected_season) %}
 <article class="team-dash-card">
@@ -270,13 +273,13 @@
             </div>
             {% endif %}
             {% if selected_view == 'boxes' %}
-                <div class="teams-card-grid">
+                <div class="parser-scrim-grid">
                     {% for team in teams %}
                         {{ team_card(team, selected_season) }}
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="teams-row-list">
+                <div class="teams-row-list parser-scrim-grid">
                     {% for team in teams %}
                         {{ team_row(team, selected_season) }}
                     {% endfor %}
@@ -290,13 +293,13 @@
     <div class="tab-content tab-hidden" id="tab-personal">
         {% if personal_teams %}
             {% if selected_view == 'boxes' %}
-                <div class="teams-card-grid">
+                <div class="parser-scrim-grid">
                     {% for team in personal_teams %}
                         {{ team_card(team, selected_season) }}
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="teams-row-list">
+                <div class="teams-row-list parser-scrim-grid">
                     {% for team in personal_teams %}
                         {{ team_row(team, selected_season) }}
                     {% endfor %}
@@ -306,6 +309,7 @@
             <p class="empty-text">No teams in Personal yet. Add any team from the All Teams tab.</p>
         {% endif %}
     </div>
+
 </section>
 
 {% if session.get('access_level') == 'edit' %}
