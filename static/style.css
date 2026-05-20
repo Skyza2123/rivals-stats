@@ -282,6 +282,180 @@ select {
     letter-spacing: 0.02em;
 }
 
+.dashboard-top-modules {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    gap: 12px;
+    margin-top: 2px;
+    margin-bottom: 8px;
+}
+
+.dashboard-module {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(10, 14, 21, 0.9), rgba(7, 9, 14, 0.9));
+    padding: 16px;
+}
+
+.dashboard-module-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 4px 10px;
+    margin-bottom: 12px;
+}
+
+.dashboard-module-kicker {
+    grid-column: 1 / -1;
+    color: #9fc5ff;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.dashboard-module-head h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.dashboard-module-meta,
+.dashboard-module-link {
+    color: #8fb8ff;
+    font-size: 0.85rem;
+    justify-self: end;
+}
+
+.dashboard-module-link {
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.dashboard-module-link:hover {
+    color: #bed6ff;
+}
+
+.dashboard-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.dashboard-metric-card {
+    position: relative;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 12px;
+    padding: 12px 12px 11px;
+    display: grid;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.dashboard-metric-card::after {
+    content: "";
+    position: absolute;
+    right: -12px;
+    bottom: -18px;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.dashboard-metric-label {
+    color: #dbeafe;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.dashboard-metric-card strong {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.dashboard-metric-card small {
+    color: #dbeafe;
+    font-size: 0.79rem;
+}
+
+.metric-scrims { background: linear-gradient(135deg, #1d3f72, #1b2e4f); }
+.metric-tournaments { background: linear-gradient(135deg, #126a7f, #17526d); }
+.metric-maps { background: linear-gradient(135deg, #1a7c5a, #155c44); }
+.metric-events { background: linear-gradient(135deg, #5b46a2, #40327f); }
+.metric-teams { background: linear-gradient(135deg, #8a3f61, #6a2f4d); }
+.metric-players { background: linear-gradient(135deg, #976428, #6f4a1d); }
+
+.dashboard-team-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.dashboard-team-card {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    background: rgba(17, 24, 39, 0.58);
+    padding: 10px 8px;
+    text-decoration: none;
+    color: var(--text);
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    min-height: 108px;
+}
+
+.dashboard-team-card.is-personal {
+    border-color: rgba(245, 158, 11, 0.7);
+}
+
+.dashboard-team-card strong {
+    font-size: 0.86rem;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.dashboard-team-card small {
+    color: #facc15;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.dashboard-team-logo-wrap {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(2, 6, 23, 0.85);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.dashboard-team-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+@media (max-width: 1100px) {
+    .dashboard-top-modules {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .dashboard-metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-team-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .parser-scrim-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

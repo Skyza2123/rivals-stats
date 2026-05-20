@@ -32,6 +32,72 @@
 
     <p class="parser-dash-count"><span id="dashVisibleCount">{{ recent_scrims|length }}</span> scrims</p>
 
+    <section class="dashboard-top-modules" aria-label="Dashboard overview modules">
+        <article class="dashboard-module dashboard-module-metrics">
+            <div class="dashboard-module-head">
+                <span class="dashboard-module-kicker">Overview</span>
+                <h2>Live Metrics</h2>
+                <span class="dashboard-module-meta">Current totals</span>
+            </div>
+            <div class="dashboard-metric-grid">
+                <div class="dashboard-metric-card metric-scrims">
+                    <span class="dashboard-metric-label">Total Scrims</span>
+                    <strong>{{ total_scrims }}</strong>
+                    <small>Matches logged</small>
+                </div>
+                <div class="dashboard-metric-card metric-tournaments">
+                    <span class="dashboard-metric-label">Tournaments</span>
+                    <strong>{{ total_tournaments }}</strong>
+                    <small>Brackets tracked</small>
+                </div>
+                <div class="dashboard-metric-card metric-maps">
+                    <span class="dashboard-metric-label">Total Maps</span>
+                    <strong>{{ total_maps }}</strong>
+                    <small>Map entries</small>
+                </div>
+                <div class="dashboard-metric-card metric-events">
+                    <span class="dashboard-metric-label">Events</span>
+                    <strong>{{ total_events }}</strong>
+                    <small>Timeline events</small>
+                </div>
+                <div class="dashboard-metric-card metric-teams">
+                    <span class="dashboard-metric-label">Teams</span>
+                    <strong>{{ total_teams }}</strong>
+                    <small>Team records</small>
+                </div>
+                <div class="dashboard-metric-card metric-players">
+                    <span class="dashboard-metric-label">Players</span>
+                    <strong>{{ total_players }}</strong>
+                    <small>Player records</small>
+                </div>
+            </div>
+        </article>
+
+        <article class="dashboard-module dashboard-module-teams">
+            <div class="dashboard-module-head">
+                <span class="dashboard-module-kicker">Teams</span>
+                <h2>Top 8 By Preference</h2>
+                <a class="dashboard-module-link" href="{{ url_for('teams') }}">Manage teams</a>
+            </div>
+            <div class="dashboard-team-grid">
+                {% for team in all_teams_for_quick_access %}
+                <a class="dashboard-team-card {% if team.is_personal %}is-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
+                    <span class="dashboard-team-logo-wrap">
+                        <img
+                            class="dashboard-team-logo"
+                            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=96' }}"
+                            alt="{{ team.name }}"
+                            loading="lazy"
+                        >
+                    </span>
+                    <strong>{{ team.name }}</strong>
+                    {% if team.quality_tag %}<small>{{ team.quality_tag }}</small>{% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+
     {% if recent_scrims %}
     <div class="parser-scrim-grid" id="dashScrimGrid">
         {% for scrim in recent_scrims %}
