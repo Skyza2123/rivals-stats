@@ -7,6 +7,20 @@
 @app.route("/")
 def dashboard():
     db = get_db()
+    page_size = 6
+    try:
+        current_page = max(1, int(request.args.get("page", "1")))
+    except (TypeError, ValueError):
+        current_page = 1
+
+    scrims_desc = list(reversed(SCRIMS))
+    total_scrim_records = len(scrims_desc)
+    total_scrim_pages = max(1, (total_scrim_records + page_size - 1) // page_size)
+    current_page = min(current_page, total_scrim_pages)
+    start_index = (current_page - 1) * page_size
+    end_index = start_index + page_size
+    paged_scrims = scrims_desc[start_index:end_index]
+
     total_scrims = len(SCRIMS)
     total_tournaments = len(TOURNAMENT_MATCHES)
     total_maps = sum(len(scrim["maps"]) for scrim in SCRIMS) + sum(len(match["maps"]) for match in TOURNAMENT_MATCHES)
@@ -174,7 +188,11 @@ def dashboard():
         total_events=total_events,
         total_teams=total_teams,
         total_players=total_players,
-        recent_scrims=list(reversed(SCRIMS[-5:])),
+        recent_scrims=paged_scrims,
+        scrim_page=current_page,
+        scrim_page_size=page_size,
+        scrim_total_pages=total_scrim_pages,
+        scrim_total_count=total_scrim_records,
         recent_tournaments=list(reversed(TOURNAMENT_MATCHES[-5:])),
         top_picks=top_picks,
         top_bans=top_bans,

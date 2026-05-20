@@ -282,6 +282,46 @@ select {
     letter-spacing: 0.02em;
 }
 
+.dash-count-meta {
+    margin-left: 8px;
+    color: color-mix(in srgb, var(--muted) 86%, #fff);
+    font-weight: 600;
+}
+
+.dash-pagination {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.dash-page-link {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 7px 12px;
+    text-decoration: none;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.dash-page-link:hover {
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.dash-page-link.is-disabled {
+    pointer-events: none;
+    opacity: 0.45;
+}
+
+.dash-page-state {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .dashboard-top-modules {
     display: grid;
     grid-template-columns: 1.45fr 1fr;
@@ -6975,6 +7015,12 @@ th {
 
 .teams-row-list {
     display: grid;
+    gap: 10px;
+}
+
+/* Teams row view must stay single-column even when combined with parser-scrim-grid. */
+.teams-row-list.parser-scrim-grid {
+    grid-template-columns: 1fr;
     gap: 10px;
 }
 

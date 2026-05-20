@@ -30,7 +30,12 @@
         </div>
     </div>
 
-    <p class="parser-dash-count"><span id="dashVisibleCount">{{ recent_scrims|length }}</span> scrims</p>
+    <p class="parser-dash-count">
+        <span id="dashVisibleCount">{{ recent_scrims|length }}</span> scrims
+        {% if scrim_total_count > 0 %}
+            <span class="dash-count-meta">(page {{ scrim_page }} of {{ scrim_total_pages }} • {{ scrim_total_count }} total)</span>
+        {% endif %}
+    </p>
 
     <section class="dashboard-top-modules" aria-label="Dashboard overview modules">
         <article class="dashboard-module dashboard-module-metrics">
@@ -124,6 +129,19 @@
         </a>
         {% endfor %}
     </div>
+     {% if scrim_total_pages > 1 %}
+     <nav class="dash-pagination" aria-label="Scrim pages">
+          <a class="dash-page-link {% if scrim_page <= 1 %}is-disabled{% endif %}"
+              href="{% if scrim_page > 1 %}{{ url_for('dashboard', page=scrim_page-1) }}{% else %}#{% endif %}"
+              {% if scrim_page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
+
+          <span class="dash-page-state">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>
+
+          <a class="dash-page-link {% if scrim_page >= scrim_total_pages %}is-disabled{% endif %}"
+              href="{% if scrim_page < scrim_total_pages %}{{ url_for('dashboard', page=scrim_page+1) }}{% else %}#{% endif %}"
+              {% if scrim_page >= scrim_total_pages %}aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
+     </nav>
+     {% endif %}
     <p class="empty-text parser-empty" id="dashEmptyState" hidden>No scrims match this filter.</p>
     {% else %}
     <p class="empty-text parser-empty">No scrims yet. Create your first scrim.</p>
