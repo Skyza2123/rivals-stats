@@ -951,10 +951,10 @@ def add_comp_section(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
 
-    def _blank_section(submap: str = "") -> dict:
+    def _blank_section(submap: str = "", side: str = "") -> dict:
         return {
             "submap": submap,
-            "side": "",
+            "side": side,
             "score": "",
             "team1": [{"hero": "", "player": ""} for _ in range(6)],
             "team2": [{"hero": "", "player": ""} for _ in range(6)],
@@ -980,6 +980,10 @@ def add_comp_section(scrim_id: int, map_id: int):
                 if submap_name.strip().lower() not in used:
                     return _blank_section(submap=submap_name)
             return None
+        if current_map_entry.get("map_name", "") in ATTACK_DEFENSE_MAPS:
+            if len(sections) >= 2:
+                return None
+            return _blank_section(side="Defense" if len(sections) == 0 else "Attack")
         if len(sections) >= 4:
             return None
         return _blank_section()
@@ -998,10 +1002,10 @@ def add_tournament_match_comp_section(tournament_id: int, match_id: int, map_id:
     tournament_match = get_tournament_match_or_404(tournament_record, match_id)
     map_entry = get_map_or_404(tournament_match, map_id)
 
-    def _blank_section(submap: str = "") -> dict:
+    def _blank_section(submap: str = "", side: str = "") -> dict:
         return {
             "submap": submap,
-            "side": "",
+            "side": side,
             "score": "",
             "team1": [{"hero": "", "player": ""} for _ in range(6)],
             "team2": [{"hero": "", "player": ""} for _ in range(6)],
@@ -1027,6 +1031,10 @@ def add_tournament_match_comp_section(tournament_id: int, match_id: int, map_id:
                 if submap_name.strip().lower() not in used:
                     return _blank_section(submap=submap_name)
             return None
+        if current_map_entry.get("map_name", "") in ATTACK_DEFENSE_MAPS:
+            if len(sections) >= 2:
+                return None
+            return _blank_section(side="Defense" if len(sections) == 0 else "Attack")
         if len(sections) >= 4:
             return None
         return _blank_section()
@@ -1044,10 +1052,10 @@ def add_tournament_comp_section(tournament_id: int, map_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     map_entry = get_map_or_404(tournament_match, map_id)
 
-    def _blank_section(submap: str = "") -> dict:
+    def _blank_section(submap: str = "", side: str = "") -> dict:
         return {
             "submap": submap,
-            "side": "",
+            "side": side,
             "score": "",
             "team1": [{"hero": "", "player": ""} for _ in range(6)],
             "team2": [{"hero": "", "player": ""} for _ in range(6)],
@@ -1073,6 +1081,10 @@ def add_tournament_comp_section(tournament_id: int, map_id: int):
                 if submap_name.strip().lower() not in used:
                     return _blank_section(submap=submap_name)
             return None
+        if current_map_entry.get("map_name", "") in ATTACK_DEFENSE_MAPS:
+            if len(sections) >= 2:
+                return None
+            return _blank_section(side="Defense" if len(sections) == 0 else "Attack")
         if len(sections) >= 4:
             return None
         return _blank_section()

@@ -118,7 +118,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Team Comp</h3>
-        {% if session.get('access_level') == 'edit' and ((map_submaps.get(map_entry.map_name) and map_entry.comp|length < map_submaps.get(map_entry.map_name)|length) or ((not map_submaps.get(map_entry.map_name)) and map_entry.comp|length < 4 and map_mode not in ['Escort', 'Hybrid'])) %}
+        {% if session.get('access_level') == 'edit' and ((map_submaps.get(map_entry.map_name) and map_entry.comp|length < map_submaps.get(map_entry.map_name)|length) or ((not map_submaps.get(map_entry.map_name)) and ((map_entry.map_name in attack_defense_maps and map_entry.comp|length < 2) or (map_entry.map_name not in attack_defense_maps and map_entry.comp|length < 4 and map_mode not in ['Escort', 'Hybrid'])))) %}
         {% set used_submaps = map_entry.comp | map(attribute='submap') | list %}
         <form method="post" action="{{ url_for(add_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" style="display:inline;">
             {% if map_submaps.get(map_entry.map_name) %}
@@ -138,15 +138,18 @@
     {% for sec in map_entry.comp %}
     {% set s = loop.index0 %}
     {% set sec_score_parts = split_score_pair(sec.score or '') %}
-    {% set comp_section_label = sec.submap or ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1))) %}
+    {% set is_attack_defense_round = map_entry.map_name in attack_defense_maps and not sec.submap %}
+    {% set comp_section_label = sec.submap or (('Round ' ~ (s + 1)) if is_attack_defense_round else ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1)))) %}
+    {% set left_round_side = ('Defense' if s is even else 'Attack') if is_attack_defense_round else '' %}
+    {% set right_round_side = ('Attack' if left_round_side == 'Defense' else 'Defense') if is_attack_defense_round else '' %}
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
-            <span class="comp-submap-name">{{ comp_section_label }}{% if sec.side %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
+            <span class="comp-submap-name">{{ comp_section_label }}{% if sec.side and not is_attack_defense_round %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
             {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ comp_section_label }}</button>{% endif %}
         </div>
         <div class="comp-grid">
             <div class="comp-team">
-                <h4 class="comp-team-label team1-label">{{ team1_label }}</h4>
+                <h4 class="comp-team-label team1-label">{{ team1_label }}{% if left_round_side %} <span class="comp-side-label">{{ left_round_side }}</span>{% endif %}</h4>
                 <div class="comp-slots">
                     {% for entry in sec[display_team1_slot] %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
@@ -164,7 +167,7 @@
                 </div>
             </div>
             <div class="comp-team">
-                <h4 class="comp-team-label team2-label">{{ team2_label }}</h4>
+                <h4 class="comp-team-label team2-label">{{ team2_label }}{% if right_round_side %} <span class="comp-side-label">{{ right_round_side }}</span>{% endif %}</h4>
                 <div class="comp-slots">
                     {% for entry in sec[display_team2_slot] %}
                     <div class="comp-slot {{ 'comp-slot-filled' if entry.hero else '' }}">
@@ -372,7 +375,11 @@
 {% set s = loop.index0 %}
 {% set sec_score_parts = split_score_pair(sec.score or '') %}
 {% set uses_map_level_round_score = map_mode in ['Escort', 'Hybrid'] and not sec.submap %}
-{% set comp_section_label = sec.submap or ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1))) %}
+{% set is_attack_defense_round = map_entry.map_name in attack_defense_maps and not sec.submap %}
+{% set comp_section_label = sec.submap or (('Round ' ~ (s + 1)) if is_attack_defense_round else ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1)))) %}
+{% set left_round_side = ('Defense' if s is even else 'Attack') if is_attack_defense_round else '' %}
+{% set right_round_side = ('Attack' if left_round_side == 'Defense' else 'Defense') if is_attack_defense_round else '' %}
+{% set selected_round_side = left_round_side if is_attack_defense_round else sec.side %}
 <div class="modal-backdrop" id="editCompSectionModal{{ s }}">
     <div class="modal modal-wide">
         <div class="modal-header">
@@ -411,11 +418,11 @@
                 {% endif %}
                 {% if not sec.submap %}
                 <div class="field">
-                    <label>Round Side</label>
+                    <label>{{ 'Left Side Round' if is_attack_defense_round else 'Round Side' }}</label>
                     <select name="side">
                         <option value="">Not Set</option>
                         {% for side in sides %}
-                        <option value="{{ side }}" {% if sec.side == side %}selected{% endif %}>{{ side }}</option>
+                        <option value="{{ side }}" {% if selected_round_side == side %}selected{% endif %}>{{ side }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -434,7 +441,7 @@
             <!-- Hero pick slots -->
             <div class="draft-grid">
                 <div class="draft-column">
-                    <h4 class="team-label team1-label">{{ team1_label }}</h4>
+                    <h4 class="team-label team1-label">{{ team1_label }}{% if left_round_side %} <span class="comp-side-label">{{ left_round_side }}</span>{% endif %}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec[display_team1_slot][i] %}
@@ -455,7 +462,7 @@
                     </div>
                 </div>
                 <div class="draft-column">
-                    <h4 class="team-label team2-label">{{ team2_label }}</h4>
+                    <h4 class="team-label team2-label">{{ team2_label }}{% if right_round_side %} <span class="comp-side-label">{{ right_round_side }}</span>{% endif %}</h4>
                     <div class="draft-slots">
                         {% for i in range(6) %}
                         {% set entry = sec[display_team2_slot][i] %}

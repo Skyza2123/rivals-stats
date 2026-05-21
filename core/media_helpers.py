@@ -131,7 +131,7 @@ def build_default_comp_sections(map_name: str, first_submap: str = "") -> list[d
                 "team1": [{"hero": "", "player": ""} for _ in range(6)],
                 "team2": [{"hero": "", "player": ""} for _ in range(6)],
             }
-            for side in SIDES
+            for side in ("Defense", "Attack")
         ]
 
     return [

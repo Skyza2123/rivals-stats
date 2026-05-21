@@ -5,7 +5,7 @@
 # Transitional module executed in app.py's namespace.
 
 def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> dict:
-    target = player_name.strip()
+    target = str(player_name or "").strip()
     if not target:
         return {
             "maps_played": 0,
@@ -41,16 +41,28 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
     exact_name_pattern = re.compile(r"(?<!\\w)" + re.escape(target_lower) + r"(?!\\w)")
     source_scrims = scrims if scrims is not None else SCRIMS
 
+    def _clean_text(value) -> str:
+        return str(value or "").strip()
+
+    def _clean_hero(value) -> str:
+        return _canonical_draft_hero(_clean_text(value))
+
     for scrim in source_scrims:
-        for map_entry in scrim["maps"]:
+        if not isinstance(scrim, dict):
+            continue
+        for map_entry in scrim.get("maps") or []:
+            if not isinstance(map_entry, dict):
+                continue
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
 
             player_found = False
-            for section in map_entry.get("comp", []):
-                for slot in section.get(our_team_slot, []):
-                    if slot.get("player", "").strip().lower() == target_lower:
+            for section in map_entry.get("comp") or []:
+                if not isinstance(section, dict):
+                    continue
+                for slot in section.get(our_team_slot) or []:
+                    if isinstance(slot, dict) and _clean_text(slot.get("player")).lower() == target_lower:
                         player_found = True
                         break
                 if player_found:
@@ -67,21 +79,23 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
                     unresolved_maps += 1
                     unresolved_map_refs.append({"scrim_id": scrim.get("id"), "map_id": map_entry.get("id")})
 
-            for event in map_entry.get("events", []):
-                description = event.get("description", "").strip().lower()
+            for event in map_entry.get("events") or []:
+                if not isinstance(event, dict):
+                    continue
+                description = _clean_text(event.get("description")).lower()
                 if exact_name_pattern.search(description):
                     events_mentioned += 1
-                killer_player = (event.get("first_kill_player") or event.get("killer_player") or "").strip().lower()
-                victim_player = (event.get("first_death_player") or event.get("victim_player") or "").strip().lower()
-                event_type = (event.get("event_type") or "").strip()
+                killer_player = _clean_text(event.get("first_kill_player") or event.get("killer_player")).lower()
+                victim_player = _clean_text(event.get("first_death_player") or event.get("victim_player")).lower()
+                event_type = _clean_text(event.get("event_type"))
 
                 if killer_player == target_lower and event_type in {"Fight", "First Kill", "Pick"}:
                     first_kills += 1
-                    victim_hero = _canonical_draft_hero(event.get("first_death_hero") or event.get("victim_hero") or "")
+                    victim_hero = _clean_hero(event.get("first_death_hero") or event.get("victim_hero"))
                     if victim_hero:
                         first_kill_victim_heroes[victim_hero] += 1
                     if event_type == "Fight":
-                        fight_winner = (event.get("fight_winner") or "").strip()
+                        fight_winner = _clean_text(event.get("fight_winner"))
                         if fight_winner == our_team_slot:
                             first_kill_fight_wins += 1
                         elif fight_winner:
@@ -89,11 +103,11 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
 
                 if victim_player == target_lower and event_type in {"Fight", "First Death", "Death"}:
                     first_deaths += 1
-                    killer_hero = _canonical_draft_hero(event.get("first_kill_hero") or event.get("killer_hero") or "")
+                    killer_hero = _clean_hero(event.get("first_kill_hero") or event.get("killer_hero"))
                     if killer_hero:
                         first_death_killer_heroes[killer_hero] += 1
                     if event_type == "Fight":
-                        fight_winner = (event.get("fight_winner") or "").strip()
+                        fight_winner = _clean_text(event.get("fight_winner"))
                         if fight_winner == our_team_slot:
                             first_death_fight_wins += 1
                         elif fight_winner:

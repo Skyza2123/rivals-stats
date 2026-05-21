@@ -654,11 +654,11 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         if submap_name:
             label = submap_name
         elif map_entry.get("map_name") in ATTACK_DEFENSE_MAPS:
-            label = "Team Comp"
+            label = f"Round {index + 1}"
         else:
             label = f"Round {index + 1}"
         side_label = (comp_section.get("side") or "").strip()
-        display_label = f"{label} - {side_label}" if side_label else label
+        display_label = label if map_entry.get("map_name") in ATTACK_DEFENSE_MAPS and not submap_name else (f"{label} - {side_label}" if side_label else label)
         timeline_round_options.append(
             {
                 "key": f"section:{index}",
@@ -729,6 +729,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "map_images": MAP_IMAGES,
         "map_submaps": MAP_SUBMAPS,
         "map_mode": MAP_MODES.get(map_entry.get("map_name", ""), "Other"),
+        "attack_defense_maps": ATTACK_DEFENSE_MAPS,
         "maps": MAPS,
         "map_types": MAP_TYPES,
         "sides": SIDES,

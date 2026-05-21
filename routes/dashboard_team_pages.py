@@ -1862,27 +1862,43 @@ def team_detail(team_id: int):
             "hero_rows": player_breakdown.get("hero_rows", []),
         })
 
-    roster_name_lookup = {(player["name"] or "").strip().lower() for player in players if (player.get("name") or "").strip()}
     first_action_events = []
+
+    def _clean_text(value) -> str:
+        return str(value or "").strip()
+
+    def _clean_hero(value) -> str:
+        return _canonical_draft_hero(_clean_text(value))
+
+    roster_name_lookup = {
+        _clean_text(player.get("name")).lower()
+        for player in players
+        if _clean_text(player.get("name"))
+    }
+
     for scrim in team_scrims:
-        scrim_date = (scrim.get("scrim_date") or "").strip()
-        opponent_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip() or "Opponent"
-        for map_entry in scrim.get("maps", []):
+        if not isinstance(scrim, dict):
+            continue
+        scrim_date = _clean_text(scrim.get("scrim_date"))
+        opponent_name = _clean_text(scrim.get("enemy_team") or scrim.get("opponent")) or "Opponent"
+        for map_entry in scrim.get("maps") or []:
+            if not isinstance(map_entry, dict):
+                continue
             our_team_slot = map_entry.get("our_team_slot", "team1")
             if our_team_slot not in TEAM_SLOTS:
                 our_team_slot = "team1"
-            for event in map_entry.get("events", []):
+            for event in map_entry.get("events") or []:
                 if not isinstance(event, dict):
                     continue
-                killer_player = (event.get("first_kill_player") or event.get("killer_player") or "").strip()
-                victim_player = (event.get("first_death_player") or event.get("victim_player") or "").strip()
+                killer_player = _clean_text(event.get("first_kill_player") or event.get("killer_player"))
+                victim_player = _clean_text(event.get("first_death_player") or event.get("victim_player"))
                 if not killer_player and not victim_player:
                     continue
                 killer_is_roster = killer_player.lower() in roster_name_lookup if killer_player else False
                 victim_is_roster = victim_player.lower() in roster_name_lookup if victim_player else False
                 if not killer_is_roster and not victim_is_roster:
                     continue
-                fight_winner = (event.get("fight_winner") or "").strip()
+                fight_winner = _clean_text(event.get("fight_winner"))
                 if fight_winner == our_team_slot:
                     fight_result = "Won"
                 elif fight_winner:
@@ -1895,15 +1911,15 @@ def team_detail(team_id: int):
                         "map_id": map_entry.get("id"),
                         "scrim_date": scrim_date,
                         "opponent_name": opponent_name,
-                        "map_name": (map_entry.get("map_name") or "").strip() or "Unknown Map",
-                        "fight_round_label": (event.get("fight_round_label") or "").strip(),
-                        "fight_number": (event.get("fight_number") or "").strip(),
+                        "map_name": _clean_text(map_entry.get("map_name")) or "Unknown Map",
+                        "fight_round_label": _clean_text(event.get("fight_round_label")),
+                        "fight_number": _clean_text(event.get("fight_number")),
                         "killer_player": killer_player,
-                        "killer_hero": _canonical_draft_hero(event.get("first_kill_hero") or event.get("killer_hero") or ""),
+                        "killer_hero": _clean_hero(event.get("first_kill_hero") or event.get("killer_hero")),
                         "victim_player": victim_player,
-                        "victim_hero": _canonical_draft_hero(event.get("first_death_hero") or event.get("victim_hero") or ""),
+                        "victim_hero": _clean_hero(event.get("first_death_hero") or event.get("victim_hero")),
                         "fight_result": fight_result,
-                        "fight_winner_label": (event.get("fight_winner_label") or "").strip(),
+                        "fight_winner_label": _clean_text(event.get("fight_winner_label")),
                         "first_action_type": "First Kill" if killer_is_roster else "First Death",
                     }
                 )
@@ -1944,9 +1960,13 @@ def team_detail(team_id: int):
     fk_target_hero_counter: Counter = Counter()
     fd_source_hero_counter: Counter = Counter()
     map_first_action_rows: dict[str, dict] = {}
-    roster_first_action_rows = {
-        player["name"].strip().lower(): {
-            "player": player["name"],
+    roster_first_action_rows = {}
+    for player in players:
+        player_name = _clean_text(player.get("name"))
+        if not player_name:
+            continue
+        roster_first_action_rows[player_name.lower()] = {
+            "player": player_name,
             "role": player.get("role") or "",
             "first_kills": 0,
             "first_deaths": 0,
@@ -1957,13 +1977,10 @@ def team_detail(team_id: int):
             "fk_target_heroes": Counter(),
             "fd_source_heroes": Counter(),
         }
-        for player in players
-        if (player.get("name") or "").strip()
-    }
 
     for row in first_action_filtered_events:
-        killer_key = (row.get("killer_player") or "").strip().lower()
-        victim_key = (row.get("victim_player") or "").strip().lower()
+        killer_key = _clean_text(row.get("killer_player")).lower()
+        victim_key = _clean_text(row.get("victim_player")).lower()
         fight_result = row.get("fight_result")
         map_name = row.get("map_name") or "Unknown Map"
         map_read = map_first_action_rows.setdefault(
