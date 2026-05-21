@@ -4421,6 +4421,15 @@ th {
     min-width: 170px;
 }
 
+.hero-comps-players-dropdown .dense-collapsible-body {
+    display: grid;
+    gap: 18px;
+}
+
+.hero-dropdown-block h3 {
+    margin-top: 0;
+}
+
 .hero-player-table .hero-player-name {
     display: inline-flex;
     align-items: center;

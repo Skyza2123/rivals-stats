@@ -54,72 +54,6 @@
     </div>
 </div>
 
-<section class="panel top-gap">
-    <h3>Most Played Comps</h3>
-    {% if hero_insights.comp_rows %}
-        <div class="comp-usage-list top-gap">
-            {% for row in hero_insights.comp_rows[:12] %}
-                <div class="comp-usage-card">
-                    <div class="comp-usage-heroes">
-                        {% for hero in row.heroes %}
-                            <span class="comp-usage-pill">
-                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="comp-usage-pill-img" onerror="this.src='https://via.placeholder.com/24/111827/e6edf3?text={{ hero | urlencode }}'">
-                                {{ hero_display_name(hero) }}
-                            </span>
-                        {% endfor %}
-                    </div>
-                    <div class="comp-usage-meta">{{ sample_warn(row.count) }} maps &bull; {{ row.wins }}W - {{ row.losses }}L &bull; {{ row.win_rate }}% WR</div>
-                    <div class="comp-usage-meta">
-                        Last played {% if row.latest_date %}{{ row.latest_date }}{% else %}unknown date{% endif %} vs {{ row.latest_opponent }}{% if row.latest_map %} on {{ row.latest_map }}{% endif %}
-                        &bull; vs {{ row.latest_opponent }}: {{ row.latest_opponent_wins }}W - {{ row.latest_opponent_losses }}L, {{ row.latest_opponent_win_rate }}% WR
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="empty-text">No comp lineup data yet for this hero.</p>
-    {% endif %}
-</section>
-
-{% if hero_insights.player_rows %}
-<section class="panel top-gap">
-    <div class="section-kicker">Players</div>
-    <h3>Who Plays {{ hero_display_name(hero_insights.hero) }}</h3>
-    <p class="panel-intro">Filtered by the current season, map type, and opponent selections.</p>
-    <div class="table-wrap top-gap">
-        <table class="stats-table hero-player-table">
-            <thead>
-                <tr>
-                    <th>Player</th>
-                    <th>Maps</th>
-                    <th>Hero Instances</th>
-                    <th>Win Rate</th>
-                    <th>Record</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in hero_insights.player_rows %}
-                <tr>
-                    <td>
-                        {% if row.player_id %}
-                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">{{ row.player }}</a>
-                        {% else %}
-                            {{ row.player }}
-                        {% endif %}
-                        {% if row.role %}<small style="color:var(--muted)"> {{ row.role }}</small>{% endif %}
-                    </td>
-                    <td>{{ row.maps }}</td>
-                    <td>{{ row.instances }}</td>
-                    <td>{{ row.win_rate }}%</td>
-                    <td>{{ row.wins }}W - {{ row.losses }}L</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
-{% endif %}
-
 <section class="panel">
     <div class="summary-grid">
         <section class="stat-card">
@@ -139,6 +73,78 @@
             <span>{{ hero_insights.summary.unique_allies }}</span>
         </section>
     </div>
+    <details class="dense-collapsible hero-comps-players-dropdown top-gap">
+        <summary>Most Played Comps And Players</summary>
+        <div class="dense-collapsible-body">
+            <section class="hero-dropdown-block">
+                <h3>Most Played Comps</h3>
+                {% if hero_insights.comp_rows %}
+                    <div class="comp-usage-list top-gap">
+                        {% for row in hero_insights.comp_rows[:12] %}
+                            <div class="comp-usage-card">
+                                <div class="comp-usage-heroes">
+                                    {% for hero in row.heroes %}
+                                        <span class="comp-usage-pill">
+                                            <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="comp-usage-pill-img" onerror="this.src='https://via.placeholder.com/24/111827/e6edf3?text={{ hero | urlencode }}'">
+                                            {{ hero_display_name(hero) }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                                <div class="comp-usage-meta">{{ sample_warn(row.count) }} maps &bull; {{ row.wins }}W - {{ row.losses }}L &bull; {{ row.win_rate }}% WR</div>
+                                <div class="comp-usage-meta">
+                                    Last played {% if row.latest_date %}{{ row.latest_date }}{% else %}unknown date{% endif %} vs {{ row.latest_opponent }}{% if row.latest_map %} on {{ row.latest_map }}{% endif %}
+                                    &bull; vs {{ row.latest_opponent }}: {{ row.latest_opponent_wins }}W - {{ row.latest_opponent_losses }}L, {{ row.latest_opponent_win_rate }}% WR
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">No comp lineup data yet for this hero.</p>
+                {% endif %}
+            </section>
+
+            <section class="hero-dropdown-block">
+                <div class="section-kicker">Players</div>
+                <h3>Who Plays {{ hero_display_name(hero_insights.hero) }}</h3>
+                <p class="panel-intro">Filtered by the current season, map type, and opponent selections.</p>
+                {% if hero_insights.player_rows %}
+                    <div class="table-wrap top-gap">
+                        <table class="stats-table hero-player-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Maps</th>
+                                    <th>Hero Instances</th>
+                                    <th>Win Rate</th>
+                                    <th>Record</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in hero_insights.player_rows %}
+                                <tr>
+                                    <td>
+                                        {% if row.player_id %}
+                                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">{{ row.player }}</a>
+                                        {% else %}
+                                            {{ row.player }}
+                                        {% endif %}
+                                        {% if row.role %}<small style="color:var(--muted)"> {{ row.role }}</small>{% endif %}
+                                    </td>
+                                    <td>{{ row.maps }}</td>
+                                    <td>{{ row.instances }}</td>
+                                    <td>{{ row.win_rate }}%</td>
+                                    <td>{{ row.wins }}W - {{ row.losses }}L</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-text">No player data yet for this hero.</p>
+                {% endif %}
+            </section>
+        </div>
+    </details>
 </section>
 
 {% set hero_anova = hero_insights.map_mode_anova or {} %}
