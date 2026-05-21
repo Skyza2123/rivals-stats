@@ -54,6 +54,33 @@
     </div>
 </div>
 
+<section class="panel top-gap">
+    <h3>Most Played Comps</h3>
+    {% if hero_insights.comp_rows %}
+        <div class="comp-usage-list top-gap">
+            {% for row in hero_insights.comp_rows[:12] %}
+                <div class="comp-usage-card">
+                    <div class="comp-usage-heroes">
+                        {% for hero in row.heroes %}
+                            <span class="comp-usage-pill">
+                                <img src="{{ hero_image_url(hero) }}" alt="{{ hero }}" class="comp-usage-pill-img" onerror="this.src='https://via.placeholder.com/24/111827/e6edf3?text={{ hero | urlencode }}'">
+                                {{ hero_display_name(hero) }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                    <div class="comp-usage-meta">{{ sample_warn(row.count) }} maps &bull; {{ row.wins }}W - {{ row.losses }}L &bull; {{ row.win_rate }}% WR</div>
+                    <div class="comp-usage-meta">
+                        Last played {% if row.latest_date %}{{ row.latest_date }}{% else %}unknown date{% endif %} vs {{ row.latest_opponent }}{% if row.latest_map %} on {{ row.latest_map }}{% endif %}
+                        &bull; vs {{ row.latest_opponent }}: {{ row.latest_opponent_wins }}W - {{ row.latest_opponent_losses }}L, {{ row.latest_opponent_win_rate }}% WR
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-text">No comp lineup data yet for this hero.</p>
+    {% endif %}
+</section>
+
 {% if hero_insights.player_rows %}
 <section class="panel top-gap">
     <div class="section-kicker">Players</div>
@@ -373,6 +400,7 @@
                 {% endif %}
             </section>
 
+            {% if false %}
             <section class="insight-card insight-card-wide">
                 <h3>Most Played Comps</h3>
                 {% if hero_insights.comp_rows %}
@@ -395,6 +423,7 @@
                     <p class="empty-text">No comp lineup data yet for this hero.</p>
                 {% endif %}
             </section>
+            {% endif %}
         </div>
     </section>
 

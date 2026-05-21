@@ -1100,6 +1100,13 @@ def team_scouting():
         scout_expected_plan = build_prep_expected_comp_plan(scout_history, scout_player_rows, scout_analytics, all_scrims=scout_history)
         scout_tree_model = build_opponent_tree_model(scout_history, scout_history)
         draft_scout = _build_draft_scout_bundle(scout_team["name"], scout_history, scout_analytics, scout_tree_model)
+        scout_roster_lookup = {name.strip().lower() for name in scout_roster_names if name and name.strip()}
+        if scout_roster_lookup:
+            draft_scout["player_hero_rows"] = [
+                row
+                for row in (draft_scout.get("player_hero_rows") or [])
+                if (row.get("player") or "").strip().lower() in scout_roster_lookup
+            ]
         draft_scout_ai_urls = _build_draft_scout_ai_urls(scout_team["id"], scout_team["name"], draft_scout)
         scout_top_hero_rows = scout_hero_rows[:3]
         scout_open_impact_rows = []

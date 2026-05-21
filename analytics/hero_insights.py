@@ -193,7 +193,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
 
     ally_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     duo_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
-    comp_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
+    comp_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0, "appearances": []})
     map_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
     player_stats = defaultdict(lambda: {"maps": 0, "instances": 0, "wins": 0, "losses": 0})
 
@@ -302,6 +302,14 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                 comp_signature = tuple(sorted(our_heroes))
                 if comp_signature:
                     comp_stats[comp_signature]["count"] += 1
+                    comp_stats[comp_signature]["appearances"].append(
+                        {
+                            "date": (scrim.get("scrim_date") or scrim.get("date") or "").strip(),
+                            "opponent": (scrim.get("enemy_team") or scrim.get("opponent") or "Unknown").strip() or "Unknown",
+                            "map_name": (map_entry.get("map_name") or "Unknown Map").strip() or "Unknown Map",
+                            "result": result or "Not Set",
+                        }
+                    )
                     if result == "Win":
                         comp_stats[comp_signature]["wins"] += 1
                     elif result == "Loss":
@@ -421,11 +429,31 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
     comp_rows = []
     for comp_signature, stats in comp_stats.items():
         count = stats["count"]
+        appearances = sorted(
+            stats.get("appearances", []),
+            key=lambda row: (row.get("date", ""), row.get("opponent", ""), row.get("map_name", "")),
+            reverse=True,
+        )
+        latest = appearances[0] if appearances else {}
+        latest_opponent = latest.get("opponent", "Unknown")
+        latest_opponent_rows = [row for row in appearances if row.get("opponent") == latest_opponent]
+        latest_opponent_wins = sum(1 for row in latest_opponent_rows if row.get("result") == "Win")
+        latest_opponent_losses = sum(1 for row in latest_opponent_rows if row.get("result") == "Loss")
+        latest_opponent_decided = latest_opponent_wins + latest_opponent_losses
         comp_rows.append(
             {
                 "heroes": list(comp_signature),
                 "count": count,
+                "wins": stats["wins"],
+                "losses": stats["losses"],
                 "win_rate": round((stats["wins"] / count) * 100, 1) if count else 0,
+                "latest_date": latest.get("date", ""),
+                "latest_opponent": latest_opponent,
+                "latest_opponent_wins": latest_opponent_wins,
+                "latest_opponent_losses": latest_opponent_losses,
+                "latest_opponent_win_rate": round((latest_opponent_wins / latest_opponent_decided) * 100, 1) if latest_opponent_decided else 0,
+                "latest_map": latest.get("map_name", "Unknown Map"),
+                "appearances": appearances,
             }
         )
     comp_rows.sort(key=lambda r: (r["count"], r["win_rate"]), reverse=True)

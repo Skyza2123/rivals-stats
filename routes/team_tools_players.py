@@ -305,11 +305,13 @@ def team_hero_detail(team_id: int, hero_name: str):
     for row in hero_insights.get("player_rows", []):
         player_name = (row.get("player") or "").strip()
         player_row = player_lookup.get(player_name.lower()) if player_name else None
+        if player_row is None:
+            continue
         hero_player_rows.append({
             **row,
-            "player_id": player_row["id"] if player_row is not None else None,
-            "role": player_row["role"] if player_row is not None else "",
-            "is_sub": bool(player_row["is_sub"]) if player_row is not None and "is_sub" in player_row.keys() else False,
+            "player_id": player_row["id"],
+            "role": player_row["role"],
+            "is_sub": bool(player_row["is_sub"]) if "is_sub" in player_row.keys() else False,
         })
     hero_insights["player_rows"] = hero_player_rows
 
