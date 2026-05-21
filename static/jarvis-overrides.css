@@ -1,0 +1,388 @@
+.jarvis-app .draft-sim-shell .draft-sim-hero {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero-main {
+  gap: 10px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero h2 {
+  font-size: clamp(2.15rem, 4.4vw, 3.8rem);
+  line-height: 0.92;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero p {
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-chip-row {
+  gap: 8px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-chip-row .jarvis-chip {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero-side {
+  gap: 10px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-actions {
+  gap: 8px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-actions .button-secondary,
+.jarvis-app .draft-sim-shell .draft-sim-actions .rt-toggle {
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.jarvis-app .draft-sim-panel {
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+}
+
+.jarvis-app .tdash-hero {
+  padding: 20px;
+  gap: 18px;
+  border-radius: 28px;
+}
+
+.jarvis-app .tdash-logo {
+  width: 112px;
+  height: 112px;
+}
+
+.jarvis-app .tdash-hero h1 {
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  line-height: 0.95;
+}
+
+.jarvis-app .tdash-chips {
+  gap: 8px;
+}
+
+.jarvis-app .tdash-chips span,
+.jarvis-app .team-scout-page-chip {
+  padding: 8px 12px;
+  font-size: 0.76rem;
+}
+
+.jarvis-app .tdash-subtitle,
+.jarvis-app .team-scout-page-title p {
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.jarvis-app .tdash-actions {
+  gap: 10px;
+}
+
+.jarvis-app .tdash-actions .button-small,
+.jarvis-app .tdash-actions .button-secondary {
+  min-height: 44px;
+}
+
+.jarvis-app .tdash-filter-card {
+  padding: 16px;
+}
+
+.jarvis-app .tdash-mini-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content:not(.tab-hidden) {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content > .panel,
+.jarvis-app .team-dashboard-rework .tab-content > .dense-collapsible {
+  border-radius: 24px;
+  border-color: rgba(66, 232, 255, 0.16);
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.9));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .panel-header-row,
+.jarvis-app .team-dashboard-rework .tab-content .panel-header {
+  padding: 18px 20px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .panel-intro {
+  max-width: 72ch;
+  line-height: 1.55;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .summary-grid,
+.jarvis-app .team-dashboard-rework .tab-content .ban-kpi-grid,
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-grid,
+.jarvis-app .team-dashboard-rework .tab-content .mode-performance-grid,
+.jarvis-app .team-dashboard-rework .tab-content .insight-stack-grid {
+  gap: 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .stat-card,
+.jarvis-app .team-dashboard-rework .tab-content .ban-kpi-card,
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-card,
+.jarvis-app .team-dashboard-rework .tab-content .insight-card,
+.jarvis-app .team-dashboard-rework .tab-content .mode-card {
+  border-radius: 20px;
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  background: linear-gradient(180deg, rgba(13, 22, 36, 0.88), rgba(7, 14, 24, 0.82));
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .table-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .matrix-table-wrap {
+  border-color: rgba(66, 232, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(5, 14, 26, 0.78);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .stats-table th,
+.jarvis-app .team-dashboard-rework .tab-content .stats-table td {
+  padding: 12px 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-block,
+.jarvis-app .team-dashboard-rework .tab-content #prepHeroAnovaSummary {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(66, 232, 255, 0.18);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 34, 0.96), rgba(5, 13, 24, 0.9)),
+    radial-gradient(circle at top right, rgba(66, 232, 255, 0.12), transparent 42%);
+  box-shadow: inset 0 1px 0 rgba(140, 221, 255, 0.08), 0 14px 32px rgba(1, 8, 16, 0.28);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-block::before,
+.jarvis-app .team-dashboard-rework .tab-content #prepHeroAnovaSummary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(94, 182, 214, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 182, 214, 0.06) 1px, transparent 1px);
+  background-size: 100% 32px, 32px 100%;
+  opacity: 0.28;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap {
+  padding: 16px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  background: rgba(6, 16, 28, 0.78);
+  box-shadow: inset 0 1px 0 rgba(140, 221, 255, 0.06);
+}
+
+.jarvis-app .team-dashboard-rework .prep-hero-context-shell {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.jarvis-app .team-dashboard-rework .prep-context-lead {
+  align-self: start;
+  position: static;
+  top: auto;
+}
+
+.jarvis-app .team-dashboard-rework .prep-context-stage {
+  min-width: 0;
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  border-radius: 20px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(7, 17, 31, 0.9), rgba(4, 12, 23, 0.94));
+}
+
+.jarvis-app .team-dashboard-rework .prep-context-guide,
+.jarvis-app .team-dashboard-rework .prep-note-card,
+.jarvis-app .team-dashboard-rework .prep-combo4-card {
+  border-color: rgba(66, 232, 255, 0.14);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(10, 20, 34, 0.84), rgba(7, 14, 24, 0.88));
+}
+
+@media (max-width: 1100px) {
+  .jarvis-app .team-dashboard-rework .prep-hero-context-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.jarvis-app .team-scout-page-topbar {
+  padding: 18px 20px;
+  gap: 16px;
+}
+
+.jarvis-app .team-scout-page-title h1 {
+  font-size: clamp(2.35rem, 7vw, 4rem);
+  line-height: 0.94;
+}
+
+.jarvis-app .team-scout-page-switcher {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.jarvis-app .team-scout-page-scorecard {
+  min-width: 220px;
+  padding: 16px;
+}
+
+.jarvis-app .team-scout-preview-filters {
+  padding: 12px 14px;
+}
+
+.jarvis-app .team-scout-preview-filter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.jarvis-app .team-scout-prep-strip {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.jarvis-app .team-scout-prep-card,
+.jarvis-app .team-scout-preview-card {
+  padding: 16px;
+}
+
+.jarvis-app .team-scout-preview-layout {
+  gap: 16px;
+}
+
+.jarvis-app .team-scout-preview-card h2 {
+  font-size: 0.76rem;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-icon-grid {
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn {
+  min-height: 0 !important;
+  width: auto !important;
+  padding: 8px 6px !important;
+  gap: 4px !important;
+  border-radius: 14px !important;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn img {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 10px !important;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn .pool-tag {
+  display: none;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn .hero-pool-icon-overlay,
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn .hero-pool-sub {
+  display: none !important;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-name {
+  min-height: 2.1em;
+  font-size: 0.64rem;
+  line-height: 1.15;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pool-sub {
+  font-size: 0.58rem;
+}
+
+@media (max-width: 1180px) {
+  .jarvis-app .draft-sim-shell .draft-sim-hero,
+  .jarvis-app .draft-grid,
+  .jarvis-app .multi-draft-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .draft-order-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .jarvis-app .tdash-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .jarvis-app .tdash-title-row {
+    align-items: flex-start;
+  }
+
+  .jarvis-app .tdash-hero h1,
+  .jarvis-app .draft-sim-shell .draft-sim-hero h2 {
+    font-size: clamp(1.85rem, 6.2vw, 2.7rem);
+  }
+
+  .jarvis-app .draft-order-bar,
+  .jarvis-app .draft-sim-picker-panel .hero-icon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .team-scout-page-title h1 {
+    font-size: clamp(2rem, 7vw, 3rem);
+  }
+
+  .jarvis-app .team-scout-preview-filter-grid,
+  .jarvis-app .team-scout-prep-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .jarvis-app .draft-slot,
+  .jarvis-app .multi-slot {
+    min-height: 76px;
+  }
+}
+
+@media (max-width: 640px) {
+  .jarvis-app .tdash-title-row {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .jarvis-app .tdash-logo {
+    width: 88px;
+    height: 88px;
+  }
+
+  .jarvis-app .tdash-mini-kpis,
+  .jarvis-app .team-scout-preview-filter-grid,
+  .jarvis-app .team-scout-prep-strip {
+    grid-template-columns: 1fr;
+  }
+}

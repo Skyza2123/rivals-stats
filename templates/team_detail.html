@@ -5,67 +5,71 @@
 
 
 {% block content %}
-<section class="parser-dash-root parser-page-root">
-    <header class="parser-dash-header team-dash-header">
-        <div class="team-header-flex">
-            <img class="team-avatar" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
-            <div>
-                <h1>{{ team.name }}</h1>
-                <div class="team-kpi-chips gap-md">
-                    {% if team.quality_tag %}
-                        {% set qt = team.quality_tag %}
-                        {% set qt_class = 'qt-preferred' if qt == 'Preferred' else ('qt-semi' if qt == 'Semi Preferred' else ('qt-good' if qt == 'Good' else 'qt-avoid')) %}
-                        <span class="team-kpi-chip quality-tag-badge {{ qt_class }}">{{ qt }}</span>
-                    {% endif %}
-                    <span class="team-kpi-chip">{{ team_scrim_count }} scrims</span>
-                    <span class="team-kpi-chip">{{ team_analytics.summary.total_maps }} maps</span>
-                    <span class="team-kpi-chip">{{ team_analytics.summary.overall_win_rate }}% win rate</span>
-                </div>
-                <div class="muted-label team-record-line">
-                    {{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L &bull; {{ team_analytics.summary.overall_win_rate }}% Win Rate
-                </div>
-                <div class="muted-label team-notes-line">
-                    {{ team.notes or 'No team notes yet.' }}
-                    &bull;
-                    {% if selected_season == 'all' %}
-                        {{ team_scrim_count }} scrims
-                    {% elif selected_season == unspecified_season_token %}
-                        {{ team_scrim_count }} scrims with no season set ({{ team_scrim_total_count }} total)
-                    {% else %}
-                        {{ team_scrim_count }} scrims in Season {{ selected_season }} ({{ team_scrim_total_count }} total)
-                    {% endif %}
+<section class="parser-dash-root parser-page-root team-dashboard-rework">
+    <header class="tdash-hero">
+        <div class="tdash-hero-main">
+            <div class="tdash-title-row">
+                <img class="tdash-logo" src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=140' }}" alt="{{ team.name }}">
+                <div class="tdash-title-copy">
+                    <div class="section-kicker">
+                        {% if team.quality_tag %}{{ team.quality_tag }} Team{% else %}Team Dashboard{% endif %}
+                        {% if selected_season != 'all' and selected_season != unspecified_season_token %} &bull; Season {{ selected_season }}{% endif %}
+                    </div>
+                    <h1>{{ team.name }}</h1>
+                    <div class="tdash-chips">
+                        <span>{{ team_analytics.summary.overall_win_rate }}% win rate</span>
+                        <span>{{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L</span>
+                        <span>{{ team_analytics.summary.total_maps }} maps</span>
+                        <span>{{ team_scrim_count }} scrims</span>
+                        <span>{{ selected_map_type if selected_map_type != 'all' else 'All map types' }}</span>
+                    </div>
                 </div>
             </div>
+            <p class="tdash-subtitle">{{ team.notes or 'Clean scouting view for quick prep: recent form, draft identity, map pressure points, role coverage, and ban/protect patterns before a match.' }}</p>
+            <div class="tdash-actions">
+                <button type="button" class="button-small" onclick="switchTab('prep')">Open Prep Plan</button>
+                <a href="{{ url_for('teams_compare') }}" class="button-secondary btn-muted">Compare Enemy</a>
+                <a href="{{ url_for('teams') }}" class="button-secondary btn-muted">Back to Teams</a>
+            </div>
         </div>
-        <div class="parser-dash-controls team-dash-controls" role="region" aria-label="Team controls">
-            <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" class="page-toolbar-group form-contents">
-                <label class="parser-dash-control parser-dash-select-wrap">
-                    <select name="season" aria-label="Season filter" onchange="this.form.submit()">
-                        <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
-                        {% if has_unseasoned_scrims %}
-                            <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
-                        {% endif %}
-                        {% for season in season_options %}
-                            <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label class="parser-dash-control parser-dash-select-wrap">
-                    <select name="map_type" aria-label="Map type filter" onchange="this.form.submit()">
-                        <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
-                        {% for map_type in map_type_options %}
-                            <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-            </form>
-            <a href="{{ url_for('teams') }}" class="button-secondary btn-muted">Back to Teams</a>
-        </div>
+        <aside class="tdash-side" aria-label="Team filters">
+            <div class="tdash-filter-card">
+                <div class="section-kicker">Filters</div>
+                <h3>Scenario Builder</h3>
+                <p class="tdash-filter-copy">Keep the report locked to the current prep lens while the dashboard updates around your season and map-type filters.</p>
+                <form method="GET" action="{{ url_for('team_detail', team_id=team.id) }}" class="tdash-filter-grid">
+                    <label>
+                        <span>Season</span>
+                        <select name="season" aria-label="Season filter" onchange="this.form.submit()">
+                            <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                            {% if has_unseasoned_scrims %}
+                                <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                            {% endif %}
+                            {% for season in season_options %}
+                                <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>Map Type</span>
+                        <select name="map_type" aria-label="Map type filter" onchange="this.form.submit()">
+                            <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
+                            {% for map_type in map_type_options %}
+                                <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </form>
+            </div>
+            <div class="tdash-mini-kpis">
+                <article><strong>{{ players|length }}</strong><span>Active players</span></article>
+                <article><strong>{{ team_analytics.summary.unique_bans + team_analytics.summary.unique_protects }}</strong><span>Draft heroes</span></article>
+            </div>
+        </aside>
     </header>
-    <div class="section-divider"></div>
 
 
-    <nav class="parser-dash-tabs team-dash-tabs">
+    <nav class="parser-dash-tabs team-dash-tabs tdash-tabs-shell">
         <div class="tab-bar tab-bar-group">
             <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
             <button class="tab-btn" data-tab="prep" type="button">Prep</button>
@@ -80,6 +84,7 @@
             <button class="tab-btn" data-tab="summary" type="button">Summary</button>
             <button class="tab-btn" data-tab="roster" type="button">Roster</button>
         </div>
+        <span class="tdash-updated">Updated from current filters</span>
     </nav>
 
 
@@ -125,52 +130,225 @@
             </div>
         </div>
 
-        <!-- Main Grid: Roster & Activity -->
-        <div class="parser-overview-main">
-            <div class="parser-overview-main-col">
-                <div class="panel parser-overview-roster">
+        <section class="panel tdash-coach-card tdash-scout-card">
+            <div class="panel-header-row">
+                <div>
+                    <div class="section-kicker">Scout Summary</div>
+                    <h3>Coach Read</h3>
+                    <p class="panel-intro">The dashboard starts with the useful conclusion, then lets the data prove it.</p>
+                </div>
+                <span class="compare-tag compare-tag-positive">Quick read</span>
+            </div>
+            <div class="tdash-scout-grid">
+                <article class="tdash-note-card">
+                    <strong>Identity</strong>
+                    <span>
+                        {% if overview_top_protect %}
+                            They lean around {{ hero_display_name(overview_top_protect.hero) }} protection at {{ overview_top_protect.protect_rate }}%.
+                        {% elif overview_top_hero %}
+                            Their most repeated hero identity is {{ hero_display_name(overview_top_hero.hero) }} at {{ overview_top_hero.usage_rate }}% usage.
+                        {% else %}
+                            Not enough hero identity data yet.
+                        {% endif %}
+                    </span>
+                </article>
+                <article class="tdash-note-card">
+                    <strong>Attack</strong>
+                    <span>
+                        {% if overview_worst_map and overview_worst_map.win_rate < 45 %}
+                            Pressure {{ overview_worst_map.map_name }}; current WR is {{ overview_worst_map.win_rate }}%.
+                        {% elif overview_best_map %}
+                            Be ready for comfort on {{ overview_best_map.map_name }} at {{ overview_best_map.win_rate }}% WR.
+                        {% else %}
+                            Use early maps to test comfort and collect repeatable pressure points.
+                        {% endif %}
+                    </span>
+                </article>
+                <article class="tdash-note-card">
+                    <strong>Prep</strong>
+                    <span>
+                        {% if overview_top_ban and overview_top_protect %}
+                            Expect a route around banning {{ hero_display_name(overview_top_ban.hero) }} and protecting {{ hero_display_name(overview_top_protect.hero) }}.
+                        {% elif overview_top_ban %}
+                            Their top ban pattern is {{ hero_display_name(overview_top_ban.hero) }} at {{ overview_top_ban.ban_rate }}%.
+                        {% else %}
+                            Build the first prep pass around map comfort and first-action tendencies.
+                        {% endif %}
+                    </span>
+                </article>
+            </div>
+        </section>
+
+        <div class="tdash-dashboard-grid">
+            <div class="tdash-main-stack">
+                <div class="tdash-overview-row">
+                    <div class="panel parser-overview-roster tdash-overview-card">
                     <div class="panel-header-row">
-                        <h3>Team Roster</h3>
-                        <span class="muted-label">{{ players|length }} players</span>
+                        <div>
+                            <div class="section-kicker">Roster</div>
+                            <h3>Team Roster</h3>
+                        </div>
+                        <span class="compare-tag compare-tag-neutral">{{ players|length }} players</span>
                     </div>
                     {% if players %}
-                        <div class="overview-roster-bubbles top-gap">
+                        <div class="tdash-roster-grid top-gap">
                             {% for player in players %}
-                                <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="overview-player-bubble-card">
-                                    <span class="overview-player-bubble">{{ player.name[:2] | upper }}</span>
-                                    <strong>{{ player.name }}</strong>
-                                    <small>{{ player.role or 'No role' }}</small>
+                                <a href="{{ url_for('player_detail', team_id=team.id, player_id=player.id, season=selected_season, map_type=selected_map_type) }}" class="tdash-player-card">
+                                    <span class="tdash-person">
+                                        <span class="tdash-avatar">{{ player.name[:2] | upper }}</span>
+                                        <span class="tdash-person-meta">
+                                            <strong>{{ player.name }}</strong>
+                                            <small>{{ player.role or 'No role assigned' }}</small>
+                                        </span>
+                                    </span>
+                                    <span class="tdash-role-pill">{{ player.role or 'Flex' }}</span>
                                 </a>
                             {% endfor %}
                         </div>
                     {% else %}
                         <p class="empty-text">No players on roster yet.</p>
                     {% endif %}
+                    </div>
+
+                    <div class="panel parser-overview-activity tdash-overview-card">
+                        {% set recent_activity = namespace(scrim_ids=[]) %}
+                        {% for row in recent_map_visual_rows %}
+                            {% if row.scrim_id and row.scrim_id not in recent_activity.scrim_ids %}
+                                {% set recent_activity.scrim_ids = recent_activity.scrim_ids + [row.scrim_id] %}
+                            {% endif %}
+                        {% endfor %}
+                        <div class="panel-header-row">
+                            <div>
+                                <div class="section-kicker">Form</div>
+                                <h3>Recent Activity</h3>
+                                <p class="panel-intro">The most recent scrims in the current filters, compressed into a faster read.</p>
+                            </div>
+                            <span class="compare-tag compare-tag-neutral">{{ recent_activity.scrim_ids|length }} scrim window</span>
+                        </div>
+                        <div class="overview-activity-metrics top-gap">
+                            <article>
+                                <strong>{{ recent_activity.scrim_ids|length }}</strong>
+                                <span>Recent Scrims</span>
+                            </article>
+                            <article>
+                                <strong>{{ activity.active_days|length }}</strong>
+                                <span>Active Days</span>
+                            </article>
+                            <article>
+                                <strong>{{ recent_map_visual_rows|length }}</strong>
+                                <span>Recent Maps</span>
+                            </article>
+                        </div>
+                        {% if recent_map_visual_rows %}
+                            <div class="overview-activity-frame top-gap">
+                                <div class="overview-activity-months" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
+                                    {% for month in activity_heatmap.month_labels %}
+                                    <span style="grid-column: {{ month.column }};">{{ month.label }}</span>
+                                    {% endfor %}
+                                </div>
+                                <div class="overview-activity-grid-wrap">
+                                    <div class="overview-activity-days">
+                                        <span>Mon</span>
+                                        <span>Wed</span>
+                                        <span>Fri</span>
+                                    </div>
+                                    <div class="overview-activity-dots" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
+                                        {% for week in activity_heatmap.weeks %}
+                                            {% for day in week %}
+                                                <span
+                                                    class="overview-activity-dot overview-activity-dot-{{ day.outcome }}"
+                                                    style="--activity-level: {{ day.intensity }};"
+                                                    title="{{ day.label }}: {{ day.count }} map{{ 's' if day.count != 1 else '' }}{% if day.count %} ({{ day.wins }}W {{ day.losses }}L){% endif %}"
+                                                ></span>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="overview-activity-legend">
+                                    <span>Less</span>
+                                    <span class="overview-activity-dot"></span>
+                                    <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 1;"></span>
+                                    <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 2;"></span>
+                                    <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 3;"></span>
+                                    <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 4;"></span>
+                                    <span>More</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="empty-text">No recent activity data yet.</p>
+                        {% endif %}
+                    </div>
                 </div>
 
-                <div class="panel parser-overview-maps">
-                    <h3>Top Maps by Playtime</h3>
+                <div class="panel parser-overview-hero-pool tdash-overview-card">
+                    <div class="panel-header-row">
+                        <div>
+                            <div class="section-kicker">Role Coverage</div>
+                            <h3>Hero Pool Preview</h3>
+                            <p class="panel-intro">Keep the overview short: just enough player-by-player identity to decide whether to open the full Heroes tab.</p>
+                        </div>
+                        <span class="compare-tag compare-tag-neutral">Preview</span>
+                    </div>
+                    {% if players %}
+                        <div class="tdash-hero-pool-list top-gap">
+                            {% for player in players %}
+                                {% if player.hero_rows %}
+                                    <article class="tdash-hero-pool-row">
+                                        <div class="tdash-hero-pool-player">
+                                            <strong>{{ player.name }}</strong>
+                                            <small>{{ player.role or 'No role assigned' }}</small>
+                                        </div>
+                                        <div class="tdash-hero-pills">
+                                            {% for row in player.hero_rows %}
+                                                <span class="tdash-hero-pill">
+                                                    <img class="tdash-hero-pill-img" src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" loading="lazy" onerror="this.style.display='none'">
+                                                    <span>
+                                                        <strong>{{ hero_display_name(row.hero) }}</strong>
+                                                        <small>{{ row.maps|round(1) }} maps</small>
+                                                    </span>
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </article>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="empty-text">No hero data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <aside class="tdash-side-stack">
+                <div class="panel parser-overview-maps tdash-side-card">
+                    <div class="panel-header-row">
+                        <div>
+                            <div class="section-kicker">Map Pressure</div>
+                            <h3>Top Maps by Playtime</h3>
+                        </div>
+                    </div>
                     {% if overview_maps_by_playtime %}
                         {% set top_maps_max = overview_maps_by_playtime[0].maps %}
-                        <div class="overview-list top-gap">
-                            {% for row in overview_maps_by_playtime[:5] %}
-                                <article class="overview-list-item overview-map-item">
+                        <div class="tdash-map-list top-gap">
+                            {% for row in overview_maps_by_playtime[:4] %}
+                                <article class="tdash-map-row">
                                     <img
-                                        class="overview-map-thumb"
+                                        class="tdash-map-thumb"
                                         src="/map-image/{{ row.map_name | urlencode }}"
                                         alt="{{ row.map_name }}"
                                         loading="lazy"
                                         onerror="this.src='https://via.placeholder.com/72x72/0f172a/e6edf3?text=Map';"
                                     >
-                                    <div class="overview-map-content">
-                                        <div class="overview-list-head">
-                                            <strong>{{ row.map_name }}</strong>
-                                            <span>{{ row.maps }} maps</span>
-                                        </div>
+                                    <div class="tdash-map-content">
+                                        <strong>{{ row.map_name }}</strong>
+                                        <small>{{ row.maps }} maps · {{ row.mode }}</small>
                                         <div class="quick-bar-track">
                                             <span class="quick-bar-fill" style="--share: {{ ((row.maps / top_maps_max) * 100) if top_maps_max else 0 }}%"></span>
                                         </div>
-                                        <small>{{ row.win_rate }}% WR • {{ row.mode }}</small>
+                                    </div>
+                                    <div class="tdash-metric-right">
+                                        <strong class="{% if row.win_rate >= 55 %}wr-good{% elif row.win_rate >= 45 %}wr-ok{% else %}wr-bad{% endif %}">{{ row.win_rate }}%</strong>
+                                        <small>WR</small>
                                     </div>
                                 </article>
                             {% endfor %}
@@ -179,75 +357,14 @@
                         <p class="empty-text">No map data available yet.</p>
                     {% endif %}
                 </div>
-            </div>
-            <div class="parser-overview-main-col">
-                <div class="panel parser-overview-activity">
-                    {% set recent_activity = namespace(scrim_ids=[]) %}
-                    {% for row in recent_map_visual_rows %}
-                        {% if row.scrim_id and row.scrim_id not in recent_activity.scrim_ids %}
-                            {% set recent_activity.scrim_ids = recent_activity.scrim_ids + [row.scrim_id] %}
-                        {% endif %}
-                    {% endfor %}
-                    <h3>Recent Activity</h3>
-                    <p class="panel-intro">Most recent {{ recent_map_visual_rows|length }} map{{ 's' if recent_map_visual_rows|length != 1 else '' }} in the current filters.</p>
-                    <div class="overview-activity-metrics top-gap">
-                        <article>
-                            <strong>{{ recent_activity.scrim_ids|length }}</strong>
-                            <span>Recent Scrims</span>
-                        </article>
-                        <article>
-                            <strong>{{ activity.active_days|length }}</strong>
-                            <span>Active Days</span>
-                        </article>
-                        <article>
-                            <strong>{{ recent_map_visual_rows|length }}</strong>
-                            <span>Recent Maps</span>
-                        </article>
-                    </div>
-                    {% if recent_map_visual_rows %}
-                        <div class="overview-activity-frame top-gap">
-                            <div class="overview-activity-months" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
-                                {% for month in activity_heatmap.month_labels %}
-                                <span style="grid-column: {{ month.column }};">{{ month.label }}</span>
-                                {% endfor %}
-                            </div>
-                            <div class="overview-activity-grid-wrap">
-                                <div class="overview-activity-days">
-                                    <span>Mon</span>
-                                    <span>Wed</span>
-                                    <span>Fri</span>
-                                </div>
-                                <div class="overview-activity-dots" style="--activity-weeks: {{ activity_heatmap.weeks|length if activity_heatmap else 1 }};">
-                                    {% for week in activity_heatmap.weeks %}
-                                        {% for day in week %}
-                                            <span
-                                                class="overview-activity-dot overview-activity-dot-{{ day.outcome }}"
-                                                style="--activity-level: {{ day.intensity }};"
-                                                title="{{ day.label }}: {{ day.count }} map{{ 's' if day.count != 1 else '' }}{% if day.count %} ({{ day.wins }}W {{ day.losses }}L){% endif %}"
-                                            ></span>
-                                        {% endfor %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="overview-activity-legend">
-                                <span>Less</span>
-                                <span class="overview-activity-dot"></span>
-                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 1;"></span>
-                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 2;"></span>
-                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 3;"></span>
-                                <span class="overview-activity-dot overview-activity-dot-win" style="--activity-level: 4;"></span>
-                                <span>More</span>
-                            </div>
-                        </div>
-                    {% else %}
-                        <p class="empty-text">No recent activity data yet.</p>
-                    {% endif %}
-                </div>
 
-                <div class="panel parser-overview-strengths">
+                <div class="panel parser-overview-strengths tdash-side-card">
+                    <div>
+                        <div class="section-kicker">Takeaways</div>
                     <h3>Strengths & Weaknesses</h3>
-                    <div class="overview-strength-grid top-gap">
-                        <article class="overview-strength-card">
+                    </div>
+                    <div class="tdash-side-mini-list top-gap">
+                        <article class="tdash-mini-card">
                             <span class="compare-tag compare-tag-positive">Strength</span>
                             <p>
                                 {% if team_analytics.summary.overall_win_rate >= 55 %}
@@ -259,7 +376,7 @@
                                 {% endif %}
                             </p>
                         </article>
-                        <article class="overview-strength-card">
+                        <article class="tdash-mini-card">
                             <span class="compare-tag compare-tag-negative">Weakness</span>
                             <p>
                                 {% if overview_worst_map and overview_worst_map.win_rate < 45 %}
@@ -273,56 +390,26 @@
                         </article>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Hero Pool Section -->
-        <div class="panel parser-overview-hero-pool">
-            <h3>Hero Pool</h3>
-            {% if players %}
-                <div class="pool-roster">
-                    {% for player in players %}
-                        {% if player.hero_rows %}
-                            <div class="pool-roster-row">
-                                <a class="pool-player-info" href="{{ url_for('player_detail', team_id=team.id, player_id=player.id) }}">
-                                    <div class="pool-player-avatar">
-                                        <img src="{{ hero_image_url(player.hero_rows[0].hero) }}" alt="" loading="lazy" onerror="this.style.display='none'">
-                                    </div>
-                                    <div class="pool-player-text">
-                                        <span class="pool-player-name">{{ player.name }}</span>
-                                        <span class="pool-player-role">{{ player.role or '—' }}</span>
-                                    </div>
-                                </a>
-                                <div class="pool-hero-strip">
-                                    {% for row in player.hero_rows[:6] %}
-                                        {% set wr = row.win_rate %}
-                                        {% set maps_display = row.maps|round(1) %}
-                                        {% set wr_class = '' if not row.decided_maps else ('wr-good' if wr >= 55 else ('wr-ok' if wr >= 45 else 'wr-bad')) %}
-                                        <div class="pool-hero-chip">
-                                            <img class="pool-hero-img" src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" data-hero="{{ row.hero }}" loading="lazy" onerror="this.style.display='none'">
-                                            <div class="pool-hero-info">
-                                                <span class="pool-hero-name">{{ hero_display_name(row.hero) }}</span>
-                                                <span class="pool-hero-stats">
-                                                    <span class="pool-hero-stat">
-                                                        <small>Maps</small>
-                                                        <strong>{{ maps_display|int if maps_display == maps_display|int else maps_display }}</strong>
-                                                    </span>
-                                                    <span class="pool-hero-stat {{ wr_class }}">
-                                                        <small>WR</small>
-                                                        <strong>{% if row.decided_maps %}{{ wr }}%{% else %}--{% endif %}</strong>
-                                                    </span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
+                <div class="panel tdash-side-card">
+                    <div>
+                        <div class="section-kicker">Next Clicks</div>
+                        <h3>Go deeper</h3>
+                    </div>
+                    <div class="tdash-action-list top-gap">
+                        <button type="button" class="tdash-action-card" onclick="switchTab('prep')">
+                            <strong>Open Prep</strong>
+                            <small>Turn the read into a draft plan.</small>
+                        </button>
+                        <button type="button" class="tdash-action-card" onclick="switchTab('bans')">
+                            <strong>Open Draft</strong>
+                            <small>Check bans, protects, and route pressure.</small>
+                        </button>
+                        <button type="button" class="tdash-action-card" onclick="switchTab('heroes')">
+                            <strong>Open Heroes</strong>
+                            <small>See the full hero pool by player.</small>
+                        </button>
+                    </div>
                 </div>
-            {% else %}
-                <p class="empty-text">No hero data yet.</p>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -1114,32 +1201,50 @@
     </section>
 </div>
 
-<div class="tab-content tab-hidden" id="tab-prep">
-    <section class="panel">
-        <div class="section-kicker">Draft Overview</div>
-        <h3>{{ team.name }} Quick Draft Snapshot</h3>
-        <p class="panel-intro">High-level draft health before diving into detailed ban analytics.</p>
-        <div class="summary-grid">
+<div class="tab-content tab-hidden tdash-prep-tab" id="tab-prep">
+    <section class="panel tdash-prep-overview">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Prep Command Center</div>
+                <h3>{{ team.name }} Quick Draft Snapshot</h3>
+                <p class="panel-intro">The first screen stays decision-focused: sample size, current draft health, and quick links into the deeper evidence below.</p>
+            </div>
+            <span class="compare-tag compare-tag-positive">Current filter</span>
+        </div>
+        <div class="summary-grid tdash-prep-kpi-grid">
             <section class="stat-card">
                 <strong>Total Maps</strong>
                 <span>{{ team_analytics.summary.total_maps }}</span>
+                <small>Current filter sample</small>
             </section>
             <section class="stat-card">
                 <strong>Overall Win Rate</strong>
                 <span>{{ team_analytics.summary.overall_win_rate }}%</span>
+                <small>{{ team_analytics.summary.total_wins }}W - {{ team_analytics.summary.total_losses }}L</small>
             </section>
             <section class="stat-card">
                 <strong>Unique Bans</strong>
                 <span>{{ team_analytics.summary.unique_bans }}</span>
+                <small>Pressure patterns tracked</small>
             </section>
             <section class="stat-card">
                 <strong>Unique Protects</strong>
                 <span>{{ team_analytics.summary.unique_protects }}</span>
+                <small>Anchor keeps and fallback paths</small>
             </section>
         </div>
     </section>
 
-    <section class="panel top-gap">
+    <nav class="prep-section-nav" aria-label="Prep sections">
+        <a href="#prep-scout" class="prep-section-link">Scouting Snapshot</a>
+        <a href="#prep-hero-map-finder" class="prep-section-link">Hero Context</a>
+        <a href="#prep-open-hero" class="prep-section-link">Open Hero Impact</a>
+        <a href="#prep-expected-comps" class="prep-section-link">Expected Comps</a>
+        <a href="#prep-player-pivots" class="prep-section-link">Player Pivots</a>
+        <a href="#prep-ban-cooccurrence" class="prep-section-link">Draft Co-occurrence</a>
+    </nav>
+
+    <section class="panel tdash-prep-stage-shell">
         <div id="teamPrepContent" class="team-prep-stage">
             <p class="empty-text">Loading prep board...</p>
         </div>
@@ -1148,170 +1253,175 @@
 </div>
 
 <div class="tab-content tab-hidden" id="tab-first-action">
-    <section class="panel">
-        <div class="panel-header-row">
-            <div>
-                <div class="section-kicker">Fight Openers</div>
-                <h3>First Action Read</h3>
-            </div>
-            <form method="get" action="{{ url_for('team_detail', team_id=team.id, _anchor='first-action') }}" class="page-toolbar-group">
-                <input type="hidden" name="season" value="{{ selected_season }}">
-                <input type="hidden" name="map_type" value="{{ selected_map_type }}">
-                <label class="parser-dash-control parser-dash-select-wrap">
-                    <select name="first_action_enemy" aria-label="First action opponent filter" onchange="this.form.submit()">
-                        <option value="all" {% if selected_first_action_enemy == 'all' %}selected{% endif %}>All Opponents</option>
-                        {% for opponent_name in first_action_enemy_options %}
-                            <option value="{{ opponent_name }}" {% if selected_first_action_enemy == opponent_name %}selected{% endif %}>{{ opponent_name }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-            </form>
+    <section class="first-target-hero">
+        <div>
+            <div class="section-kicker">Marvel Rivals Fight Impact</div>
+            <h3>First Target Value Dashboard</h3>
+            <p class="panel-intro">This read shows which enemy player creates the highest fight winrate when eliminated first. Value compares each first target against your normal first-kill conversion.</p>
         </div>
-        <p class="panel-intro">A quick read on how {{ team.name }} opens fights into {{ first_action_read.target_label }} from logged first-action events.</p>
-        <div class="summary-grid top-gap">
-            <section class="stat-card">
-                <strong>First Kills</strong>
-                <span>{{ first_action_read.first_kills }}</span>
-                <small>{{ first_action_read.fk_wins }}W - {{ first_action_read.fk_losses }}L after FK</small>
-            </section>
-            <section class="stat-card">
-                <strong>First Deaths</strong>
-                <span>{{ first_action_read.first_deaths }}</span>
-                <small>{{ first_action_read.fd_wins }}W - {{ first_action_read.fd_losses }}L after FD</small>
-            </section>
-            <section class="stat-card">
-                <strong>Recorded Fights</strong>
-                <span>{{ first_action_read.total_fights }}</span>
-                <small>{{ first_action_read.target_label }}</small>
-            </section>
-            <section class="stat-card">
-                <strong>Fight Wins</strong>
-                <span>{{ first_action_read.fight_wins }}</span>
-                <small>{{ first_action_read.fight_wins }}W - {{ first_action_read.fight_losses }}L{% if first_action_read.fight_unset %} · {{ first_action_read.fight_unset }} unset{% endif %}</small>
-            </section>
-        </div>
+        <form method="get" action="{{ url_for('team_detail', team_id=team.id, _anchor='first-action') }}" class="page-toolbar-group">
+            <input type="hidden" name="season" value="{{ selected_season }}">
+            <input type="hidden" name="map_type" value="{{ selected_map_type }}">
+            <label class="parser-dash-control parser-dash-select-wrap">
+                <select name="first_action_enemy" aria-label="First action opponent filter" onchange="this.form.submit()">
+                    <option value="all" {% if selected_first_action_enemy == 'all' %}selected{% endif %}>All Opponents</option>
+                    {% for opponent_name in first_action_enemy_options %}
+                        <option value="{{ opponent_name }}" {% if selected_first_action_enemy == opponent_name %}selected{% endif %}>{{ opponent_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </form>
     </section>
 
-    <section class="panel top-gap">
-        <div class="panel-header-row">
-            <h3>Opponent Read</h3>
-            <span class="muted-label">{{ first_action_read.target_label }}</span>
-        </div>
-        {% if first_action_read.total_fights %}
-            <div class="summary-grid top-gap">
-                <section class="stat-card">
-                    <strong>Most Active Opener</strong>
-                    <span>{{ first_action_read.top_fk_player.name or '—' }}</span>
-                    <small>{{ first_action_read.top_fk_player.count }} first kill{{ 's' if first_action_read.top_fk_player.count != 1 else '' }}</small>
-                </section>
-                <section class="stat-card">
-                    <strong>Most Exposed</strong>
-                    <span>{{ first_action_read.top_fd_player.name or '—' }}</span>
-                    <small>{{ first_action_read.top_fd_player.count }} first death{{ 's' if first_action_read.top_fd_player.count != 1 else '' }}</small>
-                </section>
-                <section class="stat-card">
-                    <strong>They First Kill Into</strong>
-                    <span>{{ hero_display_name(first_action_read.top_fk_target_hero.name) if first_action_read.top_fk_target_hero.name else '—' }}</span>
-                    <small>{{ first_action_read.top_fk_target_hero.count }} time{{ 's' if first_action_read.top_fk_target_hero.count != 1 else '' }}</small>
-                </section>
-                <section class="stat-card">
-                    <strong>They Die First To</strong>
-                    <span>{{ hero_display_name(first_action_read.top_fd_source_hero.name) if first_action_read.top_fd_source_hero.name else '—' }}</span>
-                    <small>{{ first_action_read.top_fd_source_hero.count }} time{{ 's' if first_action_read.top_fd_source_hero.count != 1 else '' }}</small>
-                </section>
+    <section class="first-target-cards">
+        <article class="first-target-card">
+            <strong>Team Winrate After Any First Kill</strong>
+            <span class="{% if first_action_read.fk_baseline >= 55 %}good{% elif first_action_read.fk_baseline < 45 and (first_action_read.fk_wins + first_action_read.fk_losses) %}bad{% else %}mid{% endif %}">{{ first_action_read.fk_baseline }}%</span>
+            <small>Baseline for comparing target value</small>
+        </article>
+        <article class="first-target-card">
+            <strong>Best First Target</strong>
+            <span>{{ first_action_read.best_target.player if first_action_read.best_target else '—' }}</span>
+            <small class="{% if first_action_read.best_target and first_action_read.best_target.value_delta >= 0 %}good{% elif first_action_read.best_target %}bad{% endif %}">{% if first_action_read.best_target %}{{ '%+0.1f'|format(first_action_read.best_target.value_delta) }}pp vs baseline{% else %}No samples yet{% endif %}</small>
+        </article>
+        <article class="first-target-card">
+            <strong>Lowest Value First Target</strong>
+            <span>{{ first_action_read.lowest_target.player if first_action_read.lowest_target else '—' }}</span>
+            <small class="{% if first_action_read.lowest_target and first_action_read.lowest_target.value_delta < 0 %}bad{% elif first_action_read.lowest_target %}good{% endif %}">{% if first_action_read.lowest_target %}{{ '%+0.1f'|format(first_action_read.lowest_target.value_delta) }}pp vs baseline{% else %}No samples yet{% endif %}</small>
+        </article>
+        <article class="first-target-card">
+            <strong>Highest Confidence Read</strong>
+            <span>{{ first_action_read.highest_confidence_target.player if first_action_read.highest_confidence_target else '—' }}</span>
+            <small>{% if first_action_read.highest_confidence_target %}{{ first_action_read.highest_confidence_target.fights }} first-elim samples{% else %}No samples yet{% endif %}</small>
+        </article>
+    </section>
+
+    <section class="first-target-layout">
+        <div class="panel">
+            <div class="panel-header-row">
+                <div>
+                    <h3>Enemy First Eliminated Value</h3>
+                    <p class="panel-intro">Value = winrate after eliminating this player first minus normal first-kill winrate.</p>
+                </div>
+                <span class="pill pill-neutral">Baseline FK Winrate: {{ first_action_read.fk_baseline }}%</span>
             </div>
-            <div class="team-first-action-read top-gap">
-                {% set fk_total = first_action_read.fk_wins + first_action_read.fk_losses %}
-                {% set fd_total = first_action_read.fd_wins + first_action_read.fd_losses %}
+            {% if first_action_read.target_rows %}
+                <div class="table-wrap">
+                    <table class="stats-table">
+                        <thead>
+                            <tr><th>Enemy Player</th><th>Role</th><th>Record</th><th>Winrate</th><th>Value</th><th>Sample</th><th>Confidence</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for row in first_action_read.target_rows %}
+                            <tr>
+                                <td>
+                                    <span class="player-inline-hero">
+                                        <img src="https://avatar.vercel.sh/{{ row.player | urlencode }}.png?size=64" alt="{{ row.player }}">
+                                        <span>{{ row.player }}{% if row.top_hero %}<small class="stat-footnote">{{ hero_display_name(row.top_hero) }}</small>{% endif %}</span>
+                                    </span>
+                                </td>
+                                <td>{{ row.role }}</td>
+                                <td>{{ row.wins }}W - {{ row.losses }}L{% if row.unset %}<small class="stat-footnote">{{ row.unset }} unset</small>{% endif %}</td>
+                                <td>
+                                    <strong class="{% if row.win_rate >= first_action_read.fk_baseline %}good{% elif row.decided %}bad{% else %}mid{% endif %}">{{ row.win_rate }}%</strong>
+                                    <div class="first-target-bar"><span class="{% if row.win_rate < first_action_read.fk_baseline %}is-red{% endif %}" style="width: {{ row.win_rate if row.win_rate <= 100 else 100 }}%;"></span></div>
+                                </td>
+                                <td class="{% if row.value_delta >= 0 %}good{% else %}bad{% endif %}">{{ '%+0.1f'|format(row.value_delta) }}pp</td>
+                                <td>{{ row.fights }} fights</td>
+                                <td><span class="first-target-confidence confidence-{{ row.confidence|lower }}">{{ row.confidence }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-text">No enemy first-target value data yet. Log first actions where your team gets the first elimination.</p>
+            {% endif %}
+        </div>
+
+        <div class="panel">
+            <div class="panel-header-row">
+                <div>
+                    <h3>Coach Read</h3>
+                    <p class="panel-intro">Automatic interpretation from target-value data.</p>
+                </div>
+            </div>
+            <div class="first-target-insights">
                 <article>
-                    <strong>When {{ team.name }} gets first kill</strong>
-                    <p>{{ first_action_read.fk_wins }}W - {{ first_action_read.fk_losses }}L in decided logged fights{% if fk_total %}, converting {{ ((first_action_read.fk_wins / fk_total) * 100)|round(1) }}%{% endif %}. The main opening name in this filter is {{ first_action_read.top_fk_player.name or 'not set yet' }}.</p>
+                    <strong class="good">Best target: {{ first_action_read.best_target.player if first_action_read.best_target else 'not set yet' }}</strong>
+                    <p>{% if first_action_read.best_target %}Eliminating {{ first_action_read.best_target.player }} first gives a {{ first_action_read.best_target.win_rate }}% fight winrate, {{ '%+0.1f'|format(first_action_read.best_target.value_delta) }} points versus the normal first-kill baseline.{% else %}Add more first-action fights to build a target value read.{% endif %}</p>
                 </article>
                 <article>
-                    <strong>When {{ team.name }} gives first death</strong>
-                    <p>{{ first_action_read.fd_wins }}W - {{ first_action_read.fd_losses }}L in decided logged fights{% if fd_total %}, recovering {{ ((first_action_read.fd_wins / fd_total) * 100)|round(1) }}%{% endif %}. The most common pressure source is {{ hero_display_name(first_action_read.top_fd_source_hero.name) if first_action_read.top_fd_source_hero.name else 'not set yet' }}.</p>
+                    <strong class="good">Reliable sample: {{ first_action_read.highest_confidence_target.player if first_action_read.highest_confidence_target else 'not set yet' }}</strong>
+                    <p>{% if first_action_read.highest_confidence_target %}This is the largest sample in the filter at {{ first_action_read.highest_confidence_target.fights }} fights. Treat it as the safest read even if another target has a higher value spike.{% else %}Confidence will improve once multiple fights hit the same target.{% endif %}</p>
+                </article>
+                <article>
+                    <strong class="bad">Avoid forcing: {{ first_action_read.lowest_target.player if first_action_read.lowest_target else 'not set yet' }}</strong>
+                    <p>{% if first_action_read.lowest_target %}This first target converts at {{ first_action_read.lowest_target.win_rate }}%, {{ '%+0.1f'|format(first_action_read.lowest_target.value_delta) }} points versus baseline. Check if too many cooldowns are being spent for low cleanup value.{% else %}Low-value target reads will appear once first-kill samples exist.{% endif %}</p>
+                </article>
+                <article>
+                    <strong class="mid">Main tactical idea</strong>
+                    <p>Use the target table to decide whether to commit onto backline names, punish flankers, or stop over-investing into low-value tank first kills.</p>
                 </article>
             </div>
-        {% else %}
-            <p class="empty-text">No first-action fight events match this opponent filter yet. Add them from a map Timeline tab.</p>
-        {% endif %}
+        </div>
     </section>
 
-    <section class="panel top-gap">
-        <div class="panel-header-row">
-            <h3>Map Fight Read</h3>
-            <span class="muted-label">{{ first_action_map_rows|length }} maps in filter</span>
-        </div>
-        {% if first_action_map_rows %}
-            {% call stats_table(['Map', 'Fights', 'Fight W-L', 'Fight WR', 'First Kills', 'First Deaths', 'Main Round / Submap'], table_class='stats-table') %}
-                {% for row in first_action_map_rows %}
-                    <tr>
-                        <td>
-                            <span class="team-scout-preview-map-cell">
-                                <img class="team-scout-preview-map-thumb" src="{{ map_image_url(row.map_name) }}" alt="{{ row.map_name }}" loading="lazy">
-                                <span>{{ row.map_name }}</span>
-                            </span>
-                        </td>
-                        <td>{{ row.fights }}</td>
-                        <td>{{ row.fight_wins }}W - {{ row.fight_losses }}L{% if row.fight_unset %}<small class="stat-footnote">{{ row.fight_unset }} unset</small>{% endif %}</td>
-                        <td class="{% if row.fight_win_rate >= 55 %}good{% elif row.fight_win_rate < 45 and (row.fight_wins + row.fight_losses) %}bad{% else %}mid{% endif %}">{{ row.fight_win_rate }}%</td>
-                        <td>{{ row.first_kills }}</td>
-                        <td>{{ row.first_deaths }}</td>
-                        <td>{{ row.top_round_label or '—' }}{% if row.top_round_count %}<small class="stat-footnote">{{ row.top_round_count }} logged fight{{ 's' if row.top_round_count != 1 else '' }}</small>{% endif %}</td>
-                    </tr>
-                {% endfor %}
-            {% endcall %}
-        {% else %}
-            <p class="empty-text">No map fight data matches this filter yet.</p>
-        {% endif %}
+    {% if first_action_read.target_rows %}
+    <section class="first-target-mini-grid">
+        {% for row in first_action_read.target_rows[:3] %}
+        <article class="panel first-target-mini-card">
+            <div class="first-target-mini-head">
+                <h3>{{ row.player }} First</h3>
+                <span class="first-target-confidence confidence-{{ row.confidence|lower }}">{{ 'High Value' if row.value_delta >= 8 else ('Low Value' if row.value_delta < 0 else row.confidence) }}</span>
+            </div>
+            <div class="first-target-stat-grid">
+                <div><span>Fight Record</span><b>{{ row.wins }} - {{ row.losses }}</b></div>
+                <div><span>Winrate</span><b class="{% if row.win_rate >= first_action_read.fk_baseline %}good{% else %}bad{% endif %}">{{ row.win_rate }}%</b></div>
+                <div><span>Value</span><b class="{% if row.value_delta >= 0 %}good{% else %}bad{% endif %}">{{ '%+0.1f'|format(row.value_delta) }}pp</b></div>
+                <div><span>Samples</span><b>{{ row.fights }}</b></div>
+            </div>
+        </article>
+        {% endfor %}
     </section>
+    {% endif %}
 
-    <section class="panel top-gap">
-        <div class="panel-header-row">
-            <h3>Player First Action</h3>
-            <span class="muted-label">{{ first_action_player_rows|length }} players in filter</span>
+    <section class="first-target-footer">
+        <div class="panel">
+            <div class="panel-header-row">
+                <div>
+                    <h3>Recent First-Elim Timeline</h3>
+                    <p class="panel-intro">Shows whether the target-value pattern appears in actual fights.</p>
+                </div>
+            </div>
+            {% if first_action_read.recent_events %}
+                <div class="first-target-timeline">
+                    {% for row in first_action_read.recent_events %}
+                    <article>
+                        <strong>{{ row.fight_round_label or 'Map' }}{% if row.fight_number %} · Fight {{ row.fight_number }}{% endif %}</strong>
+                        <span>{{ row.killer_player or 'Unknown' }}{% if row.killer_hero %} ({{ hero_display_name(row.killer_hero) }}){% endif %} eliminated {{ row.victim_player or 'Unknown' }}{% if row.victim_hero %} ({{ hero_display_name(row.victim_hero) }}){% endif %}</span>
+                        <em class="{% if row.fight_result == 'Won' %}good{% elif row.fight_result == 'Lost' %}bad{% else %}mid{% endif %}">{{ row.fight_result }}</em>
+                    </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">No first-action fight events match this filter yet. Add them from a map Timeline tab.</p>
+            {% endif %}
         </div>
-        {% if first_action_player_rows %}
-            {% call stats_table(['Player', 'Role', 'First Kills', 'First Kill Target', 'FK Fight Result', 'First Deaths', 'First Death Source', 'FD Fight Result'], table_class='stats-table roster-table') %}
-                {% for row in first_action_player_rows %}
-                    <tr>
-                        <td>
-                            <span class="player-inline-hero">
-                                <img src="https://avatar.vercel.sh/{{ row.player | urlencode }}.png?size=64" alt="{{ row.player }}">
-                                <span>{{ row.player }}</span>
-                            </span>
-                        </td>
-                        <td>{{ row.role or '-' }}</td>
-                        <td>{{ row.first_kills }}</td>
-                        <td>
-                            {% if row.top_fk_target_hero %}
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.top_fk_target_hero) }}" alt="{{ row.top_fk_target_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_fk_target_hero | urlencode }}'">
-                                    <span>{{ hero_display_name(row.top_fk_target_hero) }} · {{ row.top_fk_target_hero_count }}</span>
-                                </span>
-                            {% else %}
-                                <span class="empty-text">—</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ row.fk_wins }}W - {{ row.fk_losses }}L</td>
-                        <td>{{ row.first_deaths }}</td>
-                        <td>
-                            {% if row.top_fd_source_hero %}
-                                <span class="hero-inline-cell">
-                                    <img src="{{ hero_image_url(row.top_fd_source_hero) }}" alt="{{ row.top_fd_source_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_fd_source_hero | urlencode }}'">
-                                    <span>{{ hero_display_name(row.top_fd_source_hero) }} · {{ row.top_fd_source_hero_count }}</span>
-                                </span>
-                            {% else %}
-                                <span class="empty-text">—</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ row.fd_wins }}W - {{ row.fd_losses }}L</td>
-                    </tr>
-                {% endfor %}
-            {% endcall %}
-        {% else %}
-            <p class="empty-text">No player first-action rows match this filter yet.</p>
-        {% endif %}
+
+        <div class="panel">
+            <div class="panel-header-row">
+                <div>
+                    <h3>Generated Coaching Notes</h3>
+                    <p class="panel-intro">Use this as the scouting takeaway.</p>
+                </div>
+            </div>
+            <div class="first-target-notes">
+                <article class="is-green"><strong>Primary target plan:</strong> {% if first_action_read.best_target %}Prioritize {{ first_action_read.best_target.player }} as a first-elim target when the fight setup allows it.{% else %}No primary target yet. Log more first-elim fights.{% endif %}</article>
+                <article class="is-red"><strong>Do not tunnel:</strong> {% if first_action_read.lowest_target %}Be careful forcing {{ first_action_read.lowest_target.player }} first; the current conversion is below the best available target read.{% else %}Low-value first targets will show after more samples.{% endif %}</article>
+                <article><strong>Next scrim focus:</strong> Track whether target calls match this table and whether first-target conversion stays above the {{ first_action_read.fk_baseline }}% baseline.</article>
+            </div>
+        </div>
     </section>
 </div>
 
@@ -3823,8 +3933,13 @@
 
     const switchTeamTab = (tabName) => {
         const nextTab = validTabs.has(tabName) ? tabName : "overview";
+        let activeButton = null;
         tabButtons.forEach((button) => {
-            button.classList.toggle("tab-active", button.dataset.tab === nextTab);
+            const isActive = button.dataset.tab === nextTab;
+            button.classList.toggle("tab-active", isActive);
+            if (isActive) {
+                activeButton = button;
+            }
         });
 
         tabPanels.forEach((panel) => {
@@ -3838,6 +3953,10 @@
         const moreTabsToggle = document.querySelector('.team-more-tabs');
         if (moreTabsToggle) {
             moreTabsToggle.open = advancedTabs.has(nextTab);
+        }
+
+        if (activeButton) {
+            activeButton.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
         }
 
         // Chart.js can't measure hidden (display:none) canvases — resize after reveal

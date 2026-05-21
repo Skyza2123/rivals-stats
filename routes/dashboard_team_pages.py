@@ -1959,8 +1959,10 @@ def team_detail(team_id: int):
     fd_player_counter: Counter = Counter()
     fk_target_hero_counter: Counter = Counter()
     fd_source_hero_counter: Counter = Counter()
+    fd_source_player_counter: Counter = Counter()
     map_first_action_rows: dict[str, dict] = {}
     roster_first_action_rows = {}
+    enemy_first_target_rows: dict[str, dict] = {}
     for player in players:
         player_name = _clean_text(player.get("name"))
         if not player_name:
@@ -2014,6 +2016,28 @@ def team_detail(team_id: int):
             fk_player_counter[row["killer_player"]] += 1
             player_read = roster_first_action_rows[killer_key]
             player_read["first_kills"] += 1
+            if victim_key and victim_key not in roster_first_action_rows:
+                target_name = row.get("victim_player") or "Unknown"
+                target_read = enemy_first_target_rows.setdefault(
+                    target_name.lower(),
+                    {
+                        "player": target_name,
+                        "hero_counter": Counter(),
+                        "wins": 0,
+                        "losses": 0,
+                        "unset": 0,
+                        "fights": 0,
+                    },
+                )
+                target_read["fights"] += 1
+                if row.get("victim_hero"):
+                    target_read["hero_counter"][row["victim_hero"]] += 1
+                if fight_result == "Won":
+                    target_read["wins"] += 1
+                elif fight_result == "Lost":
+                    target_read["losses"] += 1
+                else:
+                    target_read["unset"] += 1
             if fight_result == "Won":
                 first_action_read_counts["fk_wins"] += 1
                 player_read["fk_wins"] += 1
@@ -2038,12 +2062,62 @@ def team_detail(team_id: int):
             if row.get("killer_hero"):
                 fd_source_hero_counter[row["killer_hero"]] += 1
                 player_read["fd_source_heroes"][row["killer_hero"]] += 1
+            if row.get("killer_player"):
+                fd_source_player_counter[row["killer_player"]] += 1
 
     def _top_counter_row(counter: Counter) -> dict:
         if not counter:
             return {"name": "", "count": 0}
         name, count = counter.most_common(1)[0]
         return {"name": name, "count": count}
+
+    def _hero_role(hero_name: str) -> str:
+        hero_key = _canonical_draft_hero(_clean_text(hero_name))
+        if not hero_key:
+            return "Unknown"
+        for role_name, role_heroes in HERO_ROLES.items():
+            if hero_key in role_heroes:
+                return role_name
+        return "Unknown"
+
+    fk_decided_total = first_action_read_counts["fk_wins"] + first_action_read_counts["fk_losses"]
+    first_action_fk_baseline = round((first_action_read_counts["fk_wins"] / fk_decided_total) * 100, 1) if fk_decided_total else 0
+    first_action_target_rows = []
+    for row in enemy_first_target_rows.values():
+        decided = row["wins"] + row["losses"]
+        win_rate = round((row["wins"] / decided) * 100, 1) if decided else 0
+        value_delta = round(win_rate - first_action_fk_baseline, 1) if decided and fk_decided_total else 0
+        top_hero = _top_counter_row(row["hero_counter"])
+        sample = row["fights"]
+        confidence = "High" if sample >= 8 else ("Med" if sample >= 4 else "Low")
+        first_action_target_rows.append(
+            {
+                "player": row["player"],
+                "role": _hero_role(top_hero["name"]),
+                "top_hero": top_hero["name"],
+                "wins": row["wins"],
+                "losses": row["losses"],
+                "unset": row["unset"],
+                "fights": sample,
+                "decided": decided,
+                "win_rate": win_rate,
+                "value_delta": value_delta,
+                "confidence": confidence,
+            }
+        )
+    first_action_target_rows.sort(
+        key=lambda row: (row["value_delta"], row["decided"], row["fights"], row["win_rate"]),
+        reverse=True,
+    )
+    first_action_best_target = first_action_target_rows[0] if first_action_target_rows else None
+    first_action_lowest_target = (
+        min(first_action_target_rows, key=lambda row: (row["value_delta"], -row["decided"], row["player"].lower()))
+        if first_action_target_rows else None
+    )
+    first_action_highest_confidence_target = (
+        max(first_action_target_rows, key=lambda row: (row["fights"], row["win_rate"], row["value_delta"]))
+        if first_action_target_rows else None
+    )
 
     first_action_player_rows = []
     for row in roster_first_action_rows.values():
@@ -2080,6 +2154,17 @@ def team_detail(team_id: int):
         "top_fd_player": _top_counter_row(fd_player_counter),
         "top_fk_target_hero": _top_counter_row(fk_target_hero_counter),
         "top_fd_source_hero": _top_counter_row(fd_source_hero_counter),
+        "top_fd_source_player": _top_counter_row(fd_source_player_counter),
+        "top_fd_source_players": [
+            {"name": name, "count": count}
+            for name, count in fd_source_player_counter.most_common(6)
+        ],
+        "fk_baseline": first_action_fk_baseline,
+        "best_target": first_action_best_target,
+        "lowest_target": first_action_lowest_target,
+        "highest_confidence_target": first_action_highest_confidence_target,
+        "target_rows": first_action_target_rows,
+        "recent_events": first_action_filtered_events[:8],
     }
 
     staff_members = [

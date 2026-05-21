@@ -1,0 +1,468 @@
+.jarvis-app .tdash-tabs-shell {
+  display: block;
+  min-height: 56px;
+  padding: 8px 12px;
+}
+
+.jarvis-app .team-dashboard-rework .tdash-hero,
+.jarvis-app .team-dashboard-rework .tdash-tabs-shell,
+.jarvis-app .team-dashboard-rework .tab-content,
+.jarvis-app .team-dashboard-rework .tdash-prep-overview,
+.jarvis-app .team-dashboard-rework .prep-grid,
+.jarvis-app .team-dashboard-rework .prep-section-nav,
+.jarvis-app .team-dashboard-rework .prep-section-panel,
+.jarvis-app .team-dashboard-rework .panel.prep-command-board {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.jarvis-app .tdash-tabs-shell .tab-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-right: 176px;
+  scrollbar-width: none;
+}
+
+.jarvis-app .tdash-tabs-shell .tab-bar::-webkit-scrollbar {
+  height: 0;
+}
+
+.jarvis-app .tdash-tabs-shell .tab-btn {
+  flex: 0 0 auto;
+}
+
+.jarvis-app .tdash-updated {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.78rem;
+  color: rgba(214, 227, 245, 0.7);
+  pointer-events: none;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content:not(.tab-hidden) {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content > .panel,
+.jarvis-app .team-dashboard-rework .tab-content > .dense-collapsible {
+  border-radius: 24px;
+  border-color: rgba(66, 232, 255, 0.16);
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.9));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .panel-header-row,
+.jarvis-app .team-dashboard-rework .tab-content .panel-header {
+  padding: 18px 20px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .panel-intro {
+  max-width: 72ch;
+  line-height: 1.55;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .summary-grid,
+.jarvis-app .team-dashboard-rework .tab-content .ban-kpi-grid,
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-grid,
+.jarvis-app .team-dashboard-rework .tab-content .mode-performance-grid,
+.jarvis-app .team-dashboard-rework .tab-content .insight-stack-grid {
+  gap: 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .stat-card,
+.jarvis-app .team-dashboard-rework .tab-content .ban-kpi-card,
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-card,
+.jarvis-app .team-dashboard-rework .tab-content .insight-card,
+.jarvis-app .team-dashboard-rework .tab-content .mode-card {
+  border-radius: 20px;
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  background: linear-gradient(180deg, rgba(13, 22, 36, 0.88), rgba(7, 14, 24, 0.82));
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .table-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .matrix-table-wrap {
+  border-color: rgba(66, 232, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(5, 14, 26, 0.78);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .stats-table th,
+.jarvis-app .team-dashboard-rework .tab-content .stats-table td {
+  padding: 12px 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .inline-actions,
+.jarvis-app .team-dashboard-rework .tab-content .button-row,
+.jarvis-app .team-dashboard-rework .tab-content .scrim-view-toggle {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .scrim-log-filters,
+.jarvis-app .team-dashboard-rework .tab-content .map-filter-bar,
+.jarvis-app .team-dashboard-rework .tab-content .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .scrim-log-filters {
+  align-items: center;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .scrim-accordion {
+  display: grid;
+  gap: 12px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .scrim-accordion-item {
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(11, 19, 33, 0.9), rgba(7, 14, 24, 0.84));
+  overflow: hidden;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .scrim-accordion-summary {
+  padding: 14px 16px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .team-map-grid {
+  gap: 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .team-map-card {
+  border-radius: 22px;
+  border-color: rgba(66, 232, 255, 0.16);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .roster-edit-form,
+.jarvis-app .team-dashboard-rework .tab-content .roster-table-panel,
+.jarvis-app .team-dashboard-rework .tab-content .roster-edit-panel {
+  gap: 12px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .compare-tag,
+.jarvis-app .team-dashboard-rework .tab-content .pill {
+  border-radius: 999px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-block,
+.jarvis-app .team-dashboard-rework .tab-content #prepHeroAnovaSummary {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(66, 232, 255, 0.18);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 34, 0.96), rgba(5, 13, 24, 0.9)),
+    radial-gradient(circle at top right, rgba(66, 232, 255, 0.12), transparent 42%);
+  box-shadow: inset 0 1px 0 rgba(140, 221, 255, 0.08), 0 14px 32px rgba(1, 8, 16, 0.28);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap::before,
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-block::before,
+.jarvis-app .team-dashboard-rework .tab-content #prepHeroAnovaSummary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(94, 182, 214, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 182, 214, 0.06) 1px, transparent 1px);
+  background-size: 100% 32px, 32px 100%;
+  opacity: 0.28;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap {
+  padding: 16px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-wrap canvas,
+.jarvis-app .team-dashboard-rework .tab-content .role-donut-wrap canvas,
+.jarvis-app .team-dashboard-rework .tab-content .hero-pool-bar-wrap canvas,
+.jarvis-app .team-dashboard-rework .tab-content .enemy-trend-chart-wrap canvas {
+  position: relative;
+  z-index: 1;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-block {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-chart-title,
+.jarvis-app .team-dashboard-rework .tab-content .player-chart-label {
+  margin: 0;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: rgba(114, 237, 255, 0.86);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  background: rgba(6, 16, 28, 0.78);
+  box-shadow: inset 0 1px 0 rgba(140, 221, 255, 0.06);
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-row,
+.jarvis-app .team-dashboard-rework .tab-content .ban-position-top,
+.jarvis-app .team-dashboard-rework .tab-content .ban-position-row,
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-meta {
+  min-width: 0;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-row,
+.jarvis-app .team-dashboard-rework .tab-content .ban-position-row {
+  flex-wrap: wrap;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .ban-intel-row .hero-inline-cell,
+.jarvis-app .team-dashboard-rework .tab-content .ban-position-top .hero-inline-cell,
+.jarvis-app .team-dashboard-rework .tab-content .ban-position-row .hero-inline-cell {
+  min-width: 0;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .ban-position-card,
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-card,
+.jarvis-app .team-dashboard-rework .tab-content .prep-note-card {
+  border-radius: 20px;
+  border-color: rgba(66, 232, 255, 0.14);
+  background: linear-gradient(180deg, rgba(11, 20, 34, 0.9), rgba(6, 13, 22, 0.84));
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-card {
+  align-content: start;
+  gap: 14px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-heroes {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-flex-hero,
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-names {
+  min-width: 0;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .prep-combo4-names {
+  line-height: 1.45;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content #prepHeroAnovaSummary .stats-table th,
+.jarvis-app .team-dashboard-rework .tab-content #prepHeroAnovaSummary .stats-table td {
+  vertical-align: middle;
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-banner-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  align-items: stretch;
+  gap: 16px;
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-banner-copy {
+  position: relative;
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  border-radius: 18px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(8, 20, 34, 0.72), rgba(5, 12, 22, 0.82));
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-banner-copy::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  height: clamp(120px, 22vh, 220px);
+  border-radius: 14px;
+  border: 1px solid rgba(66, 232, 255, 0.12);
+  background:
+    linear-gradient(rgba(90, 183, 216, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 183, 216, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(9, 24, 40, 0.68), rgba(6, 14, 24, 0.88));
+  background-size: 100% 24px, 24px 100%, 100% 100%;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-banner-copy > * {
+  position: relative;
+  z-index: 1;
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-banner-copy .panel-intro {
+  max-width: 62ch;
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-banner-core {
+  border-color: rgba(66, 232, 255, 0.16);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(66, 232, 255, 0.12), transparent 46%),
+    linear-gradient(180deg, rgba(15, 25, 42, 0.82), rgba(8, 16, 28, 0.88));
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.jarvis-app .team-dashboard-rework #tab-prep .prep-combo4-names {
+  line-height: 1.4;
+  max-width: 44ch;
+}
+
+.jarvis-app .team-dashboard-rework .tab-content .vbar-chart {
+  gap: 12px;
+}
+
+.jarvis-app .team-dashboard-rework #tab-bans .two-col-grid,
+.jarvis-app .team-dashboard-rework #tab-bans .chart-hub-grid,
+.jarvis-app .team-dashboard-rework #tab-bans .ban-visual-grid,
+.jarvis-app .team-dashboard-rework #tab-heroes .hero-charts-split,
+.jarvis-app .team-dashboard-rework #tab-prep .prep-lane-grid {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+@media (max-width: 1320px) {
+  .jarvis-app .team-dashboard-rework #tab-bans .two-col-grid,
+  .jarvis-app .team-dashboard-rework #tab-prep .prep-lane-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .jarvis-app .team-dashboard-rework #tab-prep .prep-banner-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .table-wrap {
+    overflow-x: visible;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table,
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table thead,
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table tbody,
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table tr,
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table thead {
+    display: none;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table tr {
+    border: 1px solid rgba(66, 232, 255, 0.2);
+    border-radius: 14px;
+    background: rgba(2, 6, 23, 0.36);
+    padding: 8px 10px;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table td {
+    display: grid;
+    grid-template-columns: 124px minmax(0, 1fr);
+    gap: 10px;
+    padding: 7px 8px;
+    border: 0;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table td::before {
+    color: rgba(214, 227, 245, 0.76);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(1) td:nth-child(1)::before { content: 'Draft Action'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(1) td:nth-child(2)::before { content: 'Winrate Influence'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(1) td:nth-child(3)::before { content: 'Active WR'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(1) td:nth-child(4)::before { content: 'Inactive WR'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(1) td:nth-child(5)::before { content: 'Mode Split'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(1) td:nth-child(6)::before { content: 'Map Split'; }
+
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(2) td:nth-child(1)::before { content: 'Metric'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(2) td:nth-child(2)::before { content: 'Map Effect'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(2) td:nth-child(3)::before { content: 'Mode Effect'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(2) td:nth-child(4)::before { content: 'Sample'; }
+  .jarvis-app .team-dashboard-rework #prepHeroAnovaSummary .stats-table:nth-of-type(2) td:nth-child(5)::before { content: 'Signal'; }
+}
+
+@media (max-width: 1200px) {
+  .jarvis-app .team-dashboard-rework #tab-bans .ban-position-card,
+  .jarvis-app .team-dashboard-rework #tab-prep .prep-combo4-card {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .jarvis-app .tdash-updated {
+    display: none;
+  }
+
+  .jarvis-app .team-dashboard-rework #tab-prep .prep-banner-copy::after {
+    height: 92px;
+  }
+
+  .jarvis-app .team-dashboard-rework .tab-content .summary-grid,
+  .jarvis-app .team-dashboard-rework .tab-content .ban-kpi-grid,
+  .jarvis-app .team-dashboard-rework .tab-content .ban-intel-grid,
+  .jarvis-app .team-dashboard-rework .tab-content .mode-performance-grid,
+  .jarvis-app .team-dashboard-rework .tab-content .insight-stack-grid,
+  .jarvis-app .team-dashboard-rework .tab-content .team-map-grid,
+  .jarvis-app .team-dashboard-rework .tab-content .prep-combo4-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .team-dashboard-rework .tab-content .chart-legend-item,
+  .jarvis-app .team-dashboard-rework .tab-content .ban-intel-row,
+  .jarvis-app .team-dashboard-rework .tab-content .ban-position-top,
+  .jarvis-app .team-dashboard-rework .tab-content .ban-position-row {
+    align-items: flex-start;
+  }
+}

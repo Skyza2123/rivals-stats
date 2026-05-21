@@ -3,20 +3,37 @@
 {% block title %}Draft Simulator{% endblock %}
 
 {% block content %}
-<div class="main-header">
-    <div>
+<div class="draft-sim-shell">
+<header class="main-header draft-sim-hero jarvis-hero">
+    <div class="draft-sim-hero-main">
+        <div class="section-kicker">Draft Prep</div>
         <h2>Draft Simulator</h2>
-        <p>Simulate a full ban/protect draft phase.</p>
+        <p>Simulate a full ban/protect phase, store team-specific routes, and rehearse real-time sequences without changing any draft logic.</p>
+        <div class="draft-sim-chip-row">
+            <span class="jarvis-chip">3 simulator modes</span>
+            <span class="jarvis-chip">Live timer support</span>
+            <span class="jarvis-chip">Saved team routes</span>
+        </div>
     </div>
-    <div class="header-actions">
-        <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
-        <button type="button" id="rt-toggle" class="button-secondary rt-toggle" onclick="toggleRealTime()">Real-Time: OFF</button>
-        <button type="button" class="button-secondary" onclick="resetActiveDraft()">Reset Draft</button>
+    <div class="draft-sim-hero-side assistant-note">
+        <strong>Operator note</strong>
+        <p>Use the full board for live sequence reps, multi-option mode for branch prep, and one-sided concepts for your own ban plan without mirroring the opponent.</p>
+        <div class="header-actions draft-sim-actions">
+            <a href="{{ url_for('dashboard') }}" class="button-secondary">Back to Dashboard</a>
+            <button type="button" id="rt-toggle" class="button-secondary rt-toggle" onclick="toggleRealTime()">Real-Time: OFF</button>
+            <button type="button" class="button-secondary" onclick="resetActiveDraft()">Reset Draft</button>
+        </div>
     </div>
-</div>
+</header>
 
-<section class="panel">
-    <h3>Team Draft Saves</h3>
+<section class="panel draft-sim-panel draft-sim-save-panel">
+    <div class="draft-sim-section-head">
+        <div>
+            <div class="section-kicker">Persistence</div>
+            <h3>Team Draft Saves</h3>
+        </div>
+        <p class="panel-intro">Store reusable openers and test season-specific prep routes before you take them into live draft.</p>
+    </div>
     <div class="form-grid">
         <div class="field">
             <label for="draftTeamSelect">Team</label>
@@ -57,15 +74,21 @@
     <p class="panel-intro top-gap" id="draftSaveStatus"></p>
 </section>
 
-<div class="tab-bar" id="draftModeTabs">
+<div class="tab-bar draft-sim-mode-tabs" id="draftModeTabs">
     <button class="tab-btn tab-active" type="button" data-draft-mode="full">Full Draft Simulator</button>
     <button class="tab-btn" type="button" data-draft-mode="full_multi">Multi-Option Full Draft</button>
     <button class="tab-btn" type="button" data-draft-mode="concept_one_sided">One-Sided Concepts</button>
 </div>
 
-<div id="draftModeFull">
+<div id="draftModeFull" class="draft-sim-mode">
 
-<section class="panel">
+<section class="panel draft-sim-panel draft-sim-board-panel">
+    <div class="draft-sim-section-head draft-sim-section-head-tight">
+        <div>
+            <div class="section-kicker">Board</div>
+            <h3>Full Draft Sequence</h3>
+        </div>
+    </div>
     <div class="draft-grid">
         <div class="draft-column">
             <h4>Team 1</h4>
@@ -179,7 +202,13 @@
     </div>
 </section>
 
-<section class="panel">
+<section class="panel draft-sim-panel draft-sim-picker-panel">
+    <div class="draft-sim-section-head draft-sim-section-head-tight">
+        <div>
+            <div class="section-kicker">Hero Pool</div>
+            <h3>Selection Matrix</h3>
+        </div>
+    </div>
     <div class="hero-picker">
         {% for role in ["Vanguard", "Duelist", "Strategist"] %}
         <div class="hero-role-section">
@@ -210,9 +239,15 @@
 
 </div>
 
-<div id="draftModeFullMulti" style="display:none;">
+<div id="draftModeFullMulti" class="draft-sim-mode" style="display:none;">
 
-<section class="panel">
+<section class="panel draft-sim-panel draft-sim-board-panel">
+    <div class="draft-sim-section-head draft-sim-section-head-tight">
+        <div>
+            <div class="section-kicker">Board</div>
+            <h3>Multi-Option Sequence</h3>
+        </div>
+    </div>
     <div class="multi-draft-layout">
         <div class="multi-draft-board multi-draft-board-team1">
             <h4>Team 1</h4>
@@ -290,7 +325,13 @@
     <p class="draft-hint">Click a slot to select it, then pick heroes below. Added heroes stay in that slot until you choose another slot. Right-click a slot to clear it.</p>
 </section>
 
-<section class="panel">
+<section class="panel draft-sim-panel draft-sim-picker-panel">
+    <div class="draft-sim-section-head draft-sim-section-head-tight">
+        <div>
+            <div class="section-kicker">Hero Pool</div>
+            <h3>Selection Matrix</h3>
+        </div>
+    </div>
     <div class="hero-picker">
         {% for role in ["Vanguard", "Duelist", "Strategist"] %}
         <div class="hero-role-section">
@@ -320,9 +361,14 @@
 </section>
 
 </div>
-<div id="draftModeConcept" style="display:none;">
-<section class="panel">
-    <h3>One-Sided Draft Concepts</h3>
+<div id="draftModeConcept" class="draft-sim-mode" style="display:none;">
+<section class="panel draft-sim-panel draft-sim-board-panel">
+    <div class="draft-sim-section-head draft-sim-section-head-tight">
+        <div>
+            <div class="section-kicker">Concepts</div>
+            <h3>One-Sided Draft Concepts</h3>
+        </div>
+    </div>
     <p class="panel-intro">Plan your POV only. Click a slot, then pick heroes. Click a hero again to add a second option for that slot.</p>
 
     <div class="draft-slots concept-slots-grid" id="conceptDraftBoard">
@@ -361,7 +407,13 @@
     <p class="draft-hint">Left-click to set active slot. Right-click clears the slot. Slots support up to three hero options separated by "/".</p>
 </section>
 
-<section class="panel">
+<section class="panel draft-sim-panel draft-sim-picker-panel">
+    <div class="draft-sim-section-head draft-sim-section-head-tight">
+        <div>
+            <div class="section-kicker">Hero Pool</div>
+            <h3>Selection Matrix</h3>
+        </div>
+    </div>
     <div class="hero-picker">
         {% for role in ["Vanguard", "Duelist", "Strategist"] %}
         <div class="hero-role-section">
@@ -389,6 +441,7 @@
         {% endfor %}
     </div>
 </section>
+</div>
 </div>
 
 <script>

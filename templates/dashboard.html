@@ -4,73 +4,98 @@
 
 {% block content %}
 <section class="parser-dash-root">
-    <header class="parser-dash-header">
-        <h1>Dashboard</h1>
-    </header>
-
-    <div class="parser-dash-controls" role="region" aria-label="Dashboard controls">
-        <div class="parser-dash-controls-left">
-            <label class="parser-dash-control parser-dash-select-wrap">
-                <select id="dashFilter" aria-label="Filter scrims">
-                    <option value="all">Filter: All</option>
-                    <option value="with-team">With Team</option>
-                    <option value="without-team">Without Team</option>
-                </select>
-            </label>
-            <label class="parser-dash-control parser-dash-search-wrap">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input id="dashSearch" type="search" placeholder="Search..." aria-label="Search scrims">
-            </label>
+    <section class="jarvis-hero parser-dash-hero">
+        <div class="parser-dash-hero-main">
+            <div class="section-kicker">J.A.R.V.I.S. Tactical Interface</div>
+            <h1>Command Center <b>Dashboard</b></h1>
+            <p class="parser-dash-hero-copy">Live scrim operations, tournament tracking, roster access, and quick-entry controls in one command surface. This page should read like an active tactical board, not a loose list of modules.</p>
+            <div class="parser-dash-hero-chips">
+                <span class="jarvis-chip">{{ total_scrims }} scrims tracked</span>
+                <span class="jarvis-chip">{{ total_teams }} teams indexed</span>
+                <span class="jarvis-chip">{{ total_players }} player records</span>
+                {% if scrim_total_count > 0 %}<span class="jarvis-chip">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>{% endif %}
+            </div>
         </div>
-        <div class="parser-dash-controls-right">
-            <a class="button-secondary parser-dash-upload" href="{{ url_for('scrims') }}">Bulk Upload</a>
-            {% if session.get('access_level') == 'edit' %}
-            <button class="button-link parser-dash-create" id="openDashCreateScrim" type="button">Create Scrim</button>
+        <aside class="assistant-note green parser-dash-assistant">
+            <b>Assistant Readout</b>
+            {% if recent_scrims %}
+                Tracking {{ scrim_total_count or recent_scrims|length }} scrims with {{ total_maps }} maps and {{ total_events }} timeline events. Use the command bar to isolate assigned vs unassigned logs, then jump directly into recent opponent records below.
+            {% else %}
+                No scrim activity is currently loaded. The command surface is ready for first-entry setup through bulk upload or manual scrim creation.
             {% endif %}
-        </div>
-    </div>
+        </aside>
+    </section>
 
-    <p class="parser-dash-count">
-        <span id="dashVisibleCount">{{ recent_scrims|length }}</span> scrims
-        {% if scrim_total_count > 0 %}
-            <span class="dash-count-meta">(page {{ scrim_page }} of {{ scrim_total_pages }} • {{ scrim_total_count }} total)</span>
-        {% endif %}
-    </p>
+    <section class="jarvis-panel parser-dash-command-bar" role="region" aria-label="Dashboard controls">
+        <div class="parser-dash-command-head">
+            <div>
+                <div class="section-kicker">Command Center</div>
+                <h2>Operational Controls</h2>
+            </div>
+            <p class="parser-dash-count">
+                <span id="dashVisibleCount">{{ recent_scrims|length }}</span> visible scrims
+                {% if scrim_total_count > 0 %}
+                    <span class="dash-count-meta">{{ scrim_total_count }} total entries</span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="parser-dash-controls">
+            <div class="parser-dash-controls-left">
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select id="dashFilter" aria-label="Filter scrims">
+                        <option value="all">Filter: All</option>
+                        <option value="with-team">With Team</option>
+                        <option value="without-team">Without Team</option>
+                    </select>
+                </label>
+                <label class="parser-dash-control parser-dash-search-wrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input id="dashSearch" type="search" placeholder="Search opponent or assigned team" aria-label="Search scrims">
+                </label>
+            </div>
+            <div class="parser-dash-controls-right">
+                <a class="button-secondary parser-dash-upload jarvis-button jarvis-button-secondary" href="{{ url_for('scrims') }}">Bulk Upload</a>
+                {% if session.get('access_level') == 'edit' %}
+                <button class="button-link parser-dash-create jarvis-button jarvis-button-primary" id="openDashCreateScrim" type="button">Create Scrim</button>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 
     <section class="dashboard-top-modules" aria-label="Dashboard overview modules">
-        <article class="dashboard-module dashboard-module-metrics">
+        <article class="dashboard-module dashboard-module-metrics jarvis-panel">
             <div class="dashboard-module-head">
-                <span class="dashboard-module-kicker">Overview</span>
+                <span class="dashboard-module-kicker">Live Metrics</span>
                 <h2>Live Metrics</h2>
                 <span class="dashboard-module-meta">Current totals</span>
             </div>
             <div class="dashboard-metric-grid">
-                <div class="dashboard-metric-card metric-scrims">
+                <div class="dashboard-metric-card jarvis-stat-card metric-scrims">
                     <span class="dashboard-metric-label">Total Scrims</span>
                     <strong>{{ total_scrims }}</strong>
                     <small>Matches logged</small>
                 </div>
-                <div class="dashboard-metric-card metric-tournaments">
+                <div class="dashboard-metric-card jarvis-stat-card metric-tournaments">
                     <span class="dashboard-metric-label">Tournaments</span>
                     <strong>{{ total_tournaments }}</strong>
                     <small>Brackets tracked</small>
                 </div>
-                <div class="dashboard-metric-card metric-maps">
+                <div class="dashboard-metric-card jarvis-stat-card metric-maps">
                     <span class="dashboard-metric-label">Total Maps</span>
                     <strong>{{ total_maps }}</strong>
                     <small>Map entries</small>
                 </div>
-                <div class="dashboard-metric-card metric-events">
+                <div class="dashboard-metric-card jarvis-stat-card metric-events">
                     <span class="dashboard-metric-label">Events</span>
                     <strong>{{ total_events }}</strong>
                     <small>Timeline events</small>
                 </div>
-                <div class="dashboard-metric-card metric-teams">
+                <div class="dashboard-metric-card jarvis-stat-card metric-teams">
                     <span class="dashboard-metric-label">Teams</span>
                     <strong>{{ total_teams }}</strong>
                     <small>Team records</small>
                 </div>
-                <div class="dashboard-metric-card metric-players">
+                <div class="dashboard-metric-card jarvis-stat-card metric-players">
                     <span class="dashboard-metric-label">Players</span>
                     <strong>{{ total_players }}</strong>
                     <small>Player records</small>
@@ -78,11 +103,15 @@
             </div>
         </article>
 
-        <article class="dashboard-module dashboard-module-teams">
+        <article class="dashboard-module dashboard-module-teams jarvis-panel">
             <div class="dashboard-module-head">
-                <span class="dashboard-module-kicker">Teams</span>
+                <span class="dashboard-module-kicker">Draft Intelligence</span>
                 <h2>Top 8 By Preference</h2>
                 <a class="dashboard-module-link" href="{{ url_for('teams') }}">Manage teams</a>
+            </div>
+            <div class="assistant-note parser-module-note">
+                <b>Assistant Recommendation</b>
+                Keep quick-access teams balanced between your main roster, regular opponents, and current scouting targets so draft prep starts from one click instead of a full search.
             </div>
             <div class="dashboard-team-grid">
                 {% for team in all_teams_for_quick_access %}
@@ -103,54 +132,68 @@
         </article>
     </section>
 
-    {% if recent_scrims %}
-    <div class="parser-scrim-grid" id="dashScrimGrid">
-        {% for scrim in recent_scrims %}
-        {% set opponent = (scrim.enemy_team or scrim.opponent or 'Unknown') %}
-        {% set team_name = (scrim.team_name or '').strip() %}
-        <a class="parser-scrim-card"
-           href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}"
-           data-opponent="{{ opponent|lower }}"
-           data-team="{{ team_name|lower }}"
-           data-has-team="{{ '1' if team_name else '0' }}">
-            <div class="parser-scrim-title-row">
-                <h3>{{ opponent }}</h3>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
-            </div>
-            <div class="parser-scrim-meta">
-                <div>{{ scrim.scrim_date or 'No date' }}</div>
-                <div>{{ 'Season ' ~ scrim.season if scrim.season else 'No season' }}</div>
-                <div>{{ (scrim.maps|length) if scrim.maps is defined else 0 }} maps</div>
-            </div>
-            <div class="parser-scrim-team-row">
-                <span class="parser-team-dot" aria-hidden="true"></span>
-                <span>{{ team_name or 'No team assigned' }}</span>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-     {% if scrim_total_pages > 1 %}
-     <nav class="dash-pagination" aria-label="Scrim pages">
-          <a class="dash-page-link {% if scrim_page <= 1 %}is-disabled{% endif %}"
-              href="{% if scrim_page > 1 %}{{ url_for('dashboard', page=scrim_page-1) }}{% else %}#{% endif %}"
-              {% if scrim_page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
+    <section class="jarvis-panel parser-dash-log-panel">
+        <div class="dashboard-module-head">
+            <span class="dashboard-module-kicker">Tactical Readout</span>
+            <h2>Recent Scrim Log</h2>
+            <span class="dashboard-module-meta">Latest opponent entries</span>
+        </div>
+        {% if recent_scrims %}
+        <div class="parser-scrim-grid" id="dashScrimGrid">
+            {% for scrim in recent_scrims %}
+            {% set opponent = (scrim.enemy_team or scrim.opponent or 'Unknown') %}
+            {% set team_name = (scrim.team_name or '').strip() %}
+            <a class="parser-scrim-card"
+               href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}"
+               data-opponent="{{ opponent|lower }}"
+               data-team="{{ team_name|lower }}"
+               data-has-team="{{ '1' if team_name else '0' }}">
+                <div class="parser-scrim-title-row">
+                    <div>
+                        <span class="parser-scrim-kicker">Tactical Log Entry</span>
+                        <h3>{{ opponent }}</h3>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
+                </div>
+                <div class="parser-scrim-meta">
+                    <div>{{ scrim.scrim_date or 'No date' }}</div>
+                    <div>{{ 'Season ' ~ scrim.season if scrim.season else 'No season' }}</div>
+                    <div>{{ (scrim.maps|length) if scrim.maps is defined else 0 }} maps</div>
+                </div>
+                <div class="parser-scrim-team-row">
+                    <span class="parser-team-dot" aria-hidden="true"></span>
+                    <span>{{ team_name or 'No team assigned' }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% if scrim_total_pages > 1 %}
+        <nav class="dash-pagination" aria-label="Scrim pages">
+            <a class="dash-page-link {% if scrim_page <= 1 %}is-disabled{% endif %}"
+                href="{% if scrim_page > 1 %}{{ url_for('dashboard', page=scrim_page-1) }}{% else %}#{% endif %}"
+                {% if scrim_page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
 
-          <span class="dash-page-state">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>
+            <span class="dash-page-state">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>
 
-          <a class="dash-page-link {% if scrim_page >= scrim_total_pages %}is-disabled{% endif %}"
-              href="{% if scrim_page < scrim_total_pages %}{{ url_for('dashboard', page=scrim_page+1) }}{% else %}#{% endif %}"
-              {% if scrim_page >= scrim_total_pages %}aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
-     </nav>
-     {% endif %}
-    <p class="empty-text parser-empty" id="dashEmptyState" hidden>No scrims match this filter.</p>
-    {% else %}
-    <p class="empty-text parser-empty">No scrims yet. Create your first scrim.</p>
-    {% endif %}
+            <a class="dash-page-link {% if scrim_page >= scrim_total_pages %}is-disabled{% endif %}"
+                href="{% if scrim_page < scrim_total_pages %}{{ url_for('dashboard', page=scrim_page+1) }}{% else %}#{% endif %}"
+                {% if scrim_page >= scrim_total_pages %}aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
+        </nav>
+        {% endif %}
+        <p class="empty-text parser-empty" id="dashEmptyState" hidden>No scrims match this filter.</p>
+        {% else %}
+        <div class="assistant-note parser-empty-note">
+            <b>Assistant Recommendation</b>
+            Start by creating a scrim or importing a batch. Once data lands, this log becomes the operational feed for recent opponent activity.
+        </div>
+        <p class="empty-text parser-empty">No scrims yet. Create your first scrim.</p>
+        {% endif %}
+    </section>
 </section>
 
 {% if session.get('access_level') == 'edit' %}
 <div id="dashCreateScrimModal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-card jarvis-panel" onclick="event.stopPropagation()">
         <div class="modal-header">
             <div>
                 <h3>Create Scrim</h3>
@@ -198,7 +241,7 @@
             </div>
 
             <div class="button-row">
-                <button type="submit">Create Scrim</button>
+                <button type="submit" class="jarvis-button jarvis-button-primary">Create Scrim</button>
             </div>
         </form>
     </div>

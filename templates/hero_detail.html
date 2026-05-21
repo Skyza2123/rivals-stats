@@ -147,6 +147,58 @@
     </details>
 </section>
 
+<section class="panel top-gap">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Fight Openers</div>
+            <h3>First Action For {{ hero_display_name(hero_insights.hero) }}</h3>
+        </div>
+        <span class="muted-label">{{ hero_first_action_read.total }} logged fights</span>
+    </div>
+    {% if hero_first_action_read.total %}
+        <div class="summary-grid top-gap">
+            <section class="stat-card">
+                <strong>First Kills</strong>
+                <span>{{ hero_first_action_read.first_kills }}</span>
+                <small>{{ hero_first_action_read.fk_wins }}W - {{ hero_first_action_read.fk_losses }}L after FK</small>
+            </section>
+            <section class="stat-card">
+                <strong>First Deaths</strong>
+                <span>{{ hero_first_action_read.first_deaths }}</span>
+                <small>{{ hero_first_action_read.fd_wins }}W - {{ hero_first_action_read.fd_losses }}L after FD</small>
+            </section>
+            <section class="stat-card">
+                <strong>Top Player</strong>
+                <span>{{ hero_first_action_read.top_player.name or '—' }}</span>
+                <small>{{ hero_first_action_read.top_player.count }} first kill{{ 's' if hero_first_action_read.top_player.count != 1 else '' }}</small>
+            </section>
+            <section class="stat-card">
+                <strong>Eliminated By</strong>
+                <span>{{ hero_first_action_read.top_source_player.name or '—' }}</span>
+                <small>{{ hero_first_action_read.top_source_player.count }} first death{{ 's' if hero_first_action_read.top_source_player.count != 1 else '' }}</small>
+            </section>
+        </div>
+        <div class="table-wrap top-gap">
+            <table class="stats-table">
+                <thead><tr><th>Date</th><th>Map</th><th>Fight</th><th>First Action</th><th>Result</th></tr></thead>
+                <tbody>
+                    {% for row in hero_first_action_read.recent_rows %}
+                    <tr>
+                        <td>{{ row.scrim_date or '—' }}</td>
+                        <td>{{ row.map_name }}</td>
+                        <td>{{ row.fight_round_label or 'Map' }}{% if row.fight_number %} · Fight {{ row.fight_number }}{% endif %}</td>
+                        <td>{{ row.killer_player or 'Unknown' }}{% if row.killer_hero %} ({{ hero_display_name(row.killer_hero) }}){% endif %} eliminated {{ row.victim_player or 'Unknown' }}{% if row.victim_hero %} ({{ hero_display_name(row.victim_hero) }}){% endif %}</td>
+                        <td>{{ row.fight_result }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-text">No first-action fights logged for this hero in the current filters.</p>
+    {% endif %}
+</section>
+
 {% set hero_anova = hero_insights.map_mode_anova or {} %}
 {% if hero_anova %}
 <section class="panel panel-soft-gold top-gap">

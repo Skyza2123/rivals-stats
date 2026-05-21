@@ -126,7 +126,9 @@ def favicon_ico():
 def compress_large_text_responses(response):
     """Gzip large dynamic text responses when the client supports it."""
     if (
-        response.direct_passthrough
+        request.path.startswith("/static/")
+        or request.path == "/favicon.ico"
+        or response.direct_passthrough
         or response.status_code < 200
         or response.status_code >= 300
         or response.headers.get("Content-Encoding")
@@ -157,7 +159,11 @@ def compress_large_text_responses(response):
 
 # Serve static assets reliably behind WSGI hosts (Render/Gunicorn) when available.
 _whitenoise_module = importlib.util.find_spec("whitenoise")
-if _whitenoise_module is not None:
+_enable_whitenoise = (
+    (os.environ.get("RENDER") or "").strip().lower() == "true"
+    or (os.environ.get("ENABLE_WHITENOISE") or "").strip().lower() in {"1", "true", "yes", "on"}
+)
+if _whitenoise_module is not None and _enable_whitenoise:
     from whitenoise import WhiteNoise
 
     app.wsgi_app = WhiteNoise(app.wsgi_app, root=str(Path(app.root_path) / "static"), prefix="static/")

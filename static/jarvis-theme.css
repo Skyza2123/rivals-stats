@@ -1,0 +1,1984 @@
+/* =========================================================
+   JARVIS / Tactical Assistant Theme
+   Reusable CSS skin for Marvel Rivals analytics pages
+   Recommended wrapper: <div class="jarvis-app">...</div>
+========================================================= */
+
+.jarvis-app,
+.jarvis-prep {
+  --j-bg: #020711;
+  --j-panel: rgba(6, 18, 32, 0.76);
+  --j-panel-strong: rgba(8, 28, 48, 0.88);
+  --j-cyan: #42e8ff;
+  --j-cyan-soft: rgba(66, 232, 255, 0.11);
+  --j-blue: #2f80ff;
+  --j-orange: #ff9f43;
+  --j-green: #42ff9e;
+  --j-red: #ff4d6d;
+  --j-yellow: #ffd166;
+  --j-text: #e8fbff;
+  --j-muted: #8fb7c7;
+  --j-line: rgba(66, 232, 255, 0.20);
+  --j-line-strong: rgba(66, 232, 255, 0.52);
+
+  position: relative;
+  color: var(--j-text);
+  padding: 24px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(66, 232, 255, 0.14), transparent 28%),
+    radial-gradient(circle at 15% 80%, rgba(47, 128, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 90% 45%, rgba(255, 159, 67, 0.08), transparent 28%),
+    linear-gradient(rgba(66, 232, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(66, 232, 255, 0.028) 1px, transparent 1px),
+    var(--j-bg);
+  background-size: auto, auto, auto, 44px 44px, 44px 44px;
+  overflow: hidden;
+}
+
+.jarvis-app *,
+.jarvis-prep * {
+  box-sizing: border-box;
+}
+
+.jarvis-app::before,
+.jarvis-prep::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(66, 232, 255, 0.035),
+    transparent
+  );
+  background-size: 100% 7px;
+  opacity: 0.35;
+  z-index: 0;
+}
+
+.jarvis-app > *,
+.jarvis-prep > * {
+  position: relative;
+  z-index: 1;
+}
+
+.jarvis-app .page,
+.jarvis-prep .page {
+  max-width: 1560px;
+  margin: 0 auto;
+}
+
+.main-content.jarvis-app {
+  isolation: isolate;
+  margin-top: 16px;
+  margin-bottom: 28px;
+  border: 1px solid rgba(66, 232, 255, 0.12);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.jarvis-app .flash-stack,
+.jarvis-prep .flash-stack {
+  margin-bottom: 20px;
+}
+
+.jarvis-app .flash-message,
+.jarvis-prep .flash-message {
+  border-radius: 16px;
+  border-color: var(--j-line);
+  background: rgba(4, 12, 24, 0.58);
+  color: var(--j-text);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.jarvis-app .flash-success,
+.jarvis-prep .flash-success {
+  border-color: rgba(66, 255, 158, 0.28);
+  background: rgba(66, 255, 158, 0.08);
+  color: #b3ffd2;
+}
+
+.jarvis-app .flash-error,
+.jarvis-prep .flash-error {
+  border-color: rgba(255, 77, 109, 0.28);
+  background: rgba(255, 77, 109, 0.08);
+  color: #ffc1cc;
+}
+
+.jarvis-app .prep-grid,
+.jarvis-prep .prep-grid,
+.jarvis-app .jarvis-grid,
+.jarvis-prep .jarvis-grid {
+  display: grid;
+  gap: 22px;
+}
+
+.jarvis-app .top-gap,
+.jarvis-prep .top-gap {
+  margin-top: 20px;
+}
+
+.jarvis-app .panel,
+.jarvis-prep .panel,
+.jarvis-app .jarvis-panel,
+.jarvis-prep .jarvis-panel,
+.jarvis-app .dense-collapsible,
+.jarvis-prep .dense-collapsible {
+  border: 1px solid var(--j-line);
+  background:
+    linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.84));
+  border-radius: 24px;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.36),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.jarvis-app .prep-command-board,
+.jarvis-prep .prep-command-board,
+.jarvis-app .jarvis-hero,
+.jarvis-prep .jarvis-hero {
+  border-color: var(--j-line-strong);
+  background:
+    linear-gradient(135deg, rgba(6, 18, 32, 0.94), rgba(4, 12, 24, 0.78)),
+    radial-gradient(circle at 85% 12%, rgba(66, 232, 255, 0.20), transparent 30%);
+  box-shadow:
+    0 0 50px rgba(66, 232, 255, 0.12),
+    inset 0 0 30px rgba(66, 232, 255, 0.045);
+  position: relative;
+}
+
+.jarvis-app .prep-command-board::after,
+.jarvis-prep .prep-command-board::after,
+.jarvis-app .jarvis-hero::after,
+.jarvis-prep .jarvis-hero::after {
+  content: "";
+  position: absolute;
+  right: -96px;
+  top: -96px;
+  width: 310px;
+  height: 310px;
+  border-radius: 50%;
+  border: 1px solid rgba(66, 232, 255, 0.22);
+  box-shadow:
+    0 0 0 26px rgba(66, 232, 255, 0.03),
+    0 0 0 58px rgba(66, 232, 255, 0.018),
+    inset 0 0 40px rgba(66, 232, 255, 0.06);
+  pointer-events: none;
+}
+
+.jarvis-app .panel-header-row,
+.jarvis-prep .panel-header-row,
+.jarvis-app .panel-header,
+.jarvis-prep .panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 20px;
+  border-bottom: 1px solid var(--j-line);
+  background: linear-gradient(90deg, rgba(66, 232, 255, 0.10), transparent);
+}
+
+.jarvis-app .section-kicker,
+.jarvis-prep .section-kicker,
+.jarvis-app .eyebrow,
+.jarvis-prep .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--j-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.17em;
+  font-size: 11px;
+  font-weight: 850;
+  margin-bottom: 8px;
+}
+
+.jarvis-app .section-kicker::before,
+.jarvis-prep .section-kicker::before,
+.jarvis-app .eyebrow::before,
+.jarvis-prep .eyebrow::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--j-green);
+  box-shadow: 0 0 16px var(--j-green);
+  flex: 0 0 auto;
+}
+
+.jarvis-app h1,
+.jarvis-prep h1,
+.jarvis-app h2,
+.jarvis-prep h2,
+.jarvis-app h3,
+.jarvis-prep h3,
+.jarvis-app h4,
+.jarvis-prep h4 {
+  color: var(--j-text);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.jarvis-app h1,
+.jarvis-prep h1 {
+  font-size: clamp(40px, 5vw, 70px);
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.jarvis-app h3,
+.jarvis-prep h3 {
+  font-size: clamp(26px, 3vw, 42px);
+}
+
+.jarvis-app h1 b,
+.jarvis-prep h1 b,
+.jarvis-app h3 b,
+.jarvis-prep h3 b,
+.jarvis-app h4 b,
+.jarvis-prep h4 b,
+.jarvis-app .panel-title b,
+.jarvis-prep .panel-title b {
+  color: var(--j-cyan);
+  font-weight: 850;
+}
+
+.jarvis-app .panel-intro,
+.jarvis-prep .panel-intro,
+.jarvis-app .empty-text,
+.jarvis-prep .empty-text,
+.jarvis-app .hero-sub-label,
+.jarvis-prep .hero-sub-label,
+.jarvis-app .prep-chart-sub,
+.jarvis-prep .prep-chart-sub,
+.jarvis-app .muted-text,
+.jarvis-prep .muted-text {
+  color: var(--j-muted);
+  line-height: 1.5;
+}
+
+.jarvis-app .header-actions,
+.jarvis-prep .header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.jarvis-app .prep-filter-pill,
+.jarvis-prep .prep-filter-pill,
+.jarvis-app .team-range-select,
+.jarvis-prep .team-range-select,
+.jarvis-app .compare-tag,
+.jarvis-prep .compare-tag,
+.jarvis-app .prep-chip-meta,
+.jarvis-prep .prep-chip-meta,
+.jarvis-app .prep-chip-flex-label,
+.jarvis-prep .prep-chip-flex-label,
+.jarvis-app .chip,
+.jarvis-prep .chip {
+  border: 1px solid rgba(66, 232, 255, 0.38);
+  color: var(--j-cyan);
+  background: rgba(66, 232, 255, 0.10);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 0 18px rgba(66, 232, 255, 0.07);
+}
+
+.jarvis-app .team-range-select,
+.jarvis-prep .team-range-select {
+  color: var(--j-text);
+  background:
+    linear-gradient(180deg, rgba(8, 28, 48, 0.95), rgba(4, 12, 24, 0.95));
+  outline: none;
+}
+
+.jarvis-app .summary-grid,
+.jarvis-prep .summary-grid,
+.jarvis-app .prep-kpi-grid,
+.jarvis-prep .prep-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  gap: 14px;
+  padding: 20px;
+}
+
+.jarvis-app .stat-card,
+.jarvis-prep .stat-card,
+.jarvis-app .jarvis-card,
+.jarvis-prep .jarvis-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--j-line);
+  background:
+    linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.86));
+  border-radius: 20px;
+  padding: 16px;
+  min-height: 126px;
+  box-shadow:
+    0 16px 35px rgba(0, 0, 0, 0.30),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.jarvis-app .stat-card::before,
+.jarvis-prep .stat-card::before,
+.jarvis-app .jarvis-card::before,
+.jarvis-prep .jarvis-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(66, 232, 255, 0.08), transparent);
+  transform: translateX(-120%);
+  animation: jarvisSweep 7s linear infinite;
+}
+
+@keyframes jarvisSweep {
+  0% { transform: translateX(-120%); }
+  48%, 100% { transform: translateX(120%); }
+}
+
+.jarvis-app .stat-card strong,
+.jarvis-prep .stat-card strong,
+.jarvis-app .stat-card span,
+.jarvis-prep .stat-card span,
+.jarvis-app .stat-card small,
+.jarvis-prep .stat-card small,
+.jarvis-app .jarvis-card strong,
+.jarvis-prep .jarvis-card strong,
+.jarvis-app .jarvis-card span,
+.jarvis-prep .jarvis-card span,
+.jarvis-app .jarvis-card small,
+.jarvis-prep .jarvis-card small {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+.jarvis-app .stat-card strong,
+.jarvis-prep .stat-card strong,
+.jarvis-app .jarvis-card strong,
+.jarvis-prep .jarvis-card strong {
+  color: var(--j-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 850;
+  margin-bottom: 10px;
+}
+
+.jarvis-app .stat-card span,
+.jarvis-prep .stat-card span,
+.jarvis-app .jarvis-card span,
+.jarvis-prep .jarvis-card span {
+  color: var(--j-text);
+  font-size: 22px;
+  font-weight: 350;
+  letter-spacing: -0.04em;
+}
+
+.jarvis-app .stat-card small,
+.jarvis-prep .stat-card small,
+.jarvis-app .jarvis-card small,
+.jarvis-prep .jarvis-card small {
+  color: var(--j-muted);
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.jarvis-app .chip-nav,
+.jarvis-prep .chip-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border: 1px solid var(--j-line);
+  border-radius: 22px;
+  background: rgba(6, 18, 32, 0.62);
+  backdrop-filter: blur(12px);
+}
+
+.jarvis-app .chip-nav-link,
+.jarvis-prep .chip-nav-link {
+  text-decoration: none;
+  color: var(--j-muted);
+  border: 1px solid rgba(66, 232, 255, 0.20);
+  background: rgba(66, 232, 255, 0.055);
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  transition: 0.18s ease;
+}
+
+.jarvis-app .chip-nav-link:hover,
+.jarvis-prep .chip-nav-link:hover {
+  color: var(--j-cyan);
+  border-color: var(--j-line-strong);
+  box-shadow: 0 0 18px rgba(66, 232, 255, 0.10);
+}
+
+.jarvis-app .table-wrap,
+.jarvis-prep .table-wrap {
+  overflow: auto;
+  border: 1px solid var(--j-line);
+  border-radius: 18px;
+  background: rgba(4, 12, 24, 0.55);
+}
+
+.jarvis-app .stats-table,
+.jarvis-prep .stats-table,
+.jarvis-app table,
+.jarvis-prep table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.jarvis-app .stats-table th,
+.jarvis-prep .stats-table th,
+.jarvis-app .stats-table td,
+.jarvis-prep .stats-table td,
+.jarvis-app table th,
+.jarvis-prep table th,
+.jarvis-app table td,
+.jarvis-prep table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(66, 232, 255, 0.12);
+  font-size: 14px;
+  text-align: left;
+}
+
+.jarvis-app .stats-table th,
+.jarvis-prep .stats-table th,
+.jarvis-app table th,
+.jarvis-prep table th {
+  color: var(--j-cyan);
+  background: rgba(66, 232, 255, 0.045);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.jarvis-app .stats-table tr:hover td,
+.jarvis-prep .stats-table tr:hover td,
+.jarvis-app table tr:hover td,
+.jarvis-prep table tr:hover td {
+  background: rgba(66, 232, 255, 0.04);
+}
+
+.jarvis-app .muted-label,
+.jarvis-prep .muted-label {
+  color: var(--j-muted);
+}
+
+.jarvis-app .hero-inline-cell,
+.jarvis-prep .hero-inline-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.jarvis-app .hero-inline-thumb,
+.jarvis-prep .hero-inline-thumb,
+.jarvis-app .prep-hero-map-btn img,
+.jarvis-prep .prep-hero-map-btn img,
+.jarvis-app .hero-thumb,
+.jarvis-prep .hero-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(66, 232, 255, 0.46);
+  background:
+    radial-gradient(circle, rgba(66, 232, 255, 0.22), rgba(47, 128, 255, 0.12));
+  box-shadow:
+    0 0 20px rgba(66, 232, 255, 0.14),
+    inset 0 0 16px rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .hero-inline-meta,
+.jarvis-prep .hero-inline-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.jarvis-app .metric-text,
+.jarvis-prep .metric-text {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 850;
+  border: 1px solid transparent;
+}
+
+.jarvis-app .metric-good,
+.jarvis-prep .metric-good,
+.jarvis-app .compare-tag-positive,
+.jarvis-prep .compare-tag-positive {
+  color: var(--j-green);
+  border-color: rgba(66, 255, 158, 0.28);
+  background: rgba(66, 255, 158, 0.10);
+}
+
+.jarvis-app .metric-bad,
+.jarvis-prep .metric-bad,
+.jarvis-app .compare-tag-negative,
+.jarvis-prep .compare-tag-negative {
+  color: var(--j-red);
+  border-color: rgba(255, 77, 109, 0.28);
+  background: rgba(255, 77, 109, 0.10);
+}
+
+.jarvis-app .metric-warn,
+.jarvis-prep .metric-warn {
+  color: var(--j-yellow);
+  border-color: rgba(255, 209, 102, 0.28);
+  background: rgba(255, 209, 102, 0.10);
+}
+
+.jarvis-app .metric-neutral,
+.jarvis-prep .metric-neutral,
+.jarvis-app .compare-tag-neutral,
+.jarvis-prep .compare-tag-neutral {
+  color: var(--j-cyan);
+  border-color: rgba(66, 232, 255, 0.24);
+  background: rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .prep-chart-block,
+.jarvis-prep .prep-chart-block {
+  margin-left: 20px;
+  margin-right: 20px;
+  padding: 18px;
+  border: 1px solid var(--j-line);
+  border-radius: 22px;
+  background: rgba(4, 12, 24, 0.54);
+}
+
+.jarvis-app .prep-chart-title,
+.jarvis-prep .prep-chart-title {
+  color: var(--j-text);
+  margin-bottom: 8px;
+}
+
+.jarvis-app .prep-chart-wrap,
+.jarvis-prep .prep-chart-wrap {
+  border: 1px solid rgba(66, 232, 255, 0.14);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.jarvis-app .prep-hero-picker,
+.jarvis-prep .prep-hero-picker {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 20px;
+}
+
+.jarvis-app .prep-hero-map-btn,
+.jarvis-prep .prep-hero-map-btn {
+  position: relative;
+  border: 1px solid var(--j-line);
+  background: rgba(66, 232, 255, 0.06);
+  border-radius: 18px;
+  padding: 8px;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.jarvis-app .prep-hero-map-btn:hover,
+.jarvis-prep .prep-hero-map-btn:hover,
+.jarvis-app .prep-hero-map-btn.is-active,
+.jarvis-prep .prep-hero-map-btn.is-active {
+  border-color: var(--j-line-strong);
+  box-shadow: 0 0 24px rgba(66, 232, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.jarvis-app .prep-hero-map-btn span,
+.jarvis-prep .prep-hero-map-btn span {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--j-bg);
+  background: var(--j-cyan);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.jarvis-app .prep-hero-map-summary,
+.jarvis-prep .prep-hero-map-summary,
+.jarvis-app #prepHeroAnovaSummary,
+.jarvis-prep #prepHeroAnovaSummary,
+.jarvis-app #prepHeroMapResults,
+.jarvis-prep #prepHeroMapResults {
+  padding: 0 20px 20px;
+}
+
+.jarvis-app .prep-hero-map-focus,
+.jarvis-prep .prep-hero-map-focus {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--j-line);
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(66, 232, 255, 0.055);
+}
+
+.jarvis-app .prep-hero-map-focus img,
+.jarvis-prep .prep-hero-map-focus img {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--j-line-strong);
+  box-shadow: 0 0 28px rgba(66, 232, 255, 0.18);
+}
+
+.jarvis-app .prep-hero-map-focus strong,
+.jarvis-prep .prep-hero-map-focus strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 350;
+  letter-spacing: -0.04em;
+}
+
+.jarvis-app .prep-hero-map-focus small,
+.jarvis-prep .prep-hero-map-focus small {
+  display: block;
+  color: var(--j-muted);
+  margin-top: 4px;
+}
+
+.jarvis-app .analysis-card-grid,
+.jarvis-prep .analysis-card-grid,
+.jarvis-app .prep-comp-grid,
+.jarvis-prep .prep-comp-grid,
+.jarvis-app .prep-combo4-grid,
+.jarvis-prep .prep-combo4-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.jarvis-app .analysis-card,
+.jarvis-prep .analysis-card,
+.jarvis-app .prep-comp-card,
+.jarvis-prep .prep-comp-card,
+.jarvis-app .prep-combo4-card,
+.jarvis-prep .prep-combo4-card {
+  border: 1px solid var(--j-line);
+  border-radius: 20px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(8, 28, 48, 0.68), rgba(4, 12, 24, 0.82));
+  box-shadow:
+    0 16px 35px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255,255,255,0.025);
+}
+
+.jarvis-app .analysis-card-header,
+.jarvis-prep .analysis-card-header,
+.jarvis-app .analysis-row,
+.jarvis-prep .analysis-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.jarvis-app .analysis-list,
+.jarvis-prep .analysis-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.jarvis-app .analysis-row,
+.jarvis-prep .analysis-row {
+  padding: 10px;
+  border: 1px solid rgba(66, 232, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.jarvis-app .signal-card-danger,
+.jarvis-prep .signal-card-danger {
+  border-color: rgba(255, 77, 109, 0.35);
+  background: rgba(255, 77, 109, 0.06);
+}
+
+.jarvis-app .signal-card-success,
+.jarvis-prep .signal-card-success {
+  border-color: rgba(66, 255, 158, 0.35);
+  background: rgba(66, 255, 158, 0.06);
+}
+
+.jarvis-app .prep-comp-slots,
+.jarvis-prep .prep-comp-slots {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.jarvis-app .prep-comp-slot,
+.jarvis-prep .prep-comp-slot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(66, 232, 255, 0.13);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.jarvis-app .prep-comp-flex-slot,
+.jarvis-prep .prep-comp-flex-slot {
+  border-color: rgba(255, 159, 67, 0.25);
+  background: rgba(255, 159, 67, 0.06);
+}
+
+.jarvis-app .dense-collapsible summary,
+.jarvis-prep .dense-collapsible summary,
+.jarvis-app details.jarvis-panel summary,
+.jarvis-prep details.jarvis-panel summary {
+  cursor: pointer;
+  padding: 18px 20px;
+  color: var(--j-cyan);
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: linear-gradient(90deg, rgba(66,232,255,0.10), transparent);
+  border-bottom: 1px solid var(--j-line);
+}
+
+.jarvis-app .dense-collapsible-body,
+.jarvis-prep .dense-collapsible-body {
+  padding: 20px;
+}
+
+.jarvis-app .team-map-grid,
+.jarvis-prep .team-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.jarvis-app .team-map-card,
+.jarvis-prep .team-map-card {
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--j-line);
+  border-radius: 20px;
+  background: rgba(4, 12, 24, 0.72);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.28);
+}
+
+.jarvis-app .team-map-bg,
+.jarvis-prep .team-map-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.35;
+}
+
+.jarvis-app .team-map-bg-fallback,
+.jarvis-prep .team-map-bg-fallback {
+  background:
+    radial-gradient(circle at center, rgba(66,232,255,0.18), transparent 45%),
+    rgba(4,12,24,0.8);
+}
+
+.jarvis-app .team-map-overlay,
+.jarvis-prep .team-map-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(4,12,24,0.35), rgba(4,12,24,0.95)),
+    linear-gradient(90deg, rgba(66,232,255,0.08), transparent);
+}
+
+.jarvis-app .team-map-top,
+.jarvis-prep .team-map-top,
+.jarvis-app .team-map-bottom,
+.jarvis-prep .team-map-bottom {
+  position: relative;
+  z-index: 1;
+}
+
+.jarvis-app .team-map-top,
+.jarvis-prep .team-map-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.jarvis-app .team-map-mode,
+.jarvis-prep .team-map-mode,
+.jarvis-app .team-map-rate,
+.jarvis-prep .team-map-rate,
+.jarvis-app .team-map-chip,
+.jarvis-prep .team-map-chip {
+  border: 1px solid rgba(66,232,255,0.28);
+  color: var(--j-cyan);
+  background: rgba(66,232,255,0.10);
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.jarvis-app .team-map-bottom,
+.jarvis-prep .team-map-bottom {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+}
+
+.jarvis-app .team-map-bottom h4,
+.jarvis-prep .team-map-bottom h4 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.jarvis-app .team-map-bottom p,
+.jarvis-prep .team-map-bottom p {
+  color: var(--j-muted);
+  margin: 0 0 10px;
+}
+
+.jarvis-app .team-map-footer-meta,
+.jarvis-prep .team-map-footer-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.jarvis-app .assistant-note,
+.jarvis-prep .assistant-note {
+  border: 1px solid rgba(66,232,255,0.16);
+  border-left: 4px solid var(--j-cyan);
+  border-radius: 16px;
+  padding: 15px;
+  background: rgba(66,232,255,0.055);
+  color: #ddfbff;
+  line-height: 1.5;
+}
+
+.jarvis-app .assistant-note.green,
+.jarvis-prep .assistant-note.green {
+  border-left-color: var(--j-green);
+  background: rgba(66,255,158,0.06);
+}
+
+.jarvis-app .assistant-note.red,
+.jarvis-prep .assistant-note.red {
+  border-left-color: var(--j-red);
+  background: rgba(255,77,109,0.06);
+}
+
+.jarvis-app .assistant-note b,
+.jarvis-prep .assistant-note b {
+  display: block;
+  color: var(--j-text);
+  margin-bottom: 4px;
+}
+
+.jarvis-app .sample-warning-inline,
+.jarvis-prep .sample-warning-inline,
+.jarvis-app .sample-warn-icon,
+.jarvis-prep .sample-warn-icon {
+  color: var(--j-yellow);
+}
+
+.jarvis-prep #prepHeroMapSummary .prep-hero-map-focus img {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.jarvis-prep #prepHeroMapSummary .prep-hero-map-focus strong {
+  font-size: clamp(20px, 2.1vw, 28px);
+}
+
+.jarvis-prep #prepHeroAnovaSummary .hero-inline-thumb,
+.jarvis-prep #prepHeroMapResults .hero-inline-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+}
+
+@media (max-width: 1180px) {
+  .jarvis-app .summary-grid,
+  .jarvis-prep .summary-grid,
+  .jarvis-app .prep-kpi-grid,
+  .jarvis-prep .prep-kpi-grid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+
+  .jarvis-app .panel-header-row,
+  .jarvis-prep .panel-header-row,
+  .jarvis-app .panel-header,
+  .jarvis-prep .panel-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .jarvis-app,
+  .jarvis-prep {
+    padding: 14px;
+  }
+
+  .main-content.jarvis-app {
+    margin-top: 10px;
+    margin-bottom: 18px;
+  }
+
+  .jarvis-app .summary-grid,
+  .jarvis-prep .summary-grid,
+  .jarvis-app .prep-kpi-grid,
+  .jarvis-prep .prep-kpi-grid {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .jarvis-app .panel-header-row,
+  .jarvis-prep .panel-header-row,
+  .jarvis-app .panel-header,
+  .jarvis-prep .panel-header,
+  .jarvis-app .dense-collapsible-body,
+  .jarvis-prep .dense-collapsible-body,
+  .jarvis-app .prep-chart-block,
+  .jarvis-prep .prep-chart-block {
+    padding: 14px;
+  }
+
+  .jarvis-app .stats-table,
+  .jarvis-prep .stats-table,
+  .jarvis-app table,
+  .jarvis-prep table {
+    min-width: 850px;
+  }
+}
+
+/* =========================================================
+   Global Command Surface Mappings
+========================================================= */
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(66, 232, 255, 0.05), transparent 24%),
+    linear-gradient(180deg, #020711, #06111e 48%, #020711 100%);
+}
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, rgba(3, 10, 20, 0.92), rgba(3, 10, 20, 0.72));
+  border-bottom: 1px solid rgba(66, 232, 255, 0.14);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.topnav-inner {
+  max-width: 1560px;
+  margin: 0 auto;
+}
+
+.topnav-brand,
+.topnav-link,
+.nav-drawer-link {
+  color: var(--j-muted);
+}
+
+.topnav-link,
+.nav-drawer-link,
+.topnav-workspace,
+.topnav-icon-btn,
+.topnav-burger,
+.theme-picker,
+.topnav-search {
+  border-color: rgba(66, 232, 255, 0.14);
+}
+
+.topnav-link:hover,
+.topnav-link.active,
+.nav-drawer-link:hover,
+.nav-drawer-link.active,
+.topnav-icon-btn:hover,
+.theme-picker:hover,
+.theme-picker:focus-within,
+.topnav-burger:hover {
+  color: var(--j-cyan);
+  border-color: rgba(66, 232, 255, 0.34);
+  background: rgba(66, 232, 255, 0.08);
+  box-shadow: 0 0 18px rgba(66, 232, 255, 0.08);
+}
+
+.topnav-search,
+.theme-picker,
+.topnav-icon-btn,
+.topnav-burger,
+.topnav-workspace {
+  background: rgba(4, 12, 24, 0.54);
+}
+
+.topnav-search input,
+.theme-select {
+  color: var(--j-text);
+}
+
+.theme-picker-dot {
+  box-shadow: 0 0 16px rgba(66, 232, 255, 0.42);
+}
+
+.nav-drawer {
+  background: linear-gradient(180deg, rgba(4, 12, 24, 0.97), rgba(3, 10, 20, 0.98));
+  border-right-color: rgba(66, 232, 255, 0.16);
+  box-shadow: 24px 0 60px rgba(0, 0, 0, 0.32);
+}
+
+.nav-drawer-overlay {
+  background: rgba(1, 5, 12, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.jarvis-hero,
+.jarvis-app .jarvis-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+  gap: 20px;
+  align-items: stretch;
+  padding: 24px;
+}
+
+.jarvis-card,
+.jarvis-panel,
+.jarvis-stat-card,
+.jarvis-app .jarvis-card,
+.jarvis-app .jarvis-panel,
+.jarvis-app .jarvis-stat-card {
+  border: 1px solid var(--j-line);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.84));
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.36),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.jarvis-table-wrap,
+.jarvis-app .jarvis-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--j-line);
+  border-radius: 18px;
+  background: rgba(4, 12, 24, 0.55);
+}
+
+.jarvis-chip,
+.jarvis-app .jarvis-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(66, 232, 255, 0.28);
+  color: var(--j-cyan);
+  background: rgba(66, 232, 255, 0.08);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.jarvis-button,
+.jarvis-app .jarvis-button,
+.jarvis-app .button-secondary,
+.jarvis-app .button-link,
+.jarvis-app .button-small,
+.jarvis-app button,
+.jarvis-app .dash-page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(66, 232, 255, 0.22);
+  background: rgba(66, 232, 255, 0.07);
+  color: var(--j-text);
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.jarvis-button:hover,
+.jarvis-app .jarvis-button:hover,
+.jarvis-app .button-secondary:hover,
+.jarvis-app .button-link:hover,
+.jarvis-app button:hover,
+.jarvis-app .dash-page-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(66, 232, 255, 0.42);
+  background: rgba(66, 232, 255, 0.12);
+  box-shadow: 0 0 22px rgba(66, 232, 255, 0.12);
+}
+
+.jarvis-button-primary,
+.jarvis-app .jarvis-button-primary {
+  background: linear-gradient(135deg, rgba(66, 232, 255, 0.24), rgba(47, 128, 255, 0.22));
+  color: var(--j-text);
+}
+
+.jarvis-button-secondary,
+.jarvis-app .jarvis-button-secondary {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--j-muted);
+}
+
+.signal-good { color: var(--j-green); }
+.signal-warn { color: var(--j-yellow); }
+.signal-bad { color: var(--j-red); }
+
+.jarvis-app a:focus-visible,
+.jarvis-app button:focus-visible,
+.jarvis-app input:focus-visible,
+.jarvis-app select:focus-visible,
+.jarvis-app textarea:focus-visible,
+.topnav a:focus-visible,
+.topnav button:focus-visible,
+.topnav input:focus-visible,
+.topnav select:focus-visible {
+  outline: 2px solid rgba(66, 232, 255, 0.84);
+  outline-offset: 2px;
+}
+
+.jarvis-app .field,
+.jarvis-app .field-full,
+.jarvis-app .form-grid {
+  gap: 12px;
+}
+
+.jarvis-app .field label,
+.jarvis-app .field > label {
+  color: var(--j-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .field input,
+.jarvis-app .field select,
+.jarvis-app .field textarea,
+.jarvis-app input[type="date"],
+.jarvis-app input[type="search"],
+.jarvis-app input[type="text"],
+.jarvis-app select,
+.jarvis-app textarea {
+  border-radius: 14px;
+  border: 1px solid rgba(66, 232, 255, 0.18);
+  background: rgba(4, 12, 24, 0.76);
+  color: var(--j-text);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.jarvis-app .field textarea,
+.jarvis-app textarea {
+  min-height: 120px;
+}
+
+.jarvis-app .panel,
+.jarvis-app .stat-card,
+.jarvis-app .analysis-card,
+.jarvis-app .prep-comp-card,
+.jarvis-app .dashboard-module,
+.jarvis-app .dashboard-metric-card,
+.jarvis-app .dashboard-team-card,
+.jarvis-app .parser-scrim-card,
+.jarvis-app .modal-card,
+.jarvis-app .chip-nav {
+  border-color: rgba(66, 232, 255, 0.18);
+}
+
+.jarvis-app .main-header {
+  padding: 22px 24px;
+  border: 1px solid rgba(66, 232, 255, 0.18);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(6, 18, 32, 0.94), rgba(4, 12, 24, 0.78));
+  box-shadow: 0 0 42px rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .main-header h2 {
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  letter-spacing: -0.05em;
+}
+
+.jarvis-app .parser-dash-root {
+  gap: 22px;
+}
+
+.jarvis-app .parser-dash-hero-main {
+  display: grid;
+  gap: 14px;
+}
+
+.jarvis-app .parser-dash-hero h1 {
+  font-size: clamp(2.7rem, 5vw, 4.6rem);
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.jarvis-app .parser-dash-hero-copy {
+  max-width: 860px;
+  margin: 0;
+  color: var(--j-muted);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.jarvis-app .parser-dash-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.jarvis-app .parser-dash-assistant {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 100%;
+}
+
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dashboard-module {
+  padding: 20px;
+}
+
+.jarvis-app .parser-dash-command-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.jarvis-app .parser-dash-command-head h2,
+.jarvis-app .dashboard-module-head h2 {
+  font-size: clamp(1.4rem, 2vw, 1.95rem);
+  letter-spacing: -0.04em;
+}
+
+.jarvis-app .parser-dash-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.jarvis-app .parser-dash-controls-left,
+.jarvis-app .parser-dash-controls-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.jarvis-app .parser-dash-control {
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(66, 232, 255, 0.18);
+  background: rgba(4, 12, 24, 0.76);
+  color: var(--j-muted);
+  padding: 0 12px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.jarvis-app .parser-dash-select-wrap select,
+.jarvis-app .parser-dash-search-wrap input {
+  min-height: 42px;
+}
+
+.jarvis-app .parser-dash-search-wrap {
+  min-width: min(420px, 72vw);
+}
+
+.jarvis-app .parser-dash-count {
+  color: var(--j-muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.jarvis-app .dash-count-meta {
+  margin-left: 10px;
+  color: var(--j-cyan);
+}
+
+.jarvis-app .dashboard-top-modules {
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
+  gap: 20px;
+}
+
+.jarvis-app .dashboard-module {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.jarvis-app .dashboard-module-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: end;
+  margin-bottom: 0;
+}
+
+.jarvis-app .dashboard-module-kicker {
+  color: var(--j-cyan);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.jarvis-app .dashboard-module-meta,
+.jarvis-app .dashboard-module-link {
+  color: var(--j-muted);
+  font-weight: 700;
+}
+
+.jarvis-app .dashboard-module-link:hover {
+  color: var(--j-cyan);
+}
+
+.jarvis-app .parser-module-note {
+  margin: 0;
+}
+
+.jarvis-app .dashboard-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.jarvis-app .dashboard-metric-card {
+  min-height: 142px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.jarvis-app .dashboard-metric-card strong {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+
+.jarvis-app .metric-scrims { background: linear-gradient(135deg, rgba(0, 108, 156, 0.9), rgba(3, 45, 82, 0.92)); }
+.jarvis-app .metric-tournaments { background: linear-gradient(135deg, rgba(15, 116, 125, 0.9), rgba(8, 58, 69, 0.92)); }
+.jarvis-app .metric-maps { background: linear-gradient(135deg, rgba(15, 119, 86, 0.88), rgba(8, 63, 47, 0.92)); }
+.jarvis-app .metric-events { background: linear-gradient(135deg, rgba(34, 84, 160, 0.9), rgba(19, 42, 92, 0.92)); }
+.jarvis-app .metric-teams { background: linear-gradient(135deg, rgba(125, 78, 19, 0.88), rgba(84, 45, 10, 0.92)); }
+.jarvis-app .metric-players { background: linear-gradient(135deg, rgba(124, 45, 138, 0.88), rgba(76, 29, 89, 0.92)); }
+
+.jarvis-app .dashboard-team-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.jarvis-app .dashboard-team-card {
+  min-height: 148px;
+  padding: 14px 12px;
+  align-content: start;
+  gap: 10px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.62), rgba(4, 12, 24, 0.84));
+}
+
+.jarvis-app .dashboard-team-card:hover {
+  border-color: rgba(66, 232, 255, 0.36);
+  box-shadow: 0 0 22px rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .dashboard-team-logo-wrap {
+  width: 56px;
+  height: 56px;
+  border-color: rgba(66, 232, 255, 0.24);
+}
+
+.jarvis-app .dashboard-team-logo {
+  width: 46px;
+  height: 46px;
+}
+
+.jarvis-app .parser-scrim-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.jarvis-app .parser-scrim-card {
+  min-height: 188px;
+  padding: 16px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(8, 28, 48, 0.76), rgba(4, 12, 24, 0.92)),
+    linear-gradient(90deg, rgba(66, 232, 255, 0.06), transparent);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+}
+
+.jarvis-app .parser-scrim-card:hover {
+  border-color: rgba(66, 232, 255, 0.34);
+  box-shadow: 0 0 24px rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .parser-scrim-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--j-cyan);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .parser-scrim-title-row h3 {
+  font-size: 1.3rem;
+}
+
+.jarvis-app .parser-scrim-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row {
+  border: 1px solid rgba(66, 232, 255, 0.12);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.jarvis-app .parser-scrim-team-row {
+  justify-content: flex-start;
+}
+
+.jarvis-app .parser-team-dot {
+  background: linear-gradient(135deg, var(--j-green), var(--j-cyan));
+}
+
+.jarvis-app .dash-pagination {
+  margin-top: 18px;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid rgba(66, 232, 255, 0.12);
+}
+
+.jarvis-app .dash-page-state {
+  color: var(--j-muted);
+}
+
+.jarvis-app .parser-empty-note {
+  margin-bottom: 10px;
+}
+
+.jarvis-app .modal-card {
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.9), rgba(4, 12, 24, 0.96));
+  border-color: rgba(66, 232, 255, 0.22);
+  border-radius: 24px;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), 0 0 40px rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .team-scout-page-topbar {
+  padding: 22px 24px;
+  border: 1px solid rgba(66, 232, 255, 0.16);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(66, 232, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(8, 28, 48, 0.78), rgba(4, 12, 24, 0.9));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+.jarvis-app .team-scout-page-title h1 {
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+}
+
+.jarvis-app .team-scout-page-title p {
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.jarvis-app .team-scout-page-scorecard {
+  min-width: 260px;
+  border-color: rgba(66, 232, 255, 0.18);
+  background: linear-gradient(180deg, rgba(12, 20, 34, 0.88), rgba(7, 14, 24, 0.9));
+}
+
+.jarvis-app .team-scout-preview-filters {
+  border-radius: 22px;
+  border-color: rgba(66, 232, 255, 0.18);
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.72), rgba(4, 12, 24, 0.9));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+}
+
+.jarvis-app .team-scout-overview-panel.team-scout-preview-shell {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.jarvis-app .team-scout-preview-report {
+  gap: 20px;
+}
+
+.jarvis-app .team-scout-prep-card,
+.jarvis-app .team-scout-preview-card {
+  border-color: rgba(66, 232, 255, 0.16);
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.9));
+}
+
+.jarvis-app .team-scout-preview-layout {
+  gap: 20px;
+}
+
+.jarvis-app .team-scout-preview-card {
+  padding: 18px;
+}
+
+.jarvis-app .team-scout-preview-table,
+.jarvis-app .team-scout-preview-ban-shells-table {
+  display: block;
+  overflow-x: auto;
+}
+
+.jarvis-app .draft-sim-shell {
+  display: grid;
+  gap: 20px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.75fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: 18px 20px;
+  border: 1px solid rgba(66, 232, 255, 0.18);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(66, 232, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(8, 28, 48, 0.82), rgba(4, 12, 24, 0.92));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero-main {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero h2 {
+  font-size: clamp(2.15rem, 4.4vw, 3.8rem);
+  line-height: 0.92;
+  letter-spacing: -0.06em;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero p {
+  max-width: 62ch;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-chip-row .jarvis-chip {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero-side {
+  display: grid;
+  gap: 10px;
+  align-content: space-between;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-hero-side strong {
+  color: var(--jarvis-text-strong);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-actions {
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.jarvis-app .draft-sim-shell .draft-sim-actions .button-secondary,
+.jarvis-app .draft-sim-shell .draft-sim-actions .rt-toggle {
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.jarvis-app .draft-sim-panel {
+  border-color: rgba(66, 232, 255, 0.16);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.74), rgba(4, 12, 24, 0.9));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+.jarvis-app .draft-sim-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.jarvis-app .draft-sim-section-head-tight {
+  margin-bottom: 16px;
+}
+
+.jarvis-app .draft-sim-section-head h3 {
+  margin: 4px 0 0;
+  color: var(--jarvis-text-strong);
+}
+
+.jarvis-app .draft-sim-mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  border-color: rgba(66, 232, 255, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(8, 28, 48, 0.72), rgba(4, 12, 24, 0.9));
+}
+
+.jarvis-app .draft-sim-mode-tabs .tab-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--jarvis-text-muted);
+}
+
+.jarvis-app .draft-sim-mode-tabs .tab-btn:hover {
+  background: rgba(66, 232, 255, 0.08);
+  color: var(--jarvis-text-strong);
+}
+
+.jarvis-app .draft-sim-mode-tabs .tab-btn.tab-active {
+  background: linear-gradient(135deg, rgba(66, 232, 255, 0.24), rgba(30, 144, 255, 0.18));
+  color: var(--jarvis-text-strong);
+  border-color: rgba(66, 232, 255, 0.2);
+}
+
+.jarvis-app .draft-sim-mode {
+  display: grid;
+  gap: 20px;
+}
+
+.jarvis-app .draft-grid,
+.jarvis-app .multi-draft-layout {
+  gap: 18px;
+}
+
+.jarvis-app .draft-column,
+.jarvis-app .multi-draft-board {
+  border-radius: 22px;
+  border-color: rgba(66, 232, 255, 0.16);
+  background: linear-gradient(180deg, rgba(13, 22, 36, 0.88), rgba(7, 14, 24, 0.82));
+  padding: 16px;
+}
+
+.jarvis-app .draft-column:first-child,
+.jarvis-app .multi-draft-board-team1 {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.jarvis-app .draft-column:last-child,
+.jarvis-app .multi-draft-board-team2 {
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+.jarvis-app .draft-column h4,
+.jarvis-app .multi-draft-board h4 {
+  margin-bottom: 14px;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .draft-slots {
+  gap: 8px;
+}
+
+.jarvis-app .draft-slot {
+  min-height: 82px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 18px;
+  border-color: rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(10, 18, 30, 0.92), rgba(7, 12, 22, 0.84));
+}
+
+.jarvis-app .draft-slot:hover {
+  border-color: rgba(66, 232, 255, 0.24);
+}
+
+.jarvis-app .slot-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.jarvis-app .draft-hint {
+  margin-top: 14px;
+  color: var(--jarvis-text-muted);
+}
+
+.jarvis-app .draft-order-bar {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.jarvis-app .draft-step {
+  min-height: 34px;
+  justify-content: center;
+  border-radius: 12px;
+  border-color: rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(13, 22, 36, 0.92), rgba(7, 14, 24, 0.84));
+  color: var(--jarvis-text-muted);
+}
+
+.jarvis-app .rt-timer-bar {
+  height: 6px;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.jarvis-app .rt-countdown {
+  margin-top: 12px;
+}
+
+.jarvis-app .rt-start-btn {
+  min-width: 180px;
+}
+
+.jarvis-app .hero-picker {
+  gap: 12px;
+}
+
+.jarvis-app .hero-role-section {
+  border-radius: 20px;
+  border-color: rgba(66, 232, 255, 0.14);
+  background: linear-gradient(180deg, rgba(13, 22, 36, 0.88), rgba(7, 14, 24, 0.82));
+  padding: 12px 14px;
+}
+
+.jarvis-app .role-heading {
+  margin-bottom: 10px;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn:hover {
+  border-color: rgba(66, 232, 255, 0.22);
+  background: rgba(66, 232, 255, 0.06);
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-btn img {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pick-name {
+  min-height: 2.1em;
+  color: var(--jarvis-text-strong);
+  font-size: 0.64rem;
+  line-height: 1.15;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.jarvis-app .draft-sim-picker-panel .hero-pool-sub {
+  color: rgba(66, 232, 255, 0.8);
+  text-align: center;
+  font-size: 0.58rem;
+}
+
+.jarvis-app .modal-header,
+.jarvis-app .button-row,
+.jarvis-app .modal-actions {
+  gap: 14px;
+}
+
+.jarvis-app .modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(66, 232, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.jarvis-app .modal-close:hover {
+  background: rgba(66, 232, 255, 0.09);
+  border-color: rgba(66, 232, 255, 0.3);
+}
+
+@media (max-width: 1180px) {
+  .jarvis-hero,
+  .jarvis-app .jarvis-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .dashboard-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .team-scout-page-topbar {
+    padding: 20px;
+  }
+
+  .jarvis-app .draft-sim-shell .draft-sim-hero,
+  .jarvis-app .draft-grid,
+  .jarvis-app .multi-draft-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .draft-order-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .jarvis-app .dashboard-top-modules {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .parser-dash-hero h1 {
+    font-size: clamp(2.2rem, 6vw, 3.4rem);
+  }
+
+  .jarvis-app .parser-dash-hero-copy {
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  .jarvis-app .parser-scrim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .jarvis-app .parser-dash-controls,
+  .jarvis-app .parser-dash-command-head {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .jarvis-app .dashboard-metric-grid,
+  .jarvis-app .parser-scrim-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .parser-dash-command-bar,
+  .jarvis-app .parser-dash-log-panel,
+  .jarvis-app .dashboard-module,
+  .jarvis-app .jarvis-hero {
+    padding: 18px;
+  }
+
+  .jarvis-app .team-scout-page-title h1 {
+    font-size: clamp(2rem, 6vw, 3rem);
+  }
+
+  .jarvis-app .draft-sim-shell .draft-sim-hero h2 {
+    font-size: clamp(1.85rem, 6.2vw, 2.7rem);
+  }
+
+  .jarvis-app .draft-sim-mode-tabs {
+    border-radius: 24px;
+  }
+
+  .jarvis-app .draft-order-bar,
+  .jarvis-app .draft-sim-picker-panel .hero-icon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .draft-slot,
+  .jarvis-app .multi-slot {
+    min-height: 76px;
+  }
+}
+
+@media (max-width: 640px) {
+  .jarvis-app .dashboard-metric-grid,
+  .jarvis-app .dashboard-team-grid,
+  .jarvis-app .parser-scrim-meta,
+  .jarvis-app .parser-scrim-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-hero,
+  .jarvis-app .jarvis-hero,
+  .jarvis-app .parser-dash-command-bar,
+  .jarvis-app .parser-dash-log-panel,
+  .jarvis-app .dashboard-module {
+    padding: 16px;
+  }
+}

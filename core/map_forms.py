@@ -668,6 +668,98 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
     if not timeline_round_options:
         timeline_round_options.append({"key": "map", "label": "Map"})
 
+    def _clean_text(value) -> str:
+        return str(value or "").strip()
+
+    def _clean_hero(value) -> str:
+        return canonicalize_hero_name(_clean_text(value))
+
+    slot_player_sets = {"team1": set(), "team2": set()}
+    for comp_section in map_entry.get("comp") or []:
+        if not isinstance(comp_section, dict):
+            continue
+        for side_slot in TEAM_SLOTS:
+            for slot in comp_section.get(side_slot) or []:
+                if not isinstance(slot, dict):
+                    continue
+                player_name = _clean_text(slot.get("player"))
+                if player_name:
+                    slot_player_sets[side_slot].add(player_name.lower())
+
+    def _event_player_side(player_name: str) -> str:
+        player_key = _clean_text(player_name).lower()
+        if not player_key:
+            return ""
+        if player_key in slot_player_sets.get(display_team1_slot, set()):
+            return display_team1_slot
+        if player_key in slot_player_sets.get(display_team2_slot, set()):
+            return display_team2_slot
+        return ""
+
+    map_first_action_counts = {
+        "total": 0,
+        "team1_first_kills": 0,
+        "team2_first_kills": 0,
+        "team1_first_deaths": 0,
+        "team2_first_deaths": 0,
+    }
+    map_first_action_killers: Counter = Counter()
+    map_first_action_victims: Counter = Counter()
+    map_first_action_source_heroes: Counter = Counter()
+    map_first_action_rows: list[dict] = []
+    for event in map_entry.get("events") or []:
+        if not isinstance(event, dict):
+            continue
+        killer_player = _clean_text(event.get("first_kill_player") or event.get("killer_player"))
+        victim_player = _clean_text(event.get("first_death_player") or event.get("victim_player"))
+        if not killer_player and not victim_player:
+            continue
+        killer_side = _event_player_side(killer_player)
+        victim_side = _event_player_side(victim_player)
+        killer_hero = _clean_hero(event.get("first_kill_hero") or event.get("killer_hero"))
+        victim_hero = _clean_hero(event.get("first_death_hero") or event.get("victim_hero"))
+        map_first_action_counts["total"] += 1
+        if killer_side == display_team1_slot:
+            map_first_action_counts["team1_first_kills"] += 1
+        elif killer_side == display_team2_slot:
+            map_first_action_counts["team2_first_kills"] += 1
+        if victim_side == display_team1_slot:
+            map_first_action_counts["team1_first_deaths"] += 1
+        elif victim_side == display_team2_slot:
+            map_first_action_counts["team2_first_deaths"] += 1
+        if killer_player:
+            map_first_action_killers[killer_player] += 1
+        if victim_player:
+            map_first_action_victims[victim_player] += 1
+        if killer_hero:
+            map_first_action_source_heroes[killer_hero] += 1
+        map_first_action_rows.append(
+            {
+                "timestamp": _clean_text(event.get("timestamp")),
+                "fight_round_label": _clean_text(event.get("fight_round_label")),
+                "fight_number": _clean_text(event.get("fight_number")),
+                "killer_player": killer_player,
+                "killer_hero": killer_hero,
+                "victim_player": victim_player,
+                "victim_hero": victim_hero,
+                "fight_winner_label": _clean_text(event.get("fight_winner_label")),
+            }
+        )
+
+    def _top_counter_row(counter: Counter) -> dict:
+        if not counter:
+            return {"name": "", "count": 0}
+        name, count = counter.most_common(1)[0]
+        return {"name": name, "count": count}
+
+    map_first_action_read = {
+        **map_first_action_counts,
+        "top_killer": _top_counter_row(map_first_action_killers),
+        "top_victim": _top_counter_row(map_first_action_victims),
+        "top_source_hero": _top_counter_row(map_first_action_source_heroes),
+        "recent_rows": map_first_action_rows[:6],
+    }
+
     map_draft_timeline_row = None
     next_fight_number_by_round = {row["key"]: 1 for row in timeline_round_options}
     for event in map_entry.get("events", []):
@@ -758,6 +850,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "next_fight_number": next_fight_number,
         "next_fight_number_by_round": next_fight_number_by_round,
         "timeline_round_options": timeline_round_options,
+        "map_first_action_read": map_first_action_read,
     }
 
 

@@ -21,7 +21,11 @@
         document.documentElement.setAttribute('data-theme', theme);
     })();
     </script>
-    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}">
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}&rev=20260521c">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme.css') }}&rev=20260521c">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-overrides.css') }}&rev=20260521c">
+    <link rel="stylesheet" href="{{ static_asset_url('team-tabs-overrides.css') }}&rev=20260521c">
+    <link rel="stylesheet" href="{{ static_asset_url('team-detail-live-fixes.css') }}&rev=20260521c">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script>
     function getThemeCssVar(name, fallback) {
@@ -167,7 +171,7 @@
         </nav>
 
         <div class="dashboard-layout">
-            <main class="main-content">
+            <main class="main-content jarvis-app">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         <div class="flash-stack">
