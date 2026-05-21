@@ -2098,6 +2098,68 @@ button:hover {
     grid-column: 1 / -1;
 }
 
+.timeline-fight-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.timeline-fight-line span {
+    color: var(--muted);
+}
+
+.first-action-stack {
+    display: grid;
+    gap: 8px;
+    min-width: 210px;
+}
+
+.first-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.first-action-row strong {
+    color: var(--text);
+    font-size: 0.82rem;
+}
+
+.first-action-row small {
+    color: var(--muted);
+    font-size: 0.74rem;
+}
+
+.team-first-action-read {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.team-first-action-read article {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.025);
+    padding: 16px;
+}
+
+.team-first-action-read strong {
+    display: block;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.team-first-action-read p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
 .top-gap {
     margin-top: 16px;
 }
@@ -11221,6 +11283,10 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.team-scout-preview-ban-shells-card {
+    grid-column: 1 / -1;
+}
+
 .team-scout-preview-grid-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -11361,6 +11427,33 @@ th {
     font-weight: 900;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+}
+
+.team-scout-preview-ban-shells-table {
+    table-layout: fixed;
+}
+
+.team-scout-preview-ban-shells-table th,
+.team-scout-preview-ban-shells-table td {
+    padding-right: 18px;
+}
+
+.team-scout-preview-ban-shells-table th:nth-child(1),
+.team-scout-preview-ban-shells-table td:nth-child(1) {
+    width: 42%;
+}
+
+.team-scout-preview-ban-shells-table th:nth-child(2),
+.team-scout-preview-ban-shells-table td:nth-child(2) {
+    width: 34%;
+}
+
+.team-scout-preview-ban-shells-table th:nth-child(3),
+.team-scout-preview-ban-shells-table td:nth-child(3),
+.team-scout-preview-ban-shells-table th:nth-child(4),
+.team-scout-preview-ban-shells-table td:nth-child(4) {
+    width: 12%;
+    white-space: nowrap;
 }
 
 .team-scout-winplan strong {

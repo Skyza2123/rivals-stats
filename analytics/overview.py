@@ -1308,7 +1308,7 @@ def build_scrim_analytics(
         if is_skip:
             recommendation = "Skip: banned too often"
         elif top_ban_hero:
-            recommendation = "Playable: bans not overwhelming"
+            recommendation = "Available"
         else:
             recommendation = "No draft data"
 

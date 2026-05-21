@@ -285,9 +285,9 @@
                         </section>
 
                         <section class="team-scout-preview-grid-2 team-scout-preview-advanced">
-                            <article class="team-scout-preview-card">
+                            <article class="team-scout-preview-card team-scout-preview-ban-shells-card">
                                 {{ scout_card_title('Advanced: Ban Shells', selected_scout_detail.ai_urls.routes if selected_scout_detail.ai_urls else '') }}
-                                <table class="team-scout-preview-table"><thead><tr><th>Ban Group</th><th>Protects</th><th>Maps</th><th>WR</th></tr></thead><tbody>{% for row in draft_scout.ban_line_rows[:4] %}<tr><td>{% for hero_name in row.bans[:3] %}{{ hero_display_name(hero_name) }}{% if not loop.last %} + {% endif %}{% endfor %}</td><td>{% if row.protects %}{% for hero_name in row.protects[:2] %}{{ hero_display_name(hero_name) }}{% if not loop.last %} / {% endif %}{% endfor %}{% else %}-{% endif %}</td><td>{{ dec1(row.count) }}</td><td class="{% if (row.line_win_rate or 0) >= 55 %}good{% elif (row.line_win_rate or 0) < 45 %}bad{% else %}mid{% endif %}">{{ dec1(row.line_win_rate) }}%</td></tr>{% else %}<tr><td colspan="4">No ban shell data yet.</td></tr>{% endfor %}</tbody></table>
+                                <table class="team-scout-preview-table team-scout-preview-ban-shells-table"><thead><tr><th>Ban Group</th><th>Protects</th><th>Maps</th><th>WR</th></tr></thead><tbody>{% for row in draft_scout.ban_line_rows[:4] %}<tr><td>{% for hero_name in row.bans[:3] %}{{ hero_display_name(hero_name) }}{% if not loop.last %} + {% endif %}{% endfor %}</td><td>{% if row.protects %}{% for hero_name in row.protects[:2] %}{{ hero_display_name(hero_name) }}{% if not loop.last %} / {% endif %}{% endfor %}{% else %}-{% endif %}</td><td>{{ dec1(row.count) }}</td><td class="{% if (row.line_win_rate or 0) >= 55 %}good{% elif (row.line_win_rate or 0) < 45 %}bad{% else %}mid{% endif %}">{{ dec1(row.line_win_rate) }}%</td></tr>{% else %}<tr><td colspan="4">No ban shell data yet.</td></tr>{% endfor %}</tbody></table>
                             </article>
 
                             <article class="team-scout-preview-card">

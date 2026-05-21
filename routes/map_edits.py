@@ -35,6 +35,46 @@ def sync_map_score_from_submap_results(map_entry: dict) -> None:
         map_entry["result"] = inferred_result
 
 
+def _build_timeline_event_entry(event_id: int) -> dict:
+    event_type = request.form.get("event_type", "").strip() or "Fight"
+    fight_number = request.form.get("fight_number", "").strip()
+    first_kill_player = request.form.get("first_kill_player", "").strip()
+    first_kill_hero = request.form.get("first_kill_hero", "").strip()
+    first_death_player = request.form.get("first_death_player", "").strip()
+    first_death_hero = request.form.get("first_death_hero", "").strip()
+    fight_winner = request.form.get("fight_winner", "").strip()
+    fight_winner_label = request.form.get("fight_winner_label", "").strip()
+    description = request.form.get("description", "").strip()
+
+    if event_type == "Fight" and not description:
+        parts: list[str] = []
+        if first_kill_player or first_death_player:
+            elim = first_kill_player or "Unknown player"
+            victim = first_death_player or "Unknown player"
+            if first_kill_hero:
+                elim = f"{elim} ({first_kill_hero})"
+            if first_death_hero:
+                victim = f"{victim} ({first_death_hero})"
+            parts.append(f"{elim} eliminated {victim}")
+        if fight_winner_label:
+            parts.append(f"{fight_winner_label} won the fight")
+        description = ". ".join(parts)
+
+    return {
+        "id": event_id,
+        "timestamp": request.form.get("timestamp", "").strip(),
+        "event_type": event_type,
+        "fight_number": fight_number,
+        "first_kill_player": first_kill_player,
+        "first_kill_hero": first_kill_hero,
+        "first_death_player": first_death_player,
+        "first_death_hero": first_death_hero,
+        "fight_winner": fight_winner,
+        "fight_winner_label": fight_winner_label,
+        "description": description,
+    }
+
+
 @app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/delete", methods=["POST"])
 def delete_tournament_match_map(tournament_id: int, match_id: int, map_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
@@ -281,7 +321,7 @@ def delete_tournament_match_event(tournament_id: int, match_id: int, map_id: int
         abort(404)
     map_entry["events"].remove(event_to_delete)
     save_app_state()
-    return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
+    return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id, _anchor="timeline"))
 
 
 @app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/add-event", methods=["POST"])
@@ -294,19 +334,12 @@ def add_tournament_match_event_to_map(tournament_id: int, match_id: int, map_id:
     event_type = request.form.get("event_type", "").strip()
     if event_type not in EVENT_TYPES:
         flash("Please select a valid event type.", "error")
-        return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
+        return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id, _anchor="timeline"))
 
-    map_entry.setdefault("events", []).append(
-        {
-            "id": NEXT_EVENT_ID,
-            "timestamp": request.form.get("timestamp", "").strip(),
-            "event_type": event_type,
-            "description": request.form.get("description", "").strip(),
-        }
-    )
+    map_entry.setdefault("events", []).append(_build_timeline_event_entry(NEXT_EVENT_ID))
     NEXT_EVENT_ID += 1
     save_app_state()
-    return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id))
+    return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id, _anchor="timeline"))
 
 
 @app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>")
@@ -1054,7 +1087,7 @@ def delete_event(scrim_id: int, map_id: int, event_id: int):
     map_entry = get_map_or_404(scrim, map_id)
     map_entry["events"] = [e for e in map_entry["events"] if e["id"] != event_id]
     save_app_state()
-    return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+    return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id, _anchor="timeline"))
 
 
 @app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/delete-event/<int:event_id>", methods=["POST"])
@@ -1063,7 +1096,7 @@ def delete_tournament_event(tournament_id: int, map_id: int, event_id: int):
     map_entry = get_map_or_404(tournament_match, map_id)
     map_entry["events"] = [e for e in map_entry["events"] if e["id"] != event_id]
     save_app_state()
-    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id, _anchor="timeline"))
 
 
 @app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/add-event", methods=["POST"])
@@ -1073,22 +1106,16 @@ def add_event_to_map(scrim_id: int, map_id: int):
     scrim = get_scrim_or_404(scrim_id)
     map_entry = get_map_or_404(scrim, map_id)
 
-    timestamp = request.form.get("timestamp", "").strip()
-    event_type = request.form.get("event_type", "").strip()
-    description = request.form.get("description", "").strip()
+    if (request.form.get("event_type", "").strip() or "Fight") not in EVENT_TYPES:
+        flash("Please select a valid event type.", "error")
+        return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id, _anchor="timeline"))
 
-    event_entry = {
-        "id": NEXT_EVENT_ID,
-        "timestamp": timestamp,
-        "event_type": event_type,
-        "description": description,
-    }
-
+    event_entry = _build_timeline_event_entry(NEXT_EVENT_ID)
     map_entry["events"].append(event_entry)
     NEXT_EVENT_ID += 1
     save_app_state()
 
-    return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id))
+    return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id, _anchor="timeline"))
 
 
 @app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/add-event", methods=["POST"])
@@ -1098,16 +1125,14 @@ def add_tournament_event_to_map(tournament_id: int, map_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
     map_entry = get_map_or_404(tournament_match, map_id)
 
-    event_entry = {
-        "id": NEXT_EVENT_ID,
-        "timestamp": request.form.get("timestamp", "").strip(),
-        "event_type": request.form.get("event_type", "").strip(),
-        "description": request.form.get("description", "").strip(),
-    }
+    if (request.form.get("event_type", "").strip() or "Fight") not in EVENT_TYPES:
+        flash("Please select a valid event type.", "error")
+        return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id, _anchor="timeline"))
 
+    event_entry = _build_timeline_event_entry(NEXT_EVENT_ID)
     map_entry["events"].append(event_entry)
     NEXT_EVENT_ID += 1
     save_app_state()
-    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id))
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id, _anchor="timeline"))
 
 

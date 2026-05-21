@@ -268,6 +268,7 @@ SIDES = ["Attack", "Defense"]
 RESULTS = ["Win", "Loss"]
 FIRST_EVENTS = ["", "First Kill", "First Death"]
 EVENT_TYPES = [
+    "Fight",
     "Fight Win",
     "Fight Loss",
     "First Kill",

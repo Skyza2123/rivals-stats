@@ -647,6 +647,18 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 all_player_name_suggestions.append(player_name)
 
     map_draft_timeline_row = None
+    next_fight_number = 1
+    for event in map_entry.get("events", []):
+        if not isinstance(event, dict):
+            continue
+        raw_fight_number = str(event.get("fight_number") or "").strip()
+        if not raw_fight_number:
+            continue
+        try:
+            next_fight_number = max(next_fight_number, int(raw_fight_number) + 1)
+        except ValueError:
+            continue
+
     target_map_name = (map_entry.get("map_name") or "").strip()
     if target_map_name:
         source_scrims: list[dict] = []
@@ -710,6 +722,7 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "picked_by_label": picked_by_label,
         "map_draft_timeline_row": map_draft_timeline_row,
         "split_score_pair": split_score_pair,
+        "next_fight_number": next_fight_number,
     }
 
 

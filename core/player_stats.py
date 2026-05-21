@@ -12,6 +12,14 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
             "wins": 0,
             "losses": 0,
             "events_mentioned": 0,
+            "first_kills": 0,
+            "first_deaths": 0,
+            "first_kill_fight_wins": 0,
+            "first_kill_fight_losses": 0,
+            "first_death_fight_wins": 0,
+            "first_death_fight_losses": 0,
+            "top_first_kill_victim_hero": "",
+            "top_first_death_killer_hero": "",
             "win_rate": 0,
         }
 
@@ -21,6 +29,14 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
     unresolved_maps = 0
     unresolved_map_refs: list[dict] = []
     events_mentioned = 0
+    first_kills = 0
+    first_deaths = 0
+    first_kill_fight_wins = 0
+    first_kill_fight_losses = 0
+    first_death_fight_wins = 0
+    first_death_fight_losses = 0
+    first_kill_victim_heroes: Counter[str] = Counter()
+    first_death_killer_heroes: Counter[str] = Counter()
     target_lower = target.lower()
     exact_name_pattern = re.compile(r"(?<!\\w)" + re.escape(target_lower) + r"(?!\\w)")
     source_scrims = scrims if scrims is not None else SCRIMS
@@ -55,9 +71,38 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
                 description = event.get("description", "").strip().lower()
                 if exact_name_pattern.search(description):
                     events_mentioned += 1
+                killer_player = (event.get("first_kill_player") or event.get("killer_player") or "").strip().lower()
+                victim_player = (event.get("first_death_player") or event.get("victim_player") or "").strip().lower()
+                event_type = (event.get("event_type") or "").strip()
+
+                if killer_player == target_lower and event_type in {"Fight", "First Kill", "Pick"}:
+                    first_kills += 1
+                    victim_hero = _canonical_draft_hero(event.get("first_death_hero") or event.get("victim_hero") or "")
+                    if victim_hero:
+                        first_kill_victim_heroes[victim_hero] += 1
+                    if event_type == "Fight":
+                        fight_winner = (event.get("fight_winner") or "").strip()
+                        if fight_winner == our_team_slot:
+                            first_kill_fight_wins += 1
+                        elif fight_winner:
+                            first_kill_fight_losses += 1
+
+                if victim_player == target_lower and event_type in {"Fight", "First Death", "Death"}:
+                    first_deaths += 1
+                    killer_hero = _canonical_draft_hero(event.get("first_kill_hero") or event.get("killer_hero") or "")
+                    if killer_hero:
+                        first_death_killer_heroes[killer_hero] += 1
+                    if event_type == "Fight":
+                        fight_winner = (event.get("fight_winner") or "").strip()
+                        if fight_winner == our_team_slot:
+                            first_death_fight_wins += 1
+                        elif fight_winner:
+                            first_death_fight_losses += 1
 
     decided_maps = wins + losses
     win_rate = round((wins / decided_maps) * 100, 1) if decided_maps else 0
+    top_first_kill_victim_hero = first_kill_victim_heroes.most_common(1)[0][0] if first_kill_victim_heroes else ""
+    top_first_death_killer_hero = first_death_killer_heroes.most_common(1)[0][0] if first_death_killer_heroes else ""
 
     return {
         "maps_played": maps_played,
@@ -67,6 +112,14 @@ def compute_player_stats(player_name: str, scrims: list[dict] | None = None) -> 
         "wins": wins,
         "losses": losses,
         "events_mentioned": events_mentioned,
+        "first_kills": first_kills,
+        "first_deaths": first_deaths,
+        "first_kill_fight_wins": first_kill_fight_wins,
+        "first_kill_fight_losses": first_kill_fight_losses,
+        "first_death_fight_wins": first_death_fight_wins,
+        "first_death_fight_losses": first_death_fight_losses,
+        "top_first_kill_victim_hero": top_first_kill_victim_hero,
+        "top_first_death_killer_hero": top_first_death_killer_hero,
         "win_rate": win_rate,
     }
 

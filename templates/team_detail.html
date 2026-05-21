@@ -69,6 +69,7 @@
         <div class="tab-bar tab-bar-group">
             <button class="tab-btn tab-active" data-tab="overview" type="button">Overview</button>
             <button class="tab-btn" data-tab="prep" type="button">Prep</button>
+            <button class="tab-btn" data-tab="first-action" type="button">First Action</button>
             <button class="tab-btn" data-tab="scrims" type="button">Scrims</button>
             <button class="tab-btn" data-tab="maps" type="button">Maps</button>
             <button class="tab-btn" data-tab="heroes" type="button">Heroes</button>
@@ -1144,6 +1145,140 @@
         </div>
     </section>
 
+</div>
+
+<div class="tab-content tab-hidden" id="tab-first-action">
+    <section class="panel">
+        <div class="panel-header-row">
+            <div>
+                <div class="section-kicker">Fight Openers</div>
+                <h3>First Action Read</h3>
+            </div>
+            <form method="get" action="{{ url_for('team_detail', team_id=team.id, _anchor='first-action') }}" class="page-toolbar-group">
+                <input type="hidden" name="season" value="{{ selected_season }}">
+                <input type="hidden" name="map_type" value="{{ selected_map_type }}">
+                <label class="parser-dash-control parser-dash-select-wrap">
+                    <select name="first_action_enemy" aria-label="First action opponent filter" onchange="this.form.submit()">
+                        <option value="all" {% if selected_first_action_enemy == 'all' %}selected{% endif %}>All Opponents</option>
+                        {% for opponent_name in first_action_enemy_options %}
+                            <option value="{{ opponent_name }}" {% if selected_first_action_enemy == opponent_name %}selected{% endif %}>{{ opponent_name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </form>
+        </div>
+        <p class="panel-intro">A quick read on how {{ team.name }} opens fights into {{ first_action_read.target_label }} from logged first-action events.</p>
+        <div class="summary-grid top-gap">
+            <section class="stat-card">
+                <strong>First Kills</strong>
+                <span>{{ first_action_read.first_kills }}</span>
+                <small>{{ first_action_read.fk_wins }}W - {{ first_action_read.fk_losses }}L after FK</small>
+            </section>
+            <section class="stat-card">
+                <strong>First Deaths</strong>
+                <span>{{ first_action_read.first_deaths }}</span>
+                <small>{{ first_action_read.fd_wins }}W - {{ first_action_read.fd_losses }}L after FD</small>
+            </section>
+            <section class="stat-card">
+                <strong>Recorded Fights</strong>
+                <span>{{ first_action_read.total_fights }}</span>
+                <small>{{ first_action_read.target_label }}</small>
+            </section>
+        </div>
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <h3>Opponent Read</h3>
+            <span class="muted-label">{{ first_action_read.target_label }}</span>
+        </div>
+        {% if first_action_read.total_fights %}
+            <div class="summary-grid top-gap">
+                <section class="stat-card">
+                    <strong>Most Active Opener</strong>
+                    <span>{{ first_action_read.top_fk_player.name or '—' }}</span>
+                    <small>{{ first_action_read.top_fk_player.count }} first kill{{ 's' if first_action_read.top_fk_player.count != 1 else '' }}</small>
+                </section>
+                <section class="stat-card">
+                    <strong>Most Exposed</strong>
+                    <span>{{ first_action_read.top_fd_player.name or '—' }}</span>
+                    <small>{{ first_action_read.top_fd_player.count }} first death{{ 's' if first_action_read.top_fd_player.count != 1 else '' }}</small>
+                </section>
+                <section class="stat-card">
+                    <strong>They First Kill Into</strong>
+                    <span>{{ hero_display_name(first_action_read.top_fk_target_hero.name) if first_action_read.top_fk_target_hero.name else '—' }}</span>
+                    <small>{{ first_action_read.top_fk_target_hero.count }} time{{ 's' if first_action_read.top_fk_target_hero.count != 1 else '' }}</small>
+                </section>
+                <section class="stat-card">
+                    <strong>They Die First To</strong>
+                    <span>{{ hero_display_name(first_action_read.top_fd_source_hero.name) if first_action_read.top_fd_source_hero.name else '—' }}</span>
+                    <small>{{ first_action_read.top_fd_source_hero.count }} time{{ 's' if first_action_read.top_fd_source_hero.count != 1 else '' }}</small>
+                </section>
+            </div>
+            <div class="team-first-action-read top-gap">
+                {% set fk_total = first_action_read.fk_wins + first_action_read.fk_losses %}
+                {% set fd_total = first_action_read.fd_wins + first_action_read.fd_losses %}
+                <article>
+                    <strong>When {{ team.name }} gets first kill</strong>
+                    <p>{{ first_action_read.fk_wins }}W - {{ first_action_read.fk_losses }}L in decided logged fights{% if fk_total %}, converting {{ ((first_action_read.fk_wins / fk_total) * 100)|round(1) }}%{% endif %}. The main opening name in this filter is {{ first_action_read.top_fk_player.name or 'not set yet' }}.</p>
+                </article>
+                <article>
+                    <strong>When {{ team.name }} gives first death</strong>
+                    <p>{{ first_action_read.fd_wins }}W - {{ first_action_read.fd_losses }}L in decided logged fights{% if fd_total %}, recovering {{ ((first_action_read.fd_wins / fd_total) * 100)|round(1) }}%{% endif %}. The most common pressure source is {{ hero_display_name(first_action_read.top_fd_source_hero.name) if first_action_read.top_fd_source_hero.name else 'not set yet' }}.</p>
+                </article>
+            </div>
+        {% else %}
+            <p class="empty-text">No first-action fight events match this opponent filter yet. Add them from a map Timeline tab.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <h3>Player First Action</h3>
+            <span class="muted-label">{{ first_action_player_rows|length }} players in filter</span>
+        </div>
+        {% if first_action_player_rows %}
+            {% call stats_table(['Player', 'Role', 'First Kills', 'First Kill Target', 'FK Fight Result', 'First Deaths', 'First Death Source', 'FD Fight Result'], table_class='stats-table roster-table') %}
+                {% for row in first_action_player_rows %}
+                    <tr>
+                        <td>
+                            <span class="player-inline-hero">
+                                <img src="https://avatar.vercel.sh/{{ row.player | urlencode }}.png?size=64" alt="{{ row.player }}">
+                                <span>{{ row.player }}</span>
+                            </span>
+                        </td>
+                        <td>{{ row.role or '-' }}</td>
+                        <td>{{ row.first_kills }}</td>
+                        <td>
+                            {% if row.top_fk_target_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_fk_target_hero) }}" alt="{{ row.top_fk_target_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_fk_target_hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.top_fk_target_hero) }} · {{ row.top_fk_target_hero_count }}</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.fk_wins }}W - {{ row.fk_losses }}L</td>
+                        <td>{{ row.first_deaths }}</td>
+                        <td>
+                            {% if row.top_fd_source_hero %}
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.top_fd_source_hero) }}" alt="{{ row.top_fd_source_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.top_fd_source_hero | urlencode }}'">
+                                    <span>{{ hero_display_name(row.top_fd_source_hero) }} · {{ row.top_fd_source_hero_count }}</span>
+                                </span>
+                            {% else %}
+                                <span class="empty-text">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.fd_wins }}W - {{ row.fd_losses }}L</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
+        {% else %}
+            <p class="empty-text">No player first-action rows match this filter yet.</p>
+        {% endif %}
+    </section>
 </div>
 
 <div class="tab-content tab-hidden" id="tab-simulator">
@@ -3650,7 +3785,7 @@
 (() => {
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-content");
-    const validTabs = new Set(["overview", "prep", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster", "summary", "scrims"]);
+    const validTabs = new Set(["overview", "prep", "first-action", "bans", "simulator", "comps", "heroes", "maps", "tournaments", "roster", "summary", "scrims"]);
 
     const switchTeamTab = (tabName) => {
         const nextTab = validTabs.has(tabName) ? tabName : "overview";

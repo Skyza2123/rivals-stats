@@ -195,15 +195,32 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Event Log</h3>
-        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addEventModal')">Add Event</button>{% endif %}
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addEventModal')">Log First Action</button>{% endif %}
     </div>
     {% if map_entry.events %}
         <div class="list-stack">
             {% for event in map_entry.events %}
                 <div class="list-card static-card">
                     <div>
-                        <div class="list-title">{{ event.timestamp or "---" }} &bull; {{ event.event_type }}</div>
-                        <div class="list-subtitle">{{ event.description or "No description" }}</div>
+                        <div class="list-title">
+                            {{ event.timestamp or "---" }} &bull;
+                            {% if event.fight_number %}Fight {{ event.fight_number }}{% else %}{{ event.event_type }}{% endif %}
+                        </div>
+                        {% if event.first_kill_player or event.first_death_player %}
+                            <div class="timeline-fight-line">
+                                <strong>{{ event.first_kill_player or 'Unknown player' }}</strong>
+                                {% if event.first_kill_hero %}<span>{{ hero_display_name(event.first_kill_hero) }}</span>{% endif %}
+                                <span>eliminated</span>
+                                <strong>{{ event.first_death_player or 'Unknown player' }}</strong>
+                                {% if event.first_death_hero %}<span>{{ hero_display_name(event.first_death_hero) }}</span>{% endif %}
+                            </div>
+                            {% if event.fight_winner_label %}
+                                <div class="list-subtitle">Fight won by {{ event.fight_winner_label }}</div>
+                            {% endif %}
+                        {% endif %}
+                        {% if event.description and not (event.first_kill_player or event.first_death_player) %}
+                            <div class="list-subtitle">{{ event.description }}</div>
+                        {% endif %}
                     </div>
                     {% if session.get('access_level') == 'edit' %}
                     <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
@@ -602,31 +619,61 @@
 <div class="modal-backdrop" id="addEventModal">
     <div class="modal">
         <div class="modal-header">
-            <h2>Add Event</h2>
+            <h2>Log First Action</h2>
             <button class="modal-close" onclick="closeModal('addEventModal')">&times;</button>
         </div>
         <form action="{{ url_for(add_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
+            <input type="hidden" name="event_type" value="Fight">
             <div class="form-grid">
                 <div class="field">
                     <label for="modal_timestamp">Timestamp</label>
                     <input type="text" id="modal_timestamp" name="timestamp" placeholder="e.g. 02:14">
                 </div>
                 <div class="field">
-                    <label for="modal_event_type">Event Type</label>
-                    <select id="modal_event_type" name="event_type" required>
-                        <option value="">Select event type</option>
-                        {% for event_type in event_types %}
-                            <option value="{{ event_type }}">{{ event_type }}</option>
-                        {% endfor %}
+                    <label for="modal_fight_number">Fight</label>
+                    <input type="number" id="modal_fight_number" name="fight_number" min="1" step="1" value="{{ next_fight_number or 1 }}" required>
+                </div>
+                <div class="field">
+                    <label for="modal_first_kill_player">First Kill</label>
+                    <input type="text" id="modal_first_kill_player" name="first_kill_player" list="timelinePlayerOptions" placeholder="Player who gets first kill" required>
+                </div>
+                <div class="field">
+                    <label for="modal_first_kill_hero">Killer Hero</label>
+                    <input type="text" id="modal_first_kill_hero" name="first_kill_hero" list="timelineHeroOptions" placeholder="Hero" required>
+                </div>
+                <div class="field">
+                    <label for="modal_first_death_player">First Death</label>
+                    <input type="text" id="modal_first_death_player" name="first_death_player" list="timelinePlayerOptions" placeholder="Player who dies first" required>
+                </div>
+                <div class="field">
+                    <label for="modal_first_death_hero">Death Hero</label>
+                    <input type="text" id="modal_first_death_hero" name="first_death_hero" list="timelineHeroOptions" placeholder="Hero" required>
+                </div>
+                <div class="field">
+                    <label for="modal_fight_winner">Fight Winner</label>
+                    <select id="modal_fight_winner" name="fight_winner" required>
+                        <option value="">Select winner</option>
+                        <option value="{{ display_team1_slot }}">{{ team1_label }}</option>
+                        <option value="{{ display_team2_slot }}">{{ team2_label }}</option>
                     </select>
+                    <input type="hidden" id="modal_fight_winner_label" name="fight_winner_label">
                 </div>
             </div>
-            <div class="field top-gap">
-                <label for="modal_description">Description</label>
-                <textarea id="modal_description" name="description" rows="4" placeholder="What happened?"></textarea>
-            </div>
+            <datalist id="timelinePlayerOptions">
+                {% for player in team1_player_options %}
+                    <option value="{{ player.name }}">{{ team1_label }}</option>
+                {% endfor %}
+                {% for player in team2_player_options %}
+                    <option value="{{ player.name }}">{{ team2_label }}</option>
+                {% endfor %}
+            </datalist>
+            <datalist id="timelineHeroOptions">
+                {% for hero in heroes %}
+                    <option value="{{ hero }}">{{ hero_display_name(hero) }}</option>
+                {% endfor %}
+            </datalist>
             <div class="button-row">
-                <button type="submit">Add Event</button>
+                <button type="submit">Save Fight</button>
                 <button type="button" class="btn-secondary" onclick="closeModal('addEventModal')">Cancel</button>
             </div>
         </form>
@@ -708,7 +755,17 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(c => {
         c.classList.toggle('tab-hidden', c.id !== 'tab-' + tab);
     });
+    if (['comp', 'timeline', 'vods', 'notes'].includes(tab)) {
+        window.history.replaceState(null, '', '#' + tab);
+    }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const hashTab = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+    if (['comp', 'timeline', 'vods', 'notes'].includes(hashTab)) {
+        switchTab(hashTab);
+    }
+});
 
 /* ── Modal open/close ── */
 function openModal(id) {
@@ -1686,6 +1743,20 @@ function copyPreviousCompSection(sectionIndex) {
 
     updateCompHeroAvailability();
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const fightWinner = document.getElementById('modal_fight_winner');
+    const fightWinnerLabel = document.getElementById('modal_fight_winner_label');
+    if (!fightWinner || !fightWinnerLabel) return;
+
+    function syncFightWinnerLabel() {
+        const selected = fightWinner.options[fightWinner.selectedIndex];
+        fightWinnerLabel.value = selected && selected.value ? selected.text : '';
+    }
+
+    fightWinner.addEventListener('change', syncFightWinnerLabel);
+    syncFightWinnerLabel();
+});
 
 </script>
 {% endblock %}

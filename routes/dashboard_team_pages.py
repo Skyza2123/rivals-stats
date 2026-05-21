@@ -1862,6 +1862,163 @@ def team_detail(team_id: int):
             "hero_rows": player_breakdown.get("hero_rows", []),
         })
 
+    roster_name_lookup = {(player["name"] or "").strip().lower() for player in players if (player.get("name") or "").strip()}
+    first_action_events = []
+    for scrim in team_scrims:
+        scrim_date = (scrim.get("scrim_date") or "").strip()
+        opponent_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip() or "Opponent"
+        for map_entry in scrim.get("maps", []):
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            for event in map_entry.get("events", []):
+                if not isinstance(event, dict):
+                    continue
+                killer_player = (event.get("first_kill_player") or event.get("killer_player") or "").strip()
+                victim_player = (event.get("first_death_player") or event.get("victim_player") or "").strip()
+                if not killer_player and not victim_player:
+                    continue
+                killer_is_roster = killer_player.lower() in roster_name_lookup if killer_player else False
+                victim_is_roster = victim_player.lower() in roster_name_lookup if victim_player else False
+                if not killer_is_roster and not victim_is_roster:
+                    continue
+                fight_winner = (event.get("fight_winner") or "").strip()
+                if fight_winner == our_team_slot:
+                    fight_result = "Won"
+                elif fight_winner:
+                    fight_result = "Lost"
+                else:
+                    fight_result = "Not Set"
+                first_action_events.append(
+                    {
+                        "scrim_id": scrim.get("id"),
+                        "map_id": map_entry.get("id"),
+                        "scrim_date": scrim_date,
+                        "opponent_name": opponent_name,
+                        "map_name": (map_entry.get("map_name") or "").strip() or "Unknown Map",
+                        "fight_number": (event.get("fight_number") or "").strip(),
+                        "killer_player": killer_player,
+                        "killer_hero": _canonical_draft_hero(event.get("first_kill_hero") or event.get("killer_hero") or ""),
+                        "victim_player": victim_player,
+                        "victim_hero": _canonical_draft_hero(event.get("first_death_hero") or event.get("victim_hero") or ""),
+                        "fight_result": fight_result,
+                        "fight_winner_label": (event.get("fight_winner_label") or "").strip(),
+                        "first_action_type": "First Kill" if killer_is_roster else "First Death",
+                    }
+                )
+    first_action_events.sort(
+        key=lambda row: (
+            row["scrim_date"],
+            str(row["scrim_id"] or ""),
+            str(row["map_id"] or ""),
+            int(row["fight_number"]) if str(row["fight_number"]).isdigit() else 0,
+        ),
+        reverse=True,
+    )
+    first_action_enemy_options = sorted({row["opponent_name"] for row in first_action_events if row.get("opponent_name")}, key=str.lower)
+    selected_first_action_enemy = (request.args.get("first_action_enemy") or "all").strip()
+    if selected_first_action_enemy and selected_first_action_enemy != "all":
+        first_action_filtered_events = [
+            row for row in first_action_events
+            if (row.get("opponent_name") or "").strip().lower() == selected_first_action_enemy.lower()
+        ]
+    else:
+        selected_first_action_enemy = "all"
+        first_action_filtered_events = list(first_action_events)
+
+    first_action_read_counts = {
+        "total_fights": len(first_action_filtered_events),
+        "first_kills": 0,
+        "first_deaths": 0,
+        "fk_wins": 0,
+        "fk_losses": 0,
+        "fd_wins": 0,
+        "fd_losses": 0,
+    }
+    fk_player_counter: Counter = Counter()
+    fd_player_counter: Counter = Counter()
+    fk_target_hero_counter: Counter = Counter()
+    fd_source_hero_counter: Counter = Counter()
+    roster_first_action_rows = {
+        player["name"].strip().lower(): {
+            "player": player["name"],
+            "role": player.get("role") or "",
+            "first_kills": 0,
+            "first_deaths": 0,
+            "fk_wins": 0,
+            "fk_losses": 0,
+            "fd_wins": 0,
+            "fd_losses": 0,
+            "fk_target_heroes": Counter(),
+            "fd_source_heroes": Counter(),
+        }
+        for player in players
+        if (player.get("name") or "").strip()
+    }
+
+    for row in first_action_filtered_events:
+        killer_key = (row.get("killer_player") or "").strip().lower()
+        victim_key = (row.get("victim_player") or "").strip().lower()
+        fight_result = row.get("fight_result")
+        if killer_key in roster_first_action_rows:
+            first_action_read_counts["first_kills"] += 1
+            fk_player_counter[row["killer_player"]] += 1
+            player_read = roster_first_action_rows[killer_key]
+            player_read["first_kills"] += 1
+            if fight_result == "Won":
+                first_action_read_counts["fk_wins"] += 1
+                player_read["fk_wins"] += 1
+            elif fight_result == "Lost":
+                first_action_read_counts["fk_losses"] += 1
+                player_read["fk_losses"] += 1
+            if row.get("victim_hero"):
+                fk_target_hero_counter[row["victim_hero"]] += 1
+                player_read["fk_target_heroes"][row["victim_hero"]] += 1
+        if victim_key in roster_first_action_rows:
+            first_action_read_counts["first_deaths"] += 1
+            fd_player_counter[row["victim_player"]] += 1
+            player_read = roster_first_action_rows[victim_key]
+            player_read["first_deaths"] += 1
+            if fight_result == "Won":
+                first_action_read_counts["fd_wins"] += 1
+                player_read["fd_wins"] += 1
+            elif fight_result == "Lost":
+                first_action_read_counts["fd_losses"] += 1
+                player_read["fd_losses"] += 1
+            if row.get("killer_hero"):
+                fd_source_hero_counter[row["killer_hero"]] += 1
+                player_read["fd_source_heroes"][row["killer_hero"]] += 1
+
+    def _top_counter_row(counter: Counter) -> dict:
+        if not counter:
+            return {"name": "", "count": 0}
+        name, count = counter.most_common(1)[0]
+        return {"name": name, "count": count}
+
+    first_action_player_rows = []
+    for row in roster_first_action_rows.values():
+        fk_target = _top_counter_row(row.pop("fk_target_heroes"))
+        fd_source = _top_counter_row(row.pop("fd_source_heroes"))
+        row["top_fk_target_hero"] = fk_target["name"]
+        row["top_fk_target_hero_count"] = fk_target["count"]
+        row["top_fd_source_hero"] = fd_source["name"]
+        row["top_fd_source_hero_count"] = fd_source["count"]
+        if row["first_kills"] or row["first_deaths"]:
+            first_action_player_rows.append(row)
+    first_action_player_rows.sort(
+        key=lambda row: (row["first_kills"] + row["first_deaths"], row["first_kills"], row["player"].lower()),
+        reverse=True,
+    )
+
+    first_action_read = {
+        **first_action_read_counts,
+        "target_label": selected_first_action_enemy if selected_first_action_enemy != "all" else "all opponents",
+        "top_fk_player": _top_counter_row(fk_player_counter),
+        "top_fd_player": _top_counter_row(fd_player_counter),
+        "top_fk_target_hero": _top_counter_row(fk_target_hero_counter),
+        "top_fd_source_hero": _top_counter_row(fd_source_hero_counter),
+    }
+
     staff_members = [
         {
             "id": row["id"],
@@ -1972,6 +2129,11 @@ def team_detail(team_id: int):
         atk_def_wr=atk_def_wr,
         pivot_wr=pivot_wr,
         scrim_log=scrim_log,
+        first_action_events=first_action_filtered_events,
+        first_action_read=first_action_read,
+        first_action_player_rows=first_action_player_rows,
+        first_action_enemy_options=first_action_enemy_options,
+        selected_first_action_enemy=selected_first_action_enemy,
     )
 
 
