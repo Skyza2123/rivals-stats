@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ hero_insights.hero }} - {{ team.name }}{% endblock %}
+{% block title %}{{ hero_display_name(hero_insights.hero) }} - {{ team.name }}{% endblock %}
 
 {% block content %}
 <div class="hero-detail-page">
@@ -8,19 +8,90 @@
     <div class="team-hero-left">
         <img class="team-avatar" src="{{ hero_insights.hero_image_url }}" alt="{{ hero_insights.hero }}">
         <div>
-            <h2>{{ hero_insights.hero }}</h2>
+            <h2>{{ hero_display_name(hero_insights.hero) }}</h2>
             <p class="team-record-line">
                 {{ hero_insights.summary.wins }}W - {{ hero_insights.summary.losses }}L
                 &bull; {{ hero_insights.summary.win_rate }}% Win Rate
                 &bull; {{ hero_insights.summary.maps_played }} maps
             </p>
-            <p>{{ team.name }} performance, pairings, and ban impact for this hero.</p>
+            <p>
+                {{ team.name }} performance, pairings, and ban impact for this hero.
+                {% if selected_enemy_name and selected_enemy_name != 'all' %}&bull; Opponent: {{ selected_enemy_name }}{% endif %}
+            </p>
         </div>
     </div>
     <div class="header-actions team-hero-actions">
+        <form method="GET" action="{{ url_for('team_hero_detail', team_id=team.id, hero_name=hero_insights.hero) }}" class="page-toolbar-group hero-filter-form">
+            <label class="parser-dash-control parser-dash-select-wrap">
+                <select name="season" aria-label="Season filter" onchange="this.form.submit()">
+                    <option value="all" {% if selected_season == 'all' %}selected{% endif %}>All Seasons</option>
+                    {% if has_unseasoned_scrims %}
+                        <option value="{{ unspecified_season_token }}" {% if selected_season == unspecified_season_token %}selected{% endif %}>Unspecified Season</option>
+                    {% endif %}
+                    {% for season in season_options %}
+                        <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>Season {{ season }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="parser-dash-control parser-dash-select-wrap">
+                <select name="map_type" aria-label="Map type filter" onchange="this.form.submit()">
+                    <option value="all" {% if selected_map_type == 'all' %}selected{% endif %}>All Map Types</option>
+                    {% for map_type in map_type_options %}
+                        <option value="{{ map_type }}" {% if selected_map_type == map_type %}selected{% endif %}>{{ map_type }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="parser-dash-control parser-dash-select-wrap">
+                <select name="enemy" aria-label="Opponent filter" onchange="this.form.submit()">
+                    <option value="all" {% if not selected_enemy_name or selected_enemy_name == 'all' %}selected{% endif %}>All Opponents</option>
+                    {% for enemy in enemy_options %}
+                        <option value="{{ enemy }}" {% if selected_enemy_name == enemy %}selected{% endif %}>{{ enemy }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </form>
         <a href="{{ url_for('team_detail', team_id=team.id, season=selected_season, map_type=selected_map_type) }}#comps" class="button-secondary">Back to Team Comps</a>
     </div>
 </div>
+
+{% if hero_insights.player_rows %}
+<section class="panel top-gap">
+    <div class="section-kicker">Players</div>
+    <h3>Who Plays {{ hero_display_name(hero_insights.hero) }}</h3>
+    <p class="panel-intro">Filtered by the current season, map type, and opponent selections.</p>
+    <div class="table-wrap top-gap">
+        <table class="stats-table hero-player-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Maps</th>
+                    <th>Hero Instances</th>
+                    <th>Win Rate</th>
+                    <th>Record</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in hero_insights.player_rows %}
+                <tr>
+                    <td>
+                        {% if row.player_id %}
+                            <a href="{{ url_for('player_detail', team_id=team.id, player_id=row.player_id) }}">{{ row.player }}</a>
+                        {% else %}
+                            {{ row.player }}
+                        {% endif %}
+                        {% if row.role %}<small style="color:var(--muted)"> {{ row.role }}</small>{% endif %}
+                    </td>
+                    <td>{{ row.maps }}</td>
+                    <td>{{ row.instances }}</td>
+                    <td>{{ row.win_rate }}%</td>
+                    <td>{{ row.wins }}W - {{ row.losses }}L</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
 
 <section class="panel">
     <div class="summary-grid">
@@ -47,7 +118,7 @@
 {% if hero_anova %}
 <section class="panel panel-soft-gold top-gap">
     <div class="section-kicker">Hero Context</div>
-    <h3>Map And Mode Impact For {{ hero_insights.hero }}</h3>
+    <h3>Map And Mode Impact For {{ hero_display_name(hero_insights.hero) }}</h3>
     <p class="panel-intro">ANOVA checks whether this hero's results shift by map, submap, mode, and round while controlling source and side.</p>
     <div class="ban-anova-card-grid top-gap">
         {% set map_spread = hero_anova.map_spread | default(0) %}
@@ -181,7 +252,7 @@
 {% set ban_impact = hero_insights.ban_impact %}
 <section class="panel top-gap">
     <div class="section-kicker">Key Reads</div>
-    <h3>How {{ hero_insights.hero }} Bans Affect Team Performance</h3>
+    <h3>How {{ hero_display_name(hero_insights.hero) }} Bans Affect Team Performance</h3>
     <div class="summary-grid top-gap">
         <section class="stat-card">
             <strong>Ban Exposure</strong>
@@ -369,6 +440,7 @@
                             <th>Date</th>
                             <th>Opponent</th>
                             <th>Map</th>
+                            <th>Players</th>
                             <th>Result</th>
                             <th>Instances</th>
                             <th>Action</th>
@@ -380,6 +452,13 @@
                             <td>{{ row.scrim_date or '—' }}</td>
                             <td>{{ row.opponent_name }}</td>
                             <td>{{ row.map_name }}</td>
+                            <td>
+                                {% if row.players %}
+                                    {{ row.players | join(', ') }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
                             <td>{{ row.result }}</td>
                             <td>{{ row.instances }}</td>
                             <td>

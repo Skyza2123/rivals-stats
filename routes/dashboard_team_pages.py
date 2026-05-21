@@ -246,6 +246,21 @@ def team_scouting():
         )
 
     our_team = {"id": int(our_team_row["id"]), "name": (our_team_row["name"] or "").strip()}
+    team_rows = db.execute(
+        """
+        SELECT id, name, logo_path, quality_tag, is_personal
+        FROM teams
+        ORDER BY
+            CASE quality_tag
+                WHEN 'Preferred' THEN 0
+                WHEN 'Semi Preferred' THEN 1
+                WHEN 'Good' THEN 2
+                WHEN 'Avoid' THEN 3
+                ELSE 4
+            END,
+            name COLLATE NOCASE
+        """
+    ).fetchall()
     opponent_rows = db.execute(
         """
         SELECT id, name, logo_path, quality_tag, is_personal
@@ -645,6 +660,278 @@ def team_scouting():
             prompt=prompt,
         )
 
+    def _build_opening_priority_rows(history_rows: list[dict]) -> dict:
+        ban_counter: Counter = Counter()
+        protect_counter: Counter = Counter()
+
+        for scrim in history_rows:
+            for map_entry in scrim.get("maps", []):
+                if not isinstance(map_entry, dict):
+                    continue
+                our_slot = (map_entry.get("our_team_slot") or "team1").strip()
+                if our_slot not in TEAM_SLOTS:
+                    our_slot = "team1"
+                our_draft = ((map_entry.get("draft") or {}).get(our_slot) or {})
+                opening_ban = _canonical_draft_hero(our_draft.get("ban1", ""))
+                opening_protect = _canonical_draft_hero(our_draft.get("protect1", ""))
+                if opening_ban:
+                    ban_counter[opening_ban] += 1
+                if opening_protect:
+                    protect_counter[opening_protect] += 1
+
+        total_bans = sum(ban_counter.values())
+        total_protects = sum(protect_counter.values())
+        return {
+            "ban1_rows": [
+                {
+                    "hero": hero_name,
+                    "count": count,
+                    "rate": round((count / total_bans) * 100, 1) if total_bans else 0.0,
+                }
+                for hero_name, count in ban_counter.most_common(5)
+            ],
+            "protect1_rows": [
+                {
+                    "hero": hero_name,
+                    "count": count,
+                    "rate": round((count / total_protects) * 100, 1) if total_protects else 0.0,
+                }
+                for hero_name, count in protect_counter.most_common(5)
+            ],
+        }
+
+    def _build_draft_scout_bundle(team_name: str, history_rows: list[dict], analytics: dict, tree_model: dict) -> dict:
+        opening_rows = _build_opening_priority_rows(history_rows)
+        comp_rows = analytics.get("comp_rows") or tree_model.get("comp_rows") or []
+        ban_rows = analytics.get("ban_rows") or []
+        protect_rows = analytics.get("protect_rows") or []
+        ban_line_rows = tree_model.get("ban_line_rows") or []
+        map_draft_rows = analytics.get("map_draft_rows") or []
+        most_likely_ban_route_rows = analytics.get("most_likely_ban_route_rows") or []
+        protect1_influence_rows = analytics.get("protect1_influence_rows") or []
+        comp_archetype_rows = analytics.get("comp_archetype_rows") or []
+        comfort_core_rows = tree_model.get("comfort_core_rows") or []
+        hero_pool_rows = tree_model.get("hero_pool_rows") or []
+        player_hero_rows = tree_model.get("player_hero_rows") or []
+        pivot_rows = tree_model.get("pivot_rows") or []
+        mode_comp_rows = tree_model.get("mode_comp_rows") or []
+        comp_path_rows = tree_model.get("comp_path_rows") or []
+        equivalent_path_rows = tree_model.get("equivalent_path_rows") or []
+        volatile_hero_rows = tree_model.get("volatile_hero_rows") or []
+        map_state_rows = tree_model.get("map_state_rows") or []
+
+        top_comp = comp_rows[0] if comp_rows else {}
+        top_ban = ban_rows[0] if ban_rows else {}
+        top_protect = protect_rows[0] if protect_rows else {}
+        top_path = comp_path_rows[0] if comp_path_rows else {}
+        top_route = most_likely_ban_route_rows[0] if most_likely_ban_route_rows else {}
+
+        top_path_share = float(top_path.get("top_path_share", 0) or 0)
+        route_confidence = float(top_route.get("top_rate", 0) or 0)
+        predictability_score = round(min(100.0, (top_path_share * 0.65) + (route_confidence * 0.35)), 1)
+
+        avg_path_count = (
+            sum(float(row.get("path_count", 0) or 0) for row in comp_path_rows[:3]) / min(len(comp_path_rows), 3)
+            if comp_path_rows else 0.0
+        )
+        avg_path_deviation = (
+            sum(float(row.get("avg_deviation", 0) or 0) for row in comp_path_rows[:3]) / min(len(comp_path_rows), 3)
+            if comp_path_rows else 0.0
+        )
+        flexibility_score = round(
+            min(
+                100.0,
+                len(hero_pool_rows[:8]) * 7.0
+                + len(pivot_rows[:4]) * 8.0
+                + len(equivalent_path_rows[:4]) * 7.0
+                + avg_path_count * 4.0,
+            ),
+            1,
+        )
+        adaptation_score = round(
+            min(
+                100.0,
+                sum(len(row.get("pivots", [])) for row in pivot_rows[:3]) * 9.0
+                + len(mode_comp_rows[:4]) * 6.0
+                + avg_path_deviation * 10.0,
+            ),
+            1,
+        )
+
+        top_archetype = max(comp_archetype_rows, key=lambda row: float(row.get("main_rate", 0) or 0)) if comp_archetype_rows else None
+        avg_core_comfort = (
+            sum(float(row.get("comfort_rate", 0) or 0) for row in comfort_core_rows[:4]) / min(len(comfort_core_rows), 4)
+            if comfort_core_rows else 0.0
+        )
+
+        identity_tags: list[str] = []
+        if top_archetype and float(top_archetype.get("main_rate", 0) or 0) >= 35:
+            identity_tags.append(top_archetype.get("label") or "Structured comps")
+        if avg_core_comfort >= 45:
+            identity_tags.append("Comfort heavy")
+        if predictability_score >= 65:
+            identity_tags.append("Scripted openers")
+        elif flexibility_score >= 60:
+            identity_tags.append("Flexible routes")
+        if adaptation_score >= 60:
+            identity_tags.append("Pivot-ready")
+        if not identity_tags:
+            identity_tags.append("Generalist")
+
+        if predictability_score >= 70:
+            predictability_label = "High"
+        elif predictability_score >= 45:
+            predictability_label = "Medium"
+        else:
+            predictability_label = "Low"
+
+        if flexibility_score >= 70:
+            flexibility_label = "High"
+        elif flexibility_score >= 45:
+            flexibility_label = "Medium"
+        else:
+            flexibility_label = "Low"
+
+        identity_label = " / ".join(identity_tags[:3])
+        identity_summary_bits = []
+        if top_comp.get("heroes"):
+            identity_summary_bits.append(
+                "Top shell: " + ", ".join((top_comp.get("heroes") or [])[:4])
+            )
+        if top_ban.get("hero"):
+            identity_summary_bits.append(
+                f"leans on {top_ban['hero']} bans"
+            )
+        if top_protect.get("hero"):
+            identity_summary_bits.append(
+                f"protects {top_protect['hero']} early"
+            )
+
+        win_condition_rows = []
+        if top_comp.get("heroes"):
+            win_condition_rows.append(
+                f"Force them off {', '.join((top_comp.get('heroes') or [])[:4])}; that shell shows up in {top_comp.get('rate', 0)}% of tracked comps."
+            )
+        if volatile_hero_rows:
+            volatile = volatile_hero_rows[0]
+            if volatile.get("hero"):
+                win_condition_rows.append(
+                    f"Deny {volatile['hero']} when possible; their win rate swings {volatile.get('delta', 0)} pts when that hero is active."
+                )
+        if map_draft_rows:
+            map_row = map_draft_rows[0]
+            if map_row.get("map_name"):
+                win_condition_rows.append(
+                    f"On {map_row['map_name']}, expect {map_row.get('top_ban_hero') or 'their usual bans'} and {map_row.get('top_protect_hero') or 'their usual protects'} first."
+                )
+
+        return {
+            "identity_label": identity_label,
+            "identity_summary": "; ".join(identity_summary_bits) if identity_summary_bits else f"{team_name} drafts without a single dominant pattern.",
+            "predictability_score": predictability_score,
+            "predictability_label": predictability_label,
+            "flexibility_score": flexibility_score,
+            "flexibility_label": flexibility_label,
+            "adaptation_score": adaptation_score,
+            "opening_bans": opening_rows.get("ban1_rows", []),
+            "opening_protects": opening_rows.get("protect1_rows", []),
+            "top_comps": comp_rows[:6],
+            "comfort_core_rows": comfort_core_rows[:5],
+            "hero_pool_rows": hero_pool_rows,
+            "player_hero_rows": player_hero_rows,
+            "ban_line_rows": ban_line_rows[:10],
+            "map_tendencies": map_draft_rows[:4],
+            "mode_comp_rows": mode_comp_rows[:4],
+            "first_phase_routes": most_likely_ban_route_rows[:4],
+            "protect_reactions": protect1_influence_rows[:4],
+            "pivot_rows": pivot_rows[:4],
+            "comp_path_rows": comp_path_rows[:4],
+            "equivalent_path_rows": equivalent_path_rows[:4],
+            "volatile_hero_rows": volatile_hero_rows[:4],
+            "map_state_rows": map_state_rows[:4],
+            "win_condition_rows": win_condition_rows[:3],
+        }
+
+    def _build_draft_scout_ai_urls(opponent_id: int, opponent_name: str, draft_scout: dict) -> dict:
+        top_comp = (draft_scout.get("top_comps") or [{}])[0]
+        opening_ban = (draft_scout.get("opening_bans") or [{}])[0]
+        opening_protect = (draft_scout.get("opening_protects") or [{}])[0]
+        top_map = (draft_scout.get("map_tendencies") or [{}])[0]
+        context_bits = [
+            f"Identity: {draft_scout.get('identity_label', 'Unknown')}",
+            f"Predictability: {draft_scout.get('predictability_score', 0)}/100",
+            f"Flexibility: {draft_scout.get('flexibility_score', 0)}/100",
+        ]
+        if top_comp.get("heroes"):
+            context_bits.append("Top shell: " + ", ".join((top_comp.get("heroes") or [])[:4]))
+        if opening_ban.get("hero"):
+            context_bits.append(f"Ban 1 priority: {opening_ban['hero']} ({opening_ban.get('rate', 0)}%)")
+        if opening_protect.get("hero"):
+            context_bits.append(f"Protect 1 priority: {opening_protect['hero']} ({opening_protect.get('rate', 0)}%)")
+        if top_map.get("map_name"):
+            context_bits.append(
+                f"Map tendency: {top_map['map_name']} -> ban {top_map.get('top_ban_hero') or '-'}, protect {top_map.get('top_protect_hero') or '-'}"
+            )
+        draft_context = " | ".join(bit for bit in context_bits if bit)
+
+        overview_prompt = (
+            f"Scout {opponent_name} against us ({our_team['name']}) using only draft data, bans, comps, maps, and match scores. {draft_context}. "
+            "Format the answer as labeled sections: Team identity, Most played comps, Ban behavior, Opening priorities, Flexibility and predictability, Predicted win conditions, Action plan. "
+            "Be concrete and exploit-focused."
+        )
+        routes_prompt = (
+            f"Break down {opponent_name}'s opening draft routes against us ({our_team['name']}). {draft_context}. "
+            "Explain their Ban 1 and Protect 1 priorities, the most likely follow-up ban/protect route, and the cleanest counter-route for us."
+        )
+        map_prompt = (
+            f"Build a map-specific prep plan for {opponent_name} against us ({our_team['name']}). {draft_context}. "
+            "For each relevant map or mode, explain what they tend to ban, what they protect, which comp shell they prefer, and what our ban/protect response should be."
+        )
+        map_plan_urls = {}
+        for map_row in (draft_scout.get("map_tendencies") or [])[:4]:
+            map_name = map_row.get("map_name")
+            if not map_name:
+                continue
+            specific_map_prompt = (
+                f"Expand the {map_name} prep plan for {opponent_name} against us ({our_team['name']}). {draft_context}. "
+                f"On this map, their likely first ban is {map_row.get('top_ban_hero') or '-'} at {map_row.get('top_ban_rate', 0)}%, "
+                f"and their likely first protect is {map_row.get('top_protect_hero') or '-'} at {map_row.get('top_protect_rate', 0)}%. "
+                "Give the exact ban/protect response, expected comp shell, danger picks, and our win condition."
+            )
+            map_plan_urls[map_name] = _build_ai_url(opponent_id, opponent_name, specific_map_prompt)
+        predictability_prompt = (
+            f"Assess how predictable and adaptable {opponent_name} is in draft against us ({our_team['name']}). {draft_context}. "
+            "Explain where their draft is scripted, where they can pivot, which heroes or comps indicate the pivot, and how we should punish low-flex branches."
+        )
+        comp_shells_prompt = (
+            f"Expand {opponent_name}'s expected comp shells against us ({our_team['name']}). {draft_context}. "
+            "For the top six shells, explain the likely game plan, key heroes, map fit, draft tells, and the cleanest ban/protect response."
+        )
+        win_conditions_prompt = (
+            f"Turn this scouting data into concrete win conditions for us against {opponent_name}. {draft_context}. "
+            "Prioritize what to deny first, what shell to break, what map states to force, and what mistakes we should bait."
+        )
+        player_pools_prompt = (
+            f"Analyze {opponent_name}'s player hero pools against us ({our_team['name']}). {draft_context}. "
+            "Identify comfort threats, targetable hero pools, likely swaps, and which player-hero pair should shape our bans."
+        )
+        sample_warning_prompt = (
+            f"Audit the sample-size risk in this {opponent_name} scouting report against us ({our_team['name']}). {draft_context}. "
+            "Call out which reads are reliable, which are low sample, and how coaches should weight the signals."
+        )
+
+        return {
+            "overview": _build_ai_url(opponent_id, opponent_name, overview_prompt),
+            "routes": _build_ai_url(opponent_id, opponent_name, routes_prompt),
+            "map_plan": _build_ai_url(opponent_id, opponent_name, map_prompt),
+            "map_plans": map_plan_urls,
+            "predictability": _build_ai_url(opponent_id, opponent_name, predictability_prompt),
+            "comp_shells": _build_ai_url(opponent_id, opponent_name, comp_shells_prompt),
+            "win_conditions": _build_ai_url(opponent_id, opponent_name, win_conditions_prompt),
+            "player_pools": _build_ai_url(opponent_id, opponent_name, player_pools_prompt),
+            "sample_warning": _build_ai_url(opponent_id, opponent_name, sample_warning_prompt),
+        }
+
     scout_rows: list[dict] = []
     for row in opponent_rows:
         opponent_id = int(row["id"])
@@ -760,6 +1047,171 @@ def team_scouting():
         )
         selected_team_id = int(selected_scout_row["team_id"])
 
+    selected_scout_detail = {}
+    if selected_scout_row is not None:
+        scout_team = {
+            "id": int(selected_scout_row["team_id"]),
+            "name": (selected_scout_row["team_name"] or "").strip(),
+        }
+        scout_scrims = get_scrims_for_team(scout_team["id"], scout_team["name"])
+        scout_tournaments = build_team_tournament_scrims(scout_team)
+        scout_history = scout_scrims + scout_tournaments
+        scout_history = filter_scrims_by_season(scout_history, selected_season)
+        scout_history = _filter_scrims_to_map(scout_history, selected_map_name)
+
+        scout_player_rows = db.execute(
+            "SELECT id, name, role, main_hero, notes, is_sub FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+            (scout_team["id"],),
+        ).fetchall()
+        scout_players = [
+            {
+                "id": int(row["id"]),
+                "name": (row["name"] or "").strip(),
+                "role": (row["role"] or "").strip(),
+                "main_hero": (row["main_hero"] or "").strip(),
+                "notes": (row["notes"] or "").strip(),
+                "is_sub": bool(row["is_sub"]),
+            }
+            for row in scout_player_rows
+        ]
+        scout_roster_names = [player["name"] for player in scout_players if player["name"]]
+        scout_analytics = build_scrim_analytics(scout_history, roster_player_names=scout_roster_names)
+        scout_map_overview = build_team_map_overview(
+            scout_history,
+            map_modes=MAP_MODES,
+            map_types=MAP_TYPES,
+            normalize_map_type_value=normalize_map_type_value,
+            get_map_outcome_for_slot=get_map_outcome_for_slot,
+            get_map_image_url=get_map_image_url,
+        )
+        scout_hero_profile = build_team_hero_profile(
+            scout_history,
+            scout_players,
+            team_slots=TEAM_SLOTS,
+            canonical_draft_hero=_canonical_draft_hero,
+            get_map_outcome_for_slot=get_map_outcome_for_slot,
+        )
+        scout_hero_rows = scout_hero_profile.get("hero_rows", [])
+        scout_comp_rows = scout_hero_profile.get("comp_rows", [])
+        scout_attack_defense = build_atk_def_wr(scout_history, attack_defense_maps=ATTACK_DEFENSE_MAPS)
+        scout_pivot = build_pivot_wr(scout_history, attack_defense_maps=ATTACK_DEFENSE_MAPS)
+        scout_ban_impact = build_team_ban_impact(scout_history)
+        scout_draft_correlation = build_prep_draft_correlation_bundle(scout_history)
+        scout_expected_plan = build_prep_expected_comp_plan(scout_history, scout_player_rows, scout_analytics, all_scrims=scout_history)
+        scout_tree_model = build_opponent_tree_model(scout_history, scout_history)
+        draft_scout = _build_draft_scout_bundle(scout_team["name"], scout_history, scout_analytics, scout_tree_model)
+        draft_scout_ai_urls = _build_draft_scout_ai_urls(scout_team["id"], scout_team["name"], draft_scout)
+        scout_top_hero_rows = scout_hero_rows[:3]
+        scout_open_impact_rows = []
+        for hero_row in scout_top_hero_rows:
+            hero_name = hero_row.get("hero", "")
+            if not hero_name:
+                continue
+            hero_detail = build_team_hero_insights(scout_history, hero_name)
+            ban_impact = hero_detail.get("ban_impact", {}) if isinstance(hero_detail, dict) else {}
+            scout_open_impact_rows.append(
+                {
+                    "hero": hero_name,
+                    "maps": hero_detail.get("summary", {}).get("maps_played", 0),
+                    "win_rate": hero_detail.get("summary", {}).get("win_rate", 0),
+                    "open_vs_banned_delta": ban_impact.get("open_vs_banned_delta"),
+                    "open_wr": ban_impact.get("win_rate_when_open"),
+                    "banned_wr": ban_impact.get("win_rate_when_banned"),
+                    "top_pivot": (ban_impact.get("top_pivots") or [{}])[0],
+                }
+            )
+
+        selected_scout_detail = {
+            "hero_rows": scout_hero_rows[:6],
+            "comp_rows": scout_comp_rows[:4],
+            "map_rows": (scout_map_overview.get("team_map_cards") or [])[:4],
+            "mode_rows": (scout_map_overview.get("team_map_mode_rows") or [])[:3],
+            "atk_def_rows": (scout_attack_defense.get("per_map") or [])[:4],
+            "pivot_rows": (scout_pivot.get("per_player") or [])[:4],
+            "ban_impact_rows": scout_ban_impact[:5],
+            "ban_pairs": (scout_draft_correlation.get("ban") or {}).get("cooccurrence_rows", [])[:5],
+            "protect_pairs": (scout_draft_correlation.get("protect") or {}).get("cooccurrence_rows", [])[:5],
+            "expected_comp_variants": scout_expected_plan.get("expected_comp_variants", [])[:3],
+            "four_hero_combos": scout_expected_plan.get("four_hero_combos", [])[:4],
+            "suggested_adjustments": scout_expected_plan.get("suggested_adjustments", [])[:5],
+            "hero_player_differences": scout_expected_plan.get("hero_player_differences", [])[:4],
+            "open_hero_rows": scout_open_impact_rows,
+            "draft_scout": draft_scout,
+            "ai_urls": draft_scout_ai_urls,
+            "overview": scout_analytics,
+        }
+
+    try:
+        selected_prep_team_id = int(request.args.get("prep_team_id") or our_team["id"])
+    except (TypeError, ValueError):
+        selected_prep_team_id = our_team["id"]
+
+    prep_team_row = next((row for row in team_rows if int(row["id"]) == selected_prep_team_id), None)
+    if prep_team_row is None:
+        prep_team_row = next((row for row in team_rows if int(row["id"]) == our_team["id"]), None)
+    if prep_team_row is None:
+        prep_team_row = team_rows[0] if team_rows else None
+
+    prep_team = None
+    prep_html = ""
+    prep_team_rows = [dict(row) for row in team_rows]
+    prep_selected_map_type = get_selected_map_type(request.args.get("prep_map_type", "all"))
+    prep_selected_enemy_id = (request.args.get("prep_enemy_id", "") or "").strip()
+    if prep_team_row is not None:
+        prep_team = {"id": int(prep_team_row["id"]), "name": (prep_team_row["name"] or "").strip()}
+        prep_scrims_all = get_scrims_for_team(prep_team["id"], prep_team["name"])
+        prep_season_options = get_scrim_season_options(prep_scrims_all)
+        prep_has_unseasoned_scrims = any(not normalize_season_value(scrim.get("season", "")) for scrim in prep_scrims_all)
+        prep_default_season = get_current_season_from_recent_scrim(prep_scrims_all)
+        prep_selected_season = get_selected_season(
+            request.args.get("prep_season", ""),
+            prep_season_options,
+            allow_unspecified=prep_has_unseasoned_scrims,
+            default_season=prep_default_season,
+        )
+        prep_scrims = filter_scrims_by_season(prep_scrims_all, prep_selected_season)
+        prep_scrims = filter_scrims_by_map_type(prep_scrims, prep_selected_map_type)
+        prep_enemy_rows = [
+            {
+                "id": int(row["id"]),
+                "name": (row["name"] or "").strip(),
+                "logo_path": row["logo_path"],
+                "quality_tag": (row["quality_tag"] or "").strip(),
+                "is_personal": bool(row["is_personal"]),
+            }
+            for row in team_rows
+            if int(row["id"]) != prep_team["id"]
+        ]
+        prep_players = db.execute(
+            "SELECT id, name, role, main_hero, notes, is_sub FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+            (prep_team["id"],),
+        ).fetchall()
+        prep_context = build_team_prep_context(
+            team_scrims=prep_scrims,
+            team_players=prep_players,
+            enemy_teams=prep_enemy_rows,
+            selected_enemy_id_raw=prep_selected_enemy_id,
+            compare_map_a_raw=request.args.get("prep_compare_map_a", ""),
+            compare_map_b_raw=request.args.get("prep_compare_map_b", ""),
+        )
+        prep_html = render_template(
+            "_team_prep_content.html",
+            team=prep_team,
+            enemy_teams=prep_enemy_rows,
+            selected_season=prep_selected_season,
+            selected_map_type=prep_selected_map_type,
+            **prep_context,
+        )
+    else:
+        prep_season_options = season_options
+        prep_has_unseasoned_scrims = has_unseasoned_scrims
+        prep_selected_season = get_selected_season(
+            request.args.get("prep_season", ""),
+            prep_season_options,
+            allow_unspecified=prep_has_unseasoned_scrims,
+            default_season=default_season,
+        )
+
     return render_template(
         "team_scouting.html",
         our_team=our_team,
@@ -773,6 +1225,16 @@ def team_scouting():
         selected_map_name=selected_map_name,
         map_options=map_options,
         min_maps=min_maps,
+        prep_team_rows=prep_team_rows,
+        selected_prep_team_id=selected_prep_team_id,
+        selected_prep_season=prep_selected_season,
+        selected_prep_map_type=prep_selected_map_type,
+        selected_prep_enemy_id=prep_selected_enemy_id,
+        prep_season_options=prep_season_options,
+        prep_has_unseasoned_scrims=prep_has_unseasoned_scrims,
+        prep_html=prep_html,
+        selected_scout_detail=selected_scout_detail,
+        get_map_image_url=get_map_image_url,
     )
 
 

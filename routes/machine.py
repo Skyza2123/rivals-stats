@@ -1703,6 +1703,14 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
         "comps can", "comp can", "comps will", "comp will", "comps they", "comp they",
         "comp style", "comp options", "play in", "run in", "draft style",
     ))
+    wants_comfort = wants_comps or any(phrase in q for phrase in (
+        "hero pool",
+        "comfort heroes",
+        "main heroes",
+        "signature heroes",
+        "best heroes",
+        "most played heroes",
+    ))
     wants_player = any(phrase in q for phrase in ("who is", "who plays", "heroes does", "hero pool", "player"))
     wants_hero = any(phrase in q for phrase in (
         "tell me about", "banned", "protected", "how much does", "how often does",
@@ -1745,6 +1753,7 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
     team_profile_visuals: dict = {}
     if teams:
         team = teams[0]
+        team_name = team.get("team") or "That team"
         bias = hero_bits(team.get("hero_bias", []), 8)
         pair_cores = []
         for row in (team.get("pair_cores", []) or [])[:5]:
@@ -1798,6 +1807,75 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
         if player_lines:
             team_text += "\n  Player pools:\n    " + "\n    ".join(player_lines)
         section_map["team"] = team_text
+
+        if wants_comfort:
+            top_bias_rows = [row for row in (team.get("hero_bias") or []) if row.get("hero")][:5]
+            top_bias_text = hero_bits(top_bias_rows, 5)
+            top_player_rows = []
+            for pp in (team.get("player_pools") or [])[:4]:
+                pname = pp.get("player_name", "")
+                heroes_text = hero_bits(pp.get("heroes") or [], 3)
+                if pname and heroes_text:
+                    top_player_rows.append(f"{pname}: {heroes_text}")
+            if top_bias_text or top_player_rows:
+                comfort_parts = []
+                if top_bias_text:
+                    comfort_parts.append(f"{team_name}'s most played heroes are {top_bias_text}.")
+                if top_player_rows:
+                    comfort_parts.append("Key player pools: " + "; ".join(top_player_rows) + ".")
+                section_map["comfort"] = " ".join(comfort_parts)
+
+        if wants_map and not section_map.get("map"):
+            ranked_maps = []
+            for row in (team.get("map_stats") or []):
+                played = row.get("played", 0) or 0
+                wins = row.get("wins", 0) or 0
+                losses = row.get("losses", 0) or 0
+                total = wins + losses
+                if not played and not total:
+                    continue
+                denominator = total or played
+                win_rate = (wins / denominator) if denominator else 0
+                ranked_maps.append((win_rate, denominator, row))
+            ranked_maps.sort(key=lambda item: (-item[0], -item[1], (item[2].get("map_name") or "")))
+            if ranked_maps:
+                best_rows = [item[2] for item in ranked_maps[:3]]
+                map_bits = []
+                for row in best_rows:
+                    map_name = row.get("map_name", "")
+                    wins = row.get("wins", 0) or 0
+                    losses = row.get("losses", 0) or 0
+                    total = wins + losses
+                    wr = round((wins / total) * 100, 1) if total else 0
+                    if map_name:
+                        map_bits.append(f"{map_name} ({wins}-{losses}, {wr}% WR)")
+                if map_bits:
+                    section_map["map"] = f"Best maps for {team_name}: " + ", ".join(map_bits) + "."
+
+        if wants_player and heroes:
+            hero_name = (heroes[0].get("hero") or "").strip().lower()
+            hero_players = []
+            for pp in (team.get("player_pools") or []):
+                pname = pp.get("player_name", "")
+                role = pp.get("role", "")
+                for hero_row in (pp.get("heroes") or []):
+                    if (hero_row.get("hero") or "").strip().lower() != hero_name:
+                        continue
+                    appearances = hero_row.get("appearances", 0) or 0
+                    wins = hero_row.get("wins", 0) or 0
+                    losses = hero_row.get("losses", 0) or 0
+                    total = wins + losses
+                    detail = f"{pname}{(' (' + role + ')') if role else ''}: {appearances} maps"
+                    if total:
+                        detail += f", {round((wins / total) * 100, 1)}% WR"
+                    hero_players.append(detail)
+                    break
+            if hero_players:
+                section_map["player"] = (
+                    f"Players on {team_name} with {heroes[0].get('hero') or 'that hero'}: "
+                    + "; ".join(hero_players[:5])
+                    + "."
+                )
 
         if heroes and section_map.get("hero") and wants_bans:
             hero_name = (heroes[0].get("hero") or "").strip().lower()
@@ -1907,6 +1985,8 @@ def _machine_agent_site_answer(message: str, season_value: str | None = None) ->
         preferred.append("player")
     if wants_hero or (section_map.get("hero") and wants_bans):
         preferred.append("hero")
+    if wants_comfort:
+        preferred.append("comfort")
     if wants_map:
         preferred.append("map")
     if wants_scrims:

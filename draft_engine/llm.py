@@ -23,7 +23,7 @@ OUTPUT FORMAT:
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 
 # Minimal tool definitions (no theory injection)
@@ -192,6 +192,119 @@ def format_stats_response(stats_data: dict) -> str:
     return "\n".join(lines)
 
 
+def _tool_names(tools: list[dict]) -> set[str]:
+    return {
+        (tool.get("function") or {}).get("name", "")
+        for tool in (tools or [])
+        if (tool.get("function") or {}).get("name")
+    }
+
+
+def _system_prompt_has_opponent(system_prompt: str) -> bool:
+    match = re.search(r"opponent:\s*([^;\n]+)", system_prompt or "", flags=re.IGNORECASE)
+    if not match:
+        return False
+    opponent = (match.group(1) or "").strip().lower()
+    return opponent not in {"", "not set", "none", "null"}
+
+
+def _prefer_site_search(user_message: str) -> bool:
+    message = (user_message or "").lower()
+    site_phrases = (
+        "hero pool",
+        "comfort heroes",
+        "team profile",
+        "team overview",
+        "player stats",
+        "player profile",
+        "map record",
+        "map records",
+        "scrim history",
+    )
+    return any(phrase in message for phrase in site_phrases)
+
+
+def _prefer_matchup_search(user_message: str) -> bool:
+    message = (user_message or "").lower()
+    matchup_terms = (
+        " vs ",
+        "versus",
+        "against",
+        "opponent",
+        "enemy",
+        "matchup",
+        "draft",
+        "ban",
+        "protect",
+        "comp",
+        "counter",
+        "pivot",
+        "slot",
+    )
+    return any(term in message for term in matchup_terms)
+
+
+def _plan_tool_calls(user_message: str, system_prompt: str, tools: list[dict]) -> list[tuple[str, dict[str, Any]]]:
+    names = _tool_names(tools)
+    has_search = "search_site_data" in names
+    has_matchup = "get_matchup_data" in names
+    has_opponent = _system_prompt_has_opponent(system_prompt)
+
+    if not names:
+        return []
+
+    if has_search and (not has_opponent or _prefer_site_search(user_message)):
+        plan = [("search_site_data", {"query": user_message})]
+        if has_matchup and has_opponent and _prefer_matchup_search(user_message):
+            return [("get_matchup_data", {})] + plan
+        return plan
+
+    if has_matchup and (has_opponent or _prefer_matchup_search(user_message)):
+        return [("get_matchup_data", {})]
+
+    if has_search:
+        return [("search_site_data", {"query": user_message})]
+    if has_matchup:
+        return [("get_matchup_data", {})]
+    return []
+
+
+def _execute_tool_plan(
+    user_message: str,
+    system_prompt: str,
+    tools: list[dict],
+    tool_executor: Callable[[str, dict[str, Any]], str],
+) -> tuple[str, list[dict[str, Any]]]:
+    plan = _plan_tool_calls(user_message, system_prompt, tools)
+    if not plan:
+        return "", []
+
+    events: list[dict[str, Any]] = []
+    fallback_prefixes = (
+        "cannot fetch matchup:",
+        "no data found in the database",
+        "unknown tool:",
+    )
+    last_text = ""
+
+    for fn_name, fn_args in plan:
+        events.append({"type": "tool_start", "tool": fn_name, "args": fn_args})
+        result = (tool_executor(fn_name, fn_args) or "").strip()
+        events.append({"type": "tool_end", "tool": fn_name, "args": fn_args, "result": result})
+        if fn_name == "get_matchup_data":
+            if result:
+                last_text = result
+            continue
+        if result and not result.lower().startswith(fallback_prefixes):
+            return result, events
+        if result:
+            last_text = result
+
+    if plan and all(fn_name == "get_matchup_data" for fn_name, _fn_args in plan):
+        return "", events
+    return last_text, events
+
+
 def run_agent_loop(
     user_message: str,
     system_prompt: str,
@@ -222,16 +335,8 @@ def run_agent_loop(
       A response combining tool results, or a fallback if no tools available
     """
     
-    # If no tools, return a placeholder
-    if not tools:
-        return (
-            "I can provide statistics from recorded matches. "
-            "Use the search or matchup tools to fetch specific data, or ask a question about the current context."
-        )
-    
-    # For now, we don't auto-invoke tools. The UI layer (flask routes) handles tool calling.
-    # This function is a stub to satisfy the agent loop interface.
-    return "Ready for analysis. Call tools to fetch data."
+    answer, _events = _execute_tool_plan(user_message, system_prompt, tools, tool_executor)
+    return answer
 
 
 def stream_agent_loop(
@@ -243,9 +348,19 @@ def stream_agent_loop(
     max_tokens: int | None = None,
     max_steps: int = 5,
     timeout: int = 30,
-) -> str | None:
-    """Streaming version (stub). Returns None—streaming not implemented for stats-only mode."""
-    return None
+    deadline_seconds: float | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Streaming-compatible wrapper for the stats-only loop.
+
+    The machine chat route expects an event iterator. This stub keeps the same
+    non-LLM behavior as ``run_agent_loop`` while providing the minimal event
+    sequence the caller consumes.
+    """
+    answer, events = _execute_tool_plan(user_message, system_prompt, tools, tool_executor)
+    for event in events:
+        yield event
+    yield {"type": "text", "text": answer or ""}
+    yield {"type": "done", "text": answer or ""}
 
 
 # Export tools and agent tools list

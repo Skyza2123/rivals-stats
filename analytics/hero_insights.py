@@ -195,6 +195,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
     duo_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     comp_stats = defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0})
     map_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0})
+    player_stats = defaultdict(lambda: {"maps": 0, "instances": 0, "wins": 0, "losses": 0})
 
     total_maps = 0
     total_wins = 0
@@ -254,6 +255,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
 
             map_has_hero = False
             map_instances = 0
+            players_this_map = defaultdict(int)
             for section in map_entry.get("comp", []):
                 our_heroes = _canonical_section_hero_instances(section, our_team_slot)
                 if not our_heroes:
@@ -265,6 +267,16 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
 
                 map_has_hero = True
                 map_instances += target_instances
+
+                for slot in section.get(our_team_slot, []):
+                    if not isinstance(slot, dict):
+                        continue
+                    hero_slot_name = _canonical_draft_hero(slot.get("hero", ""))
+                    if _hero_match_key(hero_slot_name) != target_key:
+                        continue
+                    player_name = (slot.get("player", "") or "").strip()
+                    if player_name:
+                        players_this_map[player_name] += 1
 
                 teammates = [hero for hero in our_heroes if _hero_match_key(hero) != target_key]
                 for teammate in teammates:
@@ -302,6 +314,14 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                             ban_pivot_stats[pivot_hero]["wins"] += 1
                         elif result == "Loss":
                             ban_pivot_stats[pivot_hero]["losses"] += 1
+
+            for player_name, player_instances in players_this_map.items():
+                player_stats[player_name]["maps"] += 1
+                player_stats[player_name]["instances"] += player_instances
+                if result == "Win":
+                    player_stats[player_name]["wins"] += 1
+                elif result == "Loss":
+                    player_stats[player_name]["losses"] += 1
 
             if not map_has_hero:
                 continue
@@ -343,6 +363,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
                     "map_name": map_name or "Unknown Map",
                     "result": result or "Not Set",
                     "instances": map_instances,
+                    "players": sorted(players_this_map.keys(), key=lambda value: value.lower()),
                 }
             )
 
@@ -597,6 +618,21 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         )
     ban_pivot_rows.sort(key=lambda row: (row["count"], row["win_rate"] or 0), reverse=True)
 
+    player_rows = []
+    for player_name, stats in player_stats.items():
+        maps_played = stats["maps"]
+        player_rows.append(
+            {
+                "player": player_name,
+                "maps": maps_played,
+                "instances": stats["instances"],
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "win_rate": round((stats["wins"] / maps_played) * 100, 1) if maps_played else 0,
+            }
+        )
+    player_rows.sort(key=lambda row: (row["maps"], row["instances"], row["win_rate"], row["player"].lower()), reverse=True)
+
     return {
         "hero": display_name,
         "target_role": target_role,
@@ -615,6 +651,7 @@ def build_team_hero_insights(team_scrims: list[dict], hero_name: str) -> dict:
         "map_rows": map_rows,
         "map_mode_anova": map_mode_anova,
         "map_log_rows": map_log_rows,
+        "player_rows": player_rows,
         "timeline_points": timeline_points,
         "ban_impact": {
             "tracked_maps": ban_tracked_maps,

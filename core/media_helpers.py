@@ -468,8 +468,12 @@ def _hero_pool_label(hero_name: str) -> str:
 
 def _hero_display_name(hero_name: str) -> str:
     canonical = _resolve_hero_transform_key(hero_name) or (hero_name or "").strip()
-    if canonical in ("Tankpool", "DpsPool", "SupportPool"):
-        return "Deadpool"
+    if canonical == "Tankpool":
+        return "Deadpool (T)"
+    if canonical == "DpsPool":
+        return "Deadpool (D)"
+    if canonical == "SupportPool":
+        return "Deadpool (S)"
     return canonical or (hero_name or "")
 
 

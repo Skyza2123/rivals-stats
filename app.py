@@ -71,7 +71,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
-_STATIC_ASSET_VERSION_CACHE: dict[str, tuple[float, str]] = {}
+_STATIC_ASSET_VERSION_CACHE: dict[str, tuple[tuple[int, int], str]] = {}
 
 if TYPE_CHECKING:
     def init_db() -> None: ...
@@ -100,12 +100,13 @@ def static_asset_url(filename: str) -> str:
         if asset_path.exists():
             cache_key = str(asset_path)
             stat = asset_path.stat()
+            signature = (stat.st_mtime_ns, stat.st_size)
             cached = _STATIC_ASSET_VERSION_CACHE.get(cache_key)
-            if cached and cached[0] == stat.st_mtime:
+            if cached and cached[0] == signature:
                 version = cached[1]
             else:
-                version = str(int(stat.st_mtime))
-                _STATIC_ASSET_VERSION_CACHE[cache_key] = (stat.st_mtime, version)
+                version = f"{stat.st_mtime_ns}-{stat.st_size}"
+                _STATIC_ASSET_VERSION_CACHE[cache_key] = (signature, version)
     except OSError:
         pass
     return url_for("static", filename=filename, v=version)

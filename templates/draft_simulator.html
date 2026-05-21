@@ -58,8 +58,9 @@
 </section>
 
 <div class="tab-bar" id="draftModeTabs">
-    <button class="tab-btn tab-active" type="button" data-draft-mode="full" onclick="if (typeof setDraftMode === 'function') { setDraftMode('full'); } else { var f = document.getElementById('draftModeFull'); var c = document.getElementById('draftModeConcept'); if (f) f.style.display = ''; if (c) c.style.display = 'none'; }">Full Draft Simulator</button>
-    <button class="tab-btn" type="button" data-draft-mode="concept_one_sided" onclick="if (typeof setDraftMode === 'function') { setDraftMode('concept_one_sided'); } else { var f = document.getElementById('draftModeFull'); var c = document.getElementById('draftModeConcept'); if (f) f.style.display = 'none'; if (c) c.style.display = ''; }">One-Sided Concepts</button>
+    <button class="tab-btn tab-active" type="button" data-draft-mode="full">Full Draft Simulator</button>
+    <button class="tab-btn" type="button" data-draft-mode="full_multi">Multi-Option Full Draft</button>
+    <button class="tab-btn" type="button" data-draft-mode="concept_one_sided">One-Sided Concepts</button>
 </div>
 
 <div id="draftModeFull">
@@ -209,6 +210,116 @@
 
 </div>
 
+<div id="draftModeFullMulti" style="display:none;">
+
+<section class="panel">
+    <div class="multi-draft-layout">
+        <div class="multi-draft-board multi-draft-board-team1">
+            <h4>Team 1</h4>
+            <div class="draft-slots concept-slots-grid multi-slots-grid">
+                <div class="draft-slot multi-slot" data-slot="team1_ban1" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban1" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team1_protect1" onclick="activateMultiSlot(this)">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_protect1" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team1_ban2" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban2" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team1_ban3" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban3" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team1_protect2" onclick="activateMultiSlot(this)">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_protect2" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team1_ban4" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team1_ban4" value="">
+                </div>
+            </div>
+        </div>
+
+        <div class="multi-draft-board multi-draft-board-team2">
+            <h4>Team 2</h4>
+            <div class="draft-slots concept-slots-grid multi-slots-grid">
+                <div class="draft-slot multi-slot" data-slot="team2_ban1" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban1" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team2_protect1" onclick="activateMultiSlot(this)">
+                    <span class="slot-label protect-label">Protect 1</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_protect1" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team2_ban2" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban2" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team2_ban3" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 3</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban3" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team2_protect2" onclick="activateMultiSlot(this)">
+                    <span class="slot-label protect-label">Protect 2</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_protect2" value="">
+                </div>
+                <div class="draft-slot multi-slot" data-slot="team2_ban4" onclick="activateMultiSlot(this)">
+                    <span class="slot-label ban-label">Ban 4</span>
+                    <span class="slot-hero"></span>
+                    <input type="hidden" name="team2_ban4" value="">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="draft-hint">Click a slot to select it, then pick heroes below. Added heroes stay in that slot until you choose another slot. Right-click a slot to clear it.</p>
+</section>
+
+<section class="panel">
+    <div class="hero-picker">
+        {% for role in ["Vanguard", "Duelist", "Strategist"] %}
+        <div class="hero-role-section">
+            <h5 class="role-heading role-{{ role|lower }}">{{ role }}</h5>
+            <div class="hero-icon-grid">
+                {% for hero in hero_roles[role] %}
+                <button type="button" class="hero-pick-btn" data-hero="{{ hero }}" data-display="{{ hero_display_name(hero) }}" data-pool="{{ hero_pool_label(hero) }}"
+                        onclick="pickHero(this)"
+                    title="{{ hero_display_name(hero) }}{% if hero_pool_label(hero) %} ({{ hero_pool_label(hero) }}){% endif %}">
+                    <div class="hero-img-wrap">
+                        <img src="{{ hero_image_url(hero) }}"
+                             alt="{{ hero }}" loading="lazy">
+                        {% if hero == 'Tankpool' %}<span class="pool-tag tag-tank">TANK</span>{% endif %}
+                        {% if hero == 'DpsPool' %}<span class="pool-tag tag-dps">DPS</span>{% endif %}
+                        {% if hero == 'SupportPool' %}<span class="pool-tag tag-sup">SUP</span>{% endif %}
+                    </div>
+                    <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
+                    {% if hero_pool_label(hero) %}
+                        <span class="hero-pool-sub">{{ hero_pool_label(hero) }}</span>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+</div>
 <div id="draftModeConcept" style="display:none;">
 <section class="panel">
     <h3>One-Sided Draft Concepts</h3>
@@ -221,7 +332,7 @@
             <input type="hidden" value="">
         </div>
         <div class="draft-slot concept-slot concept-slot-opponent" data-concept-slot="their_protect1" onclick="activateConceptSlot(this)">
-            <span class="slot-label protect-label">Their Protect 1</span>
+            <span class="slot-label protect-label">My Protect 1</span>
             <span class="slot-hero"></span>
             <input type="hidden" value="">
         </div>
@@ -236,7 +347,7 @@
             <input type="hidden" value="">
         </div>
         <div class="draft-slot concept-slot concept-slot-opponent" data-concept-slot="their_protect2" onclick="activateConceptSlot(this)">
-            <span class="slot-label protect-label">Their Protect 2</span>
+            <span class="slot-label protect-label">My Protect 2</span>
             <span class="slot-hero"></span>
             <input type="hidden" value="">
         </div>
@@ -247,7 +358,7 @@
         </div>
     </div>
 
-    <p class="draft-hint">Left-click to set active slot. Right-click clears the slot. Slots support up to two hero options separated by "/".</p>
+    <p class="draft-hint">Left-click to set active slot. Right-click clears the slot. Slots support up to three hero options separated by "/".</p>
 </section>
 
 <section class="panel">
@@ -303,12 +414,21 @@ const CONCEPT_ONE_SIDED_ORDER = [
     'their_protect2',
     'my_ban4',
 ];
+const MULTI_TEAM_SLOT_ORDER = [
+    'ban1',
+    'protect1',
+    'ban2',
+    'ban3',
+    'protect2',
+    'ban4',
+];
 const SIMULTANEOUS_PAIRS = [[0, 1], [3, 4], [6, 7], [9, 10]];
 const PICK_TIME = 15;
 const TRANSITION_TIME = 5;
 
 const fullModeContainer = document.getElementById('draftModeFull');
 const conceptModeContainer = document.getElementById('draftModeConcept');
+const fullMultiModeContainer = document.getElementById('draftModeFullMulti');
 const draftModeTabs = Array.from(document.querySelectorAll('#draftModeTabs [data-draft-mode]'));
 const rtToggleButton = document.getElementById('rt-toggle');
 const rtStartWrap = document.getElementById('rt-start-wrap');
@@ -317,6 +437,7 @@ const conceptBoard = document.getElementById('conceptDraftBoard');
 
 let currentDraftMode = 'full';
 let activeSlot = null;
+let activeMultiSlot = null;
 let activeConceptSlot = null;
 let currentStep = 0;
 let realTimeMode = false;
@@ -357,13 +478,167 @@ function getConceptSlotByName(name) {
     return document.querySelector('#conceptDraftBoard .concept-slot[data-concept-slot="' + name + '"]');
 }
 
+function getMultiSlots() {
+    return Array.from(document.querySelectorAll('#draftModeFullMulti .draft-slot.multi-slot[data-slot]'));
+}
+
+function getMultiSlotByName(name) {
+    return document.querySelector('#draftModeFullMulti .draft-slot.multi-slot[data-slot="' + name + '"]');
+}
+
+function getNextMultiSlot(team) {
+    const teams = team ? [team] : ['team1', 'team2'];
+    for (const teamName of teams) {
+        for (const slotKey of MULTI_TEAM_SLOT_ORDER) {
+            const slot = getMultiSlotByName(teamName + '_' + slotKey);
+            if (!slot) {
+                continue;
+            }
+            const value = (slot.querySelector('input')?.value || '').trim();
+            if (!value) {
+                return slot;
+            }
+        }
+    }
+    const fallbackTeam = team || 'team1';
+    for (const slotKey of MULTI_TEAM_SLOT_ORDER) {
+        const slot = getMultiSlotByName(fallbackTeam + '_' + slotKey);
+        if (!slot) {
+            continue;
+        }
+        return slot;
+    }
+    return null;
+}
+
+function setMultiSlotValue(slot, rawValue) {
+    const canonicalOptions = parseConceptOptions(rawValue);
+    const options = canonicalOptions.map(hero => HERO_DISPLAY_BY_NAME[hero] || hero);
+    const value = canonicalOptions.join('/');
+    const input = slot.querySelector('input');
+    const heroLabel = slot.querySelector('.slot-hero');
+
+    let optionsWrap = slot.querySelector('.multi-options');
+    if (!optionsWrap) {
+        optionsWrap = document.createElement('div');
+        optionsWrap.className = 'multi-options';
+        slot.insertBefore(optionsWrap, heroLabel);
+    }
+    optionsWrap.innerHTML = '';
+
+    canonicalOptions.forEach((hero) => {
+        const container = document.createElement('span');
+        container.className = 'multi-hero-option';
+
+        const imgWrap = document.createElement('span');
+        imgWrap.className = 'slot-img-wrap';
+        const img = document.createElement('img');
+        img.className = 'slot-img';
+        img.src = HERO_IMAGE_BY_NAME[hero] || '';
+        img.alt = hero;
+        imgWrap.appendChild(img);
+        container.appendChild(imgWrap);
+        optionsWrap.appendChild(container);
+    });
+
+    input.value = value;
+    heroLabel.textContent = options.join(' / ');
+    slot.classList.toggle('slot-filled', !!value);
+}
+
+function activateMultiSlot(slot) {
+    const mode = getEffectiveMode();
+    if (mode !== 'full_multi') {
+        return;
+    }
+    getMultiSlots().forEach(s => s.classList.remove('slot-active'));
+    slot.classList.add('slot-active');
+    activeMultiSlot = slot;
+}
+
+function updateMultiActiveTarget(preferredTeam) {
+    if (currentDraftMode !== 'full_multi') {
+        return;
+    }
+    const domActive = document.querySelector('#draftModeFullMulti .draft-slot.multi-slot.slot-active');
+    if (domActive) {
+        activeMultiSlot = domActive;
+        return;
+    }
+    if (activeMultiSlot && getMultiSlots().includes(activeMultiSlot)) {
+        return;
+    }
+    const nextSlot = getNextMultiSlot(preferredTeam) || getNextMultiSlot(preferredTeam === 'team2' ? 'team1' : 'team2');
+    if (nextSlot) {
+        activateMultiSlot(nextSlot);
+    }
+}
+
+function pickHeroForMulti(button) {
+    const hero = (button.dataset.hero || '').trim();
+    if (!hero) {
+        return;
+    }
+
+    const mode = getEffectiveMode();
+    if (mode !== 'full_multi') {
+        return;
+    }
+
+    let targetSlot = document.querySelector('#draftModeFullMulti .draft-slot.multi-slot.slot-active');
+    if (!targetSlot) {
+        targetSlot = getNextMultiSlot();
+        if (targetSlot) {
+            activateMultiSlot(targetSlot);
+        }
+    }
+    if (!targetSlot) {
+        return;
+    }
+    activeMultiSlot = targetSlot;
+
+    const input = targetSlot.querySelector('input');
+    const current = parseConceptOptions(input.value);
+    if (current.includes(hero)) {
+        return;
+    }
+    if (current.length < 3) {
+        current.push(hero);
+    } else {
+        current[1] = hero;
+    }
+    setMultiSlotValue(targetSlot, current.join('/'));
+
+    activateMultiSlot(targetSlot);
+}
+
+function collectMultiSlots() {
+    const slots = {};
+    getMultiSlots().forEach(slot => {
+        slots[slot.dataset.slot] = (slot.querySelector('input').value || '').trim();
+    });
+    return slots;
+}
+
+function applyMultiSlots(slots) {
+    resetMultiDraft();
+    const data = (slots && typeof slots === 'object') ? slots : {};
+    getMultiSlots().forEach(slot => {
+        setMultiSlotValue(slot, data[slot.dataset.slot] || '');
+    });
+    updateMultiActiveTarget();
+}
+
 function normalizeMode(value) {
-    return value === 'concept_one_sided' ? 'concept_one_sided' : 'full';
+    return ['concept_one_sided', 'full_multi'].includes(value) ? value : 'full';
 }
 
 function getEffectiveMode() {
     if (conceptModeContainer && conceptModeContainer.style.display !== 'none') {
         return 'concept_one_sided';
+    }
+    if (fullMultiModeContainer && fullMultiModeContainer.style.display !== 'none') {
+        return 'full_multi';
     }
     return 'full';
 }
@@ -371,12 +646,17 @@ function getEffectiveMode() {
 function setDraftMode(mode) {
     currentDraftMode = normalizeMode(mode);
     const isFull = currentDraftMode === 'full';
+    const isConcept = currentDraftMode === 'concept_one_sided';
+    const isFullMulti = currentDraftMode === 'full_multi';
 
     if (fullModeContainer) {
         fullModeContainer.style.display = isFull ? '' : 'none';
     }
     if (conceptModeContainer) {
-        conceptModeContainer.style.display = isFull ? 'none' : '';
+        conceptModeContainer.style.display = isConcept ? '' : 'none';
+    }
+    if (fullMultiModeContainer) {
+        fullMultiModeContainer.style.display = isFullMulti ? '' : 'none';
     }
     if (rtToggleButton) {
         rtToggleButton.style.display = isFull ? '' : 'none';
@@ -395,7 +675,11 @@ function setDraftMode(mode) {
             activateSlot(getSlotByName(DRAFT_ORDER[currentStep]));
         }
         updateHeroAvailability();
-    } else {
+    } else if (isFullMulti) {
+        getMultiSlots().forEach(slot => slot.classList.remove('slot-active'));
+        activeMultiSlot = null;
+        updateMultiActiveTarget();
+    } else if (isConcept) {
         if (activeSlot) {
             activeSlot.classList.remove('slot-active');
             activeSlot = null;
@@ -466,7 +750,7 @@ function parseConceptOptions(rawValue) {
         .split('/')
         .map(token => token.trim())
         .filter(Boolean)
-        .slice(0, 2);
+        .slice(0, 3);
 }
 
 function setConceptSlotValue(slot, rawValue) {
@@ -484,7 +768,12 @@ function setConceptSlotValue(slot, rawValue) {
     }
     optionsWrap.innerHTML = '';
 
-    canonicalOptions.forEach(hero => {
+    canonicalOptions.forEach((hero) => {
+        const container = document.createElement('span');
+        container.className = 'concept-hero-option';
+        container.style.position = 'relative';
+        container.style.display = 'inline-block';
+
         const imgWrap = document.createElement('span');
         imgWrap.className = 'slot-img-wrap';
         const img = document.createElement('img');
@@ -492,7 +781,8 @@ function setConceptSlotValue(slot, rawValue) {
         img.src = HERO_IMAGE_BY_NAME[hero] || '';
         img.alt = hero;
         imgWrap.appendChild(img);
-        optionsWrap.appendChild(imgWrap);
+        container.appendChild(imgWrap);
+        optionsWrap.appendChild(container);
     });
 
     input.value = value;
@@ -626,8 +916,8 @@ async function saveCurrentDraft() {
         name,
         season,
         mode: currentDraftMode,
-        slots: collectDraftSlots(),
-        concept_slots: collectConceptSlots(),
+        slots: currentDraftMode === 'full_multi' ? collectMultiSlots() : collectDraftSlots(),
+        concept_slots: currentDraftMode === 'concept_one_sided' ? collectConceptSlots() : {},
     };
 
     try {
@@ -668,6 +958,8 @@ function loadSelectedDraft() {
     setDraftMode(draftMode);
     if (draftMode === 'concept_one_sided') {
         applyConceptSlots(draft.concept_slots || {});
+    } else if (draftMode === 'full_multi') {
+        applyMultiSlots(draft.slots || {});
     } else {
         applyDraftSlots(draft.slots || {});
     }
@@ -893,6 +1185,19 @@ function clearConceptSlot(slot) {
     updateConceptActiveTarget();
 }
 
+function clearMultiSlot(slot) {
+    currentDraftMode = getEffectiveMode();
+    if (!slot) {
+        return;
+    }
+    setMultiSlotValue(slot, '');
+    if (activeMultiSlot === slot) {
+        activeMultiSlot = null;
+    }
+    const slotTeam = slot.dataset.slot.startsWith('team2_') ? 'team2' : 'team1';
+    updateMultiActiveTarget(slotTeam);
+}
+
 function pickHeroForConcept(button) {
     const hero = (button.dataset.hero || '').trim();
     if (!hero) {
@@ -921,7 +1226,7 @@ function pickHeroForConcept(button) {
     if (current.includes(hero)) {
         return;
     }
-    if (current.length < 2) {
+    if (current.length < 3) {
         current.push(hero);
     } else {
         current[1] = hero;
@@ -940,6 +1245,16 @@ function pickHeroForConcept(button) {
     updateConceptActiveTarget();
 }
 
+document.addEventListener('click', function (event) {
+    const mode = getEffectiveMode();
+    if (mode === 'full_multi') {
+        const btn = event.target.closest('.hero-pick-btn');
+        if (btn) {
+            pickHeroForMulti(btn);
+        }
+    }
+});
+
 document.addEventListener('contextmenu', function (event) {
     const fullSlot = event.target.closest('#draftModeFull .draft-slot[data-slot]');
     if (fullSlot && fullModeContainer && fullModeContainer.style.display !== 'none') {
@@ -952,6 +1267,13 @@ document.addEventListener('contextmenu', function (event) {
     if (conceptSlot && conceptModeContainer && conceptModeContainer.style.display !== 'none') {
         event.preventDefault();
         clearConceptSlot(conceptSlot);
+        return;
+    }
+
+    const multiSlot = event.target.closest('#draftModeFullMulti .draft-slot.multi-slot[data-slot]');
+    if (multiSlot && fullMultiModeContainer && fullMultiModeContainer.style.display !== 'none') {
+        event.preventDefault();
+        clearMultiSlot(multiSlot);
     }
 });
 
@@ -1111,6 +1433,10 @@ function pickHero(button) {
         pickHeroForConcept(button);
         return;
     }
+    if (currentDraftMode === 'full_multi') {
+        pickHeroForMulti(button);
+        return;
+    }
 
     if (delayActive) {
         return;
@@ -1249,13 +1575,28 @@ function resetConceptDraft() {
     updateConceptActiveTarget();
 }
 
+function resetMultiDraft() {
+    getMultiSlots().forEach(slot => {
+        setMultiSlotValue(slot, '');
+        slot.classList.remove('slot-active');
+    });
+    activeMultiSlot = null;
+    updateMultiActiveTarget('team1');
+}
+
 function resetActiveDraft() {
     currentDraftMode = getEffectiveMode();
     if (currentDraftMode === 'concept_one_sided') {
         resetConceptDraft();
+    } else if (currentDraftMode === 'full_multi') {
+        resetMultiDraft();
     } else {
         resetDraft();
     }
+    document.getElementById('savedDraftSelect').value = '';
+    document.getElementById('draftNameInput').value = '';
+    document.getElementById('draftSeasonInput').value = '';
+    showDraftStatus('Draft reset.', false);
 }
 
 getConceptSlots().forEach(slot => {

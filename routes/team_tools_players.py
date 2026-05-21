@@ -250,13 +250,68 @@ def team_hero_detail(team_id: int, hero_name: str):
         default_season=default_season,
     )
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    selected_enemy_name = (request.args.get("enemy", "all") or "all").strip()
     team_scrims = filter_scrims_by_season(all_team_scrims, selected_season)
     team_scrims = filter_scrims_by_map_type(team_scrims, selected_map_type)
+
+    if selected_enemy_name and selected_enemy_name.lower() != "all":
+        enemy_name_lower = selected_enemy_name.lower()
+        filtered_scrims = []
+        for scrim in team_scrims:
+            opponent_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip().lower()
+            if not opponent_name:
+                our_slot = scrim.get("team_slot", "team1")
+                if our_slot == "team1":
+                    opponent_name = (scrim.get("team2_name") or "").strip().lower()
+                else:
+                    opponent_name = (scrim.get("team1_name") or "").strip().lower()
+            if opponent_name == enemy_name_lower:
+                filtered_scrims.append(scrim)
+        team_scrims = filtered_scrims
+
+    enemy_options = []
+    seen_enemy_options: set[str] = set()
+    for scrim in filter_scrims_by_map_type(filter_scrims_by_season(all_team_scrims, selected_season), selected_map_type):
+        opponent_name = (scrim.get("enemy_team") or scrim.get("opponent") or "").strip()
+        if not opponent_name:
+            our_slot = scrim.get("team_slot", "team1")
+            opponent_name = (scrim.get("team2_name") if our_slot == "team1" else scrim.get("team1_name") or "").strip()
+        opponent_key = opponent_name.lower()
+        if opponent_name and opponent_key not in seen_enemy_options:
+            seen_enemy_options.add(opponent_key)
+            enemy_options.append(opponent_name)
+    enemy_options.sort(key=lambda value: value.lower())
+
+    if selected_enemy_name and selected_enemy_name.lower() != "all":
+        matched_enemy = next((enemy for enemy in enemy_options if enemy.lower() == selected_enemy_name.lower()), "")
+        if matched_enemy:
+            selected_enemy_name = matched_enemy
+        else:
+            selected_enemy_name = "all"
 
     hero_insights = build_team_hero_insights(team_scrims, target_hero)
     if not hero_insights["summary"]["maps_played"]:
         flash(f"No comp data found for {target_hero}.", "error")
         return redirect(url_for("team_detail", team_id=team_id, season=selected_season, map_type=selected_map_type) + "#comps")
+
+    player_lookup = {
+        (row["name"] or "").strip().lower(): row
+        for row in db.execute(
+            "SELECT * FROM players WHERE team_id = ? ORDER BY is_sub ASC, name COLLATE NOCASE",
+            (team_id,),
+        ).fetchall()
+    }
+    hero_player_rows = []
+    for row in hero_insights.get("player_rows", []):
+        player_name = (row.get("player") or "").strip()
+        player_row = player_lookup.get(player_name.lower()) if player_name else None
+        hero_player_rows.append({
+            **row,
+            "player_id": player_row["id"] if player_row is not None else None,
+            "role": player_row["role"] if player_row is not None else "",
+            "is_sub": bool(player_row["is_sub"]) if player_row is not None and "is_sub" in player_row.keys() else False,
+        })
+    hero_insights["player_rows"] = hero_player_rows
 
     return render_template(
         "hero_detail.html",
@@ -265,6 +320,9 @@ def team_hero_detail(team_id: int, hero_name: str):
         map_images=MAP_IMAGES,
         selected_season=selected_season,
         selected_map_type=selected_map_type,
+        selected_enemy_name=selected_enemy_name,
+        enemy_options=enemy_options,
+        map_type_options=MAP_TYPES,
         season_options=season_options,
         has_unseasoned_scrims=has_unseasoned_scrims,
         unspecified_season_token=UNSPECIFIED_SEASON_TOKEN,

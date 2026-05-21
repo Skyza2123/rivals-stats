@@ -1138,23 +1138,11 @@
         </div>
     </section>
 
-    <div id="teamPrepContent" data-loaded="false" aria-live="polite">
-        <section class="panel loading-panel">
-            <div class="loading-row">
-                <span class="loading-spinner" aria-hidden="true"></span>
-                <div>
-                    <div class="section-kicker">Opponent Prep Report</div>
-                    <h3>Loading Prep</h3>
-                    <p class="panel-intro">Prep details load when this tab opens.</p>
-                </div>
-            </div>
-            <div class="loading-skeleton-grid" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </section>
-    </div>
+    <section class="panel top-gap">
+        <div id="teamPrepContent" class="team-prep-stage">
+            <p class="empty-text">Loading prep board...</p>
+        </div>
+    </section>
 
 </div>
 
@@ -1808,6 +1796,71 @@
         </div>
     </section>
 
+    <section class="panel top-gap hero-browser-panel">
+        <div class="section-kicker">Hero Browser</div>
+        <h3>All Played Heroes</h3>
+        <p class="panel-intro">Every hero played for {{ team.name }} under the current season and map filters. Click a card to open the hero page.</p>
+        {% if hero_graph_rows %}
+            <div class="hero-card-grid team-hero-card-grid top-gap">
+                {% for row in hero_graph_rows %}
+                    <a class="hero-card team-hero-card" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season, map_type=selected_map_type) }}">
+                        <div class="hero-image-wrapper">
+                            <img class="hero-image" src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" loading="lazy" onerror="this.src='https://via.placeholder.com/220/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                        </div>
+                        <div class="hero-card-info">
+                            <span class="hero-card-name">{{ hero_display_name(row.hero) }}</span>
+                            <span class="hero-card-stat">{{ row.appearances }} instances</span>
+                            <span class="hero-card-stat">{{ row.usage_rate }}% usage share</span>
+                            <span class="hero-card-rate {% if row.win_rate >= 60 %}wr-good{% elif row.win_rate >= 40 %}wr-ok{% else %}wr-bad{% endif %}">{{ row.win_rate }}% WR</span>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text top-gap">No hero usage data yet.</p>
+        {% endif %}
+    </section>
+
+    {% if hero_graph_rows %}
+    <section class="panel top-gap">
+        <div class="section-kicker">Role Breakdown</div>
+        <h3>Role Distribution</h3>
+        <p class="panel-intro">Total hero appearances broken down by role across all tracked maps.</p>
+        <script id="teamHeroGraphData" type="application/json">{{ hero_graph_rows | tojson }}</script>
+        <div class="hero-charts-split top-gap">
+            <div class="role-donut-wrap">
+                <canvas id="teamRoleDonutChart"></canvas>
+            </div>
+            <div class="hero-pool-bar-wrap">
+                <canvas id="teamHeroPoolBarChart"></canvas>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="panel top-gap">
+        <div class="section-kicker">Usage Trend</div>
+        <h3>Hero Usage Over Time</h3>
+        {% if hero_usage_timeline.labels and hero_usage_timeline.series %}
+            <div class="chart-legend hero-usage-legend top-gap">
+                {% for line in hero_usage_timeline.series %}
+                    <span class="chart-legend-item">
+                        <img src="{{ hero_image_url(line.hero) }}" alt="{{ line.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ line.hero | urlencode }}'">
+                        <span>{{ hero_display_name(line.hero) }}</span>
+                    </span>
+                {% endfor %}
+            </div>
+            <div class="enemy-trend-chart-wrap top-gap" style="position:relative;">
+                <canvas id="heroUsageTimelineChart" width="980" height="320"></canvas>
+                <div id="heroUsageTimelineTooltip" class="chart-tooltip" hidden></div>
+            </div>
+            <script id="heroUsageTimelineData" type="application/json">{{ hero_usage_timeline | tojson }}</script>
+        {% else %}
+            <p class="empty-text">No hero usage timeline data yet.</p>
+        {% endif %}
+    </section>
+
+    {#
     <details class="dense-collapsible top-gap">
         <summary>Advanced Hero Analysis</summary>
         <div class="dense-collapsible-body">
@@ -1957,70 +2010,6 @@
     </section>
 
     <section class="panel top-gap">
-        <div class="section-kicker">Usage</div>
-        <h3>Top 15 Most Played Heroes Across The Team</h3>
-        {% if hero_graph_rows %}
-            {% set usage_max = hero_graph_rows[0].appearances %}
-            <div class="hero-usage-list top-gap">
-                {% for row in hero_graph_rows %}
-                    {% set width = ((row.appearances / usage_max) * 100) if usage_max else 0 %}
-                    <a class="hero-usage-row" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season, map_type=selected_map_type) }}">
-                        <span class="hero-usage-name">
-                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
-                            {{ hero_display_name(row.hero) }}
-                        </span>
-                        <span class="hero-usage-bar-wrap">
-                            <span class="hero-usage-bar" data-width="{{ width }}"></span>
-                        </span>
-                        <span class="hero-usage-meta">{{ row.appearances }} instances • {{ row.usage_rate }}% usage share • {{ row.win_rate }}% WR</span>
-                    </a>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty-text">No hero usage data yet.</p>
-        {% endif %}
-    </section>
-
-    {% if hero_graph_rows %}
-    <section class="panel top-gap">
-        <div class="section-kicker">Role Breakdown</div>
-        <h3>Role Distribution</h3>
-        <p class="panel-intro">Total hero appearances broken down by role across all tracked maps.</p>
-        <script id="teamHeroGraphData" type="application/json">{{ hero_graph_rows | tojson }}</script>
-        <div class="hero-charts-split">
-            <div class="role-donut-wrap">
-                <canvas id="teamRoleDonutChart"></canvas>
-            </div>
-            <div class="hero-pool-bar-wrap">
-                <canvas id="teamHeroPoolBarChart"></canvas>
-            </div>
-        </div>
-    </section>
-    {% endif %}
-
-    <section class="panel top-gap">
-        <div class="section-kicker">Usage Trend</div>
-        <h3>Hero Usage Over Time</h3>
-        {% if hero_usage_timeline.labels and hero_usage_timeline.series %}
-            <div class="chart-legend hero-usage-legend top-gap">
-                {% for line in hero_usage_timeline.series %}
-                    <span class="chart-legend-item">
-                        <img src="{{ hero_image_url(line.hero) }}" alt="{{ line.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ line.hero | urlencode }}'">
-                        <span>{{ hero_display_name(line.hero) }}</span>
-                    </span>
-                {% endfor %}
-            </div>
-            <div class="enemy-trend-chart-wrap top-gap" style="position:relative;">
-                <canvas id="heroUsageTimelineChart" width="980" height="320"></canvas>
-                <div id="heroUsageTimelineTooltip" class="chart-tooltip" hidden></div>
-            </div>
-            <script id="heroUsageTimelineData" type="application/json">{{ hero_usage_timeline | tojson }}</script>
-        {% else %}
-            <p class="empty-text">No hero usage timeline data yet.</p>
-        {% endif %}
-    </section>
-
-    <section class="panel top-gap">
         <div class="section-kicker">Attack & Defense</div>
         <h3>Hero Success Rate by Round Side</h3>
         <p class="panel-intro">
@@ -2164,6 +2153,7 @@
 
         </div>
     </details>
+    #}
 </div>
 
 <div class="tab-content tab-hidden" id="tab-maps">
@@ -2246,6 +2236,7 @@
         {% endif %}
     </section>
 
+    {#
     <details class="dense-collapsible top-gap">
         <summary>Advanced Map Correlations</summary>
         <div class="dense-collapsible-body">
@@ -2348,6 +2339,7 @@
     </section>
         </div>
     </details>
+    #}
 
     <section class="panel">
         <div class="panel-header-row">
