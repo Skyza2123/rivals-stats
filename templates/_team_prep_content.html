@@ -120,7 +120,7 @@
         <div>
             <div class="section-kicker">Hero Context Tracker</div>
             <h3>Pick A Hero To See All Map Involvement</h3>
-            <p class="panel-intro">Shows every map where the hero was played, banned, or protected, plus ANOVA map/mode impact on winrate when the hero is played, banned, or protected.</p>
+            <p class="panel-intro">Shows every map where the hero was played, enemy-banned, team-banned, or protected, plus ANOVA map/mode impact on winrate for each state.</p>
         </div>
         {% if prep_hero_map_lookup %}
         <div class="header-actions">
@@ -640,7 +640,8 @@
 
     function metricLabel(key) {
         if (key === 'play_rate') return 'Play WR';
-        if (key === 'ban_rate') return 'Ban WR';
+        if (key === 'ban_rate') return 'Enemy Ban WR';
+        if (key === 'our_ban_rate') return 'Our Ban WR';
         if (key === 'protect_rate') return 'Protect WR';
         return key;
     }
@@ -664,7 +665,7 @@
     }
 
     function getStrongestEffect(anova, effectKey) {
-        var metricKeys = ['play_rate', 'ban_rate', 'protect_rate'];
+        var metricKeys = ['play_rate', 'ban_rate', 'our_ban_rate', 'protect_rate'];
         var best = { metric: '', fStat: 0, significance: 'not significant' };
         metricKeys.forEach(function (key) {
             var stats = (anova || {})[key] || {};
@@ -695,6 +696,7 @@
                     appearances: 0,
                     played: 0,
                     banned: 0,
+                    our_banned: 0,
                     protected: 0,
                     wins: 0,
                     losses: 0
@@ -703,6 +705,7 @@
             grouped[key].appearances += 1;
             if (row.was_played) grouped[key].played += 1;
             if (row.was_banned) grouped[key].banned += 1;
+            if (row.was_our_banned) grouped[key].our_banned += 1;
             if (row.was_protected) grouped[key].protected += 1;
             if (row.result === 'Win') grouped[key].wins += 1;
             if (row.result === 'Loss') grouped[key].losses += 1;
@@ -777,6 +780,7 @@
         var dimensions = [
             { key: 'was_played', label: 'Playing Hero' },
             { key: 'was_banned', label: 'Enemy Banned Hero' },
+            { key: 'was_our_banned', label: 'We Banned Hero' },
             { key: 'was_protected', label: 'Protecting Hero' }
         ];
         return dimensions.map(function (dimension) {
@@ -856,11 +860,11 @@
             + '<img src="' + escapeHtml(heroImg) + '" alt="' + escapeHtml(payload.hero) + '">'
             + '<span><strong>' + escapeHtml(payload.hero) + '</strong>'
             + '<small>' + escapeHtml(payload.maps) + ' maps | ' + escapeHtml(payload.wins) + '-' + escapeHtml(payload.losses) + ' | ' + escapeHtml(payload.win_rate) + '% WR</small>'
-            + '<small>Played ' + escapeHtml(payload.played_maps || 0) + ' | Banned ' + escapeHtml(payload.banned_maps || 0) + ' | Protected ' + escapeHtml(payload.protected_maps || 0) + '</small></span>'
+            + '<small>Played ' + escapeHtml(payload.played_maps || 0) + ' | Enemy Banned ' + escapeHtml(payload.banned_maps || 0) + ' | We Banned ' + escapeHtml(payload.our_banned_maps || 0) + ' | Protected ' + escapeHtml(payload.protected_maps || 0) + '</small></span>'
             + '</div>';
 
         if (anovaSummary) {
-            var metricKeys = ['play_rate', 'ban_rate', 'protect_rate'];
+            var metricKeys = ['play_rate', 'ban_rate', 'our_ban_rate', 'protect_rate'];
             var anova = payload.anova || {};
             var influenceRows = buildWinrateInfluenceRows(payload.rows || []);
             var overallIndicator = buildOverallIndicator(influenceRows);
@@ -946,7 +950,8 @@
                     + '<p>' + escapeHtml(row.wins) + 'W - ' + escapeHtml(row.losses) + 'L • ' + escapeHtml(row.appearances) + ' maps</p>'
                     + '<div class="team-map-footer-meta">'
                     + '<span class="team-map-chip">Played ' + escapeHtml(row.played) + '</span>'
-                    + '<span class="team-map-chip">Banned ' + escapeHtml(row.banned) + '</span>'
+                    + '<span class="team-map-chip">Enemy Banned ' + escapeHtml(row.banned) + '</span>'
+                    + '<span class="team-map-chip">We Banned ' + escapeHtml(row.our_banned) + '</span>'
                     + '<span class="team-map-chip">Protected ' + escapeHtml(row.protected) + '</span>'
                     + '</div>'
                     + '</div>'

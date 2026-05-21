@@ -883,6 +883,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
             "losses": 0,
             "played_maps": 0,
             "banned_maps": 0,
+            "our_banned_maps": 0,
             "protected_maps": 0,
             "rows": [],
         }
@@ -918,6 +919,11 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                 for slot_key in ("ban1", "ban2", "ban3", "ban4")
                 if _canonical_draft_hero(enemy_draft.get(slot_key, ""))
             }
+            our_banned_this_map = {
+                _canonical_draft_hero(our_draft.get(slot_key, ""))
+                for slot_key in ("ban1", "ban2", "ban3", "ban4")
+                if _canonical_draft_hero(our_draft.get(slot_key, ""))
+            }
             protected_this_map = {
                 _canonical_draft_hero(our_draft.get(slot_key, ""))
                 for slot_key in ("protect1", "protect2")
@@ -933,7 +939,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                     if hero_name:
                         heroes_this_map.add(hero_name)
 
-            tracked_heroes = heroes_this_map | banned_this_map | protected_this_map
+            tracked_heroes = heroes_this_map | banned_this_map | our_banned_this_map | protected_this_map
             for hero_name in tracked_heroes:
                 anova_observations.append(
                     {
@@ -944,6 +950,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                         "side": our_team_slot,
                         "play": 1.0 if hero_name in heroes_this_map else 0.0,
                         "ban": 1.0 if hero_name in banned_this_map else 0.0,
+                        "our_ban": 1.0 if hero_name in our_banned_this_map else 0.0,
                         "protect": 1.0 if hero_name in protected_this_map else 0.0,
                         "win": 1.0 if result == "Win" else (0.0 if result == "Loss" else None),
                     }
@@ -958,11 +965,14 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                     payload["losses"] += 1
                 was_played = hero_name in heroes_this_map
                 was_banned = hero_name in banned_this_map
+                was_our_banned = hero_name in our_banned_this_map
                 was_protected = hero_name in protected_this_map
                 if was_played:
                     payload["played_maps"] += 1
                 if was_banned:
                     payload["banned_maps"] += 1
+                if was_our_banned:
+                    payload["our_banned_maps"] += 1
                 if was_protected:
                     payload["protected_maps"] += 1
                 payload["rows"].append(
@@ -977,6 +987,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                         "opponent_name": opponent_name,
                         "was_played": was_played,
                         "was_banned": was_banned,
+                        "was_our_banned": was_our_banned,
                         "was_protected": was_protected,
                     }
                 )
@@ -1067,6 +1078,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
         hero_anova_lookup[hero_name] = {
             "play_rate": _winrate_metric_anova(hero_observations, "play"),
             "ban_rate": _winrate_metric_anova(hero_observations, "ban"),
+            "our_ban_rate": _winrate_metric_anova(hero_observations, "our_ban"),
             "protect_rate": _winrate_metric_anova(hero_observations, "protect"),
         }
 
@@ -1089,6 +1101,7 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
                 "losses": payload["losses"],
                 "played_maps": payload["played_maps"],
                 "banned_maps": payload["banned_maps"],
+                "our_banned_maps": payload["our_banned_maps"],
                 "protected_maps": payload["protected_maps"],
                 "win_rate": round((payload["wins"] / maps_played) * 100, 1) if maps_played else 0,
                 "anova": hero_anova_lookup.get(hero_name, {}),
