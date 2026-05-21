@@ -37,6 +37,8 @@ def sync_map_score_from_submap_results(map_entry: dict) -> None:
 
 def _build_timeline_event_entry(event_id: int) -> dict:
     event_type = request.form.get("event_type", "").strip() or "Fight"
+    fight_round_key = request.form.get("fight_round_key", "").strip()
+    fight_round_label = request.form.get("fight_round_label", "").strip()
     fight_number = request.form.get("fight_number", "").strip()
     first_kill_player = request.form.get("first_kill_player", "").strip()
     first_kill_hero = request.form.get("first_kill_hero", "").strip()
@@ -64,6 +66,8 @@ def _build_timeline_event_entry(event_id: int) -> dict:
         "id": event_id,
         "timestamp": request.form.get("timestamp", "").strip(),
         "event_type": event_type,
+        "fight_round_key": fight_round_key,
+        "fight_round_label": fight_round_label,
         "fight_number": fight_number,
         "first_kill_player": first_kill_player,
         "first_kill_hero": first_kill_hero,

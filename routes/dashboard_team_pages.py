@@ -1896,6 +1896,7 @@ def team_detail(team_id: int):
                         "scrim_date": scrim_date,
                         "opponent_name": opponent_name,
                         "map_name": (map_entry.get("map_name") or "").strip() or "Unknown Map",
+                        "fight_round_label": (event.get("fight_round_label") or "").strip(),
                         "fight_number": (event.get("fight_number") or "").strip(),
                         "killer_player": killer_player,
                         "killer_hero": _canonical_draft_hero(event.get("first_kill_hero") or event.get("killer_hero") or ""),
@@ -1934,11 +1935,15 @@ def team_detail(team_id: int):
         "fk_losses": 0,
         "fd_wins": 0,
         "fd_losses": 0,
+        "fight_wins": 0,
+        "fight_losses": 0,
+        "fight_unset": 0,
     }
     fk_player_counter: Counter = Counter()
     fd_player_counter: Counter = Counter()
     fk_target_hero_counter: Counter = Counter()
     fd_source_hero_counter: Counter = Counter()
+    map_first_action_rows: dict[str, dict] = {}
     roster_first_action_rows = {
         player["name"].strip().lower(): {
             "player": player["name"],
@@ -1960,8 +1965,35 @@ def team_detail(team_id: int):
         killer_key = (row.get("killer_player") or "").strip().lower()
         victim_key = (row.get("victim_player") or "").strip().lower()
         fight_result = row.get("fight_result")
+        map_name = row.get("map_name") or "Unknown Map"
+        map_read = map_first_action_rows.setdefault(
+            map_name,
+            {
+                "map_name": map_name,
+                "fights": 0,
+                "fight_wins": 0,
+                "fight_losses": 0,
+                "fight_unset": 0,
+                "first_kills": 0,
+                "first_deaths": 0,
+                "rounds": Counter(),
+            },
+        )
+        map_read["fights"] += 1
+        if row.get("fight_round_label"):
+            map_read["rounds"][row["fight_round_label"]] += 1
+        if fight_result == "Won":
+            first_action_read_counts["fight_wins"] += 1
+            map_read["fight_wins"] += 1
+        elif fight_result == "Lost":
+            first_action_read_counts["fight_losses"] += 1
+            map_read["fight_losses"] += 1
+        else:
+            first_action_read_counts["fight_unset"] += 1
+            map_read["fight_unset"] += 1
         if killer_key in roster_first_action_rows:
             first_action_read_counts["first_kills"] += 1
+            map_read["first_kills"] += 1
             fk_player_counter[row["killer_player"]] += 1
             player_read = roster_first_action_rows[killer_key]
             player_read["first_kills"] += 1
@@ -1976,6 +2008,7 @@ def team_detail(team_id: int):
                 player_read["fk_target_heroes"][row["victim_hero"]] += 1
         if victim_key in roster_first_action_rows:
             first_action_read_counts["first_deaths"] += 1
+            map_read["first_deaths"] += 1
             fd_player_counter[row["victim_player"]] += 1
             player_read = roster_first_action_rows[victim_key]
             player_read["first_deaths"] += 1
@@ -2007,6 +2040,19 @@ def team_detail(team_id: int):
             first_action_player_rows.append(row)
     first_action_player_rows.sort(
         key=lambda row: (row["first_kills"] + row["first_deaths"], row["first_kills"], row["player"].lower()),
+        reverse=True,
+    )
+
+    first_action_map_rows = []
+    for row in map_first_action_rows.values():
+        decided = row["fight_wins"] + row["fight_losses"]
+        top_round = _top_counter_row(row.pop("rounds"))
+        row["fight_win_rate"] = round((row["fight_wins"] / decided) * 100, 1) if decided else 0
+        row["top_round_label"] = top_round["name"]
+        row["top_round_count"] = top_round["count"]
+        first_action_map_rows.append(row)
+    first_action_map_rows.sort(
+        key=lambda row: (row["fights"], row["fight_wins"], row["fight_win_rate"], row["map_name"].lower()),
         reverse=True,
     )
 
@@ -2132,6 +2178,7 @@ def team_detail(team_id: int):
         first_action_events=first_action_filtered_events,
         first_action_read=first_action_read,
         first_action_player_rows=first_action_player_rows,
+        first_action_map_rows=first_action_map_rows,
         first_action_enemy_options=first_action_enemy_options,
         selected_first_action_enemy=selected_first_action_enemy,
     )

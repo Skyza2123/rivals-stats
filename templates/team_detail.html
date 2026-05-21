@@ -1184,6 +1184,11 @@
                 <span>{{ first_action_read.total_fights }}</span>
                 <small>{{ first_action_read.target_label }}</small>
             </section>
+            <section class="stat-card">
+                <strong>Fight Wins</strong>
+                <span>{{ first_action_read.fight_wins }}</span>
+                <small>{{ first_action_read.fight_wins }}W - {{ first_action_read.fight_losses }}L{% if first_action_read.fight_unset %} · {{ first_action_read.fight_unset }} unset{% endif %}</small>
+            </section>
         </div>
     </section>
 
@@ -1229,6 +1234,35 @@
             </div>
         {% else %}
             <p class="empty-text">No first-action fight events match this opponent filter yet. Add them from a map Timeline tab.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel top-gap">
+        <div class="panel-header-row">
+            <h3>Map Fight Read</h3>
+            <span class="muted-label">{{ first_action_map_rows|length }} maps in filter</span>
+        </div>
+        {% if first_action_map_rows %}
+            {% call stats_table(['Map', 'Fights', 'Fight W-L', 'Fight WR', 'First Kills', 'First Deaths', 'Main Round / Submap'], table_class='stats-table') %}
+                {% for row in first_action_map_rows %}
+                    <tr>
+                        <td>
+                            <span class="team-scout-preview-map-cell">
+                                <img class="team-scout-preview-map-thumb" src="{{ get_map_image_url(row.map_name) }}" alt="{{ row.map_name }}" loading="lazy">
+                                <span>{{ row.map_name }}</span>
+                            </span>
+                        </td>
+                        <td>{{ row.fights }}</td>
+                        <td>{{ row.fight_wins }}W - {{ row.fight_losses }}L{% if row.fight_unset %}<small class="stat-footnote">{{ row.fight_unset }} unset</small>{% endif %}</td>
+                        <td class="{% if row.fight_win_rate >= 55 %}good{% elif row.fight_win_rate < 45 and (row.fight_wins + row.fight_losses) %}bad{% else %}mid{% endif %}">{{ row.fight_win_rate }}%</td>
+                        <td>{{ row.first_kills }}</td>
+                        <td>{{ row.first_deaths }}</td>
+                        <td>{{ row.top_round_label or '—' }}{% if row.top_round_count %}<small class="stat-footnote">{{ row.top_round_count }} logged fight{{ 's' if row.top_round_count != 1 else '' }}</small>{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            {% endcall %}
+        {% else %}
+            <p class="empty-text">No map fight data matches this filter yet.</p>
         {% endif %}
     </section>
 

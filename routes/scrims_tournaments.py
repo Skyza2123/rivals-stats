@@ -14,18 +14,25 @@ def tournaments():
     teams = get_db().execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
     season_options = get_scrim_season_options(TOURNAMENT_MATCHES)
     has_unseasoned_matches = any(not normalize_season_value(match.get("season", "")) for match in TOURNAMENT_MATCHES)
-    default_season = get_current_season_from_recent_scrim(TOURNAMENT_MATCHES)
     selected_season = get_selected_season(
         request.args.get("season", ""),
         season_options,
         allow_unspecified=has_unseasoned_matches,
-        default_season=default_season,
+        default_season="all",
     )
     selected_team_id = (request.args.get("team_id", "") or "").strip()
 
     filtered_matches = filter_scrims_by_season(TOURNAMENT_MATCHES, selected_season)
     if selected_team_id:
-        filtered_matches = [match for match in filtered_matches if str(match.get("team_id") or "") == selected_team_id]
+        def _tournament_includes_team(match: dict) -> bool:
+            if str(match.get("team_id") or "") == selected_team_id:
+                return True
+            for tournament_team in match.get("tournament_teams", []):
+                if str(tournament_team.get("source_team_id") or "") == selected_team_id:
+                    return True
+            return False
+
+        filtered_matches = [match for match in filtered_matches if _tournament_includes_team(match)]
     filtered_matches.sort(key=lambda m: m.get("scrim_date") or "", reverse=True)
 
     all_tournaments_sorted = sorted(TOURNAMENT_MATCHES, key=lambda m: m.get("scrim_date") or "", reverse=True)

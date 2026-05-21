@@ -646,18 +646,50 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
                 suggestion_seen.add(normalized)
                 all_player_name_suggestions.append(player_name)
 
+    timeline_round_options: list[dict] = []
+    for index, comp_section in enumerate(map_entry.get("comp", [])):
+        if not isinstance(comp_section, dict):
+            continue
+        submap_name = (comp_section.get("submap") or "").strip()
+        if submap_name:
+            label = submap_name
+        elif map_entry.get("map_name") in ATTACK_DEFENSE_MAPS:
+            label = "Team Comp"
+        else:
+            label = f"Round {index + 1}"
+        side_label = (comp_section.get("side") or "").strip()
+        display_label = f"{label} - {side_label}" if side_label else label
+        timeline_round_options.append(
+            {
+                "key": f"section:{index}",
+                "label": display_label,
+            }
+        )
+    if not timeline_round_options:
+        timeline_round_options.append({"key": "map", "label": "Map"})
+
     map_draft_timeline_row = None
-    next_fight_number = 1
+    next_fight_number_by_round = {row["key"]: 1 for row in timeline_round_options}
     for event in map_entry.get("events", []):
         if not isinstance(event, dict):
             continue
         raw_fight_number = str(event.get("fight_number") or "").strip()
         if not raw_fight_number:
             continue
+        round_key = (event.get("fight_round_key") or "").strip()
+        if not round_key:
+            round_label = (event.get("fight_round_label") or event.get("submap") or event.get("round") or "").strip()
+            round_key = next(
+                (row["key"] for row in timeline_round_options if row["label"].strip().lower() == round_label.lower()),
+                timeline_round_options[0]["key"],
+            )
+        if round_key not in next_fight_number_by_round:
+            next_fight_number_by_round[round_key] = 1
         try:
-            next_fight_number = max(next_fight_number, int(raw_fight_number) + 1)
+            next_fight_number_by_round[round_key] = max(next_fight_number_by_round[round_key], int(raw_fight_number) + 1)
         except ValueError:
             continue
+    next_fight_number = next_fight_number_by_round.get(timeline_round_options[0]["key"], 1)
 
     target_map_name = (map_entry.get("map_name") or "").strip()
     if target_map_name:
@@ -723,6 +755,8 @@ def build_match_map_detail_context(match_record: dict, map_entry: dict, *, is_to
         "map_draft_timeline_row": map_draft_timeline_row,
         "split_score_pair": split_score_pair,
         "next_fight_number": next_fight_number,
+        "next_fight_number_by_round": next_fight_number_by_round,
+        "timeline_round_options": timeline_round_options,
     }
 
 

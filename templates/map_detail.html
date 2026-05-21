@@ -204,6 +204,7 @@
                     <div>
                         <div class="list-title">
                             {{ event.timestamp or "---" }} &bull;
+                            {% if event.fight_round_label %}{{ event.fight_round_label }} &bull; {% endif %}
                             {% if event.fight_number %}Fight {{ event.fight_number }}{% else %}{{ event.event_type }}{% endif %}
                         </div>
                         {% if event.first_kill_player or event.first_death_player %}
@@ -630,6 +631,15 @@
                     <input type="text" id="modal_timestamp" name="timestamp" placeholder="e.g. 02:14">
                 </div>
                 <div class="field">
+                    <label for="modal_fight_round_key">Round / Submap</label>
+                    <select id="modal_fight_round_key" name="fight_round_key" required>
+                        {% for round_option in timeline_round_options %}
+                            <option value="{{ round_option.key }}">{{ round_option.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" id="modal_fight_round_label" name="fight_round_label" value="{{ timeline_round_options[0].label if timeline_round_options else 'Map' }}">
+                </div>
+                <div class="field">
                     <label for="modal_fight_number">Fight</label>
                     <input type="number" id="modal_fight_number" name="fight_number" min="1" step="1" value="{{ next_fight_number or 1 }}" required>
                 </div>
@@ -744,6 +754,10 @@
         map_entry.draft.team2.ban4
     ]
 }|tojson }}
+</script>
+
+<script id="timelineFightNumbersData" type="application/json">
+{{ next_fight_number_by_round|tojson }}
 </script>
 
 <script>
@@ -1747,15 +1761,40 @@ function copyPreviousCompSection(sectionIndex) {
 document.addEventListener('DOMContentLoaded', function() {
     const fightWinner = document.getElementById('modal_fight_winner');
     const fightWinnerLabel = document.getElementById('modal_fight_winner_label');
-    if (!fightWinner || !fightWinnerLabel) return;
+    const fightRound = document.getElementById('modal_fight_round_key');
+    const fightRoundLabel = document.getElementById('modal_fight_round_label');
+    const fightNumber = document.getElementById('modal_fight_number');
+    const fightNumbersData = document.getElementById('timelineFightNumbersData');
+    let nextFightByRound = {};
+    if (fightNumbersData) {
+        try {
+            nextFightByRound = JSON.parse(fightNumbersData.textContent || '{}') || {};
+        } catch (error) {
+            nextFightByRound = {};
+        }
+    }
 
     function syncFightWinnerLabel() {
+        if (!fightWinner || !fightWinnerLabel) return;
         const selected = fightWinner.options[fightWinner.selectedIndex];
         fightWinnerLabel.value = selected && selected.value ? selected.text : '';
     }
 
-    fightWinner.addEventListener('change', syncFightWinnerLabel);
+    function syncFightRound() {
+        if (!fightRound) return;
+        const selected = fightRound.options[fightRound.selectedIndex];
+        if (fightRoundLabel) {
+            fightRoundLabel.value = selected && selected.value ? selected.text : '';
+        }
+        if (fightNumber) {
+            fightNumber.value = nextFightByRound[fightRound.value] || 1;
+        }
+    }
+
+    fightWinner?.addEventListener('change', syncFightWinnerLabel);
+    fightRound?.addEventListener('change', syncFightRound);
     syncFightWinnerLabel();
+    syncFightRound();
 });
 
 </script>
