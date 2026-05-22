@@ -7,6 +7,14 @@
 {% set team2_draft_slots = [('ban1','Ban 1'),('protect1','Protect 1'),('ban2','Ban 2'),('ban3','Ban 3'),('ban4','Ban 4'),('protect2','Protect 2')] %}
 {% set display_team1_slot = display_team1_slot|default('team1') %}
 {% set display_team2_slot = display_team2_slot|default('team2') %}
+{% set draft_status = namespace(has_entries=false) %}
+{% for side_slot, slot_list in [(display_team1_slot, team1_draft_slots), (display_team2_slot, team2_draft_slots)] %}
+    {% for slot_key, slot_label in slot_list %}
+        {% if map_entry.draft[side_slot][slot_key] %}
+            {% set draft_status.has_entries = true %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
 {% set section_scores = [] %}
 {% for sec in map_entry.comp %}
     {% if sec.score %}
@@ -78,7 +86,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Draft</h3>
-        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('draftModal')">Edit Draft</button>{% endif %}
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('draftModal')">{{ 'Edit Draft' if draft_status.has_entries else 'Add Draft' }}</button>{% endif %}
     </div>
     <div class="draft-grid">
         <div class="draft-column draft-display">
@@ -129,10 +137,18 @@
     {% set comp_section_label = sec.submap or (('Round ' ~ (s + 1)) if is_attack_defense_round else ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1)))) %}
     {% set left_round_side = ('Defense' if s is even else 'Attack') if is_attack_defense_round else '' %}
     {% set right_round_side = ('Attack' if left_round_side == 'Defense' else 'Defense') if is_attack_defense_round else '' %}
+    {% set comp_status = namespace(has_entries=false) %}
+    {% for side_slot in [display_team1_slot, display_team2_slot] %}
+        {% for entry in sec[side_slot] %}
+            {% if entry.hero or entry.player %}
+                {% set comp_status.has_entries = true %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
             <span class="comp-submap-name">{{ comp_section_label }}{% if sec.side and not is_attack_defense_round %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
-            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">Edit {{ comp_section_label }}</button>{% endif %}
+            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">{{ 'Edit' if comp_status.has_entries else 'Add' }} {{ comp_section_label }}</button>{% endif %}
         </div>
         <div class="comp-grid">
             <div class="comp-team">
@@ -235,7 +251,7 @@
 <section class="panel">
     <div class="panel-header-row">
         <h3>Event Log</h3>
-        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addEventModal')">Log First Action</button>{% endif %}
+        {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('addEventModal')">{{ 'Add Event' if map_entry.events else 'Add First Action' }}</button>{% endif %}
     </div>
     {% if map_entry.events %}
         <div class="list-stack">
@@ -471,10 +487,18 @@
 {% set left_round_side = ('Defense' if s is even else 'Attack') if is_attack_defense_round else '' %}
 {% set right_round_side = ('Attack' if left_round_side == 'Defense' else 'Defense') if is_attack_defense_round else '' %}
 {% set selected_round_side = left_round_side if is_attack_defense_round else sec.side %}
+{% set comp_status = namespace(has_entries=false) %}
+{% for side_slot in [display_team1_slot, display_team2_slot] %}
+    {% for entry in sec[side_slot] %}
+        {% if entry.hero or entry.player %}
+            {% set comp_status.has_entries = true %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
 <div class="modal-backdrop" id="editCompSectionModal{{ s }}" onclick="closeModalFromBackdrop(event, 'editCompSectionModal{{ s }}')">
     <div class="modal modal-wide" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h2>Edit Team Comp - {{ comp_section_label }}</h2>
+            <h2>{{ 'Edit' if comp_status.has_entries else 'Add' }} Team Comp - {{ comp_section_label }}</h2>
             <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
         </div>
         <form action="{{ url_for(update_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, section_index=s) }}" method="post">
@@ -645,7 +669,7 @@
 <div class="modal-backdrop" id="draftModal" onclick="closeModalFromBackdrop(event, 'draftModal')">
     <div class="modal modal-wide" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h2>Edit Draft</h2>
+            <h2>{{ 'Edit Draft' if draft_status.has_entries else 'Add Draft' }}</h2>
             <button class="modal-close" onclick="closeModal('draftModal')">&times;</button>
         </div>
         <form action="{{ url_for(update_draft_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post" id="draftEditForm">
@@ -773,7 +797,7 @@
 <div class="modal-backdrop" id="addEventModal" onclick="closeModalFromBackdrop(event, 'addEventModal')">
     <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h2>Log First Action</h2>
+            <h2>Add First Action</h2>
             <button class="modal-close" onclick="closeModal('addEventModal')">&times;</button>
         </div>
         <form action="{{ url_for(add_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" method="post">
