@@ -2607,6 +2607,62 @@ button:hover {
     transition: opacity 0.18s ease;
 }
 
+.page-busy .app-shell,
+.page-busy .topnav {
+    filter: blur(3px);
+}
+
+.page-busy-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 6, 23, 0.52);
+    backdrop-filter: blur(7px);
+}
+
+.page-busy-overlay.show {
+    display: flex;
+}
+
+.page-busy-card {
+    width: min(360px, 100%);
+    min-height: 154px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    background: rgba(11, 18, 30, 0.94);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+    color: #f8fafc;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 26px;
+}
+
+.page-busy-card strong {
+    font-size: 1rem;
+    letter-spacing: 0;
+}
+
+.page-busy-card small {
+    color: #cbd5e1;
+    line-height: 1.45;
+}
+
+.page-busy-spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 3px solid rgba(255, 255, 255, 0.18);
+    border-top-color: var(--accent);
+    animation: loading-spin 0.75s linear infinite;
+}
+
 @keyframes loading-spin {
     to {
         transform: rotate(360deg);
@@ -8828,6 +8884,12 @@ th {
     gap: 10px;
 }
 
+#tab-all > .parser-scrim-grid:not(.teams-row-list),
+#tab-personal > .parser-scrim-grid:not(.teams-row-list) {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
 .team-row-card {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -8969,8 +9031,15 @@ th {
     border-radius: 12px;
     padding: 12px;
     position: relative;
-    min-height: 270px;
+    min-height: 0;
     transition: border-color 0.15s ease, background 0.15s ease;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        "main pin"
+        "footer pin";
+    gap: 8px 12px;
+    overflow: hidden;
 }
 
 .team-dash-card:hover {
@@ -8981,45 +9050,63 @@ th {
 .team-dash-main {
     text-decoration: none;
     color: var(--text);
-    display: block;
+    grid-area: main;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-areas:
+        "logo title"
+        "logo badges"
+        "logo note"
+        "stats stats";
+    column-gap: 10px;
+    align-items: center;
+    min-width: 0;
 }
 
 .team-dash-logo {
-    width: 56px;
-    height: 56px;
+    grid-area: logo;
+    width: 42px;
+    height: 42px;
     border-radius: 999px;
     border: 2px solid var(--border);
     object-fit: cover;
-    float: right;
-    margin-left: 8px;
 }
 
 .team-dash-title {
-    font-size: 1.1rem;
+    grid-area: title;
+    font-size: 0.92rem;
     font-weight: 800;
-    margin-bottom: 6px;
     line-height: 1.2;
-    padding-right: 64px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .team-dash-badges {
+    grid-area: badges;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 8px;
+    min-width: 0;
 }
 
 .team-dash-note {
+    grid-area: note;
     color: var(--muted);
-    font-size: 0.85rem;
-    min-height: 28px;
-    margin-bottom: 10px;
+    font-size: 0.74rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .team-dash-stats {
+    grid-area: stats;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    margin-top: 8px;
 }
 
 .team-dash-stats span {
@@ -9055,6 +9142,10 @@ th {
 
 .team-card-section {
     margin-top: 12px;
+}
+
+.team-card-section-detail {
+    display: none;
 }
 
 .team-card-section-title {
@@ -9137,12 +9228,13 @@ th {
 }
 
 .team-dash-stats-link {
-    display: inline-block;
-    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
     text-decoration: none;
-    color: var(--muted);
-    font-weight: 700;
-    font-size: 0.88rem;
+    color: #e2e8f0;
+    font-weight: 800;
+    font-size: 0.78rem;
 }
 
 .team-dash-stats-link:hover {
@@ -9150,11 +9242,31 @@ th {
 }
 
 .team-dash-players {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
     color: var(--muted);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.team-dash-footer {
+    grid-area: footer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.team-pin-form {
+    grid-area: pin;
+    align-self: center;
+    margin: 0;
+}
+
+.team-pin-form .btn-sm {
+    min-width: 54px;
+    white-space: nowrap;
 }
 
 @media (max-width: 1020px) {

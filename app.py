@@ -71,6 +71,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
 _STATIC_ASSET_VERSION_CACHE: dict[str, tuple[tuple[int, int], str]] = {}
 
 if TYPE_CHECKING:

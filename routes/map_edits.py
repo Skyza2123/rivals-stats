@@ -79,6 +79,14 @@ def _build_timeline_event_entry(event_id: int) -> dict:
     }
 
 
+def _update_timeline_event_entry(map_entry: dict, event_id: int) -> None:
+    event_to_update = next((event for event in map_entry.get("events", []) if event.get("id") == event_id), None)
+    if event_to_update is None:
+        abort(404)
+    event_to_update.clear()
+    event_to_update.update(_build_timeline_event_entry(event_id))
+
+
 @app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/delete", methods=["POST"])
 def delete_tournament_match_map(tournament_id: int, match_id: int, map_id: int):
     tournament_record = get_tournament_or_404(tournament_id)
@@ -346,6 +354,20 @@ def add_tournament_match_event_to_map(tournament_id: int, match_id: int, map_id:
     return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id, _anchor="timeline"))
 
 
+@app.route("/tournaments/<int:tournament_id>/matches/<int:match_id>/maps/<int:map_id>/edit-event/<int:event_id>", methods=["POST"])
+def edit_tournament_match_event(tournament_id: int, match_id: int, map_id: int, event_id: int):
+    tournament_record = get_tournament_or_404(tournament_id)
+    tournament_match = get_tournament_match_or_404(tournament_record, match_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+    if (request.form.get("event_type", "").strip() or "Fight") not in EVENT_TYPES:
+        flash("Please select a valid event type.", "error")
+        return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id, _anchor="timeline"))
+
+    _update_timeline_event_entry(map_entry, event_id)
+    save_app_state()
+    return redirect(url_for("tournament_match_map_detail", tournament_id=tournament_id, match_id=match_id, map_id=map_id, _anchor="timeline"))
+
+
 @app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>")
 def tournament_map_detail(tournament_id: int, map_id: int):
     tournament_match = get_tournament_or_404(tournament_id)
@@ -369,6 +391,7 @@ def tournament_map_detail(tournament_id: int, map_id: int):
         add_comp_section_endpoint="add_tournament_comp_section",
         delete_event_endpoint="delete_tournament_event",
         add_event_endpoint="add_tournament_event_to_map",
+        edit_event_endpoint="edit_tournament_event",
         detail_parent_id=tournament_id,
         detail_match_id=tournament_id,
         **context,
@@ -1134,6 +1157,20 @@ def add_event_to_map(scrim_id: int, map_id: int):
     return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id, _anchor="timeline"))
 
 
+@app.route("/scrims/<int:scrim_id>/maps/<int:map_id>/edit-event/<int:event_id>", methods=["POST"])
+def edit_event(scrim_id: int, map_id: int, event_id: int):
+    scrim = get_scrim_or_404(scrim_id)
+    map_entry = get_map_or_404(scrim, map_id)
+
+    if (request.form.get("event_type", "").strip() or "Fight") not in EVENT_TYPES:
+        flash("Please select a valid event type.", "error")
+        return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id, _anchor="timeline"))
+
+    _update_timeline_event_entry(map_entry, event_id)
+    save_app_state()
+    return redirect(url_for("map_detail", scrim_id=scrim_id, map_id=map_id, _anchor="timeline"))
+
+
 @app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/add-event", methods=["POST"])
 def add_tournament_event_to_map(tournament_id: int, map_id: int):
     global NEXT_EVENT_ID
@@ -1148,6 +1185,20 @@ def add_tournament_event_to_map(tournament_id: int, map_id: int):
     event_entry = _build_timeline_event_entry(NEXT_EVENT_ID)
     map_entry["events"].append(event_entry)
     NEXT_EVENT_ID += 1
+    save_app_state()
+    return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id, _anchor="timeline"))
+
+
+@app.route("/tournaments/<int:tournament_id>/maps/<int:map_id>/edit-event/<int:event_id>", methods=["POST"])
+def edit_tournament_event(tournament_id: int, map_id: int, event_id: int):
+    tournament_match = get_tournament_or_404(tournament_id)
+    map_entry = get_map_or_404(tournament_match, map_id)
+
+    if (request.form.get("event_type", "").strip() or "Fight") not in EVENT_TYPES:
+        flash("Please select a valid event type.", "error")
+        return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id, _anchor="timeline"))
+
+    _update_timeline_event_entry(map_entry, event_id)
     save_app_state()
     return redirect(url_for("tournament_map_detail", tournament_id=tournament_id, map_id=map_id, _anchor="timeline"))
 

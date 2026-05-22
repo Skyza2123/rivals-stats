@@ -3,6 +3,7 @@
 
 {% block title %}{{ team.name }}{% endblock %}
 
+{% block chart_scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>{% endblock %}
 
 {% block content %}
 <section class="parser-dash-root parser-page-root team-dashboard-rework">
@@ -1398,7 +1399,7 @@
                 <div class="first-target-timeline">
                     {% for row in first_action_read.recent_events %}
                     <article>
-                        <strong>{{ row.fight_round_label or 'Map' }}{% if row.fight_number %} · Fight {{ row.fight_number }}{% endif %}</strong>
+                        <strong>{% if row.fight_number %}Fight {{ row.fight_number }}{% else %}Fight{% endif %}</strong>
                         <span>{{ row.killer_player or 'Unknown' }}{% if row.killer_hero %} ({{ hero_display_name(row.killer_hero) }}){% endif %} eliminated {{ row.victim_player or 'Unknown' }}{% if row.victim_hero %} ({{ hero_display_name(row.victim_hero) }}){% endif %}</span>
                         <em class="{% if row.fight_result == 'Won' %}good{% elif row.fight_result == 'Lost' %}bad{% else %}mid{% endif %}">{{ row.fight_result }}</em>
                     </article>

@@ -1388,12 +1388,15 @@ def teams():
             for player in roster_rows
             if (player["name"] or "").strip() and (player["role"] or "").strip() not in staff_roles
         ]
-        roster_by_role = {
-            "Vanguard": [player for player in active_roster if player["role"] == "Vanguard"],
-            "Duelist": [player for player in active_roster if player["role"] == "Duelist"],
-            "Strategist": [player for player in active_roster if player["role"] == "Strategist"],
-            "Flex / Other": [player for player in active_roster if player["role"] not in {"Vanguard", "Duelist", "Strategist"}],
-        }
+        if selected_view == "rows":
+            roster_by_role = {
+                "Vanguard": [player for player in active_roster if player["role"] == "Vanguard"],
+                "Duelist": [player for player in active_roster if player["role"] == "Duelist"],
+                "Strategist": [player for player in active_roster if player["role"] == "Strategist"],
+                "Flex / Other": [player for player in active_roster if player["role"] not in {"Vanguard", "Duelist", "Strategist"}],
+            }
+        else:
+            roster_by_role = {}
         staff = [
             {"name": (player["name"] or "").strip(), "role": (player["role"] or "").strip()}
             for player in roster_rows
@@ -1444,7 +1447,11 @@ def teams():
             "map_count": team["map_count"],
             "map_win_rate": team["map_win_rate"],
         }
-        for team in teams_with_scrim_stats
+        for team in sorted(
+            (team for team in teams_with_scrim_stats if team["map_count"]),
+            key=lambda team: (team["map_win_rate"], team["map_count"], team["name"].lower()),
+            reverse=True,
+        )[:10]
         if team["map_count"]
     ]
 

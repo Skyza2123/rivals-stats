@@ -21,12 +21,12 @@
         document.documentElement.setAttribute('data-theme', theme);
     })();
     </script>
-    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}&rev=20260521c">
+    <link rel="stylesheet" href="{{ static_asset_url('style.css') }}&rev=20260521d">
     <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme.css') }}&rev=20260521c">
     <link rel="stylesheet" href="{{ static_asset_url('jarvis-overrides.css') }}&rev=20260521c">
     <link rel="stylesheet" href="{{ static_asset_url('team-tabs-overrides.css') }}&rev=20260521c">
     <link rel="stylesheet" href="{{ static_asset_url('team-detail-live-fixes.css') }}&rev=20260521c">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    {% block chart_scripts %}{% endblock %}
     <script>
     function getThemeCssVar(name, fallback) {
         var root = document.documentElement;
@@ -185,6 +185,13 @@
             </main>
         </div>
     </div>
+    <div id="pageBusyOverlay" class="page-busy-overlay" role="status" aria-live="polite" aria-hidden="true">
+        <div class="page-busy-card">
+            <span class="page-busy-spinner" aria-hidden="true"></span>
+            <strong id="pageBusyTitle">Loading</strong>
+            <small id="pageBusyText">Getting everything ready...</small>
+        </div>
+    </div>
 <script>
 /* Theme selector */
 (function () {
@@ -208,6 +215,75 @@
     select.addEventListener('change', function () {
         applyTheme(select.value);
     });
+})();
+</script>
+<script>
+/* Global loading popup */
+(function () {
+    var overlay = document.getElementById('pageBusyOverlay');
+    var title = document.getElementById('pageBusyTitle');
+    var text = document.getElementById('pageBusyText');
+    var timer = null;
+    if (!overlay) return;
+
+    function showBusy(options) {
+        options = options || {};
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            title.textContent = options.title || 'Loading';
+            text.textContent = options.text || 'Getting everything ready...';
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('page-busy');
+        }, options.delay == null ? 120 : options.delay);
+    }
+
+    function hideBusy() {
+        clearTimeout(timer);
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('page-busy');
+    }
+
+    window.showPageBusy = showBusy;
+    window.hidePageBusy = hideBusy;
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (event.defaultPrevented) return;
+        if (!form || form.dataset.noLoading === 'true' || form.target === '_blank') return;
+        var method = (form.method || 'get').toLowerCase();
+        showBusy({
+            title: method === 'post' ? 'Saving changes' : 'Loading',
+            text: method === 'post' ? 'Updating the page now...' : 'Fetching the next view...',
+            delay: 80
+        });
+    });
+
+    if (window.HTMLFormElement && HTMLFormElement.prototype.submit) {
+        var nativeSubmit = HTMLFormElement.prototype.submit;
+        HTMLFormElement.prototype.submit = function () {
+            if (this.dataset.noLoading !== 'true' && this.target !== '_blank') {
+                showBusy({
+                    title: (this.method || 'get').toLowerCase() === 'post' ? 'Saving changes' : 'Loading',
+                    text: 'Updating the page now...',
+                    delay: 80
+                });
+            }
+            return nativeSubmit.call(this);
+        };
+    }
+
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest && event.target.closest('a[href]');
+        if (!link || link.dataset.noLoading === 'true' || link.target === '_blank') return;
+        var href = link.getAttribute('href') || '';
+        if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0 || link.hasAttribute('download')) return;
+        if (link.origin && link.origin !== window.location.origin) return;
+        showBusy({ title: 'Loading page', text: 'Opening the next view...', delay: 180 });
+    }, true);
+
+    window.addEventListener('pageshow', hideBusy);
 })();
 </script>
 <script>

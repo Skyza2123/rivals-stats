@@ -1112,6 +1112,89 @@ def build_prep_hero_map_lookup(prep_scrims: list[dict]) -> list[dict]:
     return rows
 
 
+def build_prep_hero_matchup_winrate_rows(prep_scrims: list[dict], all_scrims: list[dict]) -> list[dict]:
+    def collect(scrims: list[dict]) -> dict:
+        hero_stats = defaultdict(lambda: {"maps": 0, "wins": 0, "losses": 0, "map_counts": defaultdict(int)})
+        for scrim in scrims:
+            for map_entry in scrim.get("maps", []) or []:
+                if not isinstance(map_entry, dict):
+                    continue
+                our_team_slot = map_entry.get("our_team_slot", "team1")
+                if our_team_slot not in TEAM_SLOTS:
+                    our_team_slot = "team1"
+                result = get_map_outcome_for_slot(map_entry, our_team_slot)
+                heroes_this_map = set()
+                for section in map_entry.get("comp", []) or []:
+                    if not isinstance(section, dict):
+                        continue
+                    for slot in section.get(our_team_slot, []) or []:
+                        if not isinstance(slot, dict):
+                            continue
+                        hero_name = _canonical_draft_hero(slot.get("hero", ""))
+                        if hero_name:
+                            heroes_this_map.add(hero_name)
+                if not heroes_this_map:
+                    continue
+                map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip() or "Unknown Map"
+                for hero_name in heroes_this_map:
+                    stats = hero_stats[hero_name]
+                    stats["maps"] += 1
+                    stats["map_counts"][map_name] += 1
+                    if result == "Win":
+                        stats["wins"] += 1
+                    elif result == "Loss":
+                        stats["losses"] += 1
+        return hero_stats
+
+    matchup_stats = collect(prep_scrims)
+    baseline_stats = collect(all_scrims)
+    rows = []
+    for hero_name, stats in matchup_stats.items():
+        maps = stats["maps"]
+        if not maps:
+            continue
+        decided = stats["wins"] + stats["losses"]
+        baseline = baseline_stats.get(hero_name, {})
+        baseline_maps = int(baseline.get("maps") or 0)
+        baseline_wins = int(baseline.get("wins") or 0)
+        baseline_losses = int(baseline.get("losses") or 0)
+        baseline_decided = baseline_wins + baseline_losses
+        win_rate = round((stats["wins"] / decided) * 100, 1) if decided else 0.0
+        baseline_win_rate = round((baseline_wins / baseline_decided) * 100, 1) if baseline_decided else None
+        top_map = ""
+        top_map_count = 0
+        if stats["map_counts"]:
+            top_map, top_map_count = max(
+                stats["map_counts"].items(),
+                key=lambda item: (item[1], item[0].lower()),
+            )
+        rows.append(
+            {
+                "hero": hero_name,
+                "maps": maps,
+                "wins": stats["wins"],
+                "losses": stats["losses"],
+                "decided_maps": decided,
+                "win_rate": win_rate,
+                "baseline_maps": baseline_maps,
+                "baseline_win_rate": baseline_win_rate,
+                "delta_vs_baseline": round(win_rate - baseline_win_rate, 1) if baseline_win_rate is not None and decided else None,
+                "top_map": top_map,
+                "top_map_count": top_map_count,
+            }
+        )
+    rows.sort(
+        key=lambda row: (
+            row["decided_maps"] >= 3,
+            row["win_rate"],
+            row["maps"],
+            row["hero"].lower(),
+        ),
+        reverse=True,
+    )
+    return rows
+
+
 def build_team_prep_context(
     *,
     team_scrims: list[dict],
@@ -1141,6 +1224,7 @@ def build_team_prep_context(
     prep_expected_plan = build_prep_expected_comp_plan(prep_scrims, team_players, prep_analytics, all_scrims=team_scrims)
     prep_draft_correlation = build_prep_draft_correlation_bundle(prep_scrims)
     prep_hero_map_lookup = build_prep_hero_map_lookup(prep_scrims)
+    prep_hero_matchup_winrate_rows = build_prep_hero_matchup_winrate_rows(prep_scrims, team_scrims)
     prep_ban_correlation = prep_draft_correlation["ban"]
     prep_protect_correlation = prep_draft_correlation["protect"]
 
@@ -1172,6 +1256,7 @@ def build_team_prep_context(
         "draft_phase_timeline": draft_phase_timeline,
         "prep_expected_plan": prep_expected_plan,
         "prep_hero_map_lookup": prep_hero_map_lookup,
+        "prep_hero_matchup_winrate_rows": prep_hero_matchup_winrate_rows,
         "prep_ban_correlation": prep_ban_correlation,
         "prep_ban_correlation_rows": prep_ban_correlation["cooccurrence_rows"],
         "prep_ban_group_rows_by_size": prep_ban_correlation["group_rows_by_size"],

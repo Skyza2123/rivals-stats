@@ -229,7 +229,7 @@
                 <tbody>
                     {% for row in map_first_action_read.recent_rows %}
                     <tr>
-                        <td>{{ row.fight_round_label or 'Map' }}{% if row.fight_number %} · Fight {{ row.fight_number }}{% endif %}</td>
+                        <td>{% if row.fight_number %}Fight {{ row.fight_number }}{% else %}Fight{% endif %}</td>
                         <td>{{ row.killer_player or 'Unknown' }}{% if row.killer_hero %} ({{ hero_display_name(row.killer_hero) }}){% endif %} eliminated {{ row.victim_player or 'Unknown' }}{% if row.victim_hero %} ({{ hero_display_name(row.victim_hero) }}){% endif %}</td>
                         <td>{{ row.fight_winner_label or 'Not Set' }}</td>
                     </tr>
@@ -257,7 +257,6 @@
                     <div>
                         <div class="list-title">
                             {{ event.timestamp or "---" }} &bull;
-                            {% if event.fight_round_label %}{{ event.fight_round_label }} &bull; {% endif %}
                             {% if event.fight_number %}Fight {{ event.fight_number }}{% else %}{{ event.event_type }}{% endif %}
                         </div>
                         {% if event.first_kill_player or event.first_death_player %}
@@ -277,6 +276,24 @@
                         {% endif %}
                     </div>
                     {% if session.get('access_level') == 'edit' %}
+                    <button
+                        type="button"
+                        class="button-small"
+                        onclick="openEditEventModal(this)"
+                        data-action="{{ url_for(edit_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, event_id=event.id) }}"
+                        data-timestamp="{{ event.timestamp or '' }}"
+                        data-event-type="{{ event.event_type or 'Fight' }}"
+                        data-fight-round-key=""
+                        data-fight-round-label=""
+                        data-fight-number="{{ event.fight_number or '' }}"
+                        data-first-kill-player="{{ event.first_kill_player or '' }}"
+                        data-first-kill-hero="{{ event.first_kill_hero or '' }}"
+                        data-first-death-player="{{ event.first_death_player or '' }}"
+                        data-first-death-hero="{{ event.first_death_hero or '' }}"
+                        data-fight-winner="{{ event.fight_winner or '' }}"
+                        data-fight-winner-label="{{ event.fight_winner_label or '' }}"
+                        data-description="{{ event.description or '' }}"
+                    >Edit</button>
                     <form action="{{ url_for(delete_event_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id, event_id=event.id) }}" method="post" style="display:inline;">
                         <button type="submit" class="btn-icon-delete" title="Delete event" onclick="return confirm('Delete this event?')">&times;</button>
                     </form>
@@ -571,7 +588,7 @@
                                 onclick="pickCompHero(this)"
                                 title="{{ hero_display_name(hero) }}">
                             <div class="hero-img-wrap">
-                                <img src="{{ hero_image_url(hero) }}"
+                                <img data-src="{{ hero_image_url(hero) }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
                             <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
@@ -654,7 +671,7 @@
                         <button type="button" class="hero-pick-btn draft-hero-btn" data-hero="{{ hero }}"
                                 onclick="pickDraftHero(this)" title="{{ hero_display_name(hero) }}">
                             <div class="hero-img-wrap">
-                                <img src="{{ hero_image_url(hero) }}"
+                                <img data-src="{{ hero_image_url(hero) }}"
                                      alt="{{ hero }}" loading="lazy">
                             </div>
                             <span class="hero-pick-name">{{ hero_display_name(hero) }}</span>
@@ -668,6 +685,61 @@
             <div class="button-row">
                 <button type="submit">Save Draft</button>
                 <button type="button" class="btn-secondary" onclick="closeModal('draftModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT EVENT MODAL -->
+<div class="modal-backdrop" id="editEventModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Edit First Action</h2>
+            <button class="modal-close" onclick="closeModal('editEventModal')">&times;</button>
+        </div>
+        <form id="editEventForm" method="post">
+            <input type="hidden" name="event_type" id="edit_event_type" value="Fight">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="edit_event_timestamp">Timestamp</label>
+                    <input type="text" id="edit_event_timestamp" name="timestamp" placeholder="e.g. 02:14">
+                </div>
+                <input type="hidden" id="edit_fight_round_key" name="fight_round_key" value="">
+                <input type="hidden" id="edit_fight_round_label" name="fight_round_label" value="">
+                <div class="field">
+                    <label for="edit_fight_number">Fight</label>
+                    <input type="number" id="edit_fight_number" name="fight_number" min="1" step="1" required>
+                </div>
+                <div class="field">
+                    <label for="edit_first_kill_player">First Kill</label>
+                    <input type="text" id="edit_first_kill_player" name="first_kill_player" list="timelinePlayerOptions" placeholder="Player who gets first kill" required>
+                </div>
+                <div class="field">
+                    <label for="edit_first_kill_hero">Killer Hero</label>
+                    <input type="text" id="edit_first_kill_hero" name="first_kill_hero" list="timelineHeroOptions" placeholder="Hero" required>
+                </div>
+                <div class="field">
+                    <label for="edit_first_death_player">First Death</label>
+                    <input type="text" id="edit_first_death_player" name="first_death_player" list="timelinePlayerOptions" placeholder="Player who dies first" required>
+                </div>
+                <div class="field">
+                    <label for="edit_first_death_hero">Death Hero</label>
+                    <input type="text" id="edit_first_death_hero" name="first_death_hero" list="timelineHeroOptions" placeholder="Hero" required>
+                </div>
+                <div class="field">
+                    <label for="edit_fight_winner">Fight Winner</label>
+                    <select id="edit_fight_winner" name="fight_winner" required>
+                        <option value="">Select winner</option>
+                        <option value="{{ display_team1_slot }}">{{ team1_label }}</option>
+                        <option value="{{ display_team2_slot }}">{{ team2_label }}</option>
+                    </select>
+                    <input type="hidden" id="edit_fight_winner_label" name="fight_winner_label">
+                </div>
+                <input type="hidden" id="edit_event_description" name="description">
+            </div>
+            <div class="button-row">
+                <button type="submit">Save Event</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('editEventModal')">Cancel</button>
             </div>
         </form>
     </div>
@@ -687,15 +759,8 @@
                     <label for="modal_timestamp">Timestamp</label>
                     <input type="text" id="modal_timestamp" name="timestamp" placeholder="e.g. 02:14">
                 </div>
-                <div class="field">
-                    <label for="modal_fight_round_key">Round / Submap</label>
-                    <select id="modal_fight_round_key" name="fight_round_key" required>
-                        {% for round_option in timeline_round_options %}
-                            <option value="{{ round_option.key }}">{{ round_option.label }}</option>
-                        {% endfor %}
-                    </select>
-                    <input type="hidden" id="modal_fight_round_label" name="fight_round_label" value="{{ timeline_round_options[0].label if timeline_round_options else 'Map' }}">
-                </div>
+                <input type="hidden" id="modal_fight_round_key" name="fight_round_key" value="">
+                <input type="hidden" id="modal_fight_round_label" name="fight_round_label" value="">
                 <div class="field">
                     <label for="modal_fight_number">Fight</label>
                     <input type="number" id="modal_fight_number" name="fight_number" min="1" step="1" value="{{ next_fight_number or 1 }}" required>
@@ -840,6 +905,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* ── Modal open/close ── */
 function openModal(id) {
+    hydrateModalHeroImages(id);
     document.getElementById(id).classList.add('show');
 }
 function closeModal(id) {
@@ -858,6 +924,16 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+function hydrateModalHeroImages(id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    modal.querySelectorAll('img[data-src]').forEach(function(img) {
+        if (!img.getAttribute('src')) {
+            img.src = img.dataset.src;
+        }
+    });
+}
 
 function syncTournamentEditMapTeams() {
     const side1Select = document.getElementById('edit_map_team1_tournament_team_id');
@@ -1537,7 +1613,7 @@ const COMP_HERO_IMGS = {};
 document.querySelectorAll('.comp-hero-btn').forEach(function(btn) {
     var h = btn.dataset.hero;
     var im = btn.querySelector('img');
-    if (h && im) COMP_HERO_IMGS[h] = im.src;
+    if (h && im) COMP_HERO_IMGS[h] = im.dataset.src || im.src;
 });
 
 function updateCompHeroAvailability() {
@@ -1816,11 +1892,6 @@ function copyPreviousCompSection(sectionIndex) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const fightWinner = document.getElementById('modal_fight_winner');
-    const fightWinnerLabel = document.getElementById('modal_fight_winner_label');
-    const fightRound = document.getElementById('modal_fight_round_key');
-    const fightRoundLabel = document.getElementById('modal_fight_round_label');
-    const fightNumber = document.getElementById('modal_fight_number');
     const fightNumbersData = document.getElementById('timelineFightNumbersData');
     let nextFightByRound = {};
     if (fightNumbersData) {
@@ -1831,28 +1902,72 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function syncFightWinnerLabel() {
+    function syncFightWinnerLabel(fightWinner, fightWinnerLabel) {
         if (!fightWinner || !fightWinnerLabel) return;
         const selected = fightWinner.options[fightWinner.selectedIndex];
         fightWinnerLabel.value = selected && selected.value ? selected.text : '';
     }
 
-    function syncFightRound() {
+    function syncFightRound(fightRound, fightRoundLabel, fightNumber, shouldUseNextNumber) {
         if (!fightRound) return;
-        const selected = fightRound.options[fightRound.selectedIndex];
+        const selected = fightRound.options ? fightRound.options[fightRound.selectedIndex] : null;
         if (fightRoundLabel) {
             fightRoundLabel.value = selected && selected.value ? selected.text : '';
         }
-        if (fightNumber) {
-            fightNumber.value = nextFightByRound[fightRound.value] || 1;
+        if (fightNumber && shouldUseNextNumber) {
+            fightNumber.value = nextFightByRound[fightRound.value] || {{ next_fight_number or 1 }};
         }
     }
 
-    fightWinner?.addEventListener('change', syncFightWinnerLabel);
-    fightRound?.addEventListener('change', syncFightRound);
-    syncFightWinnerLabel();
-    syncFightRound();
+    function bindEventForm(prefix, shouldUseNextNumber) {
+        const fightWinner = document.getElementById(prefix + '_fight_winner');
+        const fightWinnerLabel = document.getElementById(prefix + '_fight_winner_label');
+        const fightRound = document.getElementById(prefix + '_fight_round_key');
+        const fightRoundLabel = document.getElementById(prefix + '_fight_round_label');
+        const fightNumber = document.getElementById(prefix + '_fight_number');
+        fightWinner?.addEventListener('change', function() {
+            syncFightWinnerLabel(fightWinner, fightWinnerLabel);
+        });
+        fightRound?.addEventListener('change', function() {
+            syncFightRound(fightRound, fightRoundLabel, fightNumber, shouldUseNextNumber);
+        });
+        syncFightWinnerLabel(fightWinner, fightWinnerLabel);
+        syncFightRound(fightRound, fightRoundLabel, fightNumber, shouldUseNextNumber);
+    }
+
+    bindEventForm('modal', true);
+    bindEventForm('edit', false);
 });
+
+function openEditEventModal(button) {
+    const form = document.getElementById('editEventForm');
+    if (!form || !button) return;
+    form.action = button.dataset.action || '';
+    document.getElementById('edit_event_type').value = button.dataset.eventType || 'Fight';
+    document.getElementById('edit_event_timestamp').value = button.dataset.timestamp || '';
+    document.getElementById('edit_fight_round_key').value = button.dataset.fightRoundKey || '';
+    document.getElementById('edit_fight_round_label').value = button.dataset.fightRoundLabel || '';
+    document.getElementById('edit_fight_number').value = button.dataset.fightNumber || '1';
+    document.getElementById('edit_first_kill_player').value = button.dataset.firstKillPlayer || '';
+    document.getElementById('edit_first_kill_hero').value = button.dataset.firstKillHero || '';
+    document.getElementById('edit_first_death_player').value = button.dataset.firstDeathPlayer || '';
+    document.getElementById('edit_first_death_hero').value = button.dataset.firstDeathHero || '';
+    document.getElementById('edit_fight_winner').value = button.dataset.fightWinner || '';
+    document.getElementById('edit_fight_winner_label').value = button.dataset.fightWinnerLabel || '';
+    document.getElementById('edit_event_description').value = button.dataset.description || '';
+
+    const selectedRound = document.getElementById('edit_fight_round_key');
+    const selectedRoundOption = selectedRound?.options ? selectedRound.options[selectedRound.selectedIndex] : null;
+    if (!document.getElementById('edit_fight_round_label').value && selectedRoundOption) {
+        document.getElementById('edit_fight_round_label').value = selectedRoundOption.text;
+    }
+    const selectedWinner = document.getElementById('edit_fight_winner');
+    const selectedWinnerOption = selectedWinner?.options[selectedWinner.selectedIndex];
+    if (!document.getElementById('edit_fight_winner_label').value && selectedWinnerOption && selectedWinnerOption.value) {
+        document.getElementById('edit_fight_winner_label').value = selectedWinnerOption.text;
+    }
+    openModal('editEventModal');
+}
 
 </script>
 {% endblock %}

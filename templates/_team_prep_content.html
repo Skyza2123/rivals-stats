@@ -94,6 +94,7 @@
     <a href="#prep-match-plan" class="chip-nav-link">Match Plan</a>
     <a href="#prep-pressure-board" class="chip-nav-link">Pressure</a>
     <a href="#prep-route-board" class="chip-nav-link">Routes</a>
+    <a href="#prep-hero-matchups" class="chip-nav-link">Hero WR</a>
     <a href="#prep-hero-map-finder" class="chip-nav-link">Hero Context</a>
     <a href="#prep-open-hero" class="chip-nav-link">Open Impact</a>
     <a href="#prep-expected-comps" class="chip-nav-link">Expected Comps</a>
@@ -363,6 +364,70 @@
                 </article>
             {% endfor %}
         </div>
+    {% endif %}
+</section>
+
+<section class="panel prep-section-panel top-gap" id="prep-hero-matchups">
+    <div class="panel-header-row">
+        <div>
+            <div class="section-kicker">Hero Matchups</div>
+            <h3>Hero Winrate Into {% if selected_prep_enemy_name %}{{ selected_prep_enemy_name }}{% else %}The Current Team Filter{% endif %}</h3>
+            <p class="panel-intro">This is the fast answer for which heroes are actually winning in the selected matchup. Use the opponent dropdown above to swap teams.</p>
+        </div>
+    </div>
+    {% if prep_hero_matchup_winrate_rows %}
+        {% set matchup_focus = prep_hero_matchup_winrate_rows[0] %}
+        <div class="summary-grid top-gap">
+            <section class="stat-card">
+                <strong>Best Hero</strong>
+                <span>{{ hero_display_name(matchup_focus.hero) }}</span>
+                <small>{{ matchup_focus.win_rate }}% WR on {{ sample_warn(matchup_focus.maps) }} maps</small>
+            </section>
+            <section class="stat-card">
+                <strong>Record</strong>
+                <span>{{ matchup_focus.wins }}W - {{ matchup_focus.losses }}L</span>
+                <small>Decided maps only</small>
+            </section>
+            <section class="stat-card">
+                <strong>Vs Baseline</strong>
+                <span>{% if matchup_focus.delta_vs_baseline is not none %}{% if matchup_focus.delta_vs_baseline > 0 %}+{% endif %}{{ matchup_focus.delta_vs_baseline }}pp{% else %}--{% endif %}</span>
+                <small>Compared to all-opponent hero WR</small>
+            </section>
+            <section class="stat-card">
+                <strong>Most Seen Map</strong>
+                <span>{{ matchup_focus.top_map if matchup_focus.top_map else '--' }}</span>
+                <small>{% if matchup_focus.top_map %}{{ matchup_focus.top_map_count }} appearances{% else %}No map split{% endif %}</small>
+            </section>
+        </div>
+        {% call stats_table(['Hero', 'Maps', 'Record', 'WR Into Team', 'All-Opp WR', 'Delta', 'Most Seen Map'], extra_wrap_class='top-gap') %}
+            {% for row in prep_hero_matchup_winrate_rows[:16] %}
+                <tr>
+                    <td>
+                        <span class="hero-inline-cell">
+                            <img src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.hero | urlencode }}'">
+                            <span class="hero-inline-meta">
+                                <span>{{ hero_display_name(row.hero) }}</span>
+                                <small class="hero-sub-label">{{ sample_warn(row.maps) }} maps</small>
+                            </span>
+                        </span>
+                    </td>
+                    <td>{{ row.maps }}</td>
+                    <td>{{ row.wins }}W - {{ row.losses }}L</td>
+                    <td><span class="metric-text {% if row.win_rate >= 55 %}metric-good{% elif row.win_rate >= 45 %}metric-warn{% else %}metric-bad{% endif %}">{{ row.win_rate }}%</span></td>
+                    <td>{% if row.baseline_win_rate is not none %}{{ row.baseline_win_rate }}% <span class="hero-sub-label">({{ row.baseline_maps }})</span>{% else %}--{% endif %}</td>
+                    <td>
+                        {% if row.delta_vs_baseline is not none %}
+                            <span class="metric-text {% if row.delta_vs_baseline > 1 %}metric-good{% elif row.delta_vs_baseline < -1 %}metric-bad{% else %}metric-warn{% endif %}">{% if row.delta_vs_baseline > 0 %}+{% endif %}{{ row.delta_vs_baseline }}pp</span>
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                    <td>{{ row.top_map if row.top_map else '--' }}{% if row.top_map_count %} <span class="hero-sub-label">({{ row.top_map_count }})</span>{% endif %}</td>
+                </tr>
+            {% endfor %}
+        {% endcall %}
+    {% else %}
+        <p class="empty-text top-gap">No played-hero winrate sample exists for this matchup filter yet.</p>
     {% endif %}
 </section>
 

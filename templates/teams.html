@@ -2,6 +2,7 @@
 
 {% block title %}Teams{% endblock %}
 
+{% block chart_scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>{% endblock %}
 
 {% block content %}
 <section class="parser-dash-root parser-page-root">
@@ -79,13 +80,11 @@
         </div>
         <div class="team-dash-note">{{ team.notes or 'No notes yet.' }}</div>
         <div class="team-dash-stats">
-            <span>{{ team.scrim_count }} scrims</span>
             <span>{{ team.map_count }} maps</span>
             <span class="team-wr-pill {{ team.win_rate_class }}">{{ team.map_win_rate }}% WR</span>
-            <span>{{ team.stats_context }}</span>
-            <span>{{ team.last_played or 'Never played' }}</span>
+            <span>{{ team.scrim_count }} scrims</span>
         </div>
-        <div class="team-card-section">
+        <div class="team-card-section team-card-section-detail">
             <div class="team-card-section-title">Roster</div>
             {% if team.active_roster %}
                 <div class="team-roster-role-grid">
@@ -113,7 +112,7 @@
                 <div class="team-empty-mini">No roster</div>
             {% endif %}
         </div>
-        <div class="team-card-section">
+        <div class="team-card-section team-card-section-detail">
             <div class="team-card-section-title">Staff</div>
             {% if team.staff %}
                 <div class="team-staff-list">
@@ -126,10 +125,12 @@
             {% endif %}
         </div>
     </a>
-    <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">Open Team</a>
-    <div class="team-dash-players">{{ team.active_roster_count }} roster{% if team.staff %} / {{ team.staff|length }} staff{% endif %}</div>
+    <div class="team-dash-footer">
+        <a class="team-dash-stats-link" href="{{ url_for('team_detail', team_id=team.id, season=selected_season) if selected_season != 'all' else url_for('team_detail', team_id=team.id) }}">Open</a>
+        <span class="team-dash-players">{{ team.active_roster_count }} roster{% if team.staff %} / {{ team.staff|length }} staff{% endif %}</span>
+    </div>
     {% if session.get('access_level') == 'edit' %}
-    <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="top-gap">
+    <form method="post" action="{{ url_for('toggle_team_quick_access', team_id=team.id) }}" class="team-pin-form">
         <input type="hidden" name="season" value="{{ selected_season }}">
         {% if team.is_personal %}
             <input type="hidden" name="action" value="remove">

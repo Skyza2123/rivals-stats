@@ -2,6 +2,8 @@
 
 {% block title %}{{ hero_display_name(hero_insights.hero) }} - {{ team.name }}{% endblock %}
 
+{% block chart_scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>{% endblock %}
+
 {% block content %}
 <div class="hero-detail-page">
 <div class="team-hero">
