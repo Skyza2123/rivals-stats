@@ -119,20 +119,7 @@
     <div class="panel-header-row">
         <h3>Team Comp</h3>
         {% if session.get('access_level') == 'edit' and ((map_submaps.get(map_entry.map_name) and map_entry.comp|length < map_submaps.get(map_entry.map_name)|length) or ((not map_submaps.get(map_entry.map_name)) and ((map_entry.map_name in attack_defense_maps and map_entry.comp|length < 2) or (map_entry.map_name not in attack_defense_maps and map_entry.comp|length < 4 and map_mode not in ['Escort', 'Hybrid'])))) %}
-        {% set used_submaps = map_entry.comp | map(attribute='submap') | list %}
-        <form method="post" action="{{ url_for(add_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}" style="display:inline;">
-            {% if map_submaps.get(map_entry.map_name) %}
-            <select name="next_submap" required>
-                <option value="">Choose next sub-map</option>
-                {% for submap_name in map_submaps.get(map_entry.map_name, []) %}
-                    {% if submap_name not in used_submaps %}
-                    <option value="{{ submap_name }}">{{ submap_name }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            {% endif %}
-            <button type="submit" class="button-small">+ Add Round</button>
-        </form>
+        <button type="button" class="button-small" onclick="openModal('addCompSectionModal')">+ Add Round</button>
         {% endif %}
     </div>
     {% for sec in map_entry.comp %}
@@ -357,9 +344,46 @@
 
 <!-- ==================== MODALS ==================== -->
 
+<!-- ADD COMP SECTION MODAL -->
+{% if ((map_submaps.get(map_entry.map_name) and map_entry.comp|length < map_submaps.get(map_entry.map_name)|length) or ((not map_submaps.get(map_entry.map_name)) and ((map_entry.map_name in attack_defense_maps and map_entry.comp|length < 2) or (map_entry.map_name not in attack_defense_maps and map_entry.comp|length < 4 and map_mode not in ['Escort', 'Hybrid'])))) %}
+{% set used_submaps = map_entry.comp | map(attribute='submap') | list %}
+<div class="modal-backdrop" id="addCompSectionModal" onclick="closeModalFromBackdrop(event, 'addCompSectionModal')">
+    <div class="modal modal-card-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>Add Team Comp</h2>
+                <p>Add the next round or sub-map for {{ map_entry.map_name }}.</p>
+            </div>
+            <button class="modal-close" type="button" onclick="closeModal('addCompSectionModal')">&times;</button>
+        </div>
+        <form method="post" action="{{ url_for(add_comp_section_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id, map_id=map_entry.id) }}">
+            {% if map_submaps.get(map_entry.map_name) %}
+            <div class="field">
+                <label for="next_submap">Sub-map</label>
+                <select id="next_submap" name="next_submap" required>
+                    <option value="">Choose next sub-map</option>
+                    {% for submap_name in map_submaps.get(map_entry.map_name, []) %}
+                        {% if submap_name not in used_submaps %}
+                        <option value="{{ submap_name }}">{{ submap_name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <p class="panel-intro">A new comp section will be added after the current {{ map_entry.comp|length }} section{{ 's' if map_entry.comp|length != 1 else '' }}.</p>
+            {% endif %}
+            <div class="button-row">
+                <button type="submit">Add Round</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('addCompSectionModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <!-- EDIT INFO MODAL -->
-<div class="modal-backdrop" id="editInfoModal">
-    <div class="modal">
+<div class="modal-backdrop" id="editInfoModal" onclick="closeModalFromBackdrop(event, 'editInfoModal')">
+    <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Edit Map Info</h2>
             <button class="modal-close" onclick="closeModal('editInfoModal')">&times;</button>
@@ -447,8 +471,8 @@
 {% set left_round_side = ('Defense' if s is even else 'Attack') if is_attack_defense_round else '' %}
 {% set right_round_side = ('Attack' if left_round_side == 'Defense' else 'Defense') if is_attack_defense_round else '' %}
 {% set selected_round_side = left_round_side if is_attack_defense_round else sec.side %}
-<div class="modal-backdrop" id="editCompSectionModal{{ s }}">
-    <div class="modal modal-wide">
+<div class="modal-backdrop" id="editCompSectionModal{{ s }}" onclick="closeModalFromBackdrop(event, 'editCompSectionModal{{ s }}')">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Edit Team Comp - {{ comp_section_label }}</h2>
             <button class="modal-close" onclick="closeModal('editCompSectionModal{{ s }}')">&times;</button>
@@ -618,8 +642,8 @@
 </datalist>
 
 <!-- EDIT DRAFT MODAL -->
-<div class="modal-backdrop" id="draftModal">
-    <div class="modal modal-wide">
+<div class="modal-backdrop" id="draftModal" onclick="closeModalFromBackdrop(event, 'draftModal')">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Edit Draft</h2>
             <button class="modal-close" onclick="closeModal('draftModal')">&times;</button>
@@ -691,8 +715,8 @@
 </div>
 
 <!-- EDIT EVENT MODAL -->
-<div class="modal-backdrop" id="editEventModal">
-    <div class="modal">
+<div class="modal-backdrop" id="editEventModal" onclick="closeModalFromBackdrop(event, 'editEventModal')">
+    <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Edit First Action</h2>
             <button class="modal-close" onclick="closeModal('editEventModal')">&times;</button>
@@ -746,8 +770,8 @@
 </div>
 
 <!-- ADD EVENT MODAL -->
-<div class="modal-backdrop" id="addEventModal">
-    <div class="modal">
+<div class="modal-backdrop" id="addEventModal" onclick="closeModalFromBackdrop(event, 'addEventModal')">
+    <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Log First Action</h2>
             <button class="modal-close" onclick="closeModal('addEventModal')">&times;</button>
@@ -813,8 +837,8 @@
 </div>
 
 <!-- EDIT VOD MODAL -->
-<div class="modal-backdrop" id="editVodModal">
-    <div class="modal">
+<div class="modal-backdrop" id="editVodModal" onclick="closeModalFromBackdrop(event, 'editVodModal')">
+    <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Edit VOD Link</h2>
             <button class="modal-close" onclick="closeModal('editVodModal')">&times;</button>
@@ -833,8 +857,8 @@
 </div>
 
 <!-- EDIT NOTES MODAL -->
-<div class="modal-backdrop" id="editNotesModal">
-    <div class="modal">
+<div class="modal-backdrop" id="editNotesModal" onclick="closeModalFromBackdrop(event, 'editNotesModal')">
+    <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Edit Map Notes</h2>
             <button class="modal-close" onclick="closeModal('editNotesModal')">&times;</button>
@@ -906,12 +930,19 @@ document.addEventListener('DOMContentLoaded', function() {
 /* ── Modal open/close ── */
 function openModal(id) {
     hydrateModalHeroImages(id);
-    document.getElementById(id).classList.add('show');
+    var modal = document.getElementById(id);
+    if (modal) modal.classList.add('show');
 }
 function closeModal(id) {
-    document.getElementById(id).classList.remove('show');
+    var modal = document.getElementById(id);
+    if (modal) modal.classList.remove('show');
     if (typeof hideCompAssignHover === 'function') {
         hideCompAssignHover(true);
+    }
+}
+function closeModalFromBackdrop(event, id) {
+    if (event.target && event.target.id === id) {
+        closeModal(id);
     }
 }
 document.addEventListener('keydown', function(e) {
