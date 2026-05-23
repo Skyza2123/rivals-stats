@@ -7,13 +7,102 @@
 @app.route("/")
 def dashboard():
     db = get_db()
-    page_size = 6
+    page_size = 10
+    scrim_filter = (request.args.get("filter") or "all").strip().lower()
+    scrim_query = (request.args.get("q") or "").strip()
     try:
         current_page = max(1, int(request.args.get("page", "1")))
     except (TypeError, ValueError):
         current_page = 1
 
     scrims_desc = list(reversed(SCRIMS))
+    dashboard_scrim_team_filter_map = {}
+    for scrim in SCRIMS:
+        for team_name in (
+            (scrim.get("team_name") or "").strip(),
+            (scrim.get("enemy_team") or "").strip() or (scrim.get("opponent") or "").strip(),
+        ):
+            team_key = _compact_text(team_name)
+            if team_key and team_key not in dashboard_scrim_team_filter_map:
+                dashboard_scrim_team_filter_map[team_key] = team_name
+    dashboard_scrim_team_filters = [
+        {"value": f"team:{team_key}", "label": team_name}
+        for team_key, team_name in sorted(
+            dashboard_scrim_team_filter_map.items(),
+            key=lambda item: item[1].lower(),
+        )
+    ]
+    valid_scrim_filters = {"all", "without-team"} | {
+        option["value"] for option in dashboard_scrim_team_filters
+    }
+    if scrim_filter == "with-team":
+        scrim_filter = "all"
+    if scrim_filter not in valid_scrim_filters:
+        scrim_filter = "all"
+    if scrim_filter != "all" or scrim_query:
+        query_key = _compact_text(scrim_query)
+
+        def scrim_matches_dashboard_filters(scrim: dict) -> bool:
+            team_name = (scrim.get("team_name") or "").strip()
+            if scrim_filter == "without-team" and team_name:
+                return False
+            if scrim_filter.startswith("team:"):
+                selected_team_key = scrim_filter.split(":", 1)[1]
+                opponent_name_key = _compact_text(
+                    (scrim.get("enemy_team") or "").strip()
+                    or (scrim.get("opponent") or "").strip()
+                )
+                if selected_team_key not in {_compact_text(team_name), opponent_name_key}:
+                    return False
+            if not query_key:
+                return True
+            opponent_name = (
+                (scrim.get("enemy_team") or "").strip()
+                or (scrim.get("opponent") or "").strip()
+                or "Unknown"
+            )
+            searchable_parts = [
+                opponent_name,
+                team_name,
+                " ".join(str(player or "") for player in scrim.get("team1_players", [])),
+                " ".join(str(player or "") for player in scrim.get("team2_players", [])),
+                scrim.get("scrim_date", ""),
+                scrim.get("season", ""),
+                f"Season {scrim.get('season', '')}",
+                f"{len(scrim.get('maps', []))} maps",
+                scrim.get("notes", ""),
+            ]
+            for map_entry in scrim.get("maps", []):
+                if isinstance(map_entry, dict):
+                    searchable_parts.extend(
+                        [
+                            map_entry.get("map_name", ""),
+                            map_entry.get("map_type", ""),
+                            map_entry.get("result", ""),
+                            map_entry.get("score", ""),
+                        ]
+                    )
+                    for section in map_entry.get("comp", []):
+                        if not isinstance(section, dict):
+                            continue
+                        for side_key in ("team1", "team2"):
+                            for slot in section.get(side_key, []):
+                                if isinstance(slot, dict):
+                                    searchable_parts.extend([slot.get("player", ""), slot.get("hero", "")])
+                    for event in map_entry.get("events", []):
+                        if isinstance(event, dict):
+                            searchable_parts.extend(
+                                [
+                                    event.get("first_kill_player", ""),
+                                    event.get("first_death_player", ""),
+                                    event.get("first_kill_hero", ""),
+                                    event.get("first_death_hero", ""),
+                                    event.get("description", ""),
+                                ]
+                            )
+            return query_key in _compact_text(" ".join(str(part or "") for part in searchable_parts))
+
+        scrims_desc = [scrim for scrim in scrims_desc if scrim_matches_dashboard_filters(scrim)]
     total_scrim_records = len(scrims_desc)
     total_scrim_pages = max(1, (total_scrim_records + page_size - 1) // page_size)
     current_page = min(current_page, total_scrim_pages)
@@ -178,6 +267,42 @@ def dashboard():
     )
     dashboard_default_season = get_current_season_from_recent_scrim(SCRIMS)
     teams = db.execute("SELECT id, name FROM teams ORDER BY name COLLATE NOCASE").fetchall()
+    suggestion_team_rows = db.execute(
+        "SELECT id, name, quality_tag FROM teams ORDER BY name COLLATE NOCASE LIMIT 80"
+    ).fetchall()
+    suggestion_player_rows = db.execute(
+        """
+        SELECT p.id, p.team_id, p.name, p.role, t.name AS team_name
+        FROM players p
+        LEFT JOIN teams t ON t.id = p.team_id
+        WHERE COALESCE(p.is_sub, 0) = 0
+        ORDER BY p.name COLLATE NOCASE
+        LIMIT 140
+        """
+    ).fetchall()
+    dashboard_search_suggestions = [
+        {
+            "type": "Team",
+            "label": row["name"],
+            "meta": (row["quality_tag"] or "").strip(),
+            "url": url_for("team_detail", team_id=row["id"]),
+        }
+        for row in suggestion_team_rows
+        if (row["name"] or "").strip()
+    ] + [
+        {
+            "type": "Player",
+            "label": row["name"],
+            "meta": " · ".join(
+                part
+                for part in ((row["team_name"] or "").strip(), (row["role"] or "").strip())
+                if part
+            ),
+            "url": url_for("player_detail", team_id=row["team_id"], player_id=row["id"]),
+        }
+        for row in suggestion_player_rows
+        if (row["name"] or "").strip() and row["team_id"]
+    ]
     today = date.today().strftime("%Y-%m-%d")
 
     return render_template(
@@ -193,6 +318,9 @@ def dashboard():
         scrim_page_size=page_size,
         scrim_total_pages=total_scrim_pages,
         scrim_total_count=total_scrim_records,
+        scrim_filter=scrim_filter,
+        dashboard_scrim_team_filters=dashboard_scrim_team_filters,
+        scrim_query=scrim_query,
         recent_tournaments=list(reversed(TOURNAMENT_MATCHES[-5:])),
         top_picks=top_picks,
         top_bans=top_bans,
@@ -207,6 +335,7 @@ def dashboard():
         dashboard_season_options=dashboard_season_options,
         dashboard_default_season=dashboard_default_season,
         dashboard_has_unseasoned_scrims=dashboard_has_unseasoned_scrims,
+        dashboard_search_suggestions=dashboard_search_suggestions,
         teams=teams,
         today=today,
         map_type_options=MAP_TYPES,
@@ -2194,9 +2323,23 @@ def team_detail(team_id: int):
         get_map_outcome_for_slot=get_map_outcome_for_slot,
     )
     hero_graph_rows = team_hero_profile.get("top_heroes", [])
+    timeline_heroes: list[str] = []
+
+    def _append_timeline_hero(hero_name: str) -> None:
+        hero_clean = (hero_name or "").strip()
+        if hero_clean and hero_clean not in timeline_heroes:
+            timeline_heroes.append(hero_clean)
+
+    for row in hero_graph_rows[:15]:
+        _append_timeline_hero(row.get("hero", ""))
+    for row in (team_analytics.get("ban_rows") or [])[:6]:
+        _append_timeline_hero(row.get("hero", ""))
+    for row in (team_analytics.get("protect_rows") or [])[:6]:
+        _append_timeline_hero(row.get("hero", ""))
+
     hero_usage_timeline = build_hero_usage_timeline(
         team_scrims,
-        [row["hero"] for row in hero_graph_rows[:6]],
+        timeline_heroes[:18],
         team_slots=TEAM_SLOTS,
         canonical_map_hero_instances=_canonical_map_hero_instances,
     )

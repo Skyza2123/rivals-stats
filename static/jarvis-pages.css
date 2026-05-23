@@ -1,3 +1,4 @@
+/* Page-level Jarvis refinements loaded after the base Jarvis theme. */
 .jarvis-app .draft-sim-shell .draft-sim-hero {
   grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
   gap: 16px;
@@ -383,6 +384,135 @@
   .jarvis-app .tdash-mini-kpis,
   .jarvis-app .team-scout-preview-filter-grid,
   .jarvis-app .team-scout-prep-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Teams index needs wider cards than the compact Recent Scrim Log grid. */
+.jarvis-app #tab-all > .parser-scrim-grid:not(.teams-row-list),
+.jarvis-app #tab-personal > .parser-scrim-grid:not(.teams-row-list) {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.jarvis-app .team-dash-card {
+  min-width: 0;
+  min-height: 148px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "main"
+    "footer"
+    "pin";
+  gap: 10px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.jarvis-app .team-dash-main {
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-areas:
+    "logo title"
+    "logo badges"
+    "logo note"
+    "stats stats";
+  column-gap: 12px;
+  row-gap: 3px;
+  min-width: 0;
+}
+
+.jarvis-app .team-dash-logo {
+  width: 48px;
+  height: 48px;
+}
+
+.jarvis-app .team-dash-title {
+  max-width: 100%;
+  padding-right: 0;
+  font-size: 0.98rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jarvis-app .team-dash-badges,
+.jarvis-app .team-dash-stats,
+.jarvis-app .team-dash-footer {
+  min-width: 0;
+}
+
+.jarvis-app .team-dash-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.jarvis-app .team-dash-stats span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.jarvis-app .team-dash-footer {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.jarvis-app .team-pin-form {
+  justify-self: end;
+  align-self: end;
+}
+
+.jarvis-app .teams-row-list.parser-scrim-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.jarvis-app .team-row-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+}
+
+.jarvis-app .team-row-main {
+  grid-template-columns: 48px minmax(150px, 0.9fr) minmax(180px, 0.8fr) minmax(220px, 1.1fr) minmax(150px, 0.7fr);
+  min-width: 0;
+}
+
+.jarvis-app .team-row-actions {
+  min-width: 82px;
+}
+
+.jarvis-app .teams-wr-chart-wrap {
+  min-height: 220px;
+  height: 220px;
+  overflow: hidden;
+}
+
+.jarvis-app .teams-wr-chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .jarvis-app #tab-all > .parser-scrim-grid:not(.teams-row-list),
+  .jarvis-app #tab-personal > .parser-scrim-grid:not(.teams-row-list) {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
+  .jarvis-app .team-row-card {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .team-row-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 560px) {
+  .jarvis-app .team-dash-stats {
     grid-template-columns: 1fr;
   }
 }

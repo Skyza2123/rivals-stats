@@ -2076,26 +2076,177 @@
         </div>
     </section>
 
+    <section class="panel top-gap">
+        {% set pool_top = hero_graph_rows[0] if hero_graph_rows else None %}
+        {% set pool_second = hero_graph_rows[1] if hero_graph_rows|length > 1 else None %}
+        {% set draft_top_ban = team_analytics.ban_rows[0] if team_analytics.ban_rows else None %}
+        {% set draft_top_protect = team_analytics.protect_rows[0] if team_analytics.protect_rows else None %}
+        <div class="section-kicker">Hero Pool Read</div>
+        <h3>Scouting Read Before Hero Cards</h3>
+        <div class="hero-pool-read-grid top-gap">
+            <article class="hero-pool-read-card">
+                <strong>Core Identity</strong>
+                <p>
+                    {% if pool_top %}
+                        {{ hero_display_name(pool_top.hero) }} is the anchor at {{ pool_top.usage_rate }}% usage share.
+                        {% if pool_second %}{{ hero_display_name(pool_second.hero) }} is the secondary lane at {{ pool_second.usage_rate }}%.{% endif %}
+                    {% else %}
+                        No stable core identity read yet from the current sample.
+                    {% endif %}
+                </p>
+            </article>
+            <article class="hero-pool-read-card">
+                <strong>Draft Pressure</strong>
+                <p>
+                    {% if draft_top_protect or draft_top_ban %}
+                        {% if draft_top_protect %}Protects lean to {{ hero_display_name(draft_top_protect.hero) }} ({{ draft_top_protect.protect_rate }}%).{% endif %}
+                        {% if draft_top_ban %} Opponents most target {{ hero_display_name(draft_top_ban.hero) }} ({{ draft_top_ban.ban_rate }}%).{% endif %}
+                    {% else %}
+                        Draft pressure is still low-signal in this filter window.
+                    {% endif %}
+                </p>
+            </article>
+            <article class="hero-pool-read-card">
+                <strong>Pool Shape</strong>
+                <p>
+                    Effective pool is {{ team_hero_profile.summary.effective_pool }} heroes out of {{ team_hero_profile.summary.total_heroes }} tracked,
+                    with diversity score {{ team_hero_profile.summary.diversity_score }}.
+                </p>
+            </article>
+            <article class="hero-pool-read-card">
+                <strong>Prep Note</strong>
+                <p>Start prep from core and draft-relevant heroes, then add rotation and low-sample picks only for map-specific branches.</p>
+            </article>
+        </div>
+    </section>
+
     <section class="panel top-gap hero-browser-panel">
         <div class="section-kicker">Hero Browser</div>
         <h3>All Played Heroes</h3>
         <p class="panel-intro">Every hero played for {{ team.name }} under the current season and map filters. Click a card to open the hero page.</p>
         {% if hero_graph_rows %}
-            <div class="hero-card-grid team-hero-card-grid top-gap">
+            <div class="hero-browser-controls top-gap">
+                <label>
+                    <span class="hero-control-label">Search</span>
+                    <input id="heroBrowserSearch" type="search" placeholder="Find hero or main player">
+                </label>
+                <label>
+                    <span class="hero-control-label">Role</span>
+                    <select id="heroBrowserRoleFilter">
+                        <option value="all">All Roles</option>
+                        <option value="vanguard">Vanguard</option>
+                        <option value="duelist">Duelist</option>
+                        <option value="strategist">Strategist</option>
+                        <option value="flex">Flex / Unknown</option>
+                    </select>
+                </label>
+                <label>
+                    <span class="hero-control-label">Sort</span>
+                    <select id="heroBrowserSort">
+                        <option value="usage">Usage</option>
+                        <option value="win-rate">Win Rate</option>
+                        <option value="instances">Instances</option>
+                        <option value="draft">Draft Relevance</option>
+                        <option value="recent">Recent Usage</option>
+                    </select>
+                </label>
+            </div>
+            <div class="hero-card-grid team-hero-card-grid top-gap" id="heroBrowserGrid">
                 {% for row in hero_graph_rows %}
-                    <a class="hero-card team-hero-card" href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season, map_type=selected_map_type) }}">
+                    {% set role_name = namespace(value='Flex') %}
+                    {% for hr_role_name, hr_role_heroes in hero_roles.items() %}
+                        {% if row.hero in hr_role_heroes %}{% set role_name.value = hr_role_name %}{% endif %}
+                    {% endfor %}
+
+                    {% set hero_idx = namespace(value=-1) %}
+                    {% for hero_name in team_hero_profile.heatmap_columns %}
+                        {% if hero_name == row.hero %}{% set hero_idx.value = loop.index0 %}{% endif %}
+                    {% endfor %}
+                    {% set hero_main = namespace(name='--', count=0) %}
+                    {% if hero_idx.value >= 0 %}
+                        {% for prow in team_hero_profile.heatmap_rows %}
+                            {% set cell = prow.cells[hero_idx.value] %}
+                            {% if cell.count > hero_main.count %}
+                                {% set hero_main.count = cell.count %}
+                                {% set hero_main.name = prow.player_name %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    {% set draft = namespace(ban_rate=0, protect_rate=0) %}
+                    {% for drow in team_analytics.ban_rows %}
+                        {% if drow.hero == row.hero %}{% set draft.ban_rate = drow.ban_rate %}{% endif %}
+                    {% endfor %}
+                    {% for drow in team_analytics.protect_rows %}
+                        {% if drow.hero == row.hero %}{% set draft.protect_rate = drow.protect_rate %}{% endif %}
+                    {% endfor %}
+
+                    {% set usage_tier = 'Pocket Pick' %}
+                    {% if row.appearances <= 1 %}
+                        {% set usage_tier = 'Low Sample' %}
+                    {% elif row.usage_rate >= 16 %}
+                        {% set usage_tier = 'Core Pick' %}
+                    {% elif row.usage_rate >= 8 %}
+                        {% set usage_tier = 'Rotation Pick' %}
+                    {% endif %}
+
+                    {% set draft_status = 'Rarely Targeted' %}
+                    {% if draft.protect_rate >= 18 %}
+                        {% set draft_status = 'Protect Priority' %}
+                    {% elif draft.ban_rate >= 18 %}
+                        {% set draft_status = 'Ban Target' %}
+                    {% elif (draft.ban_rate + draft.protect_rate) >= 8 %}
+                        {% set draft_status = 'Stable Pick' %}
+                    {% endif %}
+
+                    <a class="hero-card team-hero-card hero-scout-card"
+                       href="{{ url_for('team_hero_detail', team_id=team.id, hero_name=row.hero, season=selected_season, map_type=selected_map_type) }}"
+                       data-hero="{{ row.hero | lower }}"
+                       data-main-player="{{ hero_main.name | lower }}"
+                       data-role="{{ role_name.value | lower }}"
+                       data-usage="{{ row.usage_rate }}"
+                       data-win-rate="{{ row.win_rate }}"
+                       data-instances="{{ row.appearances }}"
+                       data-draft-relevance="{{ draft.ban_rate + draft.protect_rate }}"
+                       data-recent-usage="{{ row.usage_rate }}"
+                       data-tier="{{ usage_tier | lower }}">
                         <div class="hero-image-wrapper">
                             <img class="hero-image" src="{{ hero_image_url(row.hero) }}" alt="{{ row.hero }}" loading="lazy" onerror="this.src='https://via.placeholder.com/220/111827/e6edf3?text={{ row.hero | urlencode }}'">
                         </div>
-                        <div class="hero-card-info">
-                            <span class="hero-card-name">{{ hero_display_name(row.hero) }}</span>
-                            <span class="hero-card-stat">{{ row.appearances }} instances</span>
-                            <span class="hero-card-stat">{{ row.usage_rate }}% usage share</span>
-                            <span class="hero-card-rate {% if row.win_rate >= 60 %}wr-good{% elif row.win_rate >= 40 %}wr-ok{% else %}wr-bad{% endif %}">{{ row.win_rate }}% WR</span>
+                        <div class="hero-card-info hero-card-info-left">
+                            <div class="hero-card-head-row">
+                                <span class="hero-card-name">{{ hero_display_name(row.hero) }}</span>
+                                <span class="compare-tag compare-tag-neutral hero-tier-pill">{{ usage_tier }}</span>
+                            </div>
+                            <div class="hero-card-kpis">
+                                <span class="hero-card-rate {% if row.win_rate >= 60 %}wr-good{% elif row.win_rate >= 40 %}wr-ok{% else %}wr-bad{% endif %}">{{ row.win_rate }}% WR</span>
+                                <span class="hero-card-pill">{{ row.usage_rate }}% usage</span>
+                                <span class="hero-card-pill">{{ row.appearances }} instances</span>
+                            </div>
+                            <div class="hero-card-meta-grid">
+                                <span class="hero-card-meta">
+                                    <span class="hero-card-meta-label">Main player</span>
+                                    <strong>{{ hero_main.name }}</strong>
+                                </span>
+                                <span class="hero-card-meta">
+                                    <span class="hero-card-meta-label">Players on hero</span>
+                                    <strong>{{ row.player_count }}</strong>
+                                </span>
+                                <span class="hero-card-meta hero-card-meta-wide">
+                                    <span class="hero-card-meta-label">Draft read</span>
+                                    <strong>{{ draft_status }}</strong>
+                                </span>
+                                <span class="hero-card-meta">
+                                    <span class="hero-card-meta-label">Recent trend</span>
+                                    <strong class="hero-trend-pill js-hero-trend">Stable</strong>
+                                </span>
+                            </div>
+                            <span class="hero-card-link-label">Open hero page</span>
                         </div>
                     </a>
                 {% endfor %}
             </div>
+            <p class="empty-text top-gap" id="heroBrowserEmpty" hidden>No heroes match the current search/filter settings.</p>
         {% else %}
             <p class="empty-text top-gap">No hero usage data yet.</p>
         {% endif %}
@@ -2104,16 +2255,43 @@
     {% if hero_graph_rows %}
     <section class="panel top-gap">
         <div class="section-kicker">Role Breakdown</div>
-        <h3>Role Distribution</h3>
+        <h3>Hero Pool Shape</h3>
         <p class="panel-intro">Total hero appearances broken down by role across all tracked maps.</p>
         <script id="teamHeroGraphData" type="application/json">{{ hero_graph_rows | tojson }}</script>
-        <div class="hero-charts-split top-gap">
-            <div class="role-donut-wrap">
-                <canvas id="teamRoleDonutChart"></canvas>
+        {% set role_shape = namespace(vanguard=0, duelist=0, strategist=0) %}
+        {% for row in hero_graph_rows %}
+            {% set this_role = 'Duelist' %}
+            {% for hr_role_name, hr_role_heroes in hero_roles.items() %}
+                {% if row.hero in hr_role_heroes %}{% set this_role = hr_role_name %}{% endif %}
+            {% endfor %}
+            {% if this_role == 'Vanguard' %}{% set role_shape.vanguard = role_shape.vanguard + row.appearances %}{% endif %}
+            {% if this_role == 'Duelist' %}{% set role_shape.duelist = role_shape.duelist + row.appearances %}{% endif %}
+            {% if this_role == 'Strategist' %}{% set role_shape.strategist = role_shape.strategist + row.appearances %}{% endif %}
+        {% endfor %}
+        {% set role_total = role_shape.vanguard + role_shape.duelist + role_shape.strategist %}
+        <div class="hero-pool-shape-grid top-gap">
+            <div class="hero-charts-split">
+                <div class="role-donut-wrap">
+                    <canvas id="teamRoleDonutChart"></canvas>
+                </div>
+                <div class="hero-pool-bar-wrap">
+                    <canvas id="teamHeroPoolBarChart"></canvas>
+                </div>
             </div>
-            <div class="hero-pool-bar-wrap">
-                <canvas id="teamHeroPoolBarChart"></canvas>
-            </div>
+            <aside class="hero-pool-shape-reads">
+                <article>
+                    <strong>Role Weight</strong>
+                    <span>{% if role_total %}Duelist {{ ((role_shape.duelist / role_total) * 100) | round(1) }}%, Vanguard {{ ((role_shape.vanguard / role_total) * 100) | round(1) }}%, Strategist {{ ((role_shape.strategist / role_total) * 100) | round(1) }}%.{% else %}No role spread sample yet.{% endif %}</span>
+                </article>
+                <article>
+                    <strong>Draft Signal</strong>
+                    <span>{% if team_analytics.ban_rows %}Most pressured hero is {{ hero_display_name(team_analytics.ban_rows[0].hero) }} at {{ team_analytics.ban_rows[0].ban_rate }}%.{% else %}Opponent target trends are not stable yet.{% endif %}</span>
+                </article>
+                <article>
+                    <strong>Scouting Read</strong>
+                    <span>Use this shape to prioritize prep coverage by role lane, then branch into map-specific flex answers.</span>
+                </article>
+            </aside>
         </div>
     </section>
     {% endif %}
@@ -2122,16 +2300,27 @@
         <div class="section-kicker">Usage Trend</div>
         <h3>Hero Usage Over Time</h3>
         {% if hero_usage_timeline.labels and hero_usage_timeline.series %}
-            <div class="chart-legend hero-usage-legend top-gap">
-                {% for line in hero_usage_timeline.series %}
-                    <span class="chart-legend-item">
-                        <img src="{{ hero_image_url(line.hero) }}" alt="{{ line.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ line.hero | urlencode }}'">
-                        <span>{{ hero_display_name(line.hero) }}</span>
-                    </span>
-                {% endfor %}
+            <div class="hero-usage-controls top-gap">
+                <div class="hero-usage-toggle-group" id="heroUsageModeButtons">
+                    <button type="button" class="button-secondary button-small" data-mode="top">Top 5</button>
+                    <button type="button" class="button-secondary button-small" data-mode="core">Core Heroes</button>
+                    <button type="button" class="button-secondary button-small" data-mode="draft">Draft-Relevant</button>
+                </div>
+                <label>
+                    <span class="hero-control-label">Role</span>
+                    <select id="heroUsageRoleFilter">
+                        <option value="all">All Roles</option>
+                        <option value="vanguard">Vanguard</option>
+                        <option value="duelist">Duelist</option>
+                        <option value="strategist">Strategist</option>
+                        <option value="flex">Flex / Unknown</option>
+                    </select>
+                </label>
             </div>
-            <div class="enemy-trend-chart-wrap top-gap" style="position:relative;">
-                <canvas id="heroUsageTimelineChart" width="980" height="320"></canvas>
+            <div class="chart-legend hero-usage-legend top-gap" id="heroUsageLegend"></div>
+            <p class="empty-text" id="heroUsageEmpty" hidden>No heroes match the selected timeline controls.</p>
+            <div class="enemy-trend-chart-wrap top-gap" id="heroUsageTimelineWrap">
+                <canvas id="heroUsageTimelineChart"></canvas>
                 <div id="heroUsageTimelineTooltip" class="chart-tooltip" hidden></div>
             </div>
             <script id="heroUsageTimelineData" type="application/json">{{ hero_usage_timeline | tojson }}</script>
@@ -4409,62 +4598,265 @@ if (document.readyState !== 'complete') {
 }
 
 (() => {
+    const grid = document.getElementById('heroBrowserGrid');
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('.team-hero-card'));
+    const searchInput = document.getElementById('heroBrowserSearch');
+    const roleFilter = document.getElementById('heroBrowserRoleFilter');
+    const sortSelect = document.getElementById('heroBrowserSort');
+    const empty = document.getElementById('heroBrowserEmpty');
+
+    const readNum = (el, key) => Number(el.dataset[key] || 0);
+
+    const update = () => {
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        const role = (roleFilter?.value || 'all').toLowerCase();
+        const sortBy = (sortSelect?.value || 'usage').toLowerCase();
+
+        cards.sort((a, b) => {
+            const cmpBy = (key) => readNum(b, key) - readNum(a, key);
+            if (sortBy === 'win-rate') return cmpBy('winRate') || cmpBy('usage');
+            if (sortBy === 'instances') return cmpBy('instances') || cmpBy('usage');
+            if (sortBy === 'draft') return cmpBy('draftRelevance') || cmpBy('usage');
+            if (sortBy === 'recent') return cmpBy('recentUsage') || cmpBy('usage');
+            return cmpBy('usage') || cmpBy('instances');
+        });
+        cards.forEach((card) => grid.appendChild(card));
+
+        let visibleCount = 0;
+        cards.forEach((card) => {
+            const cardRole = String(card.dataset.role || 'flex').toLowerCase();
+            const cardHero = String(card.dataset.hero || '').toLowerCase();
+            const cardMainPlayer = String(card.dataset.mainPlayer || '').toLowerCase();
+            const matchRole = role === 'all' || cardRole === role;
+            const matchQuery = !query || cardHero.includes(query) || cardMainPlayer.includes(query);
+            const visible = matchRole && matchQuery;
+            card.hidden = !visible;
+            if (visible) visibleCount += 1;
+        });
+
+        if (empty) empty.hidden = visibleCount > 0;
+    };
+
+    [searchInput, roleFilter, sortSelect].forEach((el) => {
+        if (!el) return;
+        el.addEventListener('input', update);
+        el.addEventListener('change', update);
+    });
+
+    update();
+})();
+
+(() => {
     const usagePayload = document.getElementById('heroUsageTimelineData')?.textContent || '';
     const usageTimeline = usagePayload ? JSON.parse(usagePayload) : null;
     const usageCanvas = document.getElementById('heroUsageTimelineChart');
     if (!usageCanvas || !usageTimeline?.labels?.length || !usageTimeline?.series?.length) return;
     if (typeof Chart === 'undefined') return;
 
+    const legendWrap = document.getElementById('heroUsageLegend');
+    const empty = document.getElementById('heroUsageEmpty');
+    const wrap = document.getElementById('heroUsageTimelineWrap');
+    const modeButtons = Array.from(document.querySelectorAll('#heroUsageModeButtons [data-mode]'));
+    const roleFilter = document.getElementById('heroUsageRoleFilter');
+
+    const heroCards = Array.from(document.querySelectorAll('#heroBrowserGrid .team-hero-card'));
+    const norm = (v) => String(v || '').trim().toLowerCase();
+    const avg = (arr) => arr.length ? arr.reduce((sum, v) => sum + Number(v || 0), 0) / arr.length : 0;
+
+    const heroMeta = new Map();
+    heroCards.forEach((card) => {
+        const key = norm(card.dataset.hero);
+        if (!key) return;
+        heroMeta.set(key, {
+            role: norm(card.dataset.role) || 'flex',
+            draftRelevance: Number(card.dataset.draftRelevance || 0),
+            usage: Number(card.dataset.usage || 0),
+            instances: Number(card.dataset.instances || 0),
+            displayName: String(card.querySelector('.hero-card-name')?.textContent || key),
+            imageSrc: card.querySelector('.hero-image')?.getAttribute('src') || '',
+            tier: norm(card.dataset.tier),
+        });
+    });
+
+    const seriesMeta = usageTimeline.series.map((line) => {
+        const key = norm(line.hero);
+        const meta = heroMeta.get(key) || { role: 'flex', draftRelevance: 0, usage: 0, instances: 0, displayName: line.hero, imageSrc: '', tier: '' };
+        const values = Array.isArray(line.values) ? line.values.map((v) => Number(v || 0)) : [];
+        const recentSlice = values.slice(-3);
+        const priorSlice = values.slice(Math.max(0, values.length - 6), Math.max(0, values.length - 3));
+        const recentAvg = avg(recentSlice);
+        const priorAvg = avg(priorSlice.length ? priorSlice : values.slice(0, Math.max(0, values.length - 3)));
+        const delta = recentAvg - priorAvg;
+
+        let trend = 'Stable';
+        if (values.length && values[values.length - 1] <= 0.2 && priorAvg >= 3) trend = 'Dropped';
+        else if (delta >= 3) trend = 'Rising';
+        else if (delta <= -3) trend = 'Cooling Off';
+
+        return {
+            hero: line.hero,
+            key,
+            values,
+            role: meta.role,
+            draftRelevance: meta.draftRelevance,
+            usage: meta.usage,
+            instances: meta.instances,
+            recentUsage: Number(recentAvg.toFixed(1)),
+            trend,
+            displayName: meta.displayName,
+            imageSrc: meta.imageSrc,
+            tier: meta.tier,
+        };
+    });
+
+    heroCards.forEach((card) => {
+        const key = norm(card.dataset.hero);
+        const stat = seriesMeta.find((item) => item.key === key);
+        if (!stat) return;
+        card.dataset.recentUsage = String(stat.recentUsage);
+        const trendEl = card.querySelector('.js-hero-trend');
+        if (!trendEl) return;
+        trendEl.textContent = stat.trend;
+        trendEl.classList.remove('hero-trend-stable', 'hero-trend-rising', 'hero-trend-cooling', 'hero-trend-dropped');
+        if (stat.trend === 'Rising') trendEl.classList.add('hero-trend-rising');
+        else if (stat.trend === 'Cooling Off') trendEl.classList.add('hero-trend-cooling');
+        else if (stat.trend === 'Dropped') trendEl.classList.add('hero-trend-dropped');
+        else trendEl.classList.add('hero-trend-stable');
+    });
+
     const rootStyle = getComputedStyle(document.documentElement);
     const chartGrid = (rootStyle.getPropertyValue('--chart-grid') || '').trim() || 'rgba(148,163,184,0.25)';
     const chartLabel = (rootStyle.getPropertyValue('--chart-label') || '').trim() || '#94a3b8';
 
-    const colors = ['#60a5fa', '#f97316', '#34d399', '#facc15', '#f472b6', '#a78bfa'];
-    const existing = Chart.getChart(usageCanvas);
-    if (existing) existing.destroy();
+    const colors = ['#60a5fa', '#f97316', '#34d399', '#facc15', '#f472b6', '#a78bfa', '#22d3ee', '#fb7185'];
+    let mode = seriesMeta.some((row) => row.draftRelevance >= 8) ? 'draft' : 'top';
 
-    new Chart(usageCanvas, {
-        type: 'line',
-        data: {
-            labels: usageTimeline.labels,
-            datasets: usageTimeline.series.map((line, i) => ({
-                label: line.hero,
-                data: line.values,
-                borderColor: colors[i % colors.length],
-                backgroundColor: colors[i % colors.length] + '22',
-                fill: false,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                tension: 0.25,
-                borderWidth: 2.5,
-            }))
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 400 },
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: { display: true, position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%`
+    const renderLegend = (rows) => {
+        if (!legendWrap) return;
+        legendWrap.innerHTML = rows.map((row) => {
+            const image = row.imageSrc
+                ? `<img src="${row.imageSrc}" alt="${row.hero}" class="hero-inline-thumb">`
+                : '';
+            return `<span class="chart-legend-item">${image}<span>${row.displayName}</span></span>`;
+        }).join('');
+    };
+
+    const byUsage = (a, b) => b.usage - a.usage || b.instances - a.instances;
+
+    const pickRows = () => {
+        const role = norm(roleFilter?.value || 'all');
+        let rows = seriesMeta.slice();
+
+        if (mode === 'draft') {
+            rows = rows.filter((row) => row.draftRelevance >= 8);
+            rows.sort((a, b) => b.draftRelevance - a.draftRelevance || byUsage(a, b));
+            rows = rows.slice(0, 6);
+        } else if (mode === 'core') {
+            rows = rows.filter((row) => row.usage >= 8 || row.tier === 'core pick' || row.tier === 'rotation pick');
+            rows.sort(byUsage);
+            rows = rows.slice(0, 6);
+        } else {
+            rows.sort(byUsage);
+            rows = rows.slice(0, 5);
+        }
+
+        if (role !== 'all') {
+            rows = rows.filter((row) => row.role === role);
+        }
+
+        return rows;
+    };
+
+    const draw = () => {
+        const rows = pickRows();
+        if (empty) empty.hidden = rows.length > 0;
+        if (wrap) wrap.hidden = rows.length === 0;
+
+        modeButtons.forEach((btn) => {
+            const active = btn.dataset.mode === mode;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+
+        renderLegend(rows);
+
+        const existing = Chart.getChart(usageCanvas);
+        if (existing) existing.destroy();
+        if (!rows.length) return;
+
+        new Chart(usageCanvas, {
+            type: 'line',
+            data: {
+                labels: usageTimeline.labels,
+                datasets: rows.map((row, i) => ({
+                    label: row.displayName,
+                    data: row.values,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: colors[i % colors.length] + '22',
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.25,
+                    borderWidth: 2.5,
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                interaction: { mode: 'index', intersect: false },
+                layout: {
+                    padding: { top: 10, right: 10, bottom: 4, left: 4 }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => items[0]?.label || '',
+                            label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: chartGrid },
+                        ticks: {
+                            color: chartLabel,
+                            autoSkip: true,
+                            maxTicksLimit: 8,
+                            maxRotation: 0,
+                            callback: function (value) {
+                                var raw = this.getLabelForValue(value) || '';
+                                if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(5, 10);
+                                return raw.length > 14 ? raw.slice(0, 14) + '…' : raw;
+                            }
+                        }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: { color: chartGrid },
+                        ticks: { callback: v => v + '%', color: chartLabel, maxTicksLimit: 6 }
                     }
                 }
-            },
-            scales: {
-                x: {
-                    grid: { color: chartGrid },
-                    ticks: { color: chartLabel }
-                },
-                y: {
-                    min: 0, max: 100,
-                    grid: { color: chartGrid },
-                    ticks: { callback: v => v + '%', color: chartLabel }
-                }
             }
-        }
+        });
+    };
+
+    modeButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            mode = btn.dataset.mode || 'top';
+            draw();
+        });
     });
+    roleFilter?.addEventListener('change', draw);
+
+    draw();
+
+    const heroSort = document.getElementById('heroBrowserSort');
+    heroSort?.dispatchEvent(new Event('change'));
 })();
 
 /* ── New charts: Role Donut, Hero Pool Bar, Ban/Protect Bar, Map WR Bar ── */
@@ -4566,8 +4958,6 @@ if (document.readyState !== 'complete') {
         if (!total) return;
         var canvas = document.getElementById('teamRoleDonutChart');
         if (!canvas) return;
-        canvas.parentElement.style.maxWidth = '260px';
-        canvas.parentElement.style.margin = '0 auto';
         var existing = Chart.getChart(canvas);
         if (existing) existing.destroy();
         new Chart(canvas, {
@@ -4583,9 +4973,19 @@ if (document.readyState !== 'complete') {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 cutout: '62%',
                 plugins: {
-                    legend: { display: true, position: 'bottom' },
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            color: labelColor,
+                            usePointStyle: true,
+                            boxWidth: 10,
+                            padding: 14,
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function (ctx) {
@@ -4608,7 +5008,7 @@ if (document.readyState !== 'complete') {
         var labels   = rows.map(function (r) { return r.hero; });
         var apps     = rows.map(function (r) { return r.appearances; });
         var wrs      = rows.map(function (r) { return r.win_rate; });
-        canvas.parentElement.style.height = Math.max(200, rows.length * 34 + 60) + 'px';
+        canvas.parentElement.style.setProperty('--hero-pool-chart-height', Math.min(560, Math.max(320, rows.length * 30 + 90)) + 'px');
         var existing = Chart.getChart(canvas);
         if (existing) existing.destroy();
         new Chart(canvas, {
@@ -4644,8 +5044,21 @@ if (document.readyState !== 'complete') {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: { duration: 400 },
+                layout: {
+                    padding: { top: 8, right: 8, bottom: 0, left: 0 }
+                },
                 plugins: {
-                    legend: { display: true, position: 'top', labels: { color: labelColor } },
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'start',
+                        labels: {
+                            color: labelColor,
+                            usePointStyle: true,
+                            boxWidth: 10,
+                            padding: 14,
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function (ctx) {
@@ -4657,7 +5070,11 @@ if (document.readyState !== 'complete') {
                 },
                 scales: {
                     y: {
-                        ticks: { color: labelColor },
+                        ticks: {
+                            color: axisColor,
+                            autoSkip: false,
+                            font: { size: 11 }
+                        },
                         grid: { color: gridColor },
                     },
                     xCount: {

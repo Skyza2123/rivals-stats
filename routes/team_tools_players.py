@@ -73,7 +73,13 @@ def team_prep_fragment(team_id: int):
     ).fetchall()
     enemy_teams = [dict(row) for row in enemy_team_rows]
     player_rows = db.execute(
-        "SELECT id, name, role, main_hero, notes FROM players WHERE team_id = ? ORDER BY name COLLATE NOCASE",
+        """
+        SELECT id, name, role, main_hero, notes
+        FROM players
+        WHERE team_id = ?
+          AND COALESCE(role, '') NOT IN ('Coach', 'AC', 'Analyst')
+        ORDER BY name COLLATE NOCASE
+        """,
         (team_id,),
     ).fetchall()
 

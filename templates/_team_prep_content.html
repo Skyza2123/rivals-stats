@@ -1,4 +1,5 @@
-﻿<div class="prep-content-root">
+﻿{% from "_table_macros.html" import stats_table %}
+<div class="prep-content-root">
 {% set enemy_focus = prep_analytics.enemy_ban_rows[0] if prep_analytics.enemy_ban_rows else None %}
 {% set top_response = prep_analytics.ban_next_rows[0] if prep_analytics.ban_next_rows else None %}
 {% set top_protect = prep_analytics.ban_to_protect_rows[0] if prep_analytics.ban_to_protect_rows else None %}

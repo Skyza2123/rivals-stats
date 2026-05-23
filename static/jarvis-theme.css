@@ -1280,6 +1280,21 @@ body {
   padding: 20px;
 }
 
+.jarvis-app .parser-dash-command-bar {
+  overflow: visible;
+  position: relative;
+  z-index: 80;
+}
+
+.jarvis-app .parser-dash-log-panel {
+  padding: 18px;
+}
+
+.jarvis-app .parser-dash-log-panel.is-loading {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
 .jarvis-app .parser-dash-command-head {
   display: flex;
   align-items: flex-end;
@@ -1315,7 +1330,7 @@ body {
   border: 1px solid rgba(66, 232, 255, 0.18);
   background: rgba(4, 12, 24, 0.76);
   color: var(--j-muted);
-  padding: 0 12px;
+  padding: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 
@@ -1324,8 +1339,154 @@ body {
   min-height: 42px;
 }
 
+.jarvis-app .parser-dash-select-wrap select {
+  width: 100%;
+  padding: 0 38px 0 12px;
+  border: 0;
+  background: transparent;
+}
+
 .jarvis-app .parser-dash-search-wrap {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   min-width: min(420px, 72vw);
+  width: min(520px, 72vw);
+  padding: 0 14px;
+  position: relative;
+  z-index: 90;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(5, 20, 35, 0.92), rgba(3, 10, 20, 0.94));
+}
+
+.jarvis-app .parser-dash-search-wrap svg {
+  color: var(--j-muted);
+  opacity: 0.9;
+}
+
+.jarvis-app .parser-dash-search-wrap input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--j-text);
+}
+
+.jarvis-app .parser-dash-search-wrap input:focus,
+.jarvis-app .parser-dash-select-wrap select:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.jarvis-app .parser-dash-search-wrap:focus-within {
+  border-color: rgba(66, 232, 255, 0.48);
+  box-shadow: 0 0 0 3px rgba(66, 232, 255, 0.08), inset 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+.jarvis-app .dash-search-suggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 5000;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid rgba(66, 232, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(3, 12, 24, 0.98);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38), 0 0 28px rgba(66, 232, 255, 0.08);
+  max-height: 248px;
+  overflow-y: auto;
+}
+
+.jarvis-app .dash-search-suggestions[hidden] {
+  display: none;
+}
+
+.jarvis-app .dash-search-suggestion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 46px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--j-text);
+}
+
+.jarvis-app .dash-search-suggestion-pick {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.jarvis-app .dash-search-suggestion:hover,
+.jarvis-app .dash-search-suggestion:focus-within {
+  border-color: rgba(66, 232, 255, 0.28);
+  background: rgba(66, 232, 255, 0.08);
+}
+
+.jarvis-app .dash-search-suggestion-pick:hover,
+.jarvis-app .dash-search-suggestion-pick:focus-visible {
+  outline: none;
+  background: rgba(66, 232, 255, 0.06);
+}
+
+.jarvis-app .dash-search-suggestion-pick strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  line-height: 1.15;
+}
+
+.jarvis-app .dash-search-suggestion-pick small {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: var(--j-muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.jarvis-app .dash-search-suggestion-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(66, 232, 255, 0.24);
+  border-radius: 7px;
+  background: rgba(66, 232, 255, 0.08);
+  color: var(--j-cyan);
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.jarvis-app .dash-search-suggestion-open:hover,
+.jarvis-app .dash-search-suggestion-open:focus-visible {
+  outline: none;
+  border-color: rgba(66, 232, 255, 0.5);
+  background: rgba(66, 232, 255, 0.16);
+  color: var(--j-text);
 }
 
 .jarvis-app .parser-dash-count {
@@ -1437,54 +1598,69 @@ body {
 }
 
 .jarvis-app .parser-scrim-grid {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
 }
 
 .jarvis-app .parser-scrim-card {
-  min-height: 188px;
-  padding: 16px;
-  border-radius: 20px;
+  min-height: 126px;
+  height: 100%;
+  padding: 12px;
+  border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(8, 28, 48, 0.76), rgba(4, 12, 24, 0.92)),
-    linear-gradient(90deg, rgba(66, 232, 255, 0.06), transparent);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+    linear-gradient(180deg, rgba(8, 28, 48, 0.5), rgba(4, 12, 24, 0.82)),
+    linear-gradient(90deg, rgba(66, 232, 255, 0.035), transparent);
+  box-shadow: none;
 }
 
 .jarvis-app .parser-scrim-card:hover {
   border-color: rgba(66, 232, 255, 0.34);
-  box-shadow: 0 0 24px rgba(66, 232, 255, 0.08);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
 .jarvis-app .parser-scrim-kicker {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   color: var(--j-cyan);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 850;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
 }
 
 .jarvis-app .parser-scrim-title-row h3 {
-  font-size: 1.3rem;
+  font-size: 1.02rem;
+  line-height: 1.15;
 }
 
 .jarvis-app .parser-scrim-meta {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 .jarvis-app .parser-scrim-meta > div,
 .jarvis-app .parser-scrim-team-row {
-  border: 1px solid rgba(66, 232, 255, 0.12);
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(66, 232, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.018);
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.jarvis-app .parser-scrim-meta > div {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
 }
 
 .jarvis-app .parser-scrim-team-row {
+  margin-top: 10px;
   justify-content: flex-start;
+  min-height: 31px;
 }
 
 .jarvis-app .parser-team-dot {
@@ -1492,9 +1668,9 @@ body {
 }
 
 .jarvis-app .dash-pagination {
-  margin-top: 18px;
+  margin-top: 14px;
   justify-content: space-between;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid rgba(66, 232, 255, 0.12);
 }
 

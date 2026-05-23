@@ -23,9 +23,8 @@
     </script>
     <link rel="stylesheet" href="{{ static_asset_url('style.css') }}&rev=20260521d">
     <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme.css') }}&rev=20260521c">
-    <link rel="stylesheet" href="{{ static_asset_url('jarvis-overrides.css') }}&rev=20260521c">
-    <link rel="stylesheet" href="{{ static_asset_url('team-tabs-overrides.css') }}&rev=20260521c">
-    <link rel="stylesheet" href="{{ static_asset_url('team-detail-live-fixes.css') }}&rev=20260521c">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-pages.css') }}&rev=20260522a">
+    <link rel="stylesheet" href="{{ static_asset_url('team-dashboard.css') }}&rev=20260522a">
     {% block chart_scripts %}{% endblock %}
     <script>
     function getThemeCssVar(name, fallback) {
@@ -284,6 +283,38 @@
     }, true);
 
     window.addEventListener('pageshow', hideBusy);
+})();
+</script>
+<script>
+/* Global modal blur state */
+(function () {
+    function portalOpenModals() {
+        document.querySelectorAll('.modal-overlay.show, .modal-backdrop.show').forEach(function (modal) {
+            if (modal.parentElement !== document.body) {
+                document.body.appendChild(modal);
+            }
+        });
+    }
+
+    function hasOpenModal() {
+        return !!document.querySelector('.modal-overlay.show, .modal-backdrop.show');
+    }
+
+    function syncModalOpenState() {
+        portalOpenModals();
+        document.body.classList.toggle('modal-open', hasOpenModal());
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        syncModalOpenState();
+        var observer = new MutationObserver(syncModalOpenState);
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class'],
+            childList: true,
+            subtree: true
+        });
+    });
 })();
 </script>
 <script>

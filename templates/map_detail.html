@@ -929,6 +929,7 @@
 <script id="timelineFightNumbersData" type="application/json">
 {{ next_fight_number_by_round|tojson }}
 </script>
+<script id="nextFightNumberData" type="application/json">{{ (next_fight_number or 1)|tojson }}</script>
 
 <script>
 /* ── Tab Switching ── */
@@ -1948,12 +1949,21 @@ function copyPreviousCompSection(sectionIndex) {
 
 document.addEventListener('DOMContentLoaded', function() {
     const fightNumbersData = document.getElementById('timelineFightNumbersData');
+    const nextFightNumberData = document.getElementById('nextFightNumberData');
     let nextFightByRound = {};
+    let defaultNextFightNumber = 1;
     if (fightNumbersData) {
         try {
             nextFightByRound = JSON.parse(fightNumbersData.textContent || '{}') || {};
         } catch (error) {
             nextFightByRound = {};
+        }
+    }
+    if (nextFightNumberData) {
+        try {
+            defaultNextFightNumber = JSON.parse(nextFightNumberData.textContent || '1') || 1;
+        } catch (error) {
+            defaultNextFightNumber = 1;
         }
     }
 
@@ -1970,7 +1980,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fightRoundLabel.value = selected && selected.value ? selected.text : '';
         }
         if (fightNumber && shouldUseNextNumber) {
-            fightNumber.value = nextFightByRound[fightRound.value] || {{ next_fight_number or 1 }};
+            fightNumber.value = nextFightByRound[fightRound.value] || defaultNextFightNumber;
         }
     }
 

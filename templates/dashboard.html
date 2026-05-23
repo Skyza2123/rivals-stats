@@ -19,7 +19,7 @@
         <aside class="assistant-note green parser-dash-assistant">
             <b>Assistant Readout</b>
             {% if recent_scrims %}
-                Tracking {{ scrim_total_count or recent_scrims|length }} scrims with {{ total_maps }} maps and {{ total_events }} timeline events. Use the command bar to isolate assigned vs unassigned logs, then jump directly into recent opponent records below.
+                Tracking {{ scrim_total_count or recent_scrims|length }} scrims with {{ total_maps }} maps and {{ total_events }} timeline events. Use the command bar to isolate teams, unassigned logs, or direct search results, then jump into recent opponent records below.
             {% else %}
                 No scrim activity is currently loaded. The command surface is ready for first-entry setup through bulk upload or manual scrim creation.
             {% endif %}
@@ -43,15 +43,18 @@
             <div class="parser-dash-controls-left">
                 <label class="parser-dash-control parser-dash-select-wrap">
                     <select id="dashFilter" aria-label="Filter scrims">
-                        <option value="all">Filter: All</option>
-                        <option value="with-team">With Team</option>
-                        <option value="without-team">Without Team</option>
+                        <option value="all" {% if scrim_filter == 'all' %}selected{% endif %}>Filter: All</option>
+                        <option value="without-team" {% if scrim_filter == 'without-team' %}selected{% endif %}>Unassigned</option>
+                        {% for team_option in dashboard_scrim_team_filters %}
+                        <option value="{{ team_option.value }}" {% if scrim_filter == team_option.value %}selected{% endif %}>{{ team_option.label }}</option>
+                        {% endfor %}
                     </select>
                 </label>
-                <label class="parser-dash-control parser-dash-search-wrap">
+                <div class="parser-dash-control parser-dash-search-wrap">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <input id="dashSearch" type="search" placeholder="Search opponent or assigned team" aria-label="Search scrims">
-                </label>
+                    <input id="dashSearch" type="search" name="q" value="{{ scrim_query }}" placeholder="Search opponent, team" aria-label="Search scrims" autocomplete="off">
+                    <div id="dashSearchSuggestions" class="dash-search-suggestions" role="listbox" aria-label="Search suggestions" hidden></div>
+                </div>
             </div>
             <div class="parser-dash-controls-right">
                 <a class="button-secondary parser-dash-upload jarvis-button jarvis-button-secondary" href="{{ url_for('scrims') }}">Bulk Upload</a>
@@ -132,11 +135,11 @@
         </article>
     </section>
 
-    <section class="jarvis-panel parser-dash-log-panel">
+    <section class="jarvis-panel parser-dash-log-panel" id="dashScrimLogPanel">
         <div class="dashboard-module-head">
             <span class="dashboard-module-kicker">Tactical Readout</span>
             <h2>Recent Scrim Log</h2>
-            <span class="dashboard-module-meta">Latest opponent entries</span>
+            <span class="dashboard-module-meta">Showing {{ recent_scrims|length }} of {{ scrim_total_count }}</span>
         </div>
         {% if recent_scrims %}
         <div class="parser-scrim-grid" id="dashScrimGrid">
@@ -170,23 +173,31 @@
         {% if scrim_total_pages > 1 %}
         <nav class="dash-pagination" aria-label="Scrim pages">
             <a class="dash-page-link {% if scrim_page <= 1 %}is-disabled{% endif %}"
-                href="{% if scrim_page > 1 %}{{ url_for('dashboard', page=scrim_page-1) }}{% else %}#{% endif %}"
+                href="{% if scrim_page > 1 %}{{ url_for('dashboard', page=scrim_page-1, filter=scrim_filter, q=scrim_query) }}{% else %}#{% endif %}"
+                data-dashboard-page="true"
+                data-no-loading="true"
                 {% if scrim_page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
 
             <span class="dash-page-state">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>
 
             <a class="dash-page-link {% if scrim_page >= scrim_total_pages %}is-disabled{% endif %}"
-                href="{% if scrim_page < scrim_total_pages %}{{ url_for('dashboard', page=scrim_page+1) }}{% else %}#{% endif %}"
+                href="{% if scrim_page < scrim_total_pages %}{{ url_for('dashboard', page=scrim_page+1, filter=scrim_filter, q=scrim_query) }}{% else %}#{% endif %}"
+                data-dashboard-page="true"
+                data-no-loading="true"
                 {% if scrim_page >= scrim_total_pages %}aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
         </nav>
         {% endif %}
         <p class="empty-text parser-empty" id="dashEmptyState" hidden>No scrims match this filter.</p>
+        {% else %}
+        {% if scrim_query or scrim_filter != 'all' %}
+        <p class="empty-text parser-empty">No scrims match this search.</p>
         {% else %}
         <div class="assistant-note parser-empty-note">
             <b>Assistant Recommendation</b>
             Start by creating a scrim or importing a batch. Once data lands, this log becomes the operational feed for recent opponent activity.
         </div>
         <p class="empty-text parser-empty">No scrims yet. Create your first scrim.</p>
+        {% endif %}
         {% endif %}
     </section>
 </section>
@@ -248,43 +259,248 @@
 </div>
 {% endif %}
 
+<script id="dashboardSearchSuggestionsData" type="application/json">{{ dashboard_search_suggestions|tojson }}</script>
 <script>
 (function () {
-    var filterEl = document.getElementById('dashFilter');
-    var searchEl = document.getElementById('dashSearch');
-    var gridEl = document.getElementById('dashScrimGrid');
-    var countEl = document.getElementById('dashVisibleCount');
-    var emptyEl = document.getElementById('dashEmptyState');
-    if (!filterEl || !searchEl || !gridEl || !countEl) return;
-
-    var cards = Array.prototype.slice.call(gridEl.querySelectorAll('.parser-scrim-card'));
-
-    function applyFilters() {
-        var term = (searchEl.value || '').trim().toLowerCase();
-        var mode = filterEl.value;
-        var visible = 0;
-
-        cards.forEach(function (card) {
-            var opponent = card.getAttribute('data-opponent') || '';
-            var team = card.getAttribute('data-team') || '';
-            var hasTeam = card.getAttribute('data-has-team') === '1';
-
-            var modeOk = mode === 'all'
-                || (mode === 'with-team' && hasTeam)
-                || (mode === 'without-team' && !hasTeam);
-            var searchOk = !term || opponent.indexOf(term) !== -1 || team.indexOf(term) !== -1;
-            var show = modeOk && searchOk;
-
-            card.hidden = !show;
-            if (show) visible += 1;
-        });
-
-        countEl.textContent = String(visible);
-        if (emptyEl) emptyEl.hidden = visible !== 0;
+    var searchDebounce = null;
+    var activeSearchController = null;
+    var activeSearchRequestId = 0;
+    var suggestionsData = document.getElementById('dashboardSearchSuggestionsData');
+    var suggestions = [];
+    if (suggestionsData) {
+        try {
+            suggestions = JSON.parse(suggestionsData.textContent || '[]') || [];
+        } catch (error) {
+            suggestions = [];
+        }
     }
 
-    filterEl.addEventListener('change', applyFilters);
-    searchEl.addEventListener('input', applyFilters);
+    function compactText(value) {
+        return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    }
+
+    function updateVisibleScrimCount() {
+        var gridEl = document.getElementById('dashScrimGrid');
+        var countEl = document.getElementById('dashVisibleCount');
+        if (!countEl) return;
+        countEl.textContent = String(gridEl ? gridEl.querySelectorAll('.parser-scrim-card').length : 0);
+    }
+
+    function syncControlsFromUrl() {
+        var filterEl = document.getElementById('dashFilter');
+        var searchEl = document.getElementById('dashSearch');
+        var params = new URL(window.location.href).searchParams;
+        if (filterEl) filterEl.value = params.get('filter') || 'all';
+        if (searchEl) searchEl.value = params.get('q') || '';
+    }
+
+    function setupDashboardFilters() {
+        var filterEl = document.getElementById('dashFilter');
+        var searchEl = document.getElementById('dashSearch');
+        var suggestionsEl = document.getElementById('dashSearchSuggestions');
+        if (!filterEl || !searchEl) return;
+
+        function buildSearchUrl() {
+            var url = new URL(window.location.href);
+            var query = (searchEl.value || '').trim();
+            url.searchParams.set('page', '1');
+            url.searchParams.set('filter', filterEl.value || 'all');
+            if (query) {
+                url.searchParams.set('q', query);
+            } else {
+                url.searchParams.delete('q');
+            }
+            return url.toString();
+        }
+
+        function findExactSuggestionUrl() {
+            var query = compactText(searchEl.value);
+            if (!query) return '';
+            var exactMatch = suggestions.find(function(item) {
+                return item.url && compactText(item.label) === query;
+            });
+            if (exactMatch) return exactMatch.url;
+            var partialMatches = suggestions.filter(function(item) {
+                return item.url && compactText(item.label).indexOf(query) !== -1;
+            });
+            return partialMatches.length === 1 ? partialMatches[0].url : '';
+        }
+
+        function runSearch(shouldHideSuggestions, options) {
+            options = options || {};
+            clearTimeout(searchDebounce);
+            if (shouldHideSuggestions) hideSuggestions();
+            if (options.redirectMatch) {
+                var redirectUrl = options.redirectUrl || findExactSuggestionUrl();
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                    return;
+                }
+            }
+            loadScrimPage(buildSearchUrl(), true, { replaceHistory: true });
+        }
+
+        function hideSuggestions() {
+            if (!suggestionsEl) return;
+            suggestionsEl.hidden = true;
+            suggestionsEl.innerHTML = '';
+        }
+
+        function renderSuggestions() {
+            if (!suggestionsEl) return;
+            var query = compactText(searchEl.value);
+            if (!query) {
+                hideSuggestions();
+                return;
+            }
+
+            var matches = suggestions.filter(function(item) {
+                return compactText(item.label).indexOf(query) !== -1
+                    || compactText(item.meta).indexOf(query) !== -1;
+            }).slice(0, 7);
+
+            if (!matches.length) {
+                hideSuggestions();
+                return;
+            }
+
+            suggestionsEl.innerHTML = matches.map(function(item) {
+                var meta = item.meta ? '<span>' + escapeHtml(item.meta) + '</span>' : '';
+                var openUrl = item.url ? escapeHtml(item.url) : '';
+                var openLink = openUrl
+                    ? '<a class="dash-search-suggestion-open" href="' + openUrl + '">Open</a>'
+                    : '';
+                return '<div class="dash-search-suggestion" role="option">'
+                    + '<button type="button" class="dash-search-suggestion-pick" data-value="' + escapeHtml(item.label) + '" data-url="' + openUrl + '">'
+                    + '<strong>' + escapeHtml(item.label) + '</strong>'
+                    + '<small>' + escapeHtml(item.type) + meta + '</small>'
+                    + '</button>'
+                    + openLink
+                    + '</div>';
+            }).join('');
+            suggestionsEl.hidden = false;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        filterEl.onchange = function() {
+            runSearch(true);
+        };
+        searchEl.oninput = function() {
+            renderSuggestions();
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(runSearch, 420);
+        };
+        searchEl.onfocus = renderSuggestions;
+        searchEl.onkeydown = function(event) {
+            if (event.key === 'Escape') hideSuggestions();
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                runSearch(true, { redirectMatch: true });
+            }
+        };
+        if (suggestionsEl) {
+            suggestionsEl.addEventListener('mousedown', function(event) {
+                var openLink = event.target.closest && event.target.closest('.dash-search-suggestion-open');
+                if (openLink) return;
+                var button = event.target.closest && event.target.closest('.dash-search-suggestion-pick');
+                if (!button) return;
+                event.preventDefault();
+                searchEl.value = button.dataset.value || '';
+                runSearch(true, { redirectMatch: true, redirectUrl: button.dataset.url || '' });
+            });
+        }
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest || !event.target.closest('.parser-dash-search-wrap')) {
+                hideSuggestions();
+            }
+        });
+        updateVisibleScrimCount();
+    }
+
+    function replaceScrimLogFromDocument(doc) {
+        var currentPanel = document.getElementById('dashScrimLogPanel');
+        var nextPanel = doc.getElementById('dashScrimLogPanel');
+        if (!currentPanel || !nextPanel) return false;
+        currentPanel.innerHTML = nextPanel.innerHTML;
+        updateVisibleScrimCount();
+        return true;
+    }
+
+    function loadScrimPage(url, pushState, options) {
+        options = options || {};
+        var panel = document.getElementById('dashScrimLogPanel');
+        if (!panel) return Promise.resolve(false);
+        var requestId = ++activeSearchRequestId;
+        if (activeSearchController) {
+            activeSearchController.abort();
+        }
+        activeSearchController = window.AbortController ? new AbortController() : null;
+        panel.classList.add('is-loading');
+        panel.setAttribute('aria-busy', 'true');
+        return fetch(url, {
+            headers: { 'X-Requested-With': 'fetch' },
+            credentials: 'same-origin',
+            signal: activeSearchController ? activeSearchController.signal : undefined
+        })
+            .then(function(response) {
+                if (!response.ok) throw new Error('Failed to load scrim page');
+                return response.text();
+            })
+            .then(function(html) {
+                if (requestId !== activeSearchRequestId) return false;
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var didReplace = replaceScrimLogFromDocument(doc);
+                if (didReplace && pushState) {
+                    if (options.replaceHistory) {
+                        window.history.replaceState({ dashScrimPage: true }, '', url);
+                    } else {
+                        window.history.pushState({ dashScrimPage: true }, '', url);
+                    }
+                }
+                return didReplace;
+            })
+            .catch(function(error) {
+                if (error && error.name === 'AbortError') return false;
+                window.location.href = url;
+                return false;
+            })
+            .finally(function() {
+                if (requestId !== activeSearchRequestId) return;
+                activeSearchController = null;
+                var updatedPanel = document.getElementById('dashScrimLogPanel');
+                if (updatedPanel) {
+                    updatedPanel.classList.remove('is-loading');
+                    updatedPanel.setAttribute('aria-busy', 'false');
+                }
+            });
+    }
+
+    function setupDashboardPagination() {
+        var panel = document.getElementById('dashScrimLogPanel');
+        if (!panel || panel.dataset.paginationBound === 'true') return;
+        panel.dataset.paginationBound = 'true';
+        panel.addEventListener('click', function(event) {
+            var link = event.target.closest && event.target.closest('a[data-dashboard-page="true"]');
+            if (!link || link.classList.contains('is-disabled') || link.getAttribute('aria-disabled') === 'true') return;
+            event.preventDefault();
+            loadScrimPage(link.href, true);
+        });
+    }
+
+    setupDashboardFilters();
+    setupDashboardPagination();
+    window.addEventListener('popstate', function() {
+        syncControlsFromUrl();
+        loadScrimPage(window.location.href, false);
+    });
 })();
 
 (function () {
@@ -307,6 +523,9 @@
     }
 
     function openModal() {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');
         syncTeamOptions();
