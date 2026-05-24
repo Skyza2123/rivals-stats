@@ -458,6 +458,19 @@ def _machine_build_ban_candidate_details(
         if str(row.get("hero", "") or "").strip()
     }
     force_rows = matchup_model.get("force_matchup_rows", []) or []
+    historical_ban_count: dict[str, int] = {}
+    historical_ban_rate: dict[str, float] = {}
+    for line in b_model.get("ban_line_rows", []) or []:
+        line_count = int(line.get("count", 0) or 0)
+        line_rate = float(line.get("rate", 0) or 0)
+        for raw_ban in line.get("bans", []) or []:
+            ban_key = str(raw_ban or "").strip().lower()
+            if not ban_key:
+                continue
+            historical_ban_count[ban_key] = historical_ban_count.get(ban_key, 0) + line_count
+            historical_ban_rate[ban_key] = historical_ban_rate.get(ban_key, 0.0) + line_rate
+
+    max_historical_count = max(historical_ban_count.values()) if historical_ban_count else 0
     ban_significance = ban_significance or {}
     permutation_importance = permutation_importance or {}
 
@@ -533,6 +546,12 @@ def _machine_build_ban_candidate_details(
             + priority_value.get(ban_priority, 10.0)
             + max(0.0, 8.0 - execution_burden) * 1.2
         )
+        hero_hist_count = int(historical_ban_count.get(hero_key, 0) or 0)
+        hero_hist_rate = float(historical_ban_rate.get(hero_key, 0.0) or 0.0)
+        history_count_pct = (hero_hist_count / max_historical_count) if max_historical_count > 0 else 0.0
+        historical_priority_score = (hero_hist_rate * 0.72) + (history_count_pct * 28.0)
+        hero_pool_multiplier = 1.0 + max(0.0, min(0.42, hero_pool_value / 240.0))
+        weighted_historical_priority = historical_priority_score * hero_pool_multiplier
         anova = ban_significance.get(hero_key) or {}
         permutation = permutation_importance.get(hero_key) or {}
         anova_bonus = 0.0
@@ -555,11 +574,12 @@ def _machine_build_ban_candidate_details(
         strategic_our_value = our_dependency + our_stat_cost + (hero_pool_value * 0.10 if hero_key in target_comp_keys else 0.0)
         strategic_net_value = strategic_enemy_value - strategic_our_value
         ban_score = (
-            strategic_enemy_value
-            + hero_pool_value * 0.36
+            weighted_historical_priority * 1.05
+            + strategic_enemy_value * 0.64
+            + hero_pool_value * 0.24
             + anova_bonus
             + permutation_bonus
-            - strategic_our_value * 0.62
+            - strategic_our_value * 0.52
             - max(0.0, stability - 7.0) * 1.8
         )
 
@@ -601,6 +621,9 @@ def _machine_build_ban_candidate_details(
                 "enemy_stat_impact": round(enemy_stat_impact, 1),
                 "our_stat_cost": round(our_stat_cost, 1),
                 "hero_pool_value": round(hero_pool_value, 1),
+                "historical_ban_count": hero_hist_count,
+                "historical_ban_rate": round(hero_hist_rate, 1),
+                "weighted_historical_priority": round(weighted_historical_priority, 1),
                 "path_impact": round(path_impact, 1),
                 "anova_significance": anova,
                 "anova_bonus": round(anova_bonus, 1),
@@ -612,7 +635,14 @@ def _machine_build_ban_candidate_details(
             }
         )
 
-    rows.sort(key=lambda row: (float(row.get("ban_score", 0) or 0), float(row.get("strategic_net_value", 0) or 0)), reverse=True)
+    rows.sort(
+        key=lambda row: (
+            float(row.get("weighted_historical_priority", 0) or 0),
+            float(row.get("ban_score", 0) or 0),
+            float(row.get("strategic_net_value", 0) or 0),
+        ),
+        reverse=True,
+    )
     return rows
 
 
@@ -821,7 +851,47 @@ def _machine_agent_parse_hero(message: str) -> str:
     return ""
 
 
-def _machine_chat_filter_team_history(team_row, season_value: str, selected_map_name: str, include_scrims: bool, include_tournaments: bool) -> list[dict]:
+def _machine_chat_filter_team_history(
+    team_row,
+    season_value: str,
+    selected_map_name: str,
+    include_scrims: bool,
+    include_tournaments: bool,
+    selected_map_type: str = "all",
+    selected_mode_type: str = "all",
+) -> list[dict]:
+    def _normalize_mode_type(raw_value: str) -> str:
+        value = str(raw_value or "").strip().lower()
+        return value if value in {"control", "escort", "hybrid"} else "all"
+
+    def _filter_scrims_by_mode_type(scrims: list[dict], mode_type_value: str) -> list[dict]:
+        selected_mode = _normalize_mode_type(mode_type_value)
+        if selected_mode == "all":
+            return scrims
+        mode_lookup = {
+            str(map_name or "").strip().lower(): str(mode_name or "").strip().lower()
+            for map_name, mode_name in (MAP_MODES or {}).items()
+        }
+        filtered_scrims: list[dict] = []
+        for scrim in scrims or []:
+            if not isinstance(scrim, dict):
+                continue
+            filtered_maps = []
+            for map_entry in scrim.get("maps", []) or []:
+                if not isinstance(map_entry, dict):
+                    continue
+                map_mode = str(map_entry.get("mode") or map_entry.get("map_mode") or "").strip().lower()
+                if not map_mode:
+                    map_name_key = str(map_entry.get("map") or map_entry.get("map_name") or "").strip().lower()
+                    map_mode = mode_lookup.get(map_name_key, "")
+                if map_mode == selected_mode:
+                    filtered_maps.append(map_entry)
+            if filtered_maps:
+                scrim_copy = dict(scrim)
+                scrim_copy["maps"] = filtered_maps
+                filtered_scrims.append(scrim_copy)
+        return filtered_scrims
+
     history = get_team_history_for_sources(
         team_row,
         include_scrims=include_scrims,
@@ -839,6 +909,8 @@ def _machine_chat_filter_team_history(team_row, season_value: str, selected_map_
         strict=True,
     )
     filtered = filter_scrims_by_season(history, selected_season)
+    filtered = filter_scrims_by_map_type(filtered, get_selected_map_type(selected_map_type or "all"))
+    filtered = _filter_scrims_by_mode_type(filtered, selected_mode_type)
     if selected_map_name and selected_map_name.lower() != "all":
         map_filtered = []
         for scrim in filtered:
@@ -1164,7 +1236,16 @@ def _resolve_team_by_name(name: str) -> int | None:
     return row["id"] if row else None
 
 
-def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, season_value: str, selected_map_name: str, include_scrims: bool, include_tournaments: bool) -> tuple[str, dict]:
+def _machine_chat_build_context(
+    team_a_id: int | None,
+    team_b_id: int | None,
+    season_value: str,
+    selected_map_name: str,
+    include_scrims: bool,
+    include_tournaments: bool,
+    selected_map_type: str = "all",
+    selected_mode_type: str = "all",
+) -> tuple[str, dict]:
     db = get_db()
     source_label = []
     if include_scrims:
@@ -1190,8 +1271,24 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
     if team_a is None or team_b is None:
         abort(404)
 
-    a_history = _machine_chat_filter_team_history(team_a, season_value, selected_map_name, include_scrims, include_tournaments)
-    b_history = _machine_chat_filter_team_history(team_b, season_value, selected_map_name, include_scrims, include_tournaments)
+    a_history = _machine_chat_filter_team_history(
+        team_a,
+        season_value,
+        selected_map_name,
+        include_scrims,
+        include_tournaments,
+        selected_map_type,
+        selected_mode_type,
+    )
+    b_history = _machine_chat_filter_team_history(
+        team_b,
+        season_value,
+        selected_map_name,
+        include_scrims,
+        include_tournaments,
+        selected_map_type,
+        selected_mode_type,
+    )
     model = build_matchup_tree_model(team_a["name"], a_history, team_b["name"], b_history)
     team_models = model.get("teams", [])
     a_model = (team_models[0].get("model", {}) if len(team_models) > 0 else {})
@@ -1213,6 +1310,7 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
 
     recommended_bans = []
     enemy_expected_bans = []
+    enemy_expected_protects = []
     recommended_protects = []
     target_comp = []
 
@@ -1227,20 +1325,115 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             if len(target) >= limit:
                 break
 
+    def _build_slot_history_from_lines(line_rows: list[dict], kind: str) -> dict[str, dict[str, float]]:
+        slot_keys = ["protect1", "protect2"] if kind == "protect" else ["ban1", "ban2", "ban3", "ban4"]
+        lookup: dict[str, dict[str, float]] = {slot: {} for slot in slot_keys}
+        for row in line_rows or []:
+            count = float(row.get("count", 0) or 0)
+            rate = float(row.get("rate", 0) or 0)
+            line_strength = float(row.get("line_strength", 0) or 0)
+            sequence = (row.get("protects") if kind == "protect" else (row.get("bans") or row.get("heroes"))) or []
+            for idx, hero in enumerate(sequence):
+                if idx >= len(slot_keys):
+                    break
+                canonical = _canonical_draft_hero(str(hero or "").strip())
+                if not canonical:
+                    continue
+                hero_key = canonical.lower()
+                slot_key = slot_keys[idx]
+                score = count + (rate * 0.35) + (line_strength * 0.18)
+                current = float(lookup[slot_key].get(hero_key, 0.0) or 0.0)
+                lookup[slot_key][hero_key] = round(current + score, 3)
+        return lookup
+
+    def _slot_ranked_history(
+        slot_history_lookup: dict[str, dict[str, float]],
+        slot_key: str,
+        seed_values: list[str],
+        blocked_values: list[str],
+        limit: int,
+    ) -> list[str]:
+        ranked: list[str] = []
+        blocked_keys = {
+            _canonical_draft_hero(str(hero or "").strip()).lower()
+            for hero in blocked_values or []
+            if str(hero or "").strip()
+        }
+        slot_scores = slot_history_lookup.get(slot_key) or {}
+        historical_sorted = sorted(
+            slot_scores.items(),
+            key=lambda item: (float(item[1] or 0), item[0]),
+            reverse=True,
+        )
+        add_unique(
+            ranked,
+            [hero_key for hero_key, _score in historical_sorted if hero_key not in blocked_keys],
+            limit,
+        )
+        add_unique(ranked, seed_values, limit)
+        return [_canonical_draft_hero(hero) for hero in ranked if _canonical_draft_hero(hero)]
+
+    def _historical_ban_pool(line_rows: list[dict], limit: int = 12) -> list[str]:
+        pool: list[str] = []
+        for row in line_rows or []:
+            add_unique(pool, [str(hero or "").strip() for hero in (row.get("bans") or row.get("heroes") or [])], limit)
+            if len(pool) >= limit:
+                break
+        return pool
+
+    has_strong_comp_data = float(a_model.get("training_maps", 0) or 0) >= 20
+    comp_usage_floor = 8.0 if has_strong_comp_data else 4.0
+    comp_win_rate_floor = max(45.0, float(a_model.get("overall_win_rate", 0) or 0) - 6.0)
+
+    def _is_viable_target_comp_row(row: dict | None) -> bool:
+        row = row or {}
+        usage = float(row.get("rate", 0) or 0)
+        sample_count = float(row.get("count", 0) or 0)
+        comp_wr = float(row.get("comp_win_rate", row.get("win_rate", 0)) or 0)
+        adjusted = float(row.get("avg_adjusted_win_rate", 0) or 0)
+        blended_wr = (comp_wr * 0.75) + (adjusted * 0.25)
+        if has_strong_comp_data and sample_count < 3:
+            return False
+        if has_strong_comp_data and usage < comp_usage_floor:
+            return False
+        if sample_count >= 3 and blended_wr > 0 and blended_wr < comp_win_rate_floor:
+            return False
+        return True
+
+    historical_enemy_bans = _historical_ban_pool(b_model.get("ban_line_rows", []), 8)
+
+    add_unique(recommended_bans, historical_enemy_bans, 6)
     for row in model.get("force_matchup_rows", [])[:3]:
-        add_unique(recommended_bans, row.get("our_bans", []), 6)
         add_unique(recommended_protects, row.get("our_protects", []), 3)
         if not target_comp:
             add_unique(target_comp, row.get("our_comp", []), 6)
-    add_unique(recommended_bans, [r.get("hero", "") for r in model.get("volatile_matchup_rows", [])], 6)
-    add_unique(recommended_bans, [r.get("hero", "") for r in b_model.get("comfort_core_rows", [])], 6)
     for row in b_model.get("ban_line_rows", [])[:5]:
         add_unique(enemy_expected_bans, row.get("bans", []), 8)
-    if not enemy_expected_bans:
-        add_unique(enemy_expected_bans, [r.get("hero", "") for r in a_model.get("comfort_core_rows", [])], 8)
+        add_unique(enemy_expected_protects, row.get("protects", []), 6)
     if not target_comp:
-        comp_row = (a_model.get("comp_rows") or [{}])[0]
+        comp_rows = a_model.get("comp_rows") or []
+        viable_comp_row = next((row for row in comp_rows if _is_viable_target_comp_row(row)), None)
+        comp_row = viable_comp_row or (comp_rows[0] if comp_rows else {})
         add_unique(target_comp, comp_row.get("heroes", []), 6)
+
+    our_ban_slot_history = _build_slot_history_from_lines(a_model.get("ban_line_rows", []), "ban")
+    our_protect_slot_history = _build_slot_history_from_lines(a_model.get("ban_line_rows", []), "protect")
+    enemy_ban_slot_history = _build_slot_history_from_lines(b_model.get("ban_line_rows", []), "ban")
+    enemy_protect_slot_history = _build_slot_history_from_lines(b_model.get("ban_line_rows", []), "protect")
+    enemy_expected_bans = _slot_ranked_history(
+        enemy_ban_slot_history,
+        "ban1",
+        enemy_expected_bans,
+        [],
+        8,
+    )
+    enemy_expected_protects = _slot_ranked_history(
+        enemy_protect_slot_history,
+        "protect1",
+        enemy_expected_protects,
+        [],
+        6,
+    )
 
     enemy_comps = [
         {
@@ -1253,10 +1446,7 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
     ]
     ban_candidate_pool = []
     add_unique(ban_candidate_pool, recommended_bans, 10)
-    add_unique(ban_candidate_pool, [r.get("hero", "") for r in b_model.get("comfort_core_rows", [])], 10)
-    for comp in enemy_comps[:3]:
-        add_unique(ban_candidate_pool, comp.get("heroes", []), 10)
-    add_unique(ban_candidate_pool, [r.get("hero", "") for r in model.get("volatile_matchup_rows", [])], 10)
+    add_unique(ban_candidate_pool, historical_enemy_bans, 10)
     ban_anova_significance = _machine_build_ban_anova_rows(b_history, ban_candidate_pool)
     ban_permutation_importance = _machine_build_ban_permutation_importance(b_history, ban_candidate_pool)
     ban_candidate_details = _machine_build_ban_candidate_details(
@@ -1270,7 +1460,32 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         permutation_importance=ban_permutation_importance,
     )
     if ban_candidate_details:
-        recommended_bans = [row["hero"] for row in ban_candidate_details[:6]]
+        for row in ban_candidate_details:
+            hero_name = _canonical_draft_hero(str(row.get("hero") or "").strip())
+            if not hero_name:
+                continue
+            slot_stats = _machine_agent_slot_timing_stats(a_history, team_a["name"], hero_name, [1, 2, 3, 4])
+            slot_lookup = {
+                str(slot_row.get("slot") or "").strip().lower(): {
+                    "maps": int(slot_row.get("maps", 0) or 0),
+                    "rate": float(slot_row.get("rate", 0) or 0),
+                    "win_rate": float(slot_row.get("win_rate", 0) or 0),
+                }
+                for slot_row in (slot_stats.get("slots") or [])
+                if str(slot_row.get("slot") or "").strip()
+            }
+            row["historical_slot_bans"] = slot_lookup
+    if ban_candidate_details:
+        historical_first_bans = list(recommended_bans)
+        model_ranked_bans = [row["hero"] for row in ban_candidate_details if (row.get("hero") or "").strip()]
+        if historical_first_bans:
+            merged_bans = list(historical_first_bans)
+            add_unique(merged_bans, model_ranked_bans, 6)
+            recommended_bans = merged_bans[:6]
+        else:
+            recommended_bans = model_ranked_bans[:6]
+    if not recommended_bans:
+        recommended_bans = historical_enemy_bans[:6]
     protect_candidate_pool = []
     add_unique(protect_candidate_pool, recommended_protects, 10)
     add_unique(protect_candidate_pool, target_comp, 10)
@@ -1285,7 +1500,14 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
         enemy_expected_bans=enemy_expected_bans,
     )
     if protect_candidate_details:
-        recommended_protects = [row["hero"] for row in protect_candidate_details[:3]]
+        historical_first_protects = list(recommended_protects)
+        model_ranked_protects = [row["hero"] for row in protect_candidate_details if (row.get("hero") or "").strip()]
+        if historical_first_protects:
+            merged_protects = list(historical_first_protects)
+            add_unique(merged_protects, model_ranked_protects, 3)
+            recommended_protects = merged_protects[:3]
+        else:
+            recommended_protects = model_ranked_protects[:3]
     pivot_predictions = [
         {
             "base": row.get("enemy_base", row.get("base_heroes", []))[:6],
@@ -1385,7 +1607,7 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
 
     context_lines = [
         f"Matchup: {team_a['name']} vs {team_b['name']}.",
-        f"Filters: season={season_value or 'all'}, map={selected_map_name or 'all'}, sources={_machine_chat_join(source_label) or 'none'}.",
+        f"Filters: season={season_value or 'all'}, map={selected_map_name or 'all'}, map_type={selected_map_type or 'all'}, mode_type={selected_mode_type or 'all'}, sources={_machine_chat_join(source_label) or 'none'}.",
         f"Data volume: {team_a['name']} {len(a_history)} records, {team_b['name']} {len(b_history)} records.",
         "Model method map: "
         + "; ".join(f"{task}={method}" for task, method in MACHINE_DRAFT_METHOD_MAP.items())
@@ -1481,6 +1703,11 @@ def _machine_chat_build_context(team_a_id: int | None, team_b_id: int | None, se
             "ban_permutation_importance": ban_permutation_importance,
             "model_method_map": MACHINE_DRAFT_METHOD_MAP,
             "enemy_expected_bans": enemy_expected_bans[:6],
+            "enemy_expected_protects": enemy_expected_protects[:6],
+            "our_ban_slot_history": our_ban_slot_history,
+            "our_protect_slot_history": our_protect_slot_history,
+            "enemy_ban_slot_history": enemy_ban_slot_history,
+            "enemy_protect_slot_history": enemy_protect_slot_history,
             "recommended_protects": recommended_protects[:3],
             "protect_candidate_details": protect_candidate_details[:8],
             "target_comp": target_comp[:6],
@@ -2782,6 +3009,8 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
         "team_b_id": int_or_none(payload.get("team_b") or raw_context.get("team_b_id")),
         "season": str(payload.get("season") or raw_context.get("season") or "all").strip(),
         "map": str(payload.get("map") or raw_context.get("map") or "all").strip(),
+        "map_type": str(payload.get("map_type") or raw_context.get("map_type") or "all").strip(),
+        "mode_type": str(payload.get("mode_type") or raw_context.get("mode_type") or "all").strip(),
         "include_scrims": bool(payload.get("include_scrims", raw_context.get("include_scrims", True))),
         "include_tournaments": bool(payload.get("include_tournaments", raw_context.get("include_tournaments", True))),
         "reasoning_mode": "reasoning",
@@ -2802,6 +3031,8 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
                 "phase_num": phase_data.get("phase_num"),
                 "phase_label": phase_data.get("phase_label"),
                 "next_team": phase_data.get("next_team"),
+                "next_slot": phase_data.get("next_slot"),
+                "next_action_type": phase_data.get("next_action_type"),
             }
         }
 
@@ -2921,6 +3152,50 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
     enemy_locked_bans = _clean_heroes(draft_live.get("enemy_bans"), 4)
     our_locked_protects = _clean_heroes(draft_live.get("our_protects"), 2)
     enemy_locked_protects = _clean_heroes(draft_live.get("enemy_protects"), 2)
+    next_our_ban_slot_number = (len(our_locked_bans) + 1) if len(our_locked_bans) < 4 else 0
+    next_our_ban_slot_key = f"ban{next_our_ban_slot_number}" if next_our_ban_slot_number else ""
+    next_enemy_ban_slot_number = (len(enemy_locked_bans) + 1) if len(enemy_locked_bans) < 4 else 0
+    next_enemy_ban_slot_key = f"ban{next_enemy_ban_slot_number}" if next_enemy_ban_slot_number else ""
+    next_enemy_protect_slot_number = (len(enemy_locked_protects) + 1) if len(enemy_locked_protects) < 2 else 0
+    next_enemy_protect_slot_key = f"protect{next_enemy_protect_slot_number}" if next_enemy_protect_slot_number else ""
+
+    def _rank_historical_enemy_choices(
+        slot_key: str,
+        slot_history_lookup: dict | None,
+        seeded_values: list[str],
+        blocked_values: list[str],
+        limit: int,
+    ) -> list[str]:
+        ranked: list[str] = []
+        slot_history_lookup = slot_history_lookup or {}
+        blocked_keys = {
+            _canonical_draft_hero(str(hero or "").strip()).lower()
+            for hero in blocked_values or []
+            if str(hero or "").strip()
+        }
+        slot_scores = slot_history_lookup.get(slot_key) or {}
+        historical_values = [
+            hero_key
+            for hero_key, _score in sorted(
+                slot_scores.items(),
+                key=lambda item: (float(item[1] or 0), item[0]),
+                reverse=True,
+            )
+            if hero_key not in blocked_keys
+        ]
+        seeded_clean = [
+            hero for hero in _clean_heroes(seeded_values, limit * 2)
+            if hero.lower() not in blocked_keys
+        ]
+        for hero in historical_values + seeded_clean:
+            canonical = _canonical_draft_hero(str(hero or "").strip())
+            hero_key = canonical.lower() if canonical else ""
+            if not canonical or not hero_key or hero_key in blocked_keys or hero_key in {item.lower() for item in ranked}:
+                continue
+            ranked.append(canonical)
+            if len(ranked) >= limit:
+                break
+        return ranked
 
     candidate_bans = [
         hero for hero in _clean_heroes(visuals.get("recommended_bans"), 8)
@@ -2940,10 +3215,20 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         hero for hero in _clean_heroes(visuals.get("recommended_protects"), 5)
         if hero.lower() not in locked
     ]
-    enemy_next_bans = [
-        hero for hero in _clean_heroes(visuals.get("enemy_expected_bans"), 8)
-        if hero.lower() not in locked
-    ]
+    enemy_next_protects = _rank_historical_enemy_choices(
+        next_enemy_protect_slot_key,
+        visuals.get("enemy_protect_slot_history") or {},
+        visuals.get("enemy_expected_protects") or [],
+        our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
+        4,
+    )
+    enemy_next_bans = _rank_historical_enemy_choices(
+        next_enemy_ban_slot_key,
+        visuals.get("enemy_ban_slot_history") or {},
+        visuals.get("enemy_expected_bans") or [],
+        our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
+        4,
+    )
     enemy_comfort_list = _clean_heroes(visuals.get("enemy_comfort"), 10)
     enemy_comfort = set(enemy_comfort_list)
     volatile_rows = {
@@ -3034,6 +3319,9 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         if not reasons:
             reasons.append("keeps pressure on the highest ranked remaining ban target")
         detail = candidate_detail_lookup.get(hero.lower()) or {}
+        slot_history = (detail.get("historical_slot_bans") or {}).get(next_our_ban_slot_key, {}) if next_our_ban_slot_key else {}
+        slot_hist_maps = int(slot_history.get("maps", 0) or 0)
+        slot_hist_rate = float(slot_history.get("rate", 0) or 0)
         if detail.get("model_hint"):
             anova = detail.get("anova_significance") or {}
             anova_text = ""
@@ -3053,14 +3341,33 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
             reasons.append(
                 f"{detail.get('model_hint')} (score {detail.get('ban_score')}, net {detail.get('strategic_net_value')}{anova_text}{permutation_text})"
             )
+        if next_our_ban_slot_key and slot_hist_maps > 0:
+            reasons.insert(
+                0,
+                f"historically used in our {next_our_ban_slot_key} ({slot_hist_rate:.1f}% of draft maps, {slot_hist_maps} maps)",
+            )
 
         next_ban_rows.append({
             "hero": hero,
             "detail": detail,
+            "slot_hist_maps": slot_hist_maps,
+            "slot_hist_rate": round(slot_hist_rate, 1),
             "reasons": reasons[:3],
             "closes": closes[:2],
             "pivot_paths": pivot_hits[:2],
         })
+
+    if next_ban_rows:
+        next_ban_rows.sort(
+            key=lambda row: (
+                1 if int(row.get("slot_hist_maps", 0) or 0) > 0 else 0,
+                float(row.get("slot_hist_rate", 0) or 0),
+                float(((row.get("detail") or {}).get("weighted_historical_priority", 0) or 0)),
+                float(((row.get("detail") or {}).get("ban_score", 0) or 0)),
+                float(((row.get("detail") or {}).get("strategic_net_value", 0) or 0)),
+            ),
+            reverse=True,
+        )
 
     next_protect_rows = []
     for hero in candidate_protects[:3]:
@@ -3100,21 +3407,404 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
             "diff_count": row.get("diff_count", 0),
         })
 
+    def _resolve_next_action_type() -> str:
+        explicit_action = str(current_phase.get("next_action_type") or "").strip().lower()
+        if explicit_action in {"ban", "protect"}:
+            if next_team == "a":
+                return "our_protect" if explicit_action == "protect" else "our_ban"
+            if next_team == "b":
+                return "enemy_protect" if explicit_action == "protect" else "enemy_ban"
+
+        next_slot = str(current_phase.get("next_slot") or "").strip().lower()
+        if next_slot.startswith("protect"):
+            if next_team == "a":
+                return "our_protect"
+            if next_team == "b":
+                return "enemy_protect"
+        if next_slot.startswith("ban"):
+            if next_team == "a":
+                return "our_ban"
+            if next_team == "b":
+                return "enemy_ban"
+
+        phase_label_lc = str(current_phase.get("phase_label") or "").strip().lower()
+        if "protect" in phase_label_lc:
+            if next_team == "a":
+                return "our_protect"
+            if next_team == "b":
+                return "enemy_protect"
+        if "ban" in phase_label_lc:
+            if next_team == "a":
+                return "our_ban"
+            if next_team == "b":
+                return "enemy_ban"
+
+        if next_team == "a":
+            if len(our_locked_bans) in {1, 3} and len(our_locked_protects) < (1 if len(our_locked_bans) == 1 else 2):
+                return "our_protect"
+            return "our_ban"
+        if next_team == "b":
+            if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2):
+                return "enemy_protect"
+            return "enemy_ban"
+        return "unknown"
+
+    next_action_type = _resolve_next_action_type()
+
+    enemy_remaining_bans = max(0, 4 - len(enemy_locked_bans))
+
+    if next_action_type == "enemy_protect" and enemy_next_protects:
+        predicted_protect_keys = {
+            _canonical_draft_hero(str(hero or "")).lower()
+            for hero in enemy_next_protects
+            if str(hero or "").strip()
+        }
+        filtered_enemy_bans = [
+            hero for hero in enemy_next_bans
+            if _canonical_draft_hero(str(hero or "")).lower() not in predicted_protect_keys
+        ]
+        if filtered_enemy_bans:
+            enemy_next_bans = filtered_enemy_bans
+        filtered_ban_rows = [
+            row for row in next_ban_rows
+            if _canonical_draft_hero(str(row.get("hero") or "")).lower() not in predicted_protect_keys
+        ]
+        if filtered_ban_rows:
+            next_ban_rows = filtered_ban_rows
+        if enemy_remaining_bans <= 0:
+            enemy_next_bans = []
+
+    def _build_full_slot_plan(
+        slot_keys: list[str],
+        locked_values: list[str],
+        candidate_values: list[str],
+        slot_history_lookup: dict | None,
+    ) -> dict[str, str]:
+        plan: dict[str, str] = {}
+        used_keys = set()
+        slot_history_lookup = slot_history_lookup or {}
+
+        for idx, slot_key in enumerate(slot_keys):
+            if idx < len(locked_values):
+                hero = _canonical_draft_hero(str(locked_values[idx] or "").strip())
+                if hero:
+                    plan[slot_key] = hero
+                    used_keys.add(hero.lower())
+
+        candidate_pool = _clean_heroes(candidate_values, 16)
+        base_rank = {hero.lower(): idx for idx, hero in enumerate(candidate_pool)}
+
+        for slot_key in slot_keys:
+            if slot_key in plan:
+                continue
+            slot_scores = slot_history_lookup.get(slot_key) or {}
+            best_hero = ""
+            best_tuple = None
+            for hero in candidate_pool:
+                hero_key = hero.lower()
+                if hero_key in used_keys:
+                    continue
+                score_tuple = (
+                    float(slot_scores.get(hero_key, 0) or 0),
+                    -int(base_rank.get(hero_key, 999)),
+                )
+                if best_tuple is None or score_tuple > best_tuple:
+                    best_tuple = score_tuple
+                    best_hero = hero
+            if best_hero:
+                plan[slot_key] = best_hero
+                used_keys.add(best_hero.lower())
+            else:
+                plan[slot_key] = ""
+
+        return plan
+
+    def _format_slot_plan(plan: dict[str, str], slot_keys: list[str]) -> str:
+        return " | ".join(
+            f"{slot} {(plan.get(slot) or '—')}"
+            for slot in slot_keys
+        )
+
+    def _pair_keys(values: list[str]) -> set[tuple[str, str]]:
+        cleaned = _clean_heroes(values, 8)
+        pairs: set[tuple[str, str]] = set()
+        for left_idx in range(len(cleaned)):
+            for right_idx in range(left_idx + 1, len(cleaned)):
+                left = cleaned[left_idx]
+                right = cleaned[right_idx]
+                if left and right:
+                    pairs.add(tuple(sorted((left.lower(), right.lower()))))
+        return pairs
+
+    def _map_mode_for_entry(map_entry: dict) -> str:
+        mode_name = str(map_entry.get("mode") or map_entry.get("map_mode") or "").strip().lower()
+        if mode_name:
+            return mode_name
+        map_name = str(map_entry.get("map_name") or map_entry.get("map") or "").strip()
+        return str((MAP_MODES or {}).get(map_name, "") or "").strip().lower()
+
+    def _draft_prefix_values(draft_row: dict, slot_type: str, count: int) -> list[str]:
+        if not isinstance(draft_row, dict) or count <= 0:
+            return []
+        slot_order = ["ban1", "ban2", "ban3", "ban4"] if slot_type == "ban" else ["protect1", "protect2"]
+        values: list[str] = []
+        for slot_key in slot_order[:count]:
+            hero_name = _canonical_draft_hero(str(draft_row.get(slot_key, "") or "").strip())
+            if hero_name:
+                values.append(hero_name)
+        return values
+
+    active_enemy_action = (
+        "enemy_protect"
+        if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2)
+        else "enemy_ban"
+    )
+
+    def _build_similar_draft_snapshot() -> dict:
+        team_b_id = chat_context.get("team_b_id")
+        team_a_name = str(chat_context.get("team_a_name") or "").strip()
+        selected_map = str(chat_context.get("map") or "all").strip()
+        selected_mode = str(chat_context.get("mode_type") or "all").strip().lower()
+        next_slot_key = next_enemy_protect_slot_key if active_enemy_action == "enemy_protect" else next_enemy_ban_slot_key
+        if not team_b_id or not next_slot_key:
+            return {"max_score": 0, "matches": [], "responses": []}
+
+        team_b_row = get_db().execute("SELECT * FROM teams WHERE id = ?", (team_b_id,)).fetchone()
+        if team_b_row is None:
+            return {"max_score": 0, "matches": [], "responses": []}
+
+        history = _machine_chat_filter_team_history(
+            team_b_row,
+            str(chat_context.get("season") or "all"),
+            selected_map,
+            bool(chat_context.get("include_scrims", True)),
+            bool(chat_context.get("include_tournaments", True)),
+            str(chat_context.get("map_type") or "all"),
+            selected_mode,
+        )
+
+        current_enemy_team_heroes = _clean_heroes(enemy_locked_bans + enemy_locked_protects, 6)
+        current_enemy_pairs = _pair_keys(current_enemy_team_heroes)
+        current_ban_values = _clean_heroes(our_locked_bans + enemy_locked_bans, 8)
+        current_ban_keys = {hero.lower() for hero in current_ban_values}
+        blocked_response_keys = {
+            hero.lower()
+            for hero in _clean_heroes(
+                our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
+                12,
+            )
+        }
+        max_score = (
+            (len(current_enemy_team_heroes) * 3)
+            + (len(current_enemy_pairs) * 2)
+            + (2 if selected_map and selected_map.lower() != "all" else 0)
+            + (1 if selected_mode and selected_mode != "all" else 0)
+            + (1 if team_a_name else 0)
+            + len(current_ban_values)
+        )
+
+        similar_matches: list[dict] = []
+        response_summary: dict[str, dict] = {}
+
+        for record in history:
+            record_opponent = str(record.get("enemy_team") or record.get("opponent") or "").strip()
+            for map_entry in record.get("maps", []) or []:
+                if not isinstance(map_entry, dict):
+                    continue
+                team_slot = map_entry.get("our_team_slot", "team1")
+                if team_slot not in TEAM_SLOTS:
+                    team_slot = "team1"
+                opponent_slot = _machine_agent_opposite_slot(team_slot)
+                draft = map_entry.get("draft", {})
+                enemy_draft = draft.get(team_slot, {}) if isinstance(draft, dict) else {}
+                opponent_draft = draft.get(opponent_slot, {}) if isinstance(draft, dict) else {}
+                if not isinstance(enemy_draft, dict) or not isinstance(opponent_draft, dict):
+                    continue
+
+                historical_enemy_team_heroes = _clean_heroes(
+                    _draft_prefix_values(enemy_draft, "ban", len(enemy_locked_bans))
+                    + _draft_prefix_values(enemy_draft, "protect", len(enemy_locked_protects)),
+                    6,
+                )
+                historical_enemy_pairs = _pair_keys(historical_enemy_team_heroes)
+                historical_ban_keys = {
+                    hero.lower()
+                    for hero in _clean_heroes(
+                        _draft_prefix_values(enemy_draft, "ban", len(enemy_locked_bans))
+                        + _draft_prefix_values(opponent_draft, "ban", len(our_locked_bans)),
+                        8,
+                    )
+                }
+                response_hero = _canonical_draft_hero(str(enemy_draft.get(next_slot_key, "") or "").strip())
+                if not response_hero:
+                    continue
+                if response_hero.lower() in blocked_response_keys:
+                    continue
+
+                same_hero_count = len({hero.lower() for hero in current_enemy_team_heroes} & {hero.lower() for hero in historical_enemy_team_heroes})
+                same_pair_count = len(current_enemy_pairs & historical_enemy_pairs)
+                same_ban_count = len(current_ban_keys & historical_ban_keys)
+                map_name = str(map_entry.get("map_name") or map_entry.get("map") or "").strip()
+                map_mode = _map_mode_for_entry(map_entry)
+                similarity_score = (same_hero_count * 3) + (same_pair_count * 2) + same_ban_count
+                if selected_map and selected_map.lower() != "all" and map_name.lower() == selected_map.lower():
+                    similarity_score += 2
+                if selected_mode and selected_mode != "all" and map_mode == selected_mode:
+                    similarity_score += 1
+                if team_a_name and record_opponent and record_opponent.lower() == team_a_name.lower():
+                    similarity_score += 1
+
+                result = get_map_outcome_for_slot(map_entry, team_slot)
+                match_row = {
+                    "map_name": map_name or "Unknown Map",
+                    "mode": map_mode or "unknown",
+                    "response": response_hero,
+                    "result": result or "Unknown",
+                    "score": similarity_score,
+                    "max_score": max_score,
+                    "opponent": record_opponent or "Unknown Opponent",
+                    "same_heroes": same_hero_count,
+                    "same_pairs": same_pair_count,
+                    "same_bans": same_ban_count,
+                    "same_map": bool(selected_map and selected_map.lower() != "all" and map_name.lower() == selected_map.lower()),
+                    "same_mode": bool(selected_mode and selected_mode != "all" and map_mode == selected_mode),
+                    "same_enemy_team": bool(team_a_name and record_opponent and record_opponent.lower() == team_a_name.lower()),
+                }
+                similar_matches.append(match_row)
+
+                response_bucket = response_summary.setdefault(
+                    response_hero,
+                    {
+                        "hero": response_hero,
+                        "count": 0,
+                        "wins": 0,
+                        "losses": 0,
+                        "unknown": 0,
+                        "total_similarity": 0.0,
+                    },
+                )
+                response_bucket["count"] += 1
+                response_bucket["total_similarity"] += float(similarity_score or 0)
+                if result == "Win":
+                    response_bucket["wins"] += 1
+                elif result == "Loss":
+                    response_bucket["losses"] += 1
+                else:
+                    response_bucket["unknown"] += 1
+
+        similar_matches.sort(
+            key=lambda row: (
+                int(row.get("score", 0) or 0),
+                1 if str(row.get("result") or "") == "Win" else 0,
+                str(row.get("response") or ""),
+            ),
+            reverse=True,
+        )
+        response_rows = []
+        for row in response_summary.values():
+            decided = int(row.get("wins", 0) or 0) + int(row.get("losses", 0) or 0)
+            avg_similarity = (float(row.get("total_similarity", 0) or 0) / int(row.get("count", 0) or 1)) if row.get("count") else 0.0
+            win_rate = ((int(row.get("wins", 0) or 0) / decided) * 100.0) if decided else 0.0
+            row["decided"] = decided
+            row["avg_similarity"] = round(avg_similarity, 1)
+            row["win_rate"] = round(win_rate, 1)
+            row["effectiveness"] = round(float(row.get("total_similarity", 0) or 0) * (win_rate / 100.0), 2)
+            response_rows.append(row)
+        response_rows.sort(
+            key=lambda row: (
+                float(row.get("effectiveness", 0) or 0),
+                int(row.get("count", 0) or 0),
+                float(row.get("avg_similarity", 0) or 0),
+                str(row.get("hero") or ""),
+            ),
+            reverse=True,
+        )
+        return {
+            "max_score": max_score,
+            "matches": similar_matches[:5],
+            "responses": response_rows[:5],
+        }
+
+    our_ban_plan = _build_full_slot_plan(
+        ["ban1", "ban2", "ban3", "ban4"],
+        our_locked_bans,
+        [row.get("hero", "") for row in next_ban_rows if row.get("hero")],
+        visuals.get("our_ban_slot_history") or {},
+    )
+    our_protect_plan = _build_full_slot_plan(
+        ["protect1", "protect2"],
+        our_locked_protects,
+        [row.get("hero", "") for row in next_protect_rows if row.get("hero")],
+        visuals.get("our_protect_slot_history") or {},
+    )
+    enemy_ban_plan = _build_full_slot_plan(
+        ["ban1", "ban2", "ban3", "ban4"],
+        enemy_locked_bans,
+        enemy_next_bans,
+        visuals.get("enemy_ban_slot_history") or {},
+    )
+    enemy_protect_plan = _build_full_slot_plan(
+        ["protect1", "protect2"],
+        enemy_locked_protects,
+        enemy_next_protects,
+        visuals.get("enemy_protect_slot_history") or {},
+    )
+    similar_draft_snapshot = _build_similar_draft_snapshot()
+
     lines = ["Live decision packet:"]
-    if next_team == "a":
-        lines.append("- It is our action; prioritize the next ban if the active slot is a ban, otherwise preserve the comp route.")
-    elif next_team == "b":
-        lines.append("- Enemy acts next; predict which of these paths they protect or which of our pieces they remove.")
+    if next_action_type == "our_ban":
+        lines.append("- It is our ban turn; prioritize the highest-impact removal on enemy route continuity.")
+    elif next_action_type == "our_protect":
+        lines.append("- It is our protect turn; preserve our route piece before the next enemy ban.")
+    elif next_action_type == "enemy_ban":
+        lines.append("- Enemy ban turn is next; predict which of our route pieces they remove.")
+    elif next_action_type == "enemy_protect":
+        lines.append("- Enemy protect turn is next; predict which route anchor they lock before banning.")
     if next_ban_rows:
         lines.append("- Next ban candidates:")
         for row in next_ban_rows[:3]:
             lines.append(f"  - {row['hero']}: " + "; ".join(row["reasons"]))
+        lines.append(
+            "- Ranked bans (do not reorder): "
+            + " | ".join(
+                f"#{idx + 1} {row.get('hero', '')}"
+                for idx, row in enumerate(next_ban_rows[:4])
+                if row.get("hero")
+            )
+        )
     if next_protect_rows:
         lines.append("- Next protect candidates:")
         for row in next_protect_rows[:3]:
             lines.append(f"  - {row['hero']}: " + "; ".join(row["reasons"]))
+        lines.append(
+            "- Ranked protects (do not reorder): "
+            + " | ".join(
+                f"#{idx + 1} {row.get('hero', '')}"
+                for idx, row in enumerate(next_protect_rows[:3])
+                if row.get("hero")
+            )
+        )
     if enemy_next_bans:
         lines.append("- Enemy likely next bans: " + _machine_chat_join(enemy_next_bans, 4))
+    if similar_draft_snapshot.get("matches"):
+        lines.append("- Similar past drafts (scored):")
+        for row in (similar_draft_snapshot.get("matches") or [])[:3]:
+            lines.append(
+                f"  - {row.get('map_name') or 'Unknown Map'} | similarity {int(row.get('score', 0) or 0)}/{int(similar_draft_snapshot.get('max_score') or 0)}"
+                f" | enemy response {row.get('response') or 'Unknown'} | result {row.get('result') or 'Unknown'}"
+            )
+    if similar_draft_snapshot.get("responses"):
+        lines.append("- Historical response results from top similar drafts:")
+        for row in (similar_draft_snapshot.get("responses") or [])[:3]:
+            lines.append(
+                f"  - {row.get('hero') or 'Unknown'}: {int(row.get('wins', 0) or 0)}W-{int(row.get('losses', 0) or 0)}L"
+                f" across {int(row.get('count', 0) or 0)} similar drafts"
+                f" | avg similarity {float(row.get('avg_similarity', 0) or 0):.1f}/{int(similar_draft_snapshot.get('max_score') or 0)}"
+            )
+    lines.append("- Historical best-in-slot (our bans): " + _format_slot_plan(our_ban_plan, ["ban1", "ban2", "ban3", "ban4"]))
+    lines.append("- Historical best-in-slot (our protects): " + _format_slot_plan(our_protect_plan, ["protect1", "protect2"]))
+    lines.append("- Historical best-in-slot (enemy bans): " + _format_slot_plan(enemy_ban_plan, ["ban1", "ban2", "ban3", "ban4"]))
+    lines.append("- Historical best-in-slot (enemy protects): " + _format_slot_plan(enemy_protect_plan, ["protect1", "protect2"]))
     if possible_pivots and draft_complete:
         lines.append("- Possible pivot paths:")
         for row in possible_pivots[:3]:
@@ -3127,12 +3817,24 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 f" -> {_machine_chat_join(row['pivot'], 4)}"
                 f" ({row.get('diff_count', 0)} hero shift{pressure_text}{counter_text})"
             )
-    lines.append("Explain the recommended next action by whether it blocks an enemy route or preserves our route, what fallback it leaves, remaining risk, and confidence.")
+    lines.append(
+        "You are a Marvel Rivals counter-draft AI. You are acting as the enemy team's draft coach, but you may ONLY use historical data. "
+        "Do not use matchup theory. Do not use hero theory. Do not infer counters unless they appear in the data. "
+        "Do not require exact matches. Use the closest fuzzy historical matches available. "
+        "Use only past drafts, past bans, past picks, past map results, past team-specific tendencies, past hero pairings, past win/loss outcomes, and past responses to similar drafts. "
+        "Calculate similar drafts with this exact scoring: +3 for each same hero on your team, +2 for each same hero pair, +2 for same map, +1 for same mode, +1 for same enemy team, +1 for each same ban. Pull the top matches. "
+        "Never say: No exact match found, so no recommendation. Instead say: Closest historical counter found with Low, Medium, or High confidence. "
+        "Output exactly in this format: Closest historical match count, Average similarity score, Shared features, Most common enemy response, Best-performing enemy response, Projected enemy counter move, Historical reasoning, Historical record, Sample size, Confidence, Missing data. "
+        "Only make recommendations if they are directly supported by historical draft data. Use only provided historical/model rows; do not invent heroes, stats, or draft events."
+    )
 
     return "\n".join(lines), {
         "next_bans": next_ban_rows,
         "next_protects": next_protect_rows,
+        "enemy_next_protects": enemy_next_protects[:4],
         "enemy_next_bans": enemy_next_bans[:4],
+        "enemy_next_ban_slot_key": next_enemy_ban_slot_key,
+        "enemy_next_protect_slot_key": next_enemy_protect_slot_key,
         "possible_pivots": possible_pivots if draft_complete else [],
         "our_projected_path": _clean_heroes(visuals.get("target_comp"), 6) if draft_complete else [],
         "their_projected_path": _clean_heroes((enemy_comp_rows[0] or {}).get("heroes"), 6) if draft_complete and enemy_comp_rows else [],
@@ -3142,10 +3844,23 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         "team_b": team_b,
         "current_phase": current_phase,
         "draft_complete": draft_complete,
+        "next_action_type": next_action_type,
+        "enemy_response_action_type": (
+            "enemy_protect"
+            if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2)
+            else "enemy_ban"
+        ),
+        "similar_draft_matches": similar_draft_snapshot.get("matches") or [],
+        "similar_draft_responses": similar_draft_snapshot.get("responses") or [],
+        "similar_draft_max_score": int(similar_draft_snapshot.get("max_score") or 0),
         "our_locked_bans": our_locked_bans,
         "enemy_locked_bans": enemy_locked_bans,
         "our_locked_protects": our_locked_protects,
         "enemy_locked_protects": enemy_locked_protects,
+        "our_ban_plan": our_ban_plan,
+        "our_protect_plan": our_protect_plan,
+        "enemy_ban_plan": enemy_ban_plan,
+        "enemy_protect_plan": enemy_protect_plan,
     }
 
 
@@ -3154,6 +3869,7 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         return ""
     next_bans = decision_data.get("next_bans") or []
     next_protects = decision_data.get("next_protects") or []
+    enemy_next_protects = decision_data.get("enemy_next_protects") or []
     enemy_next_bans = decision_data.get("enemy_next_bans") or []
     pivots = decision_data.get("possible_pivots") or []
     our_path = decision_data.get("our_projected_path") or []
@@ -3164,9 +3880,217 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     enemy_locked_bans = decision_data.get("enemy_locked_bans") or []
     our_locked_protects = decision_data.get("our_locked_protects") or []
     enemy_locked_protects = decision_data.get("enemy_locked_protects") or []
+    our_ban_plan = decision_data.get("our_ban_plan") or {}
+    our_protect_plan = decision_data.get("our_protect_plan") or {}
+    enemy_ban_plan = decision_data.get("enemy_ban_plan") or {}
+    enemy_protect_plan = decision_data.get("enemy_protect_plan") or {}
+    enemy_next_ban_slot_key = str(decision_data.get("enemy_next_ban_slot_key") or "").strip().lower()
+    enemy_next_protect_slot_key = str(decision_data.get("enemy_next_protect_slot_key") or "").strip().lower()
+    enemy_response_action_type = str(decision_data.get("enemy_response_action_type") or "").strip().lower()
+    similar_draft_matches = decision_data.get("similar_draft_matches") or []
+    similar_draft_responses = decision_data.get("similar_draft_responses") or []
+    similar_draft_max_score = int(decision_data.get("similar_draft_max_score") or 0)
     draft_complete = bool(decision_data.get("draft_complete"))
     if not next_bans and not next_protects and not pivots and not enemy_next_bans:
         return ""
+
+    def _enemy_response_reason(hero: str, action_type: str) -> str:
+        clean_hero = _canonical_draft_hero(str(hero or "").strip())
+        if not clean_hero:
+            return "No clean historical trigger yet."
+        if action_type == "enemy_protect":
+            slot_key = enemy_next_protect_slot_key or "protect1"
+            return f"Historical {slot_key} data makes this their most common next protect."
+        slot_key = enemy_next_ban_slot_key or "ban1"
+        return f"Historical {slot_key} data makes this their most common next ban."
+
+    def _enemy_response_confidence(pool: list[str], hero: str) -> str:
+        if not hero:
+            return "Low"
+        if pool and len(pool) > 1 and pool[0] == hero:
+            return "High"
+        if pool:
+            return "Med"
+        return "Low"
+
+    active_enemy_action = enemy_response_action_type or (
+        "enemy_protect"
+        if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2)
+        else "enemy_ban"
+    )
+    active_enemy_pool = enemy_next_protects if active_enemy_action == "enemy_protect" else enemy_next_bans
+
+    most_likely_hero = ""
+    most_likely_reason = "No clean historical trigger yet."
+    most_likely_confidence = "Low"
+    if active_enemy_pool:
+        most_likely_hero = active_enemy_pool[0]
+        most_likely_reason = _enemy_response_reason(most_likely_hero, active_enemy_action)
+        most_likely_confidence = _enemy_response_confidence(active_enemy_pool, most_likely_hero)
+    elif their_path:
+        most_likely_hero = their_path[0]
+        most_likely_reason = "This is the clearest remaining route anchor in their historical path data."
+
+    dangerous_hero = most_likely_hero or (active_enemy_pool[0] if active_enemy_pool else "Unknown")
+    dangerous_reason = _enemy_response_reason(dangerous_hero, active_enemy_action)
+    dangerous_confidence = _enemy_response_confidence(active_enemy_pool, dangerous_hero)
+
+    best_historical_response = similar_draft_responses[0] if similar_draft_responses else {}
+    if best_historical_response.get("hero"):
+        recommended_enemy_move = str(best_historical_response.get("hero") or "").strip()
+    else:
+        recommended_enemy_move = dangerous_hero if dangerous_hero and dangerous_hero != "Unknown" else most_likely_hero
+
+    our_adjustment = "pivot"
+    if next_protects:
+        our_adjustment = f"protect {next_protects[0].get('hero') or ''}".strip()
+    elif next_bans:
+        our_adjustment = f"ban {next_bans[0].get('hero') or ''}".strip()
+
+    response_action_label = "pick" if active_enemy_action == "enemy_protect" else "ban"
+    similar_match_count = len(similar_draft_matches)
+    avg_similarity = (
+        sum(float(row.get("score", 0) or 0) for row in similar_draft_matches) / similar_match_count
+        if similar_match_count else 0.0
+    )
+    top_match = similar_draft_matches[0] if similar_draft_matches else {}
+    shared_features: list[str] = []
+    if top_match:
+        same_heroes = int(top_match.get("same_heroes", 0) or 0)
+        same_pairs = int(top_match.get("same_pairs", 0) or 0)
+        same_bans = int(top_match.get("same_bans", 0) or 0)
+        if same_heroes:
+            shared_features.append(f"- same heroes: {same_heroes}")
+        if same_pairs:
+            shared_features.append(f"- same hero pairs: {same_pairs}")
+        if same_bans:
+            shared_features.append(f"- same bans: {same_bans}")
+        if top_match.get("same_map"):
+            shared_features.append(f"- same map: {top_match.get('map_name') or 'Unknown Map'}")
+        if top_match.get("same_mode"):
+            shared_features.append(f"- same mode: {top_match.get('mode') or 'unknown'}")
+        if top_match.get("same_enemy_team"):
+            shared_features.append(f"- same enemy team: {top_match.get('opponent') or 'Unknown Opponent'}")
+    if not shared_features:
+        shared_features.append("- low-overlap fuzzy match only")
+
+    best_count = int(best_historical_response.get("count", 0) or 0)
+    best_win_rate = float(best_historical_response.get("win_rate", 0) or 0)
+    best_avg_similarity = float(best_historical_response.get("avg_similarity", 0) or 0)
+    max_ratio = (best_avg_similarity / similar_draft_max_score) if similar_draft_max_score > 0 else 0.0
+    if best_count >= 3 and best_win_rate >= 55 and max_ratio >= 0.55:
+        confidence = "High"
+    elif best_count >= 2 and best_win_rate >= 50 and max_ratio >= 0.4:
+        confidence = "Medium"
+    elif recommended_enemy_move:
+        confidence = dangerous_confidence or most_likely_confidence or "Low"
+    else:
+        confidence = "Low"
+    if confidence == "Med":
+        confidence = "Medium"
+
+    most_common_response = {}
+    if similar_draft_responses:
+        most_common_response = sorted(
+            similar_draft_responses,
+            key=lambda row: (
+                int(row.get("count", 0) or 0),
+                float(row.get("avg_similarity", 0) or 0),
+                str(row.get("hero") or ""),
+            ),
+            reverse=True,
+        )[0]
+
+    best_record = f"{int(best_historical_response.get('wins', 0) or 0)}W-{int(best_historical_response.get('losses', 0) or 0)}L" if best_count else "Not enough historical evidence."
+    sample_size_text = f"{best_count} similar drafts" if best_count else (f"{similar_match_count} fuzzy matches" if similar_match_count else "0 similar drafts")
+    avg_similarity_text = f"{avg_similarity:.1f}/{similar_draft_max_score}" if similar_match_count and similar_draft_max_score else "0.0/0"
+    most_common_response_text = (
+        f"{most_common_response.get('hero') or 'Unknown'} {response_action_label} in {int(most_common_response.get('count', 0) or 0)} similar drafts"
+        if most_common_response else
+        (f"{most_likely_hero} {response_action_label}" if most_likely_hero else "Closest historical counter found with Low confidence.")
+    )
+    best_performing_response_text = (
+        f"{best_historical_response.get('hero') or 'Unknown'} {response_action_label} | {best_record} | avg similarity {best_avg_similarity:.1f}/{similar_draft_max_score or 1}"
+        if best_count else
+        (f"{recommended_enemy_move} {response_action_label}" if recommended_enemy_move else "Closest historical counter found with Low confidence.")
+    )
+    reasoning_lines: list[str] = []
+    if recommended_enemy_move:
+        reasoning_lines.append(
+            f"Projected from {sample_size_text} where {recommended_enemy_move} was the strongest historical {response_action_label} response."
+        )
+    if top_match:
+        match_bits: list[str] = []
+        if int(top_match.get("same_heroes", 0) or 0):
+            match_bits.append(f"{int(top_match.get('same_heroes', 0) or 0)} same heroes")
+        if int(top_match.get("same_pairs", 0) or 0):
+            match_bits.append(f"{int(top_match.get('same_pairs', 0) or 0)} same hero pairs")
+        if int(top_match.get("same_bans", 0) or 0):
+            match_bits.append(f"{int(top_match.get('same_bans', 0) or 0)} same bans")
+        if top_match.get("same_map"):
+            match_bits.append("same map")
+        if top_match.get("same_mode"):
+            match_bits.append("same mode")
+        if top_match.get("same_enemy_team"):
+            match_bits.append("same enemy team")
+        if match_bits:
+            reasoning_lines.append(
+                "Closest matching draft features: " + ", ".join(match_bits) + "."
+            )
+    if best_count:
+        reasoning_lines.append(
+            f"Historical result for this response: {best_record} with average similarity {best_avg_similarity:.1f}/{similar_draft_max_score or 1}."
+        )
+    elif most_likely_reason:
+        reasoning_lines.append(most_likely_reason)
+    if not reasoning_lines:
+        reasoning_lines.append("Not enough historical evidence.")
+    missing_data_parts: list[str] = []
+    if similar_match_count < 3:
+        missing_data_parts.append("limited close fuzzy matches")
+    if best_count < 3:
+        missing_data_parts.append("small best-response sample")
+    if not similar_draft_max_score:
+        missing_data_parts.append("no strong shared map/mode/team markers")
+    if not missing_data_parts:
+        missing_data_parts.append("none significant in current filter")
+    missing_data_text = ", ".join(missing_data_parts)
+
+    return "\n".join([
+        f"Closest historical counter found with {confidence} confidence.",
+        "Closest historical match count:",
+        str(similar_match_count),
+        "",
+        "Average similarity score:",
+        avg_similarity_text,
+        "",
+        "Shared features:",
+        *shared_features,
+        "",
+        "Most common enemy response:",
+        most_common_response_text,
+        "",
+        "Best-performing enemy response:",
+        best_performing_response_text,
+        "",
+        "Projected enemy counter move:",
+        f"{recommended_enemy_move} {response_action_label}" if recommended_enemy_move else f"Closest historical counter found with {confidence} confidence.",
+        "",
+        "Historical reasoning:",
+        *reasoning_lines,
+        "",
+        "Historical record:",
+        best_record,
+        "",
+        "Sample size:",
+        sample_size_text,
+        "",
+        "Confidence:",
+        confidence,
+        "",
+        "Missing data:",
+        missing_data_text,
+    ]).strip()
 
     explained_pivot = ""
     top = next_bans[0] if next_bans else {}
@@ -3174,23 +4098,123 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     top_hero = top.get("hero") or "their highest-value remaining route piece"
     top_protect_hero = top_protect.get("hero") or ""
     top_enemy_ban = enemy_next_bans[0] if enemy_next_bans else ""
-    next_ban_number = len(our_locked_bans) + 1
-    next_protect_number = len(our_locked_protects) + 1
+    remaining_bans = max(0, 4 - len(our_locked_bans))
+    remaining_protects = max(0, 2 - len(our_locked_protects))
+    enemy_remaining_bans = max(0, 4 - len(enemy_locked_bans))
+    next_ban_number = min(len(our_locked_bans) + 1, 4)
+    next_protect_number = min(len(our_locked_protects) + 1, 2)
 
     lines = ["Live draft read:"]
     if our_locked_bans:
         lines.append(f"We are banning: {_machine_chat_join(our_locked_bans, 4)}.")
     else:
         lines.append("We are banning first from a clean board.")
-    if top_enemy_ban:
-        lines.append(f"They will likely ban next: {top_enemy_ban}.")
-    elif enemy_locked_bans:
-        lines.append(f"Their ban line so far: {_machine_chat_join(enemy_locked_bans, 4)}.")
     current_phase = decision_data.get("current_phase") or {}
+    phase_label_lc = str(current_phase.get("phase_label") or "").lower()
     next_team = current_phase.get("next_team")
-    open_protect_turn = next_team == "a" and next_protect_hero and len(our_locked_protects) < 2
+    next_action_type = str(decision_data.get("next_action_type") or "").strip().lower()
+    if not next_action_type:
+        explicit_action = str(current_phase.get("next_action_type") or "").strip().lower()
+        if explicit_action in {"ban", "protect"}:
+            if next_team == "a":
+                next_action_type = "our_protect" if explicit_action == "protect" else "our_ban"
+            elif next_team == "b":
+                next_action_type = "enemy_protect" if explicit_action == "protect" else "enemy_ban"
+        if not next_action_type:
+            next_slot = str(current_phase.get("next_slot") or "").strip().lower()
+            if next_slot.startswith("protect"):
+                next_action_type = "our_protect" if next_team == "a" else ("enemy_protect" if next_team == "b" else "unknown")
+            elif next_slot.startswith("ban"):
+                next_action_type = "our_ban" if next_team == "a" else ("enemy_ban" if next_team == "b" else "unknown")
+    if not next_action_type:
+        if "protect" in phase_label_lc:
+            next_action_type = "our_protect" if next_team == "a" else ("enemy_protect" if next_team == "b" else "unknown")
+        elif "ban" in phase_label_lc:
+            next_action_type = "our_ban" if next_team == "a" else ("enemy_ban" if next_team == "b" else "unknown")
+        elif next_team == "a":
+            next_action_type = "our_protect" if len(our_locked_bans) in {1, 3} and len(our_locked_protects) < 2 else "our_ban"
+        elif next_team == "b":
+            next_action_type = "enemy_protect" if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < 2 else "enemy_ban"
+        else:
+            next_action_type = "unknown"
+
+    open_protect_turn = next_action_type == "our_protect"
+    enemy_protect_turn = next_action_type == "enemy_protect"
+    if open_protect_turn and not top_protect_hero:
+        locked_names = {
+            str(h or "").strip().lower()
+            for h in (our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects)
+        }
+        top_protect_hero = next(
+            (hero for hero in (our_path or []) if str(hero or "").strip().lower() not in locked_names),
+            "",
+        )
+    if enemy_protect_turn:
+        enemy_next_protect = enemy_next_protects[0] if enemy_next_protects else ""
+        predicted_protect_keys = {
+            _canonical_draft_hero(str(hero or "")).lower()
+            for hero in enemy_next_protects
+            if str(hero or "").strip()
+        }
+        enemy_next_bans = [
+            hero for hero in enemy_next_bans
+            if _canonical_draft_hero(str(hero or "")).lower() not in predicted_protect_keys
+        ]
+        if enemy_remaining_bans <= 0:
+            enemy_next_bans = []
+        if enemy_next_protect:
+            lines.append(
+                f"Based off historical data, their likely protect for the comp they want to play is: {enemy_next_protect}."
+            )
+        elif enemy_locked_protects:
+            lines.append(f"Their protect line so far: {_machine_chat_join(enemy_locked_protects, 2)}.")
+        else:
+            lines.append("They should protect next: unclear.")
+        if top_enemy_ban and enemy_next_bans:
+            top_enemy_ban = enemy_next_bans[0]
+            lines.append(
+                f"Based off historical data, their best ban after protect for the comp they want to play is: {top_enemy_ban}."
+            )
+    else:
+        if top_enemy_ban:
+            lines.append(
+                f"Based off historical data, their best next ban for the comp they want to play is: {top_enemy_ban}."
+            )
+        elif enemy_locked_bans:
+            lines.append(f"Their ban line so far: {_machine_chat_join(enemy_locked_bans, 4)}.")
     if open_protect_turn:
+        lines.append("Action type: Protect turn.")
+    elif enemy_protect_turn:
+        lines.append("Action type: Enemy protect turn.")
+    elif next_action_type == "our_ban":
+        lines.append("Action type: Ban turn.")
+    elif next_action_type == "enemy_ban":
+        lines.append("Action type: Enemy ban turn.")
+    if open_protect_turn and remaining_protects <= 0:
+        lines.append("We have no protects remaining (max 2).")
+    elif (enemy_protect_turn or next_action_type == "our_ban") and remaining_bans <= 0:
+        lines.append("We have no bans remaining (max 4).")
+    elif open_protect_turn:
         lines.append(f"We should protect: {top_protect_hero} (protect {next_protect_number}).")
+    elif enemy_protect_turn:
+        predicted_protect_keys = {
+            _canonical_draft_hero(str(hero or "")).lower()
+            for hero in enemy_next_protects
+            if str(hero or "").strip()
+        }
+        if _canonical_draft_hero(str(top_hero or "")).lower() in predicted_protect_keys:
+            replacement_row = next(
+                (
+                    row
+                    for row in next_bans[1:]
+                    if _canonical_draft_hero(str(row.get("hero") or "")).lower() not in predicted_protect_keys
+                ),
+                {},
+            )
+            if replacement_row:
+                top = replacement_row
+                top_hero = replacement_row.get("hero") or top_hero
+        lines.append(f"We should ban after their protect: {top_hero} (ban {next_ban_number}).")
     else:
         lines.append(f"We should ban: {top_hero} (ban {next_ban_number}).")
 
@@ -3211,6 +4235,30 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         lines.append(f"Our protects: {_machine_chat_join(our_locked_protects, 2)}.")
     if enemy_locked_protects:
         lines.append(f"Their protects: {_machine_chat_join(enemy_locked_protects, 2)}.")
+    if our_ban_plan:
+        lines.append(
+            "Historical best-in-slot (our bans): "
+            + " | ".join(f"{slot} {our_ban_plan.get(slot) or '—'}" for slot in ("ban1", "ban2", "ban3", "ban4"))
+            + "."
+        )
+    if our_protect_plan:
+        lines.append(
+            "Historical best-in-slot (our protects): "
+            + " | ".join(f"{slot} {our_protect_plan.get(slot) or '—'}" for slot in ("protect1", "protect2"))
+            + "."
+        )
+    if enemy_ban_plan:
+        lines.append(
+            "Historical best-in-slot (enemy bans): "
+            + " | ".join(f"{slot} {enemy_ban_plan.get(slot) or '—'}" for slot in ("ban1", "ban2", "ban3", "ban4"))
+            + "."
+        )
+    if enemy_protect_plan:
+        lines.append(
+            "Historical best-in-slot (enemy protects): "
+            + " | ".join(f"{slot} {enemy_protect_plan.get(slot) or '—'}" for slot in ("protect1", "protect2"))
+            + "."
+        )
 
     if next_bans and not open_protect_turn:
         reasons = list(top.get("reasons") or [])
@@ -3454,6 +4502,8 @@ def api_machine_chat_stream():
     chat_context = _machine_agent_context_from_payload(payload, message)
     season_value = chat_context.get("season") or "all"
     selected_map_name = chat_context.get("map") or "all"
+    selected_map_type = get_selected_map_type(chat_context.get("map_type") or "all")
+    selected_mode_type = str(chat_context.get("mode_type") or "all").strip().lower() or "all"
     include_scrims = bool(chat_context.get("include_scrims", True))
     include_tournaments = bool(chat_context.get("include_tournaments", True))
     if not include_scrims and not include_tournaments:
@@ -3504,6 +4554,8 @@ def api_machine_chat_stream():
             map_name,
             include_scrims,
             include_tournaments,
+            selected_map_type,
+            selected_mode_type,
         ),
         site_answer_fn=_machine_agent_site_answer,
         site_context_text_fn=_machine_agent_site_context_text,
@@ -3533,6 +4585,8 @@ def api_machine_chat_stream():
             selected_map_name,
             include_scrims,
             include_tournaments,
+            selected_map_type,
+            selected_mode_type,
         )
         captured_meta[0] = live_meta
         captured_visuals[0] = dict((live_meta.get("visuals") or {}))
@@ -3610,7 +4664,13 @@ def api_machine_chat_stream():
                     target_row = get_db().execute("SELECT * FROM teams WHERE id = ?", (target_team_id,)).fetchone()
                     if target_row:
                         target_history = _machine_chat_filter_team_history(
-                            target_row, season_value, selected_map_name, include_scrims, include_tournaments
+                            target_row,
+                            season_value,
+                            selected_map_name,
+                            include_scrims,
+                            include_tournaments,
+                            selected_map_type,
+                            selected_mode_type,
                         )
                         pivot_stats = _machine_agent_player_pivot_stats(
                             target_history, player_pivot_request["player"], player_pivot_request["banned_hero"]
@@ -3629,13 +4689,29 @@ def api_machine_chat_stream():
                     team_b_row = db.execute("SELECT * FROM teams WHERE id = ?", (team_b_id,)).fetchone()
                     if team_a_row and team_b_row:
                         team_a_stats = _machine_agent_slot_timing_stats(
-                            _machine_chat_filter_team_history(team_a_row, season_value, selected_map_name, include_scrims, include_tournaments),
+                            _machine_chat_filter_team_history(
+                                team_a_row,
+                                season_value,
+                                selected_map_name,
+                                include_scrims,
+                                include_tournaments,
+                                selected_map_type,
+                                selected_mode_type,
+                            ),
                             meta.get("team_a", ""),
                             hero_name,
                             slot_numbers,
                         )
                         team_b_stats = _machine_agent_slot_timing_stats(
-                            _machine_chat_filter_team_history(team_b_row, season_value, selected_map_name, include_scrims, include_tournaments),
+                            _machine_chat_filter_team_history(
+                                team_b_row,
+                                season_value,
+                                selected_map_name,
+                                include_scrims,
+                                include_tournaments,
+                                selected_map_type,
+                                selected_mode_type,
+                            ),
                             meta.get("team_b", ""),
                             hero_name,
                             slot_numbers,
@@ -3740,6 +4816,8 @@ def _api_machine_chat_inner():
     chat_context = _machine_agent_context_from_payload(payload, message)
     season_value = chat_context.get("season") or "all"
     selected_map_name = chat_context.get("map") or "all"
+    selected_map_type = get_selected_map_type(chat_context.get("map_type") or "all")
+    selected_mode_type = str(chat_context.get("mode_type") or "all").strip().lower() or "all"
     include_scrims = bool(chat_context.get("include_scrims", True))
     include_tournaments = bool(chat_context.get("include_tournaments", True))
     if not include_scrims and not include_tournaments:
@@ -3755,6 +4833,8 @@ def _api_machine_chat_inner():
             int(chat_context.get("team_b_id") or 0),
             str(chat_context.get("season") or "all"),
             str(chat_context.get("map") or "all"),
+            str(chat_context.get("map_type") or "all"),
+            str(chat_context.get("mode_type") or "all"),
             bool(include_scrims),
             bool(include_tournaments),
         )
@@ -3810,6 +4890,8 @@ def _api_machine_chat_inner():
             map_name,
             include_scrims,
             include_tournaments,
+            selected_map_type,
+            selected_mode_type,
         ),
         site_answer_fn=_machine_agent_site_answer,
         site_context_text_fn=_machine_agent_site_context_text,
@@ -3839,6 +4921,8 @@ def _api_machine_chat_inner():
             selected_map_name,
             include_scrims,
             include_tournaments,
+            selected_map_type,
+            selected_mode_type,
         )
         captured_meta[0] = live_meta
         captured_visuals[0] = dict((live_meta.get("visuals") or {}))
@@ -3906,7 +4990,13 @@ def _api_machine_chat_inner():
         target_row = get_db().execute("SELECT * FROM teams WHERE id = ?", (target_team_id,)).fetchone()
         if target_row:
             target_history = _machine_chat_filter_team_history(
-                target_row, season_value, selected_map_name, include_scrims, include_tournaments
+                target_row,
+                season_value,
+                selected_map_name,
+                include_scrims,
+                include_tournaments,
+                selected_map_type,
+                selected_mode_type,
             )
             pivot_stats = _machine_agent_player_pivot_stats(
                 target_history, player_pivot_request["player"], player_pivot_request["banned_hero"]
@@ -3925,13 +5015,29 @@ def _api_machine_chat_inner():
         team_b_row = db.execute("SELECT * FROM teams WHERE id = ?", (team_b_id,)).fetchone()
         if team_a_row and team_b_row:
             team_a_stats = _machine_agent_slot_timing_stats(
-                _machine_chat_filter_team_history(team_a_row, season_value, selected_map_name, include_scrims, include_tournaments),
+                _machine_chat_filter_team_history(
+                    team_a_row,
+                    season_value,
+                    selected_map_name,
+                    include_scrims,
+                    include_tournaments,
+                    selected_map_type,
+                    selected_mode_type,
+                ),
                 meta.get("team_a", ""),
                 hero_name,
                 slot_numbers,
             )
             team_b_stats = _machine_agent_slot_timing_stats(
-                _machine_chat_filter_team_history(team_b_row, season_value, selected_map_name, include_scrims, include_tournaments),
+                _machine_chat_filter_team_history(
+                    team_b_row,
+                    season_value,
+                    selected_map_name,
+                    include_scrims,
+                    include_tournaments,
+                    selected_map_type,
+                    selected_mode_type,
+                ),
                 meta.get("team_b", ""),
                 hero_name,
                 slot_numbers,
@@ -4145,6 +5251,9 @@ def api_draft_reasoner_model():
 
     season_value = request.args.get("season", "")
     selected_map_type = get_selected_map_type(request.args.get("map_type", "all"))
+    selected_mode_type = str(request.args.get("mode_type", "all") or "all").strip().lower() or "all"
+    if selected_mode_type not in {"all", "control", "escort", "hybrid"}:
+        selected_mode_type = "all"
     selected_map_name = (request.args.get("map", "") or "").strip()
     include_scrims = _bool_arg("include_scrims", True)
     include_tournaments = _bool_arg("include_tournaments", True)
@@ -4156,6 +5265,7 @@ def api_draft_reasoner_model():
         int(team_b_id),
         str((season_value or "all").strip().lower() or "all"),
         str((selected_map_type or "all").strip().lower() or "all"),
+        str((selected_mode_type or "all").strip().lower() or "all"),
         str((selected_map_name or "all").strip().lower() or "all"),
         bool(include_scrims),
         bool(include_tournaments),
@@ -4167,6 +5277,33 @@ def api_draft_reasoner_model():
         return jsonify(cached.get("payload") or {})
 
     def _get_filtered_scrims(team_row) -> tuple[list[dict], list[dict]]:
+        def _filter_scrims_by_mode_type(scrims: list[dict], mode_type_value: str) -> list[dict]:
+            if mode_type_value == "all":
+                return scrims
+            mode_lookup = {
+                str(map_name or "").strip().lower(): str(mode_name or "").strip().lower()
+                for map_name, mode_name in (MAP_MODES or {}).items()
+            }
+            filtered_scrims: list[dict] = []
+            for scrim in scrims or []:
+                if not isinstance(scrim, dict):
+                    continue
+                filtered_maps = []
+                for map_entry in scrim.get("maps", []) or []:
+                    if not isinstance(map_entry, dict):
+                        continue
+                    map_mode = str(map_entry.get("mode") or map_entry.get("map_mode") or "").strip().lower()
+                    if not map_mode:
+                        map_name_key = str(map_entry.get("map") or map_entry.get("map_name") or "").strip().lower()
+                        map_mode = mode_lookup.get(map_name_key, "")
+                    if map_mode == mode_type_value:
+                        filtered_maps.append(map_entry)
+                if filtered_maps:
+                    scrim_copy = dict(scrim)
+                    scrim_copy["maps"] = filtered_maps
+                    filtered_scrims.append(scrim_copy)
+            return filtered_scrims
+
         all_scrims = get_team_history_for_sources(
             team_row,
             include_scrims=include_scrims,
@@ -4185,8 +5322,10 @@ def api_draft_reasoner_model():
         )
         scrims = filter_scrims_by_season(all_scrims, selected_season)
         scrims = filter_scrims_by_map_type(scrims, selected_map_type)
+        scrims = _filter_scrims_by_mode_type(scrims, selected_mode_type)
         hero_pool_scrims = filter_scrims_by_season(all_scrims, selected_season)
         hero_pool_scrims = filter_scrims_by_map_type(hero_pool_scrims, selected_map_type)
+        hero_pool_scrims = _filter_scrims_by_mode_type(hero_pool_scrims, selected_mode_type)
         if selected_map_name and selected_map_name.lower() != "all":
             filtered = []
             for scrim in scrims:

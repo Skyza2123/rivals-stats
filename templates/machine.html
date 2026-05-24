@@ -78,12 +78,114 @@
 @media (max-width:900px) { .dr-setup-grid { grid-template-columns:1fr 1fr; } }
 .dr-full-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
 @media (max-width:900px) { .dr-full-grid { grid-template-columns:1fr; } }
-.dr-suggest-banner { background:rgba(30,41,59,0.55); border:1px solid rgba(96,165,250,0.2); border-radius:0.6rem; padding:1rem 1.25rem; margin-bottom:1rem; }
-.dr-suggest-title { font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#94a3b8; margin-bottom:0.45rem; }
-.dr-suggest-meta { font-size:0.75rem; color:#94a3b8; margin-bottom:0.45rem; }
-.dr-suggest-comp { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:0.5rem; }
-.dr-suggest-section { margin-top:0.5rem; }
-.dr-suggest-section-label { font-size:0.75rem; font-weight:600; color:#94a3b8; margin-bottom:0.25rem; }
+.dr-suggest-banner {
+    background:linear-gradient(180deg, rgba(17,27,46,0.94), rgba(11,17,31,0.96));
+    border:1px solid rgba(96,165,250,0.18);
+    border-radius:1rem;
+    padding:1.1rem 1.15rem;
+    margin-bottom:1rem;
+    box-shadow:0 18px 38px rgba(2,6,23,0.24);
+}
+.dr-suggest-title { font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.13em; color:#7dd3fc; margin-bottom:0.35rem; }
+.dr-suggest-head {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:1rem;
+    align-items:start;
+    padding-bottom:1rem;
+    border-bottom:1px solid rgba(148,163,184,0.14);
+}
+.dr-suggest-headline {
+    font-size:1.28rem;
+    line-height:1.15;
+    font-weight:800;
+    color:#e6eefb;
+    margin:0 0 0.35rem;
+}
+.dr-suggest-meta { font-size:0.78rem; color:#9db0c7; line-height:1.45; }
+.dr-suggest-meta-stack { display:grid; gap:0.28rem; }
+.dr-suggest-score {
+    min-width:132px;
+    background:linear-gradient(180deg, rgba(8,14,26,0.86), rgba(12,19,34,0.92));
+    border:1px solid rgba(49,214,129,0.18);
+    border-radius:0.9rem;
+    padding:0.85rem 0.95rem;
+    text-align:right;
+}
+.dr-suggest-score-value {
+    font-size:1.9rem;
+    line-height:1;
+    font-weight:800;
+    color:#34d399;
+}
+.dr-suggest-score-label {
+    margin-top:0.3rem;
+    font-size:0.74rem;
+    color:#9db0c7;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+}
+.dr-suggest-grid {
+    display:grid;
+    grid-template-columns:1.15fr 1fr 1fr;
+    gap:1rem;
+    margin-top:1rem;
+}
+.dr-suggest-panel {
+    background:rgba(8,14,26,0.72);
+    border:1px solid rgba(148,163,184,0.14);
+    border-radius:0.95rem;
+    padding:0.95rem;
+    min-width:0;
+}
+.dr-suggest-panel .dr-suggest-section { margin-top:0.85rem; padding-top:0.85rem; border-top:1px solid rgba(148,163,184,0.12); }
+.dr-suggest-panel .dr-suggest-section:first-of-type { margin-top:0; padding-top:0; border-top:none; }
+.dr-suggest-section-label { font-size:0.72rem; font-weight:800; color:#7dd3fc; margin-bottom:0.42rem; text-transform:uppercase; letter-spacing:0.12em; }
+.dr-suggest-comp { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.55rem; align-items:stretch; margin-bottom:0.5rem; }
+.dr-suggest-panel .matchup-slot-row { align-items:flex-start; }
+.dr-suggest-panel .matchup-slot-label { min-width:4.25rem; padding-top:0.2rem; }
+.dr-suggest-footer {
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:0.85rem;
+    margin-top:1rem;
+    padding-top:1rem;
+    border-top:1px solid rgba(148,163,184,0.14);
+}
+.dr-suggest-mini {
+    background:rgba(12,19,34,0.9);
+    border:1px solid rgba(148,163,184,0.14);
+    border-radius:0.9rem;
+    padding:0.85rem 0.9rem;
+}
+.dr-suggest-mini-title {
+    color:#94a3b8;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin-bottom:0.35rem;
+}
+.dr-suggest-mini-value {
+    color:#e6eefb;
+    font-size:1rem;
+    font-weight:800;
+    line-height:1.25;
+}
+.dr-suggest-mini-note {
+    margin-top:0.35rem;
+    color:#9db0c7;
+    font-size:0.77rem;
+    line-height:1.4;
+}
+@media (max-width: 1180px) {
+    .dr-suggest-grid { grid-template-columns:1fr; }
+    .dr-suggest-footer { grid-template-columns:1fr; }
+}
+@media (max-width: 720px) {
+    .dr-suggest-head { grid-template-columns:1fr; }
+    .dr-suggest-score { text-align:left; min-width:0; }
+    .dr-suggest-comp { grid-template-columns:1fr; }
+}
 .dr-side-tabs { display:flex; gap:0.4rem; margin-bottom:0.55rem; }
 .dr-side-tab {
     border:1px solid rgba(148,163,184,0.22);
@@ -108,6 +210,84 @@
 .draft-slot.suggested .slot-hero { color:#60a5fa; }
 .draft-slot.suggested-protect .slot-hero { color:#4ade80; }
 .draft-slot.turn-locked { opacity:0.58; cursor:not-allowed; }
+.draft-slot.turn-next {
+    border-color:rgba(96,165,250,0.7);
+    box-shadow:0 0 0 3px rgba(96,165,250,0.18), 0 0 26px rgba(96,165,250,0.16);
+    animation:drNextSlotPulse 1.35s ease-in-out infinite;
+}
+.draft-slot.turn-next[data-team="b"] {
+    border-color:rgba(248,113,113,0.7);
+    box-shadow:0 0 0 3px rgba(248,113,113,0.16), 0 0 26px rgba(248,113,113,0.14);
+}
+.draft-slot.auto-filling {
+    transform:translateY(-1px);
+    border-color:rgba(251,191,36,0.8);
+    box-shadow:0 0 0 3px rgba(251,191,36,0.18), 0 0 28px rgba(251,191,36,0.18);
+}
+@keyframes drNextSlotPulse {
+    0%, 100% { filter:brightness(1); }
+    50% { filter:brightness(1.18); }
+}
+
+.dr-turn-status {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:0.75rem;
+    margin-top:0.85rem;
+    padding:0.58rem 0.72rem;
+    border:1px solid rgba(148,163,184,0.16);
+    border-radius:0.65rem;
+    background:rgba(8,14,26,0.72);
+    color:#cbd5e1;
+    font-size:0.83rem;
+}
+.dr-turn-status.is-enemy {
+    border-color:rgba(248,113,113,0.28);
+    background:rgba(127,29,29,0.13);
+}
+.dr-turn-status.is-our {
+    border-color:rgba(96,165,250,0.28);
+    background:rgba(30,58,138,0.13);
+}
+.dr-turn-status.is-complete {
+    border-color:rgba(74,222,128,0.28);
+    background:rgba(20,83,45,0.13);
+}
+.dr-turn-status-label {
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.dr-turn-status-timer {
+    flex:0 0 auto;
+    min-width:2.6rem;
+    text-align:right;
+    color:#e2e8f0;
+    font-weight:800;
+}
+
+#dr-side-assistant-view .dr-suggest-banner {
+    max-height:calc(100vh - 9rem);
+    overflow:auto;
+}
+#dr-side-assistant-view .dr-suggest-head,
+#dr-side-assistant-view .dr-suggest-grid,
+#dr-side-assistant-view .dr-suggest-footer {
+    grid-template-columns:1fr;
+}
+#dr-side-assistant-view .dr-suggest-score {
+    min-width:0;
+    text-align:left;
+}
+#dr-side-assistant-view .dr-suggest-headline {
+    font-size:1.05rem;
+}
+#dr-side-assistant-view .dr-suggest-panel,
+#dr-side-assistant-view .dr-suggest-mini {
+    border-radius:0.7rem;
+}
 
 /* Ghost ban hint for next recommended ban */
 .slot-ghost-wrap {
@@ -209,6 +389,95 @@
     display:grid;
     gap:0.45rem;
     margin-top:0.45rem;
+}
+.dr-live-read-wrap {
+    display:grid;
+    gap:0.55rem;
+}
+.dr-live-read-head {
+    font-size:0.86rem;
+    font-weight:800;
+    color:#e2e8f0;
+}
+.dr-live-read-grid {
+    display:grid;
+    gap:0.45rem;
+}
+.dr-live-read-row {
+    background:rgba(2,6,23,0.35);
+    border:1px solid rgba(148,163,184,0.15);
+    border-radius:0.5rem;
+    padding:0.48rem 0.58rem;
+    font-size:0.82rem;
+    line-height:1.45;
+    color:#cbd5e1;
+    overflow-wrap:anywhere;
+}
+.dr-live-read-value {
+    display:grid;
+    gap:0.22rem;
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+#dr-live-ai-output {
+    max-height:56vh;
+    overflow:auto;
+    padding-right:0.15rem;
+}
+.dr-live-read-row.is-action {
+    border-color:rgba(96,165,250,0.38);
+    background:rgba(30,58,138,0.18);
+}
+.dr-live-read-row.is-risk {
+    border-color:rgba(248,113,113,0.35);
+    background:rgba(127,29,29,0.15);
+}
+.dr-live-read-row.is-confidence {
+    border-color:rgba(74,222,128,0.32);
+    background:rgba(20,83,45,0.16);
+}
+.dr-live-read-label {
+    color:#94a3b8;
+    font-size:0.7rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-bottom:0.18rem;
+}
+.dr-live-ai-timer {
+    margin-top:0.55rem;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:0.75rem;
+    padding:0.55rem 0.7rem;
+    border-radius:0.7rem;
+    border:1px solid rgba(148,163,184,0.16);
+    background:rgba(8,14,26,0.72);
+}
+.dr-live-ai-timer-label {
+    font-size:0.76rem;
+    color:#cbd5e1;
+    line-height:1.35;
+}
+.dr-live-ai-timer-value {
+    min-width:3.2rem;
+    text-align:right;
+    font-size:1rem;
+    font-weight:800;
+    color:#e2e8f0;
+}
+.dr-live-ai-timer.is-action {
+    border-color:rgba(96,165,250,0.3);
+    background:rgba(30,58,138,0.14);
+}
+.dr-live-ai-timer.is-pause {
+    border-color:rgba(251,191,36,0.32);
+    background:rgba(120,53,15,0.15);
+}
+.dr-live-ai-timer.is-expired {
+    border-color:rgba(248,113,113,0.26);
+    background:rgba(127,29,29,0.14);
 }
 .dr-reason-tree { display:grid; gap:0.8rem; }
 .dr-tree-root {
@@ -813,6 +1082,15 @@
             </select>
         </div>
         <div class="field">
+            <label for="dr-mode-type">Mode Type</label>
+            <select id="dr-mode-type">
+                <option value="all" selected>All Modes</option>
+                <option value="control">Control</option>
+                <option value="escort">Escort</option>
+                <option value="hybrid">Hybrid</option>
+            </select>
+        </div>
+        <div class="field">
             <label for="dr-use-pool-weights">Pool Weights</label>
             <label class="matchup-badge" style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;align-self:start">
                 <input type="checkbox" id="dr-use-pool-weights" checked>
@@ -829,6 +1107,13 @@
                 <input type="checkbox" id="dr-include-tournaments" checked>
                 Tournaments
             </label>
+        </div>
+        <div class="field">
+            <label for="dr-scrim-lens">Scrim Lens</label>
+            <select id="dr-scrim-lens">
+                <option value="map_types" selected>Map Types</option>
+                <option value="ptw_only">Play-to-Win (PTW) only</option>
+            </select>
         </div>
     </div>
     <div class="button-row top-gap">
@@ -952,6 +1237,10 @@
                     </div>
                 </div>
             </div>
+            <div class="dr-turn-status" id="dr-turn-status">
+                <span class="dr-turn-status-label" id="dr-turn-status-label">Build a plan to start the draft.</span>
+                <span class="dr-turn-status-timer" id="dr-turn-status-timer">--</span>
+            </div>
             <p class="draft-hint">Click a slot, then pick a hero below. Right-click a slot to clear it.</p>
             <div class="button-row" style="margin-top:0.5rem" id="dr-play-row">
                 <button type="button" id="dr-play-btn" style="display:none">&#9654; Play Draft</button>
@@ -999,30 +1288,67 @@
         <div id="dr-side-assistant-view">
         <!-- Auto-suggest banner -->
         <div id="dr-suggest-block" style="display:none" class="dr-suggest-banner">
-            <div class="dr-suggest-title">&#11088; Best target comp for <span id="dr-suggest-for">Our Team</span> <span id="dr-suggest-map-label"></span></div>
-            <div class="dr-suggest-meta" id="dr-suggest-ml-meta"></div>
-            <div class="dr-suggest-comp" id="dr-suggest-comp-heroes"></div>
-            <div class="dr-suggest-section">
-                <div class="dr-suggest-section-label">Draft path:</div>
-                <div class="dr-suggest-meta" id="dr-suggest-path-meta"></div>
-                <div class="matchup-slot-row" id="dr-suggest-bans-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-bans"></div></div>
-                <div class="matchup-slot-row" id="dr-suggest-protects-row" style="display:none"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row" id="dr-suggest-protects"></div></div>
-            </div>
-            <div class="dr-suggest-section" id="dr-suggest-our-assign-section" style="display:none">
-                <div class="dr-suggest-section-label">Likely player fit:</div>
-                <div id="dr-suggest-our-assign"></div>
-            </div>
-            <div class="dr-suggest-section" id="dr-suggest-enemy-section" style="display:none">
-                <div class="dr-suggest-section-label"><span id="dr-suggest-enemy-name">Enemy</span> response to watch:</div>
-                <div class="matchup-hero-row" id="dr-suggest-enemy-comp"></div>
-                <div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-enemy-bans"></div></div>
-                <div class="dr-suggest-section" id="dr-suggest-enemy-assign-section" style="display:none">
-                    <div class="dr-suggest-section-label">Likely enemy player fit:</div>
-                    <div id="dr-suggest-enemy-assign"></div>
+            <div class="dr-suggest-head">
+                <div>
+                    <div class="dr-suggest-title">Draft Assistant</div>
+                    <div class="dr-suggest-headline">Best target comp for <span id="dr-suggest-for">Our Team</span> <span id="dr-suggest-map-label"></span></div>
+                    <div class="dr-suggest-meta-stack">
+                        <div class="dr-suggest-meta" id="dr-suggest-ml-meta"></div>
+                        <div class="dr-suggest-meta" id="dr-suggest-path-meta"></div>
+                    </div>
                 </div>
-                <div class="dr-suggest-section" id="dr-suggest-enemy-force-section" style="display:none">
-                    <div class="dr-suggest-section-label">&#x1F3AF; Player-pressure bans:</div>
-                    <div id="dr-suggest-enemy-force"></div>
+                <div class="dr-suggest-score">
+                    <div class="dr-suggest-score-value" id="dr-suggest-winrate">--</div>
+                    <div class="dr-suggest-score-label">Projected WR</div>
+                </div>
+            </div>
+
+            <div class="dr-suggest-grid">
+                <section class="dr-suggest-panel">
+                    <div class="dr-suggest-section-label">Primary Shell</div>
+                    <div class="dr-suggest-comp" id="dr-suggest-comp-heroes"></div>
+                    <div class="dr-suggest-section" id="dr-suggest-our-assign-section" style="display:none">
+                        <div class="dr-suggest-section-label">Likely player fit</div>
+                        <div id="dr-suggest-our-assign"></div>
+                    </div>
+                </section>
+
+                <section class="dr-suggest-panel">
+                    <div class="dr-suggest-section-label">Draft Flow</div>
+                    <div class="matchup-slot-row" id="dr-suggest-bans-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-bans"></div></div>
+                    <div class="matchup-slot-row" id="dr-suggest-protects-row" style="display:none"><span class="matchup-slot-label protect-label">Protects</span><div class="matchup-hero-row" id="dr-suggest-protects"></div></div>
+                </section>
+
+                <section class="dr-suggest-panel" id="dr-suggest-enemy-section" style="display:none">
+                    <div class="dr-suggest-section-label"><span id="dr-suggest-enemy-name">Enemy</span> response to watch</div>
+                    <div class="matchup-hero-row" id="dr-suggest-enemy-comp"></div>
+                    <div class="matchup-slot-row"><span class="matchup-slot-label">Bans</span><div class="matchup-hero-row" id="dr-suggest-enemy-bans"></div></div>
+                    <div class="dr-suggest-section" id="dr-suggest-enemy-assign-section" style="display:none">
+                        <div class="dr-suggest-section-label">Likely enemy player fit</div>
+                        <div id="dr-suggest-enemy-assign"></div>
+                    </div>
+                    <div class="dr-suggest-section" id="dr-suggest-enemy-force-section" style="display:none">
+                        <div class="dr-suggest-section-label">Player-pressure bans</div>
+                        <div id="dr-suggest-enemy-force"></div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="dr-suggest-footer">
+                <div class="dr-suggest-mini">
+                    <div class="dr-suggest-mini-title">Highest Risk Ban</div>
+                    <div class="dr-suggest-mini-value" id="dr-suggest-risk-ban">--</div>
+                    <div class="dr-suggest-mini-note" id="dr-suggest-risk-note">Waiting for more draft context.</div>
+                </div>
+                <div class="dr-suggest-mini">
+                    <div class="dr-suggest-mini-title">Best Fallback</div>
+                    <div class="dr-suggest-mini-value" id="dr-suggest-fallback">--</div>
+                    <div class="dr-suggest-mini-note" id="dr-suggest-fallback-note">Historical pivot will appear when enough data is available.</div>
+                </div>
+                <div class="dr-suggest-mini">
+                    <div class="dr-suggest-mini-title">Confidence</div>
+                    <div class="dr-suggest-mini-value" id="dr-suggest-confidence">--</div>
+                    <div class="dr-suggest-mini-note" id="dr-suggest-confidence-note">Sample unavailable</div>
                 </div>
             </div>
         </div>
@@ -1460,6 +1786,8 @@ function renderReplyHeroStrip(answer, meta) {
         team_b_name: '',
         season: 'all',
         map: 'all',
+        map_type: 'all',
+        mode_type: 'all',
         include_scrims: true,
         include_tournaments: true,
         reasoning_mode: 'reasoning'
@@ -1901,6 +2229,8 @@ function renderReplyHeroStrip(answer, meta) {
             'Reasoning mode',
             'Season ' + (agentContext.season && agentContext.season !== 'all' ? agentContext.season : 'all'),
             agentContext.map && agentContext.map !== 'all' ? agentContext.map : 'All maps',
+            'Map type ' + (agentContext.map_type && agentContext.map_type !== 'all' ? agentContext.map_type : 'all'),
+            'Mode ' + (agentContext.mode_type && agentContext.mode_type !== 'all' ? agentContext.mode_type : 'all'),
             agentContext.include_scrims && agentContext.include_tournaments ? 'scrims + tournaments' : (agentContext.include_scrims ? 'scrims only' : 'tournaments only')
         ];
         contextSub.textContent = filters.join(' | ');
@@ -3162,6 +3492,12 @@ function renderReplyHeroStrip(answer, meta) {
         const teamB = document.getElementById('dr-team-b');
         const season = document.getElementById('dr-season');
         const map = document.getElementById('dr-map');
+        const modeType = document.getElementById('dr-mode-type');
+        const modeTypeValue = modeType && modeType.value ? modeType.value : agentContext.mode_type;
+        const effectiveMapValue = modeTypeValue && modeTypeValue !== 'all'
+            ? 'all'
+            : (map && map.value ? map.value : agentContext.map);
+        const scrimLens = document.getElementById('dr-scrim-lens');
         const scrims = document.getElementById('dr-include-scrims');
         const tournaments = document.getElementById('dr-include-tournaments');
         const liveDraft = getLiveDraftSnapshot();
@@ -3171,7 +3507,9 @@ function renderReplyHeroStrip(answer, meta) {
             team_a_name: teamA && teamA.value ? (teamNames[String(teamA.value)] || '') : agentContext.team_a_name,
             team_b_name: teamB && teamB.value ? (teamNames[String(teamB.value)] || '') : agentContext.team_b_name,
             season: season && season.value ? season.value : agentContext.season,
-            map: map && map.value ? map.value : agentContext.map,
+            map: effectiveMapValue,
+            map_type: scrimLens && scrimLens.value === 'ptw_only' ? 'PTW' : 'all',
+            mode_type: modeTypeValue,
             include_scrims: scrims ? scrims.checked : agentContext.include_scrims,
             include_tournaments: tournaments ? tournaments.checked : agentContext.include_tournaments,
             draft_live: liveDraft,
@@ -3505,6 +3843,8 @@ function renderReplyHeroStrip(answer, meta) {
     let drContext = null;
     let drActiveSlot = null;   // {team:'a'|'b', slot:'ban1'..., el}
     let drPlayMode = false;    // true when auto-play is active
+    let drAutoFillInFlight = false;
+    let drTurnCountdownTimer = null;
     let drActiveLineup = null; // null = all players; Set of player-pool-keys who are 'in'
     const drDraft = {a:{}, b:{}};
     let drSuggest = {a:{bans:[],protects:[],ml:{},banPath:[]}, b:{bans:[],protects:[],ml:{},banPath:[]}};
@@ -3696,6 +4036,12 @@ function renderReplyHeroStrip(answer, meta) {
             'hero-pools': drSideHeroPoolsView,
             'open-ban-targets': drSideOpenBanTargetsView,
         };
+        const requestedTab = drSideTabs.find(function(tabBtn) {
+            return (tabBtn.dataset.view || '') === viewName;
+        });
+        if (requestedTab && requestedTab.style.display === 'none') {
+            viewName = 'assistant';
+        }
         Object.keys(visibility).forEach(function(key) {
             const el = visibility[key];
             if (!el) return;
@@ -3712,7 +4058,35 @@ function renderReplyHeroStrip(answer, meta) {
         });
     });
 
+    function drSyncSideTabsVisibility() {
+        const activePhase = drGetActiveTurnPhase();
+        const draftComplete = !activePhase.length;
+        const hasBanAction = activePhase.some(function(step) { return step.type === 'ban'; });
+        const hasProtectAction = activePhase.some(function(step) { return step.type === 'protect'; });
+
+        const visibleViews = new Set(['assistant', 'ai-live', 'hero-pools']);
+        if (hasBanAction || draftComplete) {
+            visibleViews.add('open-ban-targets');
+        }
+        if (hasProtectAction || hasBanAction || draftComplete) {
+            visibleViews.add('reasoning');
+        }
+
+        drSideTabs.forEach(function(tabBtn) {
+            const view = (tabBtn.dataset.view || '').toLowerCase();
+            tabBtn.style.display = visibleViews.has(view) ? '' : 'none';
+        });
+
+        const activeTab = drSideTabs.find(function(tabBtn) {
+            return tabBtn.classList.contains('active');
+        });
+        if (!activeTab || activeTab.style.display === 'none') {
+            drSetSideView('assistant');
+        }
+    }
+
     drSetSideView('assistant');
+    drSyncSideTabsVisibility();
 
     function drToggleSettingsPanel(forceOpen) {
         if (!settingsPanel) return;
@@ -4640,6 +5014,12 @@ function renderReplyHeroStrip(answer, meta) {
 
         const hints = drHeroPlayerHints[teamKey] || new Map();
 
+        function isStrictRoleMismatch(hero, playerRow) {
+            const heroRole = drGetReasonerPlayerRole(hero);
+            const playerRole = drNormalizeRoleName((playerRow || {}).role || '');
+            return Boolean(heroRole && playerRole && heroRole !== playerRole);
+        }
+
         // Score function: how well does playerRow fit hero
         function heroPlayerScore(hero, playerRow) {
             const hint = hints.get(hero);
@@ -4672,7 +5052,7 @@ function renderReplyHeroStrip(answer, meta) {
             const playerRole = drNormalizeRoleName(playerRow.role || '');
             if (heroRole && playerRole) {
                 if (heroRole === playerRole) score += 35;
-                else score -= 70;
+                else return -100000;
             }
 
             if (playerRow.is_sub) score -= 10;
@@ -4702,19 +5082,139 @@ function renderReplyHeroStrip(answer, meta) {
         const assignment = drHungarianMax(padded);
         return uniqueHeroes.map(function(hero, hi) {
             const pi = assignment[hi];
-            if (pi >= 0 && pi < m) {
+            if (pi >= 0 && pi < m && !isStrictRoleMismatch(hero, roster[pi])) {
                 return { hero: hero, player: roster[pi], score: scores[hi][pi] };
             }
             // If matched to dummy column (rare), fall back to best real player.
             let bestScore = -Infinity;
-            let bestIdx = 0;
+            let bestIdx = -1;
             for (let realPi = 0; realPi < m; realPi += 1) {
+                if (isStrictRoleMismatch(hero, roster[realPi])) continue;
                 if (scores[hi][realPi] > bestScore) {
                     bestScore = scores[hi][realPi];
                     bestIdx = realPi;
                 }
             }
+            if (bestIdx < 0) {
+                bestIdx = 0;
+                bestScore = scores[hi][bestIdx];
+            }
             return { hero: hero, player: roster[bestIdx], score: bestScore };
+        });
+    }
+
+    function drGetPlayerComfortPivotHero(teamKey, playerRow, originalHero, excludedHeroKeys) {
+        const excluded = excludedHeroKeys || new Set();
+        const playerRole = drNormalizeRoleName((playerRow || {}).role || '');
+        const preferredRole = playerRole || drGetReasonerPlayerRole(originalHero);
+        const hint = drFindPlayerHint(teamKey, playerRow.name);
+        const hardcodedTiers = drLookupPlayerTiersWithFallback(teamKey, playerRow.name) || {};
+        const mainHero = (playerRow.main_hero || '').trim();
+        const candidates = new Map();
+
+        function upsertCandidate(heroName, baseScore) {
+            const hero = String(heroName || '').trim();
+            if (!hero) return;
+            const heroKey = drHeroPoolHeroKey(hero);
+            if (!heroKey) return;
+            if (heroKey === drHeroPoolHeroKey(originalHero)) return;
+            if (excluded.has(heroKey)) return;
+
+            const seasonStats = drGetPlayerHeroSeasonStats(teamKey, playerRow.name, hero);
+            const hasRecordedPlay = Number(seasonStats.maps || seasonStats.appearances || 0) > 0;
+            if (!hasRecordedPlay) return;
+            const poolInfo = drGetHeroPoolInfo(teamKey, playerRow.name, hero);
+            const tier = poolInfo.tier || hardcodedTiers[hero] || '';
+            let score = Number(baseScore || 0);
+            score += (Number(seasonStats.usage_rate || 0) * 0.95);
+            score += Math.min(40, Number(seasonStats.appearances || 0) * 1.8);
+            score += ((Number(seasonStats.win_rate || 0) - 50) * 0.24);
+            score += Math.max(0, Number(poolInfo.rating || 0) * 0.72);
+            score += (drTierPriority(tier) * 22);
+            if (mainHero && drHeroPoolHeroKey(mainHero) === heroKey) score += 42;
+
+            const heroRole = drGetReasonerPlayerRole(hero);
+            if (playerRole && heroRole && heroRole !== playerRole) return;
+            if (preferredRole && heroRole) {
+                if (heroRole === preferredRole) score += 24;
+                else score -= 28;
+            }
+
+            const existing = candidates.get(heroKey);
+            if (!existing || score > existing.score) {
+                candidates.set(heroKey, {hero: seasonStats.hero || hero, score: score});
+            }
+        }
+
+        if (hint && hint.heroes) {
+            hint.heroes.forEach(function(_stats, heroName) {
+                upsertCandidate(heroName, 48);
+            });
+        }
+
+        Object.keys(hardcodedTiers).forEach(function(heroName) {
+            upsertCandidate(heroName, 34);
+        });
+
+        if (mainHero) {
+            upsertCandidate(mainHero, 62);
+        }
+
+        const best = Array.from(candidates.values()).sort(function(a, b) {
+            return (Number(b.score || 0) - Number(a.score || 0))
+                || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+        })[0];
+
+        return best ? best.hero : '';
+    }
+
+    function drBuildCompAssignmentsWithComfortPivot(teamKey, heroes, options) {
+        const baseRows = drBuildCompAssignments(teamKey, heroes);
+        if (!baseRows.length) return [];
+
+        const opts = options || {};
+        if (!opts.pivotToComfort) {
+            return baseRows.map(function(row) {
+                return Object.assign({}, row, {displayHero: row.hero, pivoted: false, pivotFrom: ''});
+            });
+        }
+
+        const unavailableHeroKeys = new Set(
+            Object.values(drDraft.a || {})
+                .concat(Object.values(drDraft.b || {}))
+                .filter(Boolean)
+                .map(drHeroPoolHeroKey)
+        );
+        const usedDisplayKeys = new Set();
+
+        return baseRows.map(function(row) {
+            const playerRow = row.player || null;
+            const hero = row.hero || '';
+            const heroKey = drHeroPoolHeroKey(hero);
+            const seasonStats = playerRow ? drGetPlayerHeroSeasonStats(teamKey, playerRow.name, hero) : {maps: 0};
+            const isInComfortPool = Number(seasonStats.maps || seasonStats.appearances || 0) > 0;
+            const lowFit = Number(row.score || 0) < 48;
+
+            if (!playerRow || (isInComfortPool && !lowFit)) {
+                usedDisplayKeys.add(heroKey);
+                return Object.assign({}, row, {displayHero: hero, pivoted: false, pivotFrom: ''});
+            }
+
+            const excluded = new Set(Array.from(usedDisplayKeys));
+            unavailableHeroKeys.forEach(function(k) { excluded.add(k); });
+            const pivotHero = drGetPlayerComfortPivotHero(teamKey, playerRow, hero, excluded);
+            const pivotKey = drHeroPoolHeroKey(pivotHero);
+            if (pivotHero && pivotKey) {
+                usedDisplayKeys.add(pivotKey);
+                return Object.assign({}, row, {
+                    displayHero: pivotHero,
+                    pivoted: true,
+                    pivotFrom: hero,
+                });
+            }
+
+            usedDisplayKeys.add(heroKey);
+            return Object.assign({}, row, {displayHero: hero, pivoted: false, pivotFrom: ''});
         });
     }
 
@@ -4774,8 +5274,12 @@ function renderReplyHeroStrip(answer, meta) {
             const roleLabel = (row.player.role || '').trim();
             const confClass = row.score >= 100 ? 'dr-conf-high' : row.score >= 50 ? 'dr-conf-med' : 'dr-conf-low';
             const confLabel = row.score >= 100 ? 'High' : row.score >= 50 ? 'Med' : 'Low';
+            const displayHero = (row.displayHero || row.hero || '').trim();
+            const pivotText = row.pivoted && row.pivotFrom
+                ? '<div class="dr-assign-role">Pivot from ' + escapeHtml(row.pivotFrom) + ' to comfort</div>'
+                : '';
             return '<div class="dr-assign-row">'
-                + '<div class="dr-assign-hero">' + heroChipHtml(row.hero, '') + '</div>'
+                + '<div class="dr-assign-hero">' + heroChipHtml(displayHero, '') + pivotText + '</div>'
                 + '<span class="dr-assign-arrow">&#8594;</span>'
                 + '<span class="dr-assign-player">' + escapeHtml(playerName) + (roleLabel ? ' <span class="dr-assign-role">&#xB7; ' + escapeHtml(roleLabel) + '</span>' : '') + '</span>'
                 + '<span class="dr-assign-conf ' + confClass + '">' + confLabel + '</span>'
@@ -5010,6 +5514,42 @@ function renderReplyHeroStrip(answer, meta) {
         return teamLabel + ' ' + slotLabel;
     }
 
+    function drActionVerb(step) {
+        const actionType = (step && step.type) || (String((step && step.slot) || '').startsWith('protect') ? 'protect' : 'ban');
+        return actionType === 'protect' ? 'picking' : 'banning';
+    }
+
+    function drClearTurnCountdown() {
+        if (drTurnCountdownTimer) {
+            clearInterval(drTurnCountdownTimer);
+            drTurnCountdownTimer = null;
+        }
+    }
+
+    function drSetTurnStatus(text, kind, timerText) {
+        const status = document.getElementById('dr-turn-status');
+        const label = document.getElementById('dr-turn-status-label');
+        const timer = document.getElementById('dr-turn-status-timer');
+        if (!status || !label || !timer) return;
+        status.classList.remove('is-enemy', 'is-our', 'is-complete');
+        if (kind) status.classList.add(kind);
+        label.textContent = text || 'Draft ready.';
+        timer.textContent = timerText || '--';
+    }
+
+    function drStartTurnCountdown(ms, text, kind) {
+        drClearTurnCountdown();
+        const totalMs = Math.max(0, Number(ms || 0));
+        const endTs = Date.now() + totalMs;
+        function tick() {
+            const remaining = Math.max(0, endTs - Date.now());
+            drSetTurnStatus(text, kind, Math.ceil(remaining / 1000) + 's');
+            if (remaining <= 0) drClearTurnCountdown();
+        }
+        tick();
+        drTurnCountdownTimer = setInterval(tick, 200);
+    }
+
     function drDescribePhase(phase) {
         if (!phase || !phase.length) return 'Draft complete';
         const openSteps = phase.filter(function(step) {
@@ -5026,10 +5566,13 @@ function renderReplyHeroStrip(answer, meta) {
                 return !((drDraft[step.team] || {})[step.slot]);
             });
             if (openSteps.length) {
+                const nextStep = openSteps[0] || {};
                 return {
                     phase_num: i,
                     phase_label: 'Phase ' + (i + 1),
-                    next_team: openSteps[0].team,
+                    next_team: nextStep.team,
+                    next_slot: nextStep.slot || '',
+                    next_action_type: nextStep.type || (String(nextStep.slot || '').startsWith('protect') ? 'protect' : 'ban'),
                 };
             }
         }
@@ -5061,6 +5604,12 @@ function renderReplyHeroStrip(answer, meta) {
         const teamB = document.getElementById('dr-team-b');
         const season = document.getElementById('dr-season');
         const map = document.getElementById('dr-map');
+        const modeType = document.getElementById('dr-mode-type');
+        const modeTypeValue = modeType && modeType.value ? modeType.value : 'all';
+        const effectiveMapValue = (modeTypeValue && modeTypeValue !== 'all')
+            ? 'all'
+            : (map && map.value ? map.value : 'all');
+        const scrimLens = document.getElementById('dr-scrim-lens');
         const scrims = document.getElementById('dr-include-scrims');
         const tournaments = document.getElementById('dr-include-tournaments');
         return {
@@ -5069,7 +5618,9 @@ function renderReplyHeroStrip(answer, meta) {
             team_a_name: teamA && teamA.selectedOptions && teamA.selectedOptions[0] ? String(teamA.selectedOptions[0].textContent || '').trim() : '',
             team_b_name: teamB && teamB.selectedOptions && teamB.selectedOptions[0] ? String(teamB.selectedOptions[0].textContent || '').trim() : '',
             season: season && season.value ? season.value : 'all',
-            map: map && map.value ? map.value : 'all',
+            map: effectiveMapValue,
+            map_type: scrimLens && scrimLens.value === 'ptw_only' ? 'PTW' : 'all',
+            mode_type: modeTypeValue,
             include_scrims: scrims ? scrims.checked : true,
             include_tournaments: tournaments ? tournaments.checked : true,
             draft_live: snapshot,
@@ -5083,6 +5634,8 @@ function renderReplyHeroStrip(answer, meta) {
             team_b_id: ctx.team_b_id,
             season: ctx.season,
             map: ctx.map,
+            map_type: ctx.map_type,
+            mode_type: ctx.mode_type,
             include_scrims: ctx.include_scrims,
             include_tournaments: ctx.include_tournaments,
             draft_live: snapshot,
@@ -5091,17 +5644,78 @@ function renderReplyHeroStrip(answer, meta) {
 
     function drSetLiveAiMessage(text, isError) {
         if (!drLiveAiOutput) return;
+        const raw = String(text || '').trim();
+        if (!raw) {
+            drLiveAiOutput.innerHTML = '<p class="matchup-empty">No live read available yet.</p>';
+            return;
+        }
+
+        const lines = raw.split('\n').map(function(line) {
+            return String(line || '').trim();
+        }).filter(Boolean);
+        const headerLine = lines[0] || 'Live draft read';
+        const contentLines = lines.slice(1);
+
+        const blocks = [];
+        let currentBlock = null;
+        contentLines.forEach(function(line) {
+            const isLabel = /:$/.test(line) && !/^\d+\./.test(line);
+            if (isLabel) {
+                if (currentBlock) blocks.push(currentBlock);
+                currentBlock = {label: line.replace(/:$/, '').trim(), lines: []};
+                return;
+            }
+            if (!currentBlock) currentBlock = {label: '', lines: []};
+            currentBlock.lines.push(line);
+        });
+        if (currentBlock) blocks.push(currentBlock);
+
+        function blockClass(label) {
+            const lc = String(label || '').toLowerCase();
+            if (lc === 'projected enemy counter move' || lc === 'best-performing enemy response' || lc === 'most common enemy response') {
+                return 'is-action';
+            }
+            if (lc === 'missing data') {
+                return 'is-risk';
+            }
+            if (lc === 'confidence') {
+                return 'is-confidence';
+            }
+            return '';
+        }
+
+        const rowsHtml = blocks.map(function(block) {
+            const cls = blockClass(block.label);
+            const valueHtml = (block.lines.length ? block.lines : ['']).map(function(line) {
+                return '<div>' + escapeHtml(line) + '</div>';
+            }).join('');
+            return '<div class="dr-live-read-row ' + cls + '">'
+                + (block.label ? '<div class="dr-live-read-label">' + escapeHtml(block.label) + '</div>' : '')
+                + '<div class="dr-live-read-value">' + valueHtml + '</div>'
+                + '</div>';
+        }).join('');
+
         drLiveAiOutput.innerHTML = '<div class="dr-reason-card ' + (isError ? 'bad' : 'good') + '">'
-            + '<div class="dr-guide-body">' + escapeHtml(text || '') + '</div>'
+            + '<div class="dr-live-read-wrap">'
+            + '<div class="dr-live-read-head">' + escapeHtml(headerLine.replace(/:$/, '')) + '</div>'
+            + '<div class="dr-live-read-grid">' + rowsHtml + '</div>'
+            + '</div>'
             + '</div>';
     }
 
     async function drRequestLiveAiAnalysis(force) {
         if (!drLiveAiOutput || !drLiveAiStatus) return;
         const snapshot = drBuildLiveDraftSnapshot();
+        const liveCtx = drBuildLiveAiContext(snapshot);
         if (!snapshot.active) {
             drLiveAiStatus.textContent = 'Fill a draft slot to start the live read.';
             drLiveAiOutput.innerHTML = '<p class="matchup-empty">The AI read will update as bans and protects are locked.</p>';
+            drLiveAiLastKey = '';
+            return;
+        }
+        if (!liveCtx.include_scrims && !liveCtx.include_tournaments) {
+            drLiveAiStatus.textContent = 'Live AI read is waiting for a data source.';
+            drLiveAiOutput.innerHTML = '<p class="matchup-empty">Turn on scrims or tournaments to analyze the live draft.</p>';
             drLiveAiLastKey = '';
             return;
         }
@@ -5117,8 +5731,8 @@ function renderReplyHeroStrip(answer, meta) {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
                 body: JSON.stringify({
-                    message: 'Live draft read: keep it brief and high-signal. Follow the full draft phase-by-phase. Analyze each locked ban/protect slot as route denial or preservation. Do not name projected comps until every draft phase is complete; before then, talk only pressure, trajectory, next action, risks, and confidence.',
-                    context: drBuildLiveAiContext(snapshot),
+                    message: 'Historical-only enemy draft coach. No hero theory or matchup theory. Use fuzzy similarity: +3 same hero, +2 same hero pair, +2 same map, +1 same mode, +1 same enemy team, +1 same ban. Use partial matches when needed. Output: Closest historical match count, Average similarity score, Shared features, Most common enemy response, Best-performing enemy response, Projected enemy counter move, Historical reasoning, Historical record, Sample size, Confidence, Missing data.',
+                    context: liveCtx,
                 }),
             });
             if (token !== drLiveAiToken) return;
@@ -5159,6 +5773,10 @@ function renderReplyHeroStrip(answer, meta) {
 
     function drUpdateTurnLocking() {
         const activePhase = drGetActiveTurnPhase();
+        const openSteps = activePhase.filter(function(step) {
+            return !((drDraft[step.team] || {})[step.slot]);
+        });
+        const nextStep = openSteps[0] || null;
         document.querySelectorAll('.draft-slot[data-team]').forEach(function(slotEl) {
             const team = slotEl.dataset.team;
             const slot = slotEl.dataset.slot;
@@ -5174,7 +5792,20 @@ function renderReplyHeroStrip(answer, meta) {
             } else {
                 slotEl.removeAttribute('title');
             }
+            slotEl.classList.toggle('turn-next', Boolean(nextStep && !filled && nextStep.team === team && nextStep.slot === slot));
         });
+        if (!drAutoFillInFlight && !drTurnCountdownTimer) {
+            if (!nextStep) {
+                drSetTurnStatus('Draft complete.', 'is-complete', '--');
+            } else {
+                const teamLabel = nextStep.team === 'a'
+                    ? document.getElementById('dr-col-a-label').textContent
+                    : document.getElementById('dr-col-b-label').textContent;
+                const kind = nextStep.team === 'b' ? 'is-enemy' : 'is-our';
+                drSetTurnStatus(teamLabel + ' is ' + drActionVerb(nextStep) + '.', kind, drPlayMode && nextStep.team === 'b' ? 'soon' : '--');
+            }
+        }
+        drSyncSideTabsVisibility();
     }
 
     function drAutoFocusNextStep() {
@@ -5218,10 +5849,13 @@ function renderReplyHeroStrip(answer, meta) {
     }
 
     // --- analyze / load model ---
-    async function drHydratePlayerRows(requestToken, teamA, teamB, season, map, includeScrims, includeTournaments) {
+    async function drHydratePlayerRows(requestToken, teamA, teamB, season, map, modeType, includeScrims, includeTournaments, scrimLens) {
+        const effectiveMap = (modeType && modeType !== 'all') ? '' : map;
         const p = new URLSearchParams({team_a: teamA, team_b: teamB, include_player_rows: '1'});
         if (season) p.set('season', season);
-        if (map) p.set('map', map);
+        if (effectiveMap) p.set('map', effectiveMap);
+        if (modeType) p.set('mode_type', modeType);
+        p.set('map_type', scrimLens === 'ptw_only' ? 'PTW' : 'all');
         p.set('include_scrims', includeScrims ? '1' : '0');
         p.set('include_tournaments', includeTournaments ? '1' : '0');
 
@@ -5265,8 +5899,11 @@ function renderReplyHeroStrip(answer, meta) {
         const teamB = document.getElementById('dr-team-b').value;
         const season = document.getElementById('dr-season').value;
         const map    = document.getElementById('dr-map').value;
+        const modeType = document.getElementById('dr-mode-type')?.value || 'all';
+        const effectiveMap = modeType !== 'all' ? '' : map;
         const includeScrims = document.getElementById('dr-include-scrims')?.checked;
         const includeTournaments = document.getElementById('dr-include-tournaments')?.checked;
+        const scrimLens = document.getElementById('dr-scrim-lens')?.value || 'map_types';
         if (!teamA || !teamB) { statusEl.textContent = 'Select both teams first.'; return; }
         drModelRequestInFlight = true;
         if (analyzeBtn) analyzeBtn.disabled = true;
@@ -5275,7 +5912,9 @@ function renderReplyHeroStrip(answer, meta) {
         statusEl.textContent = 'Building draft plan...';
         const p = new URLSearchParams({team_a: teamA, team_b: teamB, include_player_rows: '0'});
         if (season) p.set('season', season);
-        if (map) p.set('map', map);
+        if (effectiveMap) p.set('map', effectiveMap);
+        if (modeType) p.set('mode_type', modeType);
+        p.set('map_type', scrimLens === 'ptw_only' ? 'PTW' : 'all');
         p.set('include_scrims', includeScrims ? '1' : '0');
         p.set('include_tournaments', includeTournaments ? '1' : '0');
         try {
@@ -5295,11 +5934,12 @@ function renderReplyHeroStrip(answer, meta) {
             const mA = (teams[0]||{}).model || {};
             const mB = (teams[1]||{}).model || {};
             const mapsA = mA.training_maps || 0;
-            statusEl.textContent = 'Plan ready: ' + nameA + ' (' + mapsA + ' maps) vs ' + nameB + ' (' + (mB.training_maps||0) + ' maps)';
+            const scrimLensLabel = scrimLens === 'ptw_only' ? 'PTW only' : 'map types';
+            statusEl.textContent = 'Plan ready: ' + nameA + ' (' + mapsA + ' maps) vs ' + nameB + ' (' + (mB.training_maps||0) + ' maps) | scrims: ' + scrimLensLabel;
 
             // Seed context and compute first recommendation.
-            drContext = {mA, mB, nameA, nameB, mapFilter: map};
-            drComputeSuggestions(mA, mB, nameA, nameB, map);
+            drContext = {mA, mB, nameA, nameB, mapFilter: effectiveMap, modeType: modeType, scrimLens: scrimLens};
+            drComputeSuggestions(mA, mB, nameA, nameB, effectiveMap);
 
             workspaceSec.style.display = '';
             pickerSec.style.display = '';
@@ -5312,7 +5952,7 @@ function renderReplyHeroStrip(answer, meta) {
             drAutoFocusNextStep();
 
             // Load heavier per-player hero rows in the background for richer hints.
-            void drHydratePlayerRows(requestToken, teamA, teamB, season, map, includeScrims, includeTournaments);
+            void drHydratePlayerRows(requestToken, teamA, teamB, season, map, modeType, includeScrims, includeTournaments, scrimLens);
             drToggleSettingsPanel(false);
         } catch(e) {
             const reason = (e && e.message) ? e.message : String(e || 'unknown error');
@@ -5677,6 +6317,36 @@ function renderReplyHeroStrip(answer, meta) {
             const protectedByEnemyKeys = new Set(Array.from(protectedByEnemy).map(drHeroPoolHeroKey));
             const protectedByUsKeys = new Set(Array.from(protectedByUs).map(drHeroPoolHeroKey));
             const hardBannedKeys = new Set(Array.from(hardBannedSet || []).map(drHeroPoolHeroKey));
+            const historicalBanCountByHero = new Map();
+            const historicalBanRateByHero = new Map();
+            const historicalBanSlotByHero = {
+                ban1: new Map(),
+                ban2: new Map(),
+                ban3: new Map(),
+                ban4: new Map(),
+            };
+            (enemyModel.ban_line_rows || []).forEach(function(line) {
+                const lineCount = Number(line.count || 0);
+                const lineRate = Number(line.rate || 0);
+                const lineStrength = Number(line.line_strength || 0);
+                (line.bans || []).forEach(function(hero) {
+                    const heroKey = drHeroPoolHeroKey(hero);
+                    if (!heroKey) return;
+                    historicalBanCountByHero.set(heroKey, (historicalBanCountByHero.get(heroKey) || 0) + lineCount);
+                    historicalBanRateByHero.set(heroKey, (historicalBanRateByHero.get(heroKey) || 0) + lineRate);
+                });
+                (line.bans || []).forEach(function(hero, idx) {
+                    const heroKey = drHeroPoolHeroKey(hero);
+                    const slotKey = 'ban' + (idx + 1);
+                    if (!heroKey || !historicalBanSlotByHero[slotKey]) return;
+                    const slotWeight = lineCount + (lineRate * 0.35) + (lineStrength * 0.18);
+                    historicalBanSlotByHero[slotKey].set(heroKey, Number(historicalBanSlotByHero[slotKey].get(heroKey) || 0) + slotWeight);
+                });
+            });
+            const maxHistoricalBanCount = Math.max.apply(
+                null,
+                [0].concat(Array.from(historicalBanCountByHero.values()).map(function(v) { return Number(v || 0); }))
+            );
             const openEnemyCompRows = (enemyModel.comp_rows || []).filter(function(row) {
                 return isLegalCompCandidate(row.heroes || [], enemyProtects, ourProtects, hardBannedSet);
             });
@@ -5747,15 +6417,33 @@ function renderReplyHeroStrip(answer, meta) {
             return Array.from(heroImpact.values()).map(function(entry) {
                 const comfortRow = comfortLookup.get(entry.hero) || {comfort: 0, wr: 0};
                 const poolInfo = drGetTeamHeroPoolInfo('b', entry.hero, {requireSeasonPlay: true});
+                const heroKey = drHeroPoolHeroKey(entry.hero);
+                const historicalBanCount = Number(historicalBanCountByHero.get(heroKey) || 0);
+                const historicalBanRate = Number(historicalBanRateByHero.get(heroKey) || 0);
+                const normalizedHistoricalCount = maxHistoricalBanCount > 0
+                    ? (historicalBanCount / maxHistoricalBanCount)
+                    : 0;
+                const historicalPriority = (historicalBanRate * 0.72) + (normalizedHistoricalCount * 28);
+                const heroPoolMultiplier = 1 + Math.max(0, Math.min(0.42, Number(poolInfo.rating || 0) / 120));
+                const weightedHistoricalPriority = historicalPriority * heroPoolMultiplier;
+                const slotHistorical = {
+                    ban1: Number(historicalBanSlotByHero.ban1.get(heroKey) || 0),
+                    ban2: Number(historicalBanSlotByHero.ban2.get(heroKey) || 0),
+                    ban3: Number(historicalBanSlotByHero.ban3.get(heroKey) || 0),
+                    ban4: Number(historicalBanSlotByHero.ban4.get(heroKey) || 0),
+                };
                 const openingBanScore =
-                    (comfortRow.comfort * 0.95)
-                    + (comfortRow.wr * 0.45)
-                    + (entry.bestCompWinRate * 0.35)
-                    + (entry.blockedStrength * 0.55)
-                    + (entry.blockedRate * 0.35)
-                    + (poolInfo.rating * 1.4)
+                    (weightedHistoricalPriority * 1.12)
+                    + (comfortRow.comfort * 0.52)
+                    + (comfortRow.wr * 0.28)
+                    + (entry.bestCompWinRate * 0.20)
+                    + (entry.blockedStrength * 0.40)
+                    + (entry.blockedRate * 0.24)
+                    + (poolInfo.rating * 1.05)
                     + (contestedSet.has(entry.hero) ? 8 : 0);
                 const strongHeroScore =
+                    (weightedHistoricalPriority * 1.35)
+                    +
                     (entry.compsCrippled * 100)
                     + (entry.blockedStrength * 1.35)
                     + (entry.blockedRate * 0.85)
@@ -5784,11 +6472,16 @@ function renderReplyHeroStrip(answer, meta) {
                             || (b.compWinRate - a.compWinRate);
                     }),
                     contested: contestedSet.has(entry.hero),
+                    historicalBanCount: historicalBanCount,
+                    historicalBanRate: historicalBanRate,
+                    weightedHistoricalPriority: weightedHistoricalPriority,
+                    slotHistorical: slotHistorical,
                     openingBanScore: openingBanScore,
                     strongHeroScore: strongHeroScore,
                 };
             }).sort(function(a, b) {
-                return (b.strongHeroScore - a.strongHeroScore)
+                return (Number(b.weightedHistoricalPriority || 0) - Number(a.weightedHistoricalPriority || 0))
+                    || (b.strongHeroScore - a.strongHeroScore)
                     || (b.compsCrippled - a.compsCrippled)
                     || (b.comfort - a.comfort)
                     || (b.blockedStrength - a.blockedStrength)
@@ -5840,6 +6533,22 @@ function renderReplyHeroStrip(answer, meta) {
             return best || {score: 0, row: null};
         }
 
+        const hasStrongCompData = Number(mA.training_maps || 0) >= 20;
+        const compUsageFloor = hasStrongCompData ? 8 : 4;
+        const compWinRateFloor = Math.max(45, Number(mA.overall_win_rate || 0) - 6);
+
+        function isViableTargetCompRow(row) {
+            const usage = Number(row && row.rate || 0);
+            const sampleCount = Number(row && row.count || 0);
+            const compWr = Number(row && row.comp_win_rate || 0);
+            const adjusted = Number(row && row.avg_adjusted_win_rate || 0);
+            const blendedWr = (compWr * 0.75) + (adjusted * 0.25);
+            if (hasStrongCompData && sampleCount < 3) return false;
+            if (hasStrongCompData && usage < compUsageFloor) return false;
+            if (sampleCount >= 3 && blendedWr > 0 && blendedWr < compWinRateFloor) return false;
+            return true;
+        }
+
         // Pick a target comp from comfort, adjusted performance, and consistency.
         const ourPairLookup = buildPairRelationshipLookup(mA.comp_rows || []);
         const rankedCompRows = (mA.comp_rows || []).map(function(row) {
@@ -5870,6 +6579,7 @@ function renderReplyHeroStrip(answer, meta) {
                 row: row,
                 fit_score: fitScore,
                 relationship_score: relationship,
+                blended_wr: (compWr * 0.75) + (adjusted * 0.25),
             };
         }).sort(function(a, b) {
             return (b.fit_score - a.fit_score)
@@ -5886,16 +6596,105 @@ function renderReplyHeroStrip(answer, meta) {
             return [orderedLineKey(row.heroes || []), row];
         }));
 
+        function drBuildSlotHistoryLookup(teamModel, kind) {
+            const rows = (teamModel && teamModel.ban_line_rows) ? teamModel.ban_line_rows : [];
+            const slotKeys = kind === 'protect'
+                ? ['protect1', 'protect2']
+                : ['ban1', 'ban2', 'ban3', 'ban4'];
+            const lookup = {};
+            slotKeys.forEach(function(slotKey) { lookup[slotKey] = new Map(); });
+
+            rows.forEach(function(row) {
+                const count = Number(row.count || 0);
+                const rate = Number(row.rate || 0);
+                const lineStrength = Number(row.line_strength || 0);
+                const bans = (row.bans || row.heroes || []).filter(Boolean);
+                const protects = (row.protects || []).filter(Boolean);
+                const sequence = kind === 'protect' ? protects : bans;
+                sequence.forEach(function(hero, index) {
+                    const slotKey = slotKeys[index];
+                    if (!slotKey || !hero) return;
+                    const heroKey = drHeroPoolHeroKey(hero);
+                    if (!heroKey) return;
+                    const weight = count + (rate * 0.35) + (lineStrength * 0.18);
+                    lookup[slotKey].set(heroKey, Number(lookup[slotKey].get(heroKey) || 0) + weight);
+                });
+            });
+
+            return lookup;
+        }
+
+        function drBuildHistoricalBanPool(teamModel) {
+            const rows = (teamModel && teamModel.ban_line_rows) ? teamModel.ban_line_rows : [];
+            const pool = [];
+            const seen = new Set();
+            rows.forEach(function(row) {
+                ((row.bans || row.heroes || []).filter(Boolean)).forEach(function(hero) {
+                    const heroName = String(hero || '').trim();
+                    const heroKey = drHeroPoolHeroKey(heroName);
+                    if (!heroName || !heroKey || seen.has(heroKey) || pool.length >= 20) return;
+                    seen.add(heroKey);
+                    pool.push(heroName);
+                });
+            });
+            return uniqueHeroes(pool);
+        }
+
+        function drApplySlotHistoricalOrder(slotKeys, sideDraft, candidatePool, slotHistoryLookup) {
+            const uniquePool = uniqueHeroes(candidatePool || []);
+            const baseRank = new Map();
+            uniquePool.forEach(function(hero, idx) {
+                baseRank.set(drHeroPoolHeroKey(hero), idx);
+            });
+
+            const assigned = new Set();
+            slotKeys.forEach(function(slotKey) {
+                const lockedHero = ((sideDraft || {})[slotKey] || '').trim();
+                if (lockedHero) assigned.add(drHeroPoolHeroKey(lockedHero));
+            });
+
+            const slotOrderedOpen = [];
+            slotKeys.forEach(function(slotKey) {
+                const lockedHero = ((sideDraft || {})[slotKey] || '').trim();
+                if (lockedHero) return;
+
+                const slotMap = (slotHistoryLookup || {})[slotKey] || new Map();
+                const bestHero = uniquePool
+                    .filter(function(hero) { return !assigned.has(drHeroPoolHeroKey(hero)); })
+                    .sort(function(left, right) {
+                        const leftKey = drHeroPoolHeroKey(left);
+                        const rightKey = drHeroPoolHeroKey(right);
+                        const leftScore = Number(slotMap.get(leftKey) || 0);
+                        const rightScore = Number(slotMap.get(rightKey) || 0);
+                        return (rightScore - leftScore)
+                            || (Number(baseRank.get(leftKey) || 0) - Number(baseRank.get(rightKey) || 0))
+                            || String(left || '').localeCompare(String(right || ''), undefined, {sensitivity:'base'});
+                    })[0];
+
+                if (bestHero) {
+                    slotOrderedOpen.push(bestHero);
+                    assigned.add(drHeroPoolHeroKey(bestHero));
+                }
+            });
+
+            return mergeSlotLocks(slotKeys, sideDraft, slotOrderedOpen);
+        }
+
+        const ourBanSlotHistory = drBuildSlotHistoryLookup(mA, 'ban');
+        const ourProtectSlotHistory = drBuildSlotHistoryLookup(mA, 'protect');
+        const enemyBanSlotHistory = drBuildSlotHistoryLookup(mB, 'ban');
+        const enemyProtectSlotHistory = drBuildSlotHistoryLookup(mB, 'protect');
+    const historicalEnemyBanPool = drBuildHistoricalBanPool(mB);
+    const historicalOurBanPool = drBuildHistoricalBanPool(mA);
+
         // Adaptive simulator: evaluate each candidate comp against current locks/bans.
         let bestCandidate = null;
         rankedCompRows.forEach(function(candidate) {
             const compRow = candidate.row;
             const compHeroes = (compRow.heroes || []).filter(Boolean);
             const sampleCount = Number(compRow.count || 0);
-            const hasStrongData = Number(mA.training_maps || 0) >= 20;
 
-            // With enough history, avoid constructing from thin/novel comps.
-            if (hasStrongData && sampleCount < 3) {
+            if (!isViableTargetCompRow(compRow)) {
                 return;
             }
 
@@ -5927,7 +6726,7 @@ function renderReplyHeroStrip(answer, meta) {
 
                 // Prefer comps with established historical path structure.
                 if (!matchingPathRow) {
-                    score -= hasStrongData ? 120 : 25;
+                    score -= hasStrongCompData ? 120 : 25;
                 }
 
                 const compHeroKeys = heroKeySet(compHeroes);
@@ -5937,7 +6736,7 @@ function renderReplyHeroStrip(answer, meta) {
                 score -= missingProtectedCount * 120;
                 score += (pathRate * 1.35);
                 score += (topPathShare * 0.55);
-                if (hasStrongData && topPathShare > 0 && topPathShare < 8) {
+                if (hasStrongCompData && topPathShare > 0 && topPathShare < 8) {
                     score -= 35;
                 }
                 score += (lineStrength * 0.32);
@@ -5966,6 +6765,8 @@ function renderReplyHeroStrip(answer, meta) {
                             avg_deviation: avgDeviation,
                             line_strength: lineStrength,
                             line_win_rate: lineWinRate,
+                            sample_size: sampleCount,
+                            training_maps: Number(mA.training_maps || 0),
                         },
                         forceRow: pressure.row,
                     };
@@ -6004,17 +6805,11 @@ function renderReplyHeroStrip(answer, meta) {
                     && !enemyLockedBanSet.has(drHeroPoolHeroKey(hero));
             }
 
-            const ourBanFallbackPool = uniqueHeroes(
-                (mB.comfort_core_rows || []).map(function(r) { return r.hero; })
-                    .concat((mB.hero_pool_rows || []).map(function(r) { return r.hero; }))
-                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
-            );
-
             const ourProtectFallbackPool = uniqueHeroes(
                 (drSuggest.a.comp || []).concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
             );
 
-            const rawOurBans = uniqueHeroes((bestCandidate.path.bans || []).concat(ourBanFallbackPool));
+            const rawOurBans = uniqueHeroes((bestCandidate.path.bans || []).concat(historicalEnemyBanPool));
             const rawOurProtects = uniqueHeroes((bestCandidate.path.protects || []).concat(ourProtectFallbackPool));
 
             const cleanOurBans = rawOurBans.filter(validOurBan);
@@ -6022,14 +6817,15 @@ function renderReplyHeroStrip(answer, meta) {
                 return validOurProtect(hero) && !hasHeroByKey(cleanOurBans, hero);
             });
 
-            drSuggest.a.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.a, cleanOurBans);
-            drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, cleanOurProtects);
+            drSuggest.a.bans = drApplySlotHistoricalOrder(['ban1','ban2','ban3','ban4'], drDraft.a, cleanOurBans, ourBanSlotHistory);
+            drSuggest.a.protects = drApplySlotHistoricalOrder(['protect1','protect2'], drDraft.a, cleanOurProtects, ourProtectSlotHistory);
         }
 
         // Fallback: no clean comp survived ban filtering — adapt the top-ranked comp by
         // substituting each banned hero with the best comfort-pool candidate of the same role.
         if (!bestCandidate && rankedCompRows.length > 0) {
-            const topRow = rankedCompRows[0].row;
+            const fallbackCompEntry = rankedCompRows.find(function(entry) { return isViableTargetCompRow(entry.row); }) || rankedCompRows[0];
+            const topRow = fallbackCompEntry.row;
             const topCompHeroes = (topRow.heroes || []).filter(Boolean);
             const bannedKeySet = new Set(Array.from(hardBannedHeroes).map(drHeroPoolHeroKey));
             const enemyProtKeySet = heroKeySet(enemyLockedProtects);
@@ -6064,19 +6860,19 @@ function renderReplyHeroStrip(answer, meta) {
                     confidence: Number(topRow.ml_confidence || 0) || 80,
                     comp_score: Number(topRow.ml_comp_score || 0),
                 };
+                drSuggest.a.path_metrics = {
+                    sample_size: Number(topRow.count || 0),
+                    training_maps: Number(mA.training_maps || 0),
+                };
             }
         }
 
         // Initialize default suggestions if no best candidate
         if (drSuggest.a.bans.length === 0) {
-            const defaultBanPool = uniqueHeroes(
-                (mB.comfort_core_rows || []).map(function(r) { return r.hero; })
-                    .concat((mB.hero_pool_rows || []).map(function(r) { return r.hero; }))
-                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
-            ).filter(function(hero) {
+            const defaultBanPool = historicalEnemyBanPool.filter(function(hero) {
                 return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !heroKeySet(enemyLockedProtects).has(drHeroPoolHeroKey(hero));
             });
-            drSuggest.a.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.a, defaultBanPool);
+            drSuggest.a.bans = drApplySlotHistoricalOrder(['ban1','ban2','ban3','ban4'], drDraft.a, defaultBanPool, ourBanSlotHistory);
         }
         if (drSuggest.a.protects.length === 0) {
             const defaultProtectPool = uniqueHeroes(
@@ -6084,7 +6880,7 @@ function renderReplyHeroStrip(answer, meta) {
             ).filter(function(hero) {
                 return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !hasHeroByKey(drSuggest.a.bans, hero);
             });
-            drSuggest.a.protects = mergeSlotLocks(['protect1','protect2'], drDraft.a, defaultProtectPool);
+            drSuggest.a.protects = drApplySlotHistoricalOrder(['protect1','protect2'], drDraft.a, defaultProtectPool, ourProtectSlotHistory);
         }
 
         // Enemy response simulator: favor lines that attack our selected comp and respect enemy locks.
@@ -6108,38 +6904,81 @@ function renderReplyHeroStrip(answer, meta) {
         // Now compute ideal ban path using our finalized protects and the best line's ban structure
         function drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, ourProtects) {
             const used = heroKeySet(ourLockedBans.concat(enemyLockedBans).concat(ourProtects || []));
-            const rankedTargets = buildEnemyBanTargetRows(mB, enemyLockedProtects, ourProtects || [], hardBannedHeroes);
+            const historicalPoolKeys = new Set((historicalEnemyBanPool || []).map(drHeroPoolHeroKey));
+            const rankedTargets = buildEnemyBanTargetRows(mB, enemyLockedProtects, ourProtects || [], hardBannedHeroes).filter(function(row) {
+                return historicalPoolKeys.has(drHeroPoolHeroKey(row.hero));
+            });
             const path = [];
 
-            const openingTarget = rankedTargets.slice().sort(function(a, b) {
-                return (b.openingBanScore - a.openingBanScore)
-                    || (b.comfort - a.comfort)
-                    || (b.bestCompWinRate - a.bestCompWinRate)
-                    || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
-            })[0];
+            const expectedEnemyBanOrder = ((bestEnemyLine && bestEnemyLine.bans) ? bestEnemyLine.bans : []).filter(Boolean);
+            const usedInPath = new Set(Array.from(used));
+            const BAN_PATH_SAME_SLOT_DENY_WEIGHT = 260;
+            const BAN_PATH_ANY_SLOT_DENY_WEIGHT = 110;
+            const BAN_PATH_SLOT_HISTORY_WEIGHT = 0.58;
+            const BAN_PATH_HISTORICAL_WEIGHT = 0.46;
+            const BAN_PATH_OPENING_WEIGHT = 0.32;
+            const BAN_PATH_IMPACT_WEIGHT = 0.28;
 
-            if (openingTarget && !used.has(drHeroPoolHeroKey(openingTarget.hero))) {
-                path.push(openingTarget.hero);
-            }
+            for (let slotIndex = 0; slotIndex < 4; slotIndex += 1) {
+                const slotKey = 'ban' + (slotIndex + 1);
+                const expectedHeroKey = drHeroPoolHeroKey(expectedEnemyBanOrder[slotIndex] || '');
+                const bestForSlot = rankedTargets
+                    .filter(function(row) {
+                        const heroKey = drHeroPoolHeroKey(row.hero);
+                        return row.hero && !usedInPath.has(heroKey) && !hasHeroByKey(path, row.hero);
+                    })
+                    .sort(function(a, b) {
+                        const aKey = drHeroPoolHeroKey(a.hero);
+                        const bKey = drHeroPoolHeroKey(b.hero);
+                        const aIsExpected = expectedHeroKey && aKey === expectedHeroKey ? 1 : 0;
+                        const bIsExpected = expectedHeroKey && bKey === expectedHeroKey ? 1 : 0;
+                        const aAnyExpected = expectedEnemyBanOrder.some(function(hero) { return drHeroPoolHeroKey(hero) === aKey; }) ? 1 : 0;
+                        const bAnyExpected = expectedEnemyBanOrder.some(function(hero) { return drHeroPoolHeroKey(hero) === bKey; }) ? 1 : 0;
+                        const aSlot = Number((a.slotHistorical || {})[slotKey] || 0);
+                        const bSlot = Number((b.slotHistorical || {})[slotKey] || 0);
+                        const aComposite =
+                            (aIsExpected * BAN_PATH_SAME_SLOT_DENY_WEIGHT)
+                            + (aAnyExpected * BAN_PATH_ANY_SLOT_DENY_WEIGHT)
+                            + (aSlot * BAN_PATH_SLOT_HISTORY_WEIGHT)
+                            + (Number(a.weightedHistoricalPriority || 0) * BAN_PATH_HISTORICAL_WEIGHT)
+                            + (Number(a.openingBanScore || 0) * BAN_PATH_OPENING_WEIGHT)
+                            + (Number(a.blockedStrength || 0) * BAN_PATH_IMPACT_WEIGHT);
+                        const bComposite =
+                            (bIsExpected * BAN_PATH_SAME_SLOT_DENY_WEIGHT)
+                            + (bAnyExpected * BAN_PATH_ANY_SLOT_DENY_WEIGHT)
+                            + (bSlot * BAN_PATH_SLOT_HISTORY_WEIGHT)
+                            + (Number(b.weightedHistoricalPriority || 0) * BAN_PATH_HISTORICAL_WEIGHT)
+                            + (Number(b.openingBanScore || 0) * BAN_PATH_OPENING_WEIGHT)
+                            + (Number(b.blockedStrength || 0) * BAN_PATH_IMPACT_WEIGHT);
+                        return (bComposite - aComposite)
+                            || (bIsExpected - aIsExpected)
+                            || (bAnyExpected - aAnyExpected)
+                            || (bSlot - aSlot)
+                            || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+                    })[0];
 
-            if (bestEnemyLine && bestEnemyLine.bans) {
-                (bestEnemyLine.bans || []).forEach(function(hero) {
-                    if (!hero || used.has(drHeroPoolHeroKey(hero)) || hasHeroByKey(path, hero)) return;
-                    const heroKey = drHeroPoolHeroKey(hero);
-                    const matchingTarget = rankedTargets.find(function(row) { return drHeroPoolHeroKey(row.hero) === heroKey; });
-                    if (matchingTarget) path.push(hero);
-                });
+                if (bestForSlot && bestForSlot.hero) {
+                    path.push(bestForSlot.hero);
+                    usedInPath.add(drHeroPoolHeroKey(bestForSlot.hero));
+                }
             }
 
             rankedTargets.forEach(function(row) {
                 if (path.length >= 4) return;
-                if (used.has(drHeroPoolHeroKey(row.hero)) || hasHeroByKey(path, row.hero)) return;
+                const heroKey = drHeroPoolHeroKey(row.hero);
+                if (usedInPath.has(heroKey) || hasHeroByKey(path, row.hero)) return;
                 path.push(row.hero);
+                usedInPath.add(heroKey);
             });
 
             return path.slice(0, 4);
         }
-        drSuggest.a.banPath = drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, drSuggest.a.protects);
+        drSuggest.a.banPath = drApplySlotHistoricalOrder(
+            ['ban1','ban2','ban3','ban4'],
+            drDraft.a,
+            drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, drSuggest.a.protects),
+            ourBanSlotHistory,
+        );
 
         // Enemy comp should reflect the enemy team's own best legal comp model
         // so it remains consistent when the same team is selected on either side.
@@ -6259,17 +7098,11 @@ function renderReplyHeroStrip(answer, meta) {
                     && !heroKeySet(Array.from(ourLockedBanSet)).has(drHeroPoolHeroKey(hero));
             }
 
-            const enemyBanFallbackPool = uniqueHeroes(
-                (drSuggest.a.comp || [])
-                    .concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
-                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
-            );
-
             const enemyProtectFallbackPool = uniqueHeroes(
                 (drSuggest.b.comp || []).concat((mB.comfort_core_rows || []).map(function(r) { return r.hero; }))
             );
 
-            const rawEnemyBans = uniqueHeroes((bestEnemyLine.bans || []).concat(enemyBanFallbackPool));
+            const rawEnemyBans = uniqueHeroes((bestEnemyLine.bans || []).concat(historicalOurBanPool));
             const rawEnemyProtects = uniqueHeroes((bestEnemyLine.protects || []).concat(enemyProtectFallbackPool));
 
             const cleanEnemyBans = rawEnemyBans.filter(validEnemyBan);
@@ -6277,20 +7110,16 @@ function renderReplyHeroStrip(answer, meta) {
                 return validEnemyProtect(hero) && !hasHeroByKey(cleanEnemyBans, hero);
             });
 
-            drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, cleanEnemyBans);
-            drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, cleanEnemyProtects);
+            drSuggest.b.bans = drApplySlotHistoricalOrder(['ban1','ban2','ban3','ban4'], drDraft.b, cleanEnemyBans, enemyBanSlotHistory);
+            drSuggest.b.protects = drApplySlotHistoricalOrder(['protect1','protect2'], drDraft.b, cleanEnemyProtects, enemyProtectSlotHistory);
         }
 
         // Ensure enemy bans/protects are always populated
         if (drSuggest.b.bans.length === 0) {
-            const defaultEnemyBanPool = uniqueHeroes(
-                (drSuggest.a.comp || [])
-                    .concat((mA.comfort_core_rows || []).map(function(r) { return r.hero; }))
-                    .concat((drModel.contested_heroes || []).map(function(r) { return r.hero; }))
-            ).filter(function(hero) {
+            const defaultEnemyBanPool = historicalOurBanPool.filter(function(hero) {
                 return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !heroKeySet(ourLockedProtects).has(drHeroPoolHeroKey(hero));
             });
-            drSuggest.b.bans = mergeSlotLocks(['ban1','ban2','ban3','ban4'], drDraft.b, defaultEnemyBanPool);
+            drSuggest.b.bans = drApplySlotHistoricalOrder(['ban1','ban2','ban3','ban4'], drDraft.b, defaultEnemyBanPool, enemyBanSlotHistory);
         }
         if (drSuggest.b.protects.length === 0) {
             const defaultEnemyProtectPool = uniqueHeroes(
@@ -6298,7 +7127,7 @@ function renderReplyHeroStrip(answer, meta) {
             ).filter(function(hero) {
                 return hero && !heroKeySet(Array.from(hardBannedHeroes)).has(drHeroPoolHeroKey(hero)) && !hasHeroByKey(drSuggest.b.bans, hero);
             });
-            drSuggest.b.protects = mergeSlotLocks(['protect1','protect2'], drDraft.b, defaultEnemyProtectPool);
+            drSuggest.b.protects = drApplySlotHistoricalOrder(['protect1','protect2'], drDraft.b, defaultEnemyProtectPool, enemyProtectSlotHistory);
         }
 
         // Render suggestion banner
@@ -6329,6 +7158,12 @@ function renderReplyHeroStrip(answer, meta) {
             }
         }
 
+        const projectedWrEl = document.getElementById('dr-suggest-winrate');
+        if (projectedWrEl) {
+            const wr = Number((((drSuggest.a || {}).ml || {}).win_prob) || 0);
+            projectedWrEl.textContent = wr > 0 ? (wr.toFixed(1) + '%') : '--';
+        }
+
         const compHeroesEl = document.getElementById('dr-suggest-comp-heroes');
         if (drSuggest.a.comp.length) {
             compHeroesEl.innerHTML = drSuggest.a.comp.map(h => heroChipHtml(h,'')).join('');
@@ -6349,7 +7184,9 @@ function renderReplyHeroStrip(answer, meta) {
 
         const ourAssignSection = document.getElementById('dr-suggest-our-assign-section');
         const ourAssignTarget = document.getElementById('dr-suggest-our-assign');
-        const ourAssignments = drBuildCompAssignments('a', drSuggest.a.comp || []);
+        const ourAssignments = drBuildCompAssignmentsWithComfortPivot('a', drSuggest.a.comp || [], {
+            pivotToComfort: false,
+        });
         if (ourAssignments.length) {
             ourAssignSection.style.display = '';
             drRenderCompAssignments(ourAssignTarget, ourAssignments);
@@ -6361,7 +7198,9 @@ function renderReplyHeroStrip(answer, meta) {
         const enemySec = document.getElementById('dr-suggest-enemy-section');
         const enemyAssignSection = document.getElementById('dr-suggest-enemy-assign-section');
         const enemyAssignTarget = document.getElementById('dr-suggest-enemy-assign');
-        const enemyAssignments = drBuildCompAssignments('b', drSuggest.b.comp || []);
+        const enemyAssignments = drBuildCompAssignmentsWithComfortPivot('b', drSuggest.b.comp || [], {
+            pivotToComfort: true,
+        });
         const enemyPlayerByHero = new Map((enemyAssignments || []).map(function(row) {
             const rowPlayer = row && row.player ? row.player : null;
             if (!rowPlayer || !(row.hero || '').trim()) return ['', ''];
@@ -6408,6 +7247,53 @@ function renderReplyHeroStrip(answer, meta) {
             } else {
                 enemyForceSec.style.display = 'none';
             }
+        }
+
+        const riskBanEl = document.getElementById('dr-suggest-risk-ban');
+        const riskNoteEl = document.getElementById('dr-suggest-risk-note');
+        const fallbackEl = document.getElementById('dr-suggest-fallback');
+        const fallbackNoteEl = document.getElementById('dr-suggest-fallback-note');
+        const confidenceEl = document.getElementById('dr-suggest-confidence');
+        const confidenceNoteEl = document.getElementById('dr-suggest-confidence-note');
+        const pm = drSuggest.a.path_metrics || {};
+        const ml = drSuggest.a.ml || {};
+        const primaryBan = (drSuggest.a.bans || [])[0] || '';
+        const fallbackHero = (drSuggest.a.comp || [])[1] || (drSuggest.a.comp || [])[0] || '';
+        const stableSlots = Number(pm.stable_slots || 0);
+        const pathRate = Number(pm.path_rate || 0);
+        const sampleMaps = Number(pm.sample_size || pm.samples || ml.sample_size || ml.maps || 0);
+        const trackedMaps = Number(pm.training_maps || ml.training_maps || ((drModel.teams || [])[0] || {}).model?.training_maps || 0);
+        const displaySampleMaps = sampleMaps || trackedMaps;
+
+        if (riskBanEl) {
+            riskBanEl.textContent = primaryBan || '--';
+        }
+        if (riskNoteEl) {
+            riskNoteEl.textContent = primaryBan
+                ? 'Historical path pressure points to this as the most disruptive ban.'
+                : 'No clear ban target yet from the available draft history.';
+        }
+        if (fallbackEl) {
+            fallbackEl.textContent = fallbackHero || '--';
+        }
+        if (fallbackNoteEl) {
+            fallbackNoteEl.textContent = fallbackHero
+                ? 'Best secondary shell piece from the current historical comp read.'
+                : 'Fallback hero will appear once the shell stabilizes.';
+        }
+        if (confidenceEl) {
+            if (ml.confidence || pathRate || stableSlots) {
+                confidenceEl.textContent = Number(ml.confidence || pathRate || 0).toFixed(1) + '%';
+            } else {
+                confidenceEl.textContent = '--';
+            }
+        }
+        if (confidenceNoteEl) {
+            const noteParts = [];
+            if (displaySampleMaps) noteParts.push('Sample: ' + displaySampleMaps + ' maps');
+            if (trackedMaps && sampleMaps && trackedMaps !== sampleMaps) noteParts.push('Tracked: ' + trackedMaps + ' maps');
+            if (stableSlots) noteParts.push('Stable slots: ' + stableSlots);
+            confidenceNoteEl.textContent = noteParts.join(' · ') || 'Sample unavailable';
         }
 
         suggestBlock.style.display = '';
@@ -6542,8 +7428,13 @@ function renderReplyHeroStrip(answer, meta) {
 
     function drStopPlayMode() {
         drPlayMode = false;
+        drAutoFillInFlight = false;
+        drClearTurnCountdown();
         if (drPlayBtn) drPlayBtn.style.display = '';
         if (drStopBtn) drStopBtn.style.display = 'none';
+        document.querySelectorAll('.draft-slot.auto-filling').forEach(function(slot) {
+            slot.classList.remove('auto-filling');
+        });
         drUpdateTurnLocking();
         drRender();
     }
@@ -6551,6 +7442,7 @@ function renderReplyHeroStrip(answer, meta) {
     // AI auto-fills enemy turns in sequence
     async function drAutoPlayEnemyTurns() {
         if (!drPlayMode) return;
+        if (drAutoFillInFlight) return;
         const activePhase = drGetActiveTurnPhase();
         if (!activePhase.length) { drStopPlayMode(); return; }
         const openEnemySteps = activePhase.filter(function(step) {
@@ -6561,19 +7453,47 @@ function renderReplyHeroStrip(answer, meta) {
             return step.team === 'a' && !((drDraft.a || {})[step.slot]);
         });
         if (hasOurTurn) return; // mixed phase, wait for user to pick first
-        await new Promise(function(r) { setTimeout(r, 420); });
-        openEnemySteps.forEach(function(step) {
-            if ((drDraft.b || {})[step.slot]) return;
+        drAutoFillInFlight = true;
+        for (const step of openEnemySteps) {
+            if (!drPlayMode) break;
+            if ((drDraft.b || {})[step.slot]) continue;
+            const slotEl = drGetSlotElement('b', step.slot);
+            const teamLabel = document.getElementById('dr-col-b-label').textContent || 'Enemy Team';
+            const isSimultaneousBan = step.type === 'ban'
+                && (step.slot === 'ban1' || step.slot === 'ban3')
+                && activePhase.some(function(phaseStep) {
+                    return phaseStep.team === 'a' && phaseStep.slot === step.slot;
+                });
+            const waitMs = isSimultaneousBan ? 0 : 7000;
+            if (waitMs > 0) {
+                if (slotEl) slotEl.classList.add('auto-filling');
+                drStartTurnCountdown(waitMs, teamLabel + ' is ' + drActionVerb(step) + '.', 'is-enemy');
+                await new Promise(function(r) { setTimeout(r, waitMs); });
+                if (slotEl) slotEl.classList.remove('auto-filling');
+            } else {
+                drSetTurnStatus(teamLabel + ' simultaneous ban locked.', 'is-enemy', '--');
+            }
+            if (!drPlayMode) break;
             const pool = step.type === 'protect' ? (drSuggest.b.protects || []) : (drSuggest.b.bans || []);
             const alreadyUsed = new Set(['ban1','ban2','ban3','ban4','protect1','protect2']
                 .map(function(k) { return (drDraft.b || {})[k]; }).filter(Boolean));
             const pick = pool.find(function(h) { return h && !alreadyUsed.has(h); });
+            if (!pick) {
+                drStopPlayMode();
+                drSetTurnStatus('Enemy draft suggestion is missing for this slot.', 'is-enemy', '--');
+                return;
+            }
             if (pick) drSetSlot('b', step.slot, pick);
-        });
+            drRenderUsed();
+            drRender();
+            await new Promise(function(r) { setTimeout(r, 520); });
+        }
+        drAutoFillInFlight = false;
+        drClearTurnCountdown();
         drRenderUsed();
         drRender();
         // Recurse — the next phase might also be all-enemy
-        await new Promise(function(r) { setTimeout(r, 300); });
+        await new Promise(function(r) { setTimeout(r, 500); });
         return drAutoPlayEnemyTurns();
     }
 
@@ -6610,6 +7530,8 @@ function renderReplyHeroStrip(answer, meta) {
             lineup: drActiveLineup ? Array.from(drActiveLineup).sort() : [],
             playMode: !!drPlayMode,
             map: mapFilter || '',
+            modeType: (drContext && drContext.modeType) ? drContext.modeType : (document.getElementById('dr-mode-type')?.value || 'all'),
+            scrimLens: (drContext && drContext.scrimLens) ? drContext.scrimLens : (document.getElementById('dr-scrim-lens')?.value || 'map_types'),
             nameA: nameA || '',
             nameB: nameB || '',
         });
@@ -6773,6 +7695,8 @@ function renderReplyHeroStrip(answer, meta) {
         Object.keys(drDraft.b).forEach(k => delete drDraft.b[k]);
         drActiveSlot = null;
         drPlayMode = false;
+        drAutoFillInFlight = false;
+        drClearTurnCountdown();
         if (drPlayBtn && drModel) drPlayBtn.style.display = '';
         if (drStopBtn) drStopBtn.style.display = 'none';
         document.querySelectorAll('.draft-slot[data-team]').forEach(sl => {
@@ -6786,6 +7710,8 @@ function renderReplyHeroStrip(answer, meta) {
             if (slotWrap) slotWrap.remove();
             sl.classList.remove('slot-active');
             sl.classList.remove('slot-filled');
+            sl.classList.remove('turn-next');
+            sl.classList.remove('auto-filling');
         });
         drRenderUsed();
         drRender();
@@ -6841,28 +7767,26 @@ function renderReplyHeroStrip(answer, meta) {
         }
         drUpdateTurnLocking();
 
-        // Render ghost ban hints on empty ban slots for our team (Team A)
-        function drRenderGhostBans() {
-            const ghostPath = drSuggest.a.banPath || [];
-            document.querySelectorAll('.draft-slot[data-team="a"][data-type="ban"]').forEach(function(slot) {
+        function drClearGhostHints() {
+            document.querySelectorAll('.draft-slot[data-team][data-type]').forEach(function(slot) {
                 const existingGhost = slot.querySelector('.slot-ghost-wrap');
                 if (existingGhost) existingGhost.remove();
             });
+        }
 
-            const ourBanIndex = drGetTeamHeroes('a', 'ban').length;
-
+        function drRenderGhostHintFor(team, type, suggested, labelBuilder) {
             const activePhase = drGetActiveTurnPhase();
-            const nextOurBanStep = activePhase.find(function(step) {
-                return step.team === 'a' && step.type === 'ban' && !((drDraft.a || {})[step.slot]);
+            const nextStep = activePhase.find(function(step) {
+                return step.team === team && step.type === type && !((drDraft[team] || {})[step.slot]);
             });
-            if (!nextOurBanStep) return;
+            if (!nextStep) return;
 
-            const ghostHero = ghostPath[ourBanIndex] || '';
+            const index = drGetTeamHeroes(team, type).length;
+            const ghostHero = (suggested || [])[index] || '';
             if (!ghostHero) return;
 
-            const slot = document.querySelector('[data-team="a"][data-slot="' + nextOurBanStep.slot + '"]');
+            const slot = document.querySelector('[data-team="' + team + '"][data-slot="' + nextStep.slot + '"]');
             if (!slot) return;
-
             if (getComputedStyle(slot).position === 'static') {
                 slot.style.position = 'relative';
             }
@@ -6878,44 +7802,17 @@ function renderReplyHeroStrip(answer, meta) {
 
             const ghostLabel = document.createElement('div');
             ghostLabel.className = 'slot-ghost-label';
-            ghostLabel.textContent = ourBanIndex === 0 ? 'Priority ban' : 'Next ban';
+            ghostLabel.textContent = labelBuilder(index);
 
             ghostWrap.appendChild(ghostImg);
             ghostWrap.appendChild(ghostLabel);
             slot.appendChild(ghostWrap);
         }
-        drRenderGhostBans();
 
-        // Render ghost protect hints on our empty protect slots
-        (function drRenderGhostProtects() {
-            document.querySelectorAll('.draft-slot[data-team="a"][data-type="protect"]').forEach(function(slot) {
-                const eg = slot.querySelector('.slot-ghost-wrap');
-                if (eg) eg.remove();
-            });
-            const suggestedProtects = drSuggest.a.protects || [];
-            if (!suggestedProtects.length) return;
-            ['protect1', 'protect2'].forEach(function(slotKey, idx) {
-                if ((drDraft.a || {})[slotKey]) return;
-                const ghostHero = suggestedProtects[idx] || '';
-                if (!ghostHero) return;
-                const slot = document.querySelector('[data-team="a"][data-slot="' + slotKey + '"]');
-                if (!slot) return;
-                if (getComputedStyle(slot).position === 'static') slot.style.position = 'relative';
-                const ghostWrap = document.createElement('div');
-                ghostWrap.className = 'slot-ghost-wrap';
-                const ghostImg = document.createElement('img');
-                ghostImg.className = 'slot-ghost-img';
-                ghostImg.src = heroThumbUrl(ghostHero);
-                ghostImg.alt = ghostHero;
-                ghostImg.onerror = function() { this.style.display = 'none'; };
-                const ghostLabel = document.createElement('div');
-                ghostLabel.className = 'slot-ghost-label';
-                ghostLabel.textContent = 'Protect?';
-                ghostWrap.appendChild(ghostImg);
-                ghostWrap.appendChild(ghostLabel);
-                slot.appendChild(ghostWrap);
-            });
-        })();
+        drClearGhostHints();
+        drRenderGhostHintFor('b', 'ban', drSuggest.b.bans || [], function(idx) {
+            return idx === 0 ? 'Enemy historical best ban' : 'Enemy next ban';
+        });
 
         const bansA     = ['ban1','ban2','ban3','ban4'].map(k => drDraft.a[k]).filter(Boolean);
         const protectsA = ['protect1','protect2'].map(k => drDraft.a[k]).filter(Boolean);
@@ -7529,12 +8426,20 @@ function renderReplyHeroStrip(answer, meta) {
                 + '</div>'
             : '<div class="dr-guide-meta">Fill ban and protect slots to get per-slot notes.</div>';
 
+        const activePhase = drGetActiveTurnPhase();
+        const activeTeams = new Set(activePhase.map(function(step) { return step.team; }));
+        const activeTypes = new Set(activePhase.map(function(step) { return step.type; }));
+        const showYourAction = activeTeams.has('a');
+        const showEnemyAction = activeTeams.has('b');
+        const showPathAnalysis = activeTypes.has('ban') || !activePhase.length;
+        const showWatchList = activeTypes.has('protect') || !activePhase.length;
+
         stream.innerHTML = '<div class="dr-guide">'
             + headerHtml
-            + renderNotesSection('Your Draft Choices', yourActionCards)
-            + renderNotesSection('Enemy Draft Choices', enemyActionCards)
-            + renderNotesSection('Comp Path Analysis', pathAnalysisCards)
-            + renderNotesSection('Watch List', watchCards)
+            + (showYourAction ? renderNotesSection('Your Draft Choices', yourActionCards) : '')
+            + (showEnemyAction ? renderNotesSection('Enemy Draft Choices', enemyActionCards) : '')
+            + (showPathAnalysis ? renderNotesSection('Comp Path Analysis', pathAnalysisCards) : '')
+            + (showWatchList ? renderNotesSection('Watch List', watchCards) : '')
             + '</div>';
         drScheduleLiveAiAnalysis(false);
     }
