@@ -3701,28 +3701,58 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
             reverse=True,
         )
         response_rows = []
+        total_decided = 0
+        total_wins = 0
+        for row in response_summary.values():
+            decided = int(row.get("wins", 0) or 0) + int(row.get("losses", 0) or 0)
+            total_decided += decided
+            total_wins += int(row.get("wins", 0) or 0)
+        prior_win_rate = (total_wins / total_decided) if total_decided else 0.5
+        sample_prior_weight = 4.0
         for row in response_summary.values():
             decided = int(row.get("wins", 0) or 0) + int(row.get("losses", 0) or 0)
             avg_similarity = (float(row.get("total_similarity", 0) or 0) / int(row.get("count", 0) or 1)) if row.get("count") else 0.0
             win_rate = ((int(row.get("wins", 0) or 0) / decided) * 100.0) if decided else 0.0
+            sample_weight = decided / (decided + sample_prior_weight) if decided > 0 else 0.0
+            shrunk_win_rate = (
+                (
+                    (int(row.get("wins", 0) or 0) + (prior_win_rate * sample_prior_weight))
+                    / (decided + sample_prior_weight)
+                )
+                * 100.0
+                if decided
+                else prior_win_rate * 100.0
+            )
+            similarity_ratio = (avg_similarity / max_score) if max_score > 0 else 0.0
             row["decided"] = decided
             row["avg_similarity"] = round(avg_similarity, 1)
             row["win_rate"] = round(win_rate, 1)
-            row["effectiveness"] = round(float(row.get("total_similarity", 0) or 0) * (win_rate / 100.0), 2)
+            row["sample_weight"] = round(sample_weight, 3)
+            row["sample_penalty"] = round(1.0 - sample_weight, 3)
+            row["sample_adjusted_win_rate"] = round(shrunk_win_rate, 1)
+            row["historical_record_score"] = round(
+                shrunk_win_rate * sample_weight * max(0.2, similarity_ratio),
+                2,
+            )
+            row["effectiveness"] = row["historical_record_score"]
             response_rows.append(row)
         response_rows.sort(
             key=lambda row: (
-                float(row.get("effectiveness", 0) or 0),
+                float(row.get("historical_record_score", 0) or 0),
+                float(row.get("sample_adjusted_win_rate", 0) or 0),
                 int(row.get("count", 0) or 0),
                 float(row.get("avg_similarity", 0) or 0),
                 str(row.get("hero") or ""),
             ),
             reverse=True,
         )
+        strongest_response = response_rows[0] if response_rows else {}
         return {
             "max_score": max_score,
             "matches": similar_matches[:5],
             "responses": response_rows[:5],
+            "strongest_response": strongest_response,
+            "prior_win_rate": round(prior_win_rate * 100.0, 1),
         }
 
     our_ban_plan = _build_full_slot_plan(
@@ -3800,7 +3830,19 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 f"  - {row.get('hero') or 'Unknown'}: {int(row.get('wins', 0) or 0)}W-{int(row.get('losses', 0) or 0)}L"
                 f" across {int(row.get('count', 0) or 0)} similar drafts"
                 f" | avg similarity {float(row.get('avg_similarity', 0) or 0):.1f}/{int(similar_draft_snapshot.get('max_score') or 0)}"
+                f" | adjusted WR {float(row.get('sample_adjusted_win_rate', 0) or 0):.1f}%"
+                f" | sample penalty {float(row.get('sample_penalty', 0) or 0):.2f}"
+                f" | record score {float(row.get('historical_record_score', 0) or 0):.2f}"
             )
+    if similar_draft_snapshot.get("strongest_response"):
+        strongest = similar_draft_snapshot.get("strongest_response") or {}
+        lines.append(
+            "- Machine-selected strongest historical enemy response: "
+            f"{strongest.get('hero') or 'Unknown'} "
+            f"(record score {float(strongest.get('historical_record_score', 0) or 0):.2f}, "
+            f"adjusted WR {float(strongest.get('sample_adjusted_win_rate', 0) or 0):.1f}%, "
+            f"sample {int(strongest.get('count', 0) or 0)})."
+        )
     lines.append("- Historical best-in-slot (our bans): " + _format_slot_plan(our_ban_plan, ["ban1", "ban2", "ban3", "ban4"]))
     lines.append("- Historical best-in-slot (our protects): " + _format_slot_plan(our_protect_plan, ["protect1", "protect2"]))
     lines.append("- Historical best-in-slot (enemy bans): " + _format_slot_plan(enemy_ban_plan, ["ban1", "ban2", "ban3", "ban4"]))
@@ -3852,6 +3894,8 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         ),
         "similar_draft_matches": similar_draft_snapshot.get("matches") or [],
         "similar_draft_responses": similar_draft_snapshot.get("responses") or [],
+        "similar_draft_strongest_response": similar_draft_snapshot.get("strongest_response") or {},
+        "similar_draft_prior_win_rate": similar_draft_snapshot.get("prior_win_rate", 0),
         "similar_draft_max_score": int(similar_draft_snapshot.get("max_score") or 0),
         "our_locked_bans": our_locked_bans,
         "enemy_locked_bans": enemy_locked_bans,
@@ -3889,6 +3933,7 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     enemy_response_action_type = str(decision_data.get("enemy_response_action_type") or "").strip().lower()
     similar_draft_matches = decision_data.get("similar_draft_matches") or []
     similar_draft_responses = decision_data.get("similar_draft_responses") or []
+    similar_draft_strongest_response = decision_data.get("similar_draft_strongest_response") or {}
     similar_draft_max_score = int(decision_data.get("similar_draft_max_score") or 0)
     draft_complete = bool(decision_data.get("draft_complete"))
     if not next_bans and not next_protects and not pivots and not enemy_next_bans:
@@ -3935,7 +3980,7 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     dangerous_reason = _enemy_response_reason(dangerous_hero, active_enemy_action)
     dangerous_confidence = _enemy_response_confidence(active_enemy_pool, dangerous_hero)
 
-    best_historical_response = similar_draft_responses[0] if similar_draft_responses else {}
+    best_historical_response = similar_draft_strongest_response or (similar_draft_responses[0] if similar_draft_responses else {})
     if best_historical_response.get("hero"):
         recommended_enemy_move = str(best_historical_response.get("hero") or "").strip()
     else:
@@ -3976,11 +4021,14 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
 
     best_count = int(best_historical_response.get("count", 0) or 0)
     best_win_rate = float(best_historical_response.get("win_rate", 0) or 0)
+    best_adjusted_win_rate = float(best_historical_response.get("sample_adjusted_win_rate", 0) or 0)
+    best_sample_penalty = float(best_historical_response.get("sample_penalty", 0) or 0)
+    best_record_score = float(best_historical_response.get("historical_record_score", 0) or 0)
     best_avg_similarity = float(best_historical_response.get("avg_similarity", 0) or 0)
     max_ratio = (best_avg_similarity / similar_draft_max_score) if similar_draft_max_score > 0 else 0.0
-    if best_count >= 3 and best_win_rate >= 55 and max_ratio >= 0.55:
+    if best_count >= 4 and best_adjusted_win_rate >= 55 and max_ratio >= 0.55 and best_sample_penalty <= 0.5:
         confidence = "High"
-    elif best_count >= 2 and best_win_rate >= 50 and max_ratio >= 0.4:
+    elif best_count >= 2 and best_adjusted_win_rate >= 50 and max_ratio >= 0.4:
         confidence = "Medium"
     elif recommended_enemy_move:
         confidence = dangerous_confidence or most_likely_confidence or "Low"
@@ -4010,7 +4058,7 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         (f"{most_likely_hero} {response_action_label}" if most_likely_hero else "Closest historical counter found with Low confidence.")
     )
     best_performing_response_text = (
-        f"{best_historical_response.get('hero') or 'Unknown'} {response_action_label} | {best_record} | avg similarity {best_avg_similarity:.1f}/{similar_draft_max_score or 1}"
+        f"{best_historical_response.get('hero') or 'Unknown'} {response_action_label} | {best_record} | adjusted WR {best_adjusted_win_rate:.1f}% | record score {best_record_score:.2f} | avg similarity {best_avg_similarity:.1f}/{similar_draft_max_score or 1}"
         if best_count else
         (f"{recommended_enemy_move} {response_action_label}" if recommended_enemy_move else "Closest historical counter found with Low confidence.")
     )
@@ -4039,7 +4087,7 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
             )
     if best_count:
         reasoning_lines.append(
-            f"Historical result for this response: {best_record} with average similarity {best_avg_similarity:.1f}/{similar_draft_max_score or 1}."
+            f"Historical result for this response: {best_record}; sample-adjusted WR {best_adjusted_win_rate:.1f}% after a {best_sample_penalty:.2f} small-sample penalty; average similarity {best_avg_similarity:.1f}/{similar_draft_max_score or 1}."
         )
     elif most_likely_reason:
         reasoning_lines.append(most_likely_reason)
