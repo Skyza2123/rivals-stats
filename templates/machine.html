@@ -6691,6 +6691,47 @@ function renderReplyHeroStrip(answer, meta) {
             return mergeSlotLocks(slotKeys, sideDraft, slotOrderedOpen);
         }
 
+        function drApplyFullDraftPath(sideDraft, pathHeroes, banFallbackPool, protectFallbackPool, banHistoryLookup, protectHistoryLookup) {
+            const localSlotOrder = ['ban1', 'protect1', 'ban2', 'ban3', 'protect2', 'ban4'];
+            const assigned = new Set();
+            const bansBySlot = {ban1: '', ban2: '', ban3: '', ban4: ''};
+            const protectsBySlot = {protect1: '', protect2: ''};
+
+            localSlotOrder.forEach(function(slotKey) {
+                const lockedHero = ((sideDraft || {})[slotKey] || '').trim();
+                if (!lockedHero) return;
+                assigned.add(drHeroPoolHeroKey(lockedHero));
+                if (slotKey.indexOf('protect') === 0) protectsBySlot[slotKey] = lockedHero;
+                else bansBySlot[slotKey] = lockedHero;
+            });
+
+            (pathHeroes || []).forEach(function(hero, idx) {
+                const slotKey = localSlotOrder[idx];
+                const heroName = String(hero || '').trim();
+                const heroKey = drHeroPoolHeroKey(heroName);
+                if (!slotKey || !heroName || !heroKey || assigned.has(heroKey)) return;
+                if (((sideDraft || {})[slotKey] || '').trim()) return;
+                assigned.add(heroKey);
+                if (slotKey.indexOf('protect') === 0) protectsBySlot[slotKey] = heroName;
+                else bansBySlot[slotKey] = heroName;
+            });
+
+            const banFallback = uniqueHeroes((banFallbackPool || []).filter(function(hero) {
+                return hero && !assigned.has(drHeroPoolHeroKey(hero));
+            }));
+            const protectFallback = uniqueHeroes((protectFallbackPool || []).filter(function(hero) {
+                return hero && !assigned.has(drHeroPoolHeroKey(hero));
+            }));
+
+            const banSeed = ['ban1', 'ban2', 'ban3', 'ban4'].map(function(slotKey) { return bansBySlot[slotKey]; }).filter(Boolean).concat(banFallback);
+            const protectSeed = ['protect1', 'protect2'].map(function(slotKey) { return protectsBySlot[slotKey]; }).filter(Boolean).concat(protectFallback);
+
+            return {
+                bans: drApplySlotHistoricalOrder(['ban1','ban2','ban3','ban4'], sideDraft, banSeed, banHistoryLookup),
+                protects: drApplySlotHistoricalOrder(['protect1','protect2'], sideDraft, protectSeed, protectHistoryLookup),
+            };
+        }
+
         const ourBanSlotHistory = drBuildSlotHistoryLookup(mA, 'ban');
         const ourProtectSlotHistory = drBuildSlotHistoryLookup(mA, 'protect');
         const enemyBanSlotHistory = drBuildSlotHistoryLookup(mB, 'ban');
@@ -6827,9 +6868,24 @@ function renderReplyHeroStrip(answer, meta) {
             const cleanOurProtects = rawOurProtects.filter(function(hero) {
                 return validOurProtect(hero) && !hasHeroByKey(cleanOurBans, hero);
             });
+            const exactPathHeroes = ((bestCandidate.path || {}).heroes || []).map(function(hero, idx) {
+                const slotKey = ['ban1', 'protect1', 'ban2', 'ban3', 'protect2', 'ban4'][idx] || '';
+                if (slotKey.indexOf('protect') === 0) {
+                    return validOurProtect(hero) ? hero : '';
+                }
+                return validOurBan(hero) ? hero : '';
+            });
 
-            drSuggest.a.bans = drApplySlotHistoricalOrder(['ban1','ban2','ban3','ban4'], drDraft.a, cleanOurBans, ourBanSlotHistory);
-            drSuggest.a.protects = drApplySlotHistoricalOrder(['protect1','protect2'], drDraft.a, cleanOurProtects, ourProtectSlotHistory);
+            const fullPathSuggestion = drApplyFullDraftPath(
+                drDraft.a,
+                exactPathHeroes,
+                cleanOurBans,
+                cleanOurProtects,
+                ourBanSlotHistory,
+                ourProtectSlotHistory,
+            );
+            drSuggest.a.bans = fullPathSuggestion.bans;
+            drSuggest.a.protects = fullPathSuggestion.protects;
         }
 
         // Fallback: no clean comp survived ban filtering — adapt the top-ranked comp by
@@ -6991,7 +7047,12 @@ function renderReplyHeroStrip(answer, meta) {
             ourBanSlotHistory,
         );
         if (drSuggest.a.banPath && drSuggest.a.banPath.length) {
-            drSuggest.a.bans = drSuggest.a.banPath;
+            const existingBanPath = drSuggest.a.bans || [];
+            drSuggest.a.bans = mergeSlotLocks(
+                ['ban1','ban2','ban3','ban4'],
+                drDraft.a,
+                uniqueHeroes(existingBanPath.concat(drSuggest.a.banPath))
+            );
         }
 
         // Enemy comp should reflect the enemy team's own best legal comp model

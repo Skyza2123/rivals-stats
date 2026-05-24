@@ -1430,6 +1430,52 @@ def _machine_chat_build_context(
         comp_row = viable_comp_row or (comp_rows[0] if comp_rows else {})
         add_unique(target_comp, comp_row.get("heroes", []), 6)
 
+    target_comp_path: dict = {}
+    if target_comp:
+        target_comp_key = {str(hero or "").strip().lower() for hero in target_comp if str(hero or "").strip()}
+        matching_path_row = next(
+            (
+                row for row in (a_model.get("comp_path_rows") or [])
+                if {
+                    str(hero or "").strip().lower()
+                    for hero in (row.get("heroes") or [])
+                    if str(hero or "").strip()
+                } == target_comp_key
+            ),
+            {},
+        )
+        target_comp_path = ((matching_path_row.get("top_draft_paths") or [{}])[0] or {}) if matching_path_row else {}
+        if target_comp_path:
+            path_bans = [
+                hero for hero in (target_comp_path.get("bans") or [])
+                if _canonical_draft_hero(str(hero or "").strip())
+            ]
+            path_protects = [
+                hero for hero in (target_comp_path.get("protects") or [])
+                if _canonical_draft_hero(str(hero or "").strip())
+            ]
+            # Keep later slots tied to the same successful historical route. The
+            # generic pool fills gaps, but protect2/ban4 should not drift away
+            # from the selected comp path when that path exists.
+            if path_bans:
+                recommended_bans = list(path_bans) + [
+                    hero for hero in recommended_bans
+                    if _canonical_draft_hero(str(hero or "").strip()).lower()
+                    not in {
+                        _canonical_draft_hero(str(path_hero or "").strip()).lower()
+                        for path_hero in path_bans
+                    }
+                ]
+            if path_protects:
+                recommended_protects = list(path_protects) + [
+                    hero for hero in recommended_protects
+                    if _canonical_draft_hero(str(hero or "").strip()).lower()
+                    not in {
+                        _canonical_draft_hero(str(path_hero or "").strip()).lower()
+                        for path_hero in path_protects
+                    }
+                ]
+
     our_ban_slot_history = _build_slot_history_from_lines(a_model.get("ban_line_rows", []), "ban")
     our_protect_slot_history = _build_slot_history_from_lines(a_model.get("ban_line_rows", []), "protect")
     enemy_ban_slot_history = _build_slot_history_from_lines(b_model.get("ban_line_rows", []), "ban")
@@ -3173,6 +3219,12 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
     next_enemy_protect_slot_number = (len(enemy_locked_protects) + 1) if len(enemy_locked_protects) < 2 else 0
     next_enemy_protect_slot_key = f"protect{next_enemy_protect_slot_number}" if next_enemy_protect_slot_number else ""
 
+    def _is_t1_protect_turn_by_counts(ban_count: int, protect_count: int) -> bool:
+        return (ban_count == 1 and protect_count < 1) or (ban_count == 3 and protect_count < 2)
+
+    def _is_t2_protect_turn_by_counts(ban_count: int, protect_count: int) -> bool:
+        return (ban_count == 1 and protect_count < 1) or (ban_count == 4 and protect_count < 2)
+
     def _rank_historical_enemy_choices(
         slot_key: str,
         slot_history_lookup: dict | None,
@@ -3454,11 +3506,11 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 return "enemy_ban"
 
         if next_team == "a":
-            if len(our_locked_bans) in {1, 3} and len(our_locked_protects) < (1 if len(our_locked_bans) == 1 else 2):
+            if _is_t1_protect_turn_by_counts(len(our_locked_bans), len(our_locked_protects)):
                 return "our_protect"
             return "our_ban"
         if next_team == "b":
-            if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2):
+            if _is_t2_protect_turn_by_counts(len(enemy_locked_bans), len(enemy_locked_protects)):
                 return "enemy_protect"
             return "enemy_ban"
         return "unknown"
@@ -3570,7 +3622,7 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
 
     active_enemy_action = (
         "enemy_protect"
-        if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2)
+        if _is_t2_protect_turn_by_counts(len(enemy_locked_bans), len(enemy_locked_protects))
         else "enemy_ban"
     )
 
@@ -3903,7 +3955,7 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         "next_action_type": next_action_type,
         "enemy_response_action_type": (
             "enemy_protect"
-            if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2)
+            if _is_t2_protect_turn_by_counts(len(enemy_locked_bans), len(enemy_locked_protects))
             else "enemy_ban"
         ),
         "similar_draft_matches": similar_draft_snapshot.get("matches") or [],
@@ -3953,6 +4005,12 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     if not next_bans and not next_protects and not pivots and not enemy_next_bans:
         return ""
 
+    def _is_t1_protect_turn_by_counts(ban_count: int, protect_count: int) -> bool:
+        return (ban_count == 1 and protect_count < 1) or (ban_count == 3 and protect_count < 2)
+
+    def _is_t2_protect_turn_by_counts(ban_count: int, protect_count: int) -> bool:
+        return (ban_count == 1 and protect_count < 1) or (ban_count == 4 and protect_count < 2)
+
     def _enemy_response_reason(hero: str, action_type: str) -> str:
         clean_hero = _canonical_draft_hero(str(hero or "").strip())
         if not clean_hero:
@@ -3974,7 +4032,7 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
 
     active_enemy_action = enemy_response_action_type or (
         "enemy_protect"
-        if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < (1 if len(enemy_locked_bans) == 1 else 2)
+        if _is_t2_protect_turn_by_counts(len(enemy_locked_bans), len(enemy_locked_protects))
         else "enemy_ban"
     )
     active_enemy_pool = enemy_next_protects if active_enemy_action == "enemy_protect" else enemy_next_bans
@@ -4194,9 +4252,9 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         elif "ban" in phase_label_lc:
             next_action_type = "our_ban" if next_team == "a" else ("enemy_ban" if next_team == "b" else "unknown")
         elif next_team == "a":
-            next_action_type = "our_protect" if len(our_locked_bans) in {1, 3} and len(our_locked_protects) < 2 else "our_ban"
+            next_action_type = "our_protect" if _is_t1_protect_turn_by_counts(len(our_locked_bans), len(our_locked_protects)) else "our_ban"
         elif next_team == "b":
-            next_action_type = "enemy_protect" if len(enemy_locked_bans) in {1, 3} and len(enemy_locked_protects) < 2 else "enemy_ban"
+            next_action_type = "enemy_protect" if _is_t2_protect_turn_by_counts(len(enemy_locked_bans), len(enemy_locked_protects)) else "enemy_ban"
         else:
             next_action_type = "unknown"
 
