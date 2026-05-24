@@ -1341,7 +1341,7 @@ def _machine_chat_build_context(
                     continue
                 hero_key = canonical.lower()
                 slot_key = slot_keys[idx]
-                score = count + (rate * 0.35) + (line_strength * 0.18)
+                score = (count * 1.35) + (rate * 0.55) + (line_strength * 0.12)
                 current = float(lookup[slot_key].get(hero_key, 0.0) or 0.0)
                 lookup[slot_key][hero_key] = round(current + score, 3)
         return lookup
@@ -1374,12 +1374,26 @@ def _machine_chat_build_context(
         return [_canonical_draft_hero(hero) for hero in ranked if _canonical_draft_hero(hero)]
 
     def _historical_ban_pool(line_rows: list[dict], limit: int = 12) -> list[str]:
-        pool: list[str] = []
+        hero_scores: dict[str, dict] = {}
         for row in line_rows or []:
-            add_unique(pool, [str(hero or "").strip() for hero in (row.get("bans") or row.get("heroes") or [])], limit)
-            if len(pool) >= limit:
-                break
-        return pool
+            count = float(row.get("count", 0) or 0)
+            rate = float(row.get("rate", 0) or 0)
+            line_strength = float(row.get("line_strength", 0) or 0)
+            row_score = (count * 1.35) + (rate * 0.55) + (line_strength * 0.12)
+            for idx, raw_hero in enumerate((row.get("bans") or row.get("heroes") or []) or []):
+                hero = _canonical_draft_hero(str(raw_hero or "").strip())
+                if not hero:
+                    continue
+                hero_key = hero.lower()
+                slot_bonus = max(0.0, 4.0 - float(idx)) * 1.5
+                bucket = hero_scores.setdefault(hero_key, {"hero": hero, "score": 0.0})
+                bucket["score"] = float(bucket.get("score", 0.0) or 0.0) + row_score + slot_bonus
+        ranked = sorted(
+            hero_scores.values(),
+            key=lambda item: (float(item.get("score", 0.0) or 0.0), str(item.get("hero", "")).lower()),
+            reverse=True,
+        )
+        return [str(item.get("hero") or "") for item in ranked[:limit] if str(item.get("hero") or "").strip()]
 
     has_strong_comp_data = float(a_model.get("training_maps", 0) or 0) >= 20
     comp_usage_floor = 8.0 if has_strong_comp_data else 4.0

@@ -305,7 +305,14 @@
                                                     <img class="tdash-hero-pill-img" src="{{ hero_image_url(row.hero) }}" alt="{{ hero_display_name(row.hero) }}" loading="lazy" onerror="this.style.display='none'">
                                                     <span>
                                                         <strong>{{ hero_display_name(row.hero) }}</strong>
-                                                        <small>{{ row.maps|round(1) }} maps</small>
+                                                        <small>
+                                                            {{ row.maps|round(1) }} maps
+                                                            {% if row.decided_maps %}
+                                                                · <b class="{% if row.win_rate >= 55 %}wr-good{% elif row.win_rate >= 45 %}wr-ok{% else %}wr-bad{% endif %}">{{ row.win_rate }}% WR</b>
+                                                            {% else %}
+                                                                · <b class="wr-muted">no WR</b>
+                                                            {% endif %}
+                                                        </small>
                                                     </span>
                                                 </span>
                                             {% endfor %}

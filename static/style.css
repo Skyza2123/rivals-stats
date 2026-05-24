@@ -631,6 +631,14 @@
     color: var(--muted);
 }
 
+.tdash-hero-pill small b {
+    font-weight: 900;
+}
+
+.tdash-hero-pill small .wr-muted {
+    color: var(--muted);
+}
+
 .tdash-hero-pill-img {
     width: 24px;
     height: 24px;

@@ -6339,7 +6339,7 @@ function renderReplyHeroStrip(answer, meta) {
                     const heroKey = drHeroPoolHeroKey(hero);
                     const slotKey = 'ban' + (idx + 1);
                     if (!heroKey || !historicalBanSlotByHero[slotKey]) return;
-                    const slotWeight = lineCount + (lineRate * 0.35) + (lineStrength * 0.18);
+                    const slotWeight = (lineCount * 1.35) + (lineRate * 0.55) + (lineStrength * 0.12);
                     historicalBanSlotByHero[slotKey].set(heroKey, Number(historicalBanSlotByHero[slotKey].get(heroKey) || 0) + slotWeight);
                 });
             });
@@ -6616,7 +6616,7 @@ function renderReplyHeroStrip(answer, meta) {
                     if (!slotKey || !hero) return;
                     const heroKey = drHeroPoolHeroKey(hero);
                     if (!heroKey) return;
-                    const weight = count + (rate * 0.35) + (lineStrength * 0.18);
+                    const weight = (count * 1.35) + (rate * 0.55) + (lineStrength * 0.12);
                     lookup[slotKey].set(heroKey, Number(lookup[slotKey].get(heroKey) || 0) + weight);
                 });
             });
@@ -6626,18 +6626,29 @@ function renderReplyHeroStrip(answer, meta) {
 
         function drBuildHistoricalBanPool(teamModel) {
             const rows = (teamModel && teamModel.ban_line_rows) ? teamModel.ban_line_rows : [];
-            const pool = [];
-            const seen = new Set();
+            const heroScores = new Map();
             rows.forEach(function(row) {
-                ((row.bans || row.heroes || []).filter(Boolean)).forEach(function(hero) {
+                const count = Number(row.count || 0);
+                const rate = Number(row.rate || 0);
+                const lineStrength = Number(row.line_strength || 0);
+                const rowScore = (count * 1.35) + (rate * 0.55) + (lineStrength * 0.12);
+                ((row.bans || row.heroes || []).filter(Boolean)).forEach(function(hero, idx) {
                     const heroName = String(hero || '').trim();
                     const heroKey = drHeroPoolHeroKey(heroName);
-                    if (!heroName || !heroKey || seen.has(heroKey) || pool.length >= 20) return;
-                    seen.add(heroKey);
-                    pool.push(heroName);
+                    if (!heroName || !heroKey) return;
+                    const slotBonus = Math.max(0, 4 - Number(idx || 0)) * 1.5;
+                    const current = heroScores.get(heroKey) || {hero: heroName, score: 0};
+                    current.score += rowScore + slotBonus;
+                    heroScores.set(heroKey, current);
                 });
             });
-            return uniqueHeroes(pool);
+            return Array.from(heroScores.values())
+                .sort(function(a, b) {
+                    return (Number(b.score || 0) - Number(a.score || 0))
+                        || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+                })
+                .slice(0, 20)
+                .map(function(row) { return row.hero; });
         }
 
         function drApplySlotHistoricalOrder(slotKeys, sideDraft, candidatePool, slotHistoryLookup) {
@@ -6979,6 +6990,9 @@ function renderReplyHeroStrip(answer, meta) {
             drComputeBanPath(mB, bestEnemyLine, ourLockedBans, enemyLockedBans, drSuggest.a.protects),
             ourBanSlotHistory,
         );
+        if (drSuggest.a.banPath && drSuggest.a.banPath.length) {
+            drSuggest.a.bans = drSuggest.a.banPath;
+        }
 
         // Enemy comp should reflect the enemy team's own best legal comp model
         // so it remains consistent when the same team is selected on either side.
