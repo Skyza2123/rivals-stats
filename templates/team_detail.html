@@ -712,6 +712,62 @@
                 </div>
             </details>
 
+            <section class="panel panel-soft-green top-gap" id="team-ban-protect-enemy-save">
+                <div class="section-kicker">Conditional Save Read</div>
+                <h3>When We Ban + Save, What Does Enemy Save?</h3>
+                <p class="panel-intro">
+                    This answers combo reads like: if {{ team.name }} bans one hero and saves another, how often does the enemy save that same hero or choose a different save.
+                </p>
+                {% if team_analytics.ban_protect_enemy_save_rows %}
+                    <div class="analysis-card-grid top-gap">
+                        {% for row in team_analytics.ban_protect_enemy_save_rows[:8] %}
+                        <article class="analysis-card">
+                            <div class="analysis-card-header">
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.ban_hero) }}" alt="{{ row.ban_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.ban_hero | urlencode }}'">
+                                    <span class="hero-inline-meta">
+                                        <span>Ban {{ hero_display_name(row.ban_hero) }}</span>
+                                        <small class="hero-sub-label">{{ row.total }} matching map{{ 's' if row.total != 1 else '' }}</small>
+                                    </span>
+                                </span>
+                                <span class="prep-flow-arrow">→</span>
+                                <span class="hero-inline-cell">
+                                    <img src="{{ hero_image_url(row.protect_hero) }}" alt="{{ row.protect_hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ row.protect_hero | urlencode }}'">
+                                    <span class="hero-inline-meta">
+                                        <span>Save {{ hero_display_name(row.protect_hero) }}</span>
+                                        <small class="hero-sub-label">Enemy mirrors {{ row.same_protect_count }}/{{ row.total }} · {{ row.same_protect_rate }}%</small>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="analysis-list">
+                                {% for enemy_row in row.enemy_protects %}
+                                <div class="analysis-row">
+                                    <span class="hero-inline-cell">
+                                        <img src="{{ hero_image_url(enemy_row.hero) }}" alt="{{ enemy_row.hero }}" class="hero-inline-thumb" onerror="this.src='https://via.placeholder.com/40/111827/e6edf3?text={{ enemy_row.hero | urlencode }}'">
+                                        <span class="hero-inline-meta">
+                                            <span>Enemy saves {{ hero_display_name(enemy_row.hero) }}</span>
+                                            <small class="hero-sub-label">{{ enemy_row.count }}/{{ row.total }} occurrences{% if row.total < 3 %} | Low sample{% endif %}</small>
+                                        </span>
+                                    </span>
+                                    <span class="metric-text {% if enemy_row.rate >= 70 %}metric-good{% elif enemy_row.rate >= 40 %}metric-warn{% else %}metric-neutral{% endif %}">
+                                        {{ enemy_row.rate }}%
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if row.win_rate is not none %}
+                                <div class="ban-intel-note">
+                                    {{ team.name }} record after this trigger: {{ row.wins }}-{{ row.losses }} ({{ row.win_rate }}% WR)
+                                </div>
+                            {% endif %}
+                        </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-text">No ban + save into enemy-save combos to calculate yet.</p>
+                {% endif %}
+            </section>
+
             <details class="dense-collapsible top-gap">
                 <summary>Advanced Draft Flow And Slot Patterns</summary>
                 <div class="dense-collapsible-body">

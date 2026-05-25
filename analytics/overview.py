@@ -37,6 +37,14 @@ def build_scrim_analytics(
     comp_hard_mirror_count = 0
     ban_next_pairs = defaultdict(lambda: defaultdict(int))
     ban_to_protect_pairs = defaultdict(lambda: defaultdict(int))
+    ban_protect_enemy_save_targets = defaultdict(
+        lambda: {
+            "enemy_protects": defaultdict(int),
+            "source_total": 0,
+            "wins": 0,
+            "losses": 0,
+        }
+    )
     draft_route_counts = defaultdict(int)
     draft_route_from_totals = defaultdict(int)
     lead_source_counts = {
@@ -181,14 +189,28 @@ def build_scrim_analytics(
                 slot: canonical_hero(our_draft.get(slot, ""))
                 for slot in ("protect1", "protect2")
             }
+            enemy_protect_slots = {
+                slot: canonical_hero(enemy_draft.get(slot, ""))
+                for slot in ("protect1", "protect2")
+            }
             our_banned_heroes = {
                 hero_name
                 for hero_name in our_ban_slots.values()
                 if hero_name
             }
+            our_protected_heroes = {
+                hero_name
+                for hero_name in our_protect_slots.values()
+                if hero_name
+            }
             enemy_banned_heroes = {
                 hero_name
                 for hero_name in enemy_ban_slots.values()
+                if hero_name
+            }
+            enemy_protected_heroes = {
+                hero_name
+                for hero_name in enemy_protect_slots.values()
                 if hero_name
             }
             # Ban response likelihood: when we ban X in a slot, what the enemy bans
@@ -224,6 +246,18 @@ def build_scrim_analytics(
                 for slot in ("ban1", "ban2", "ban3"):
                     if our_ban_slots.get(slot):
                         ban_to_protect_pairs[our_ban_slots[slot]][our_protect_slots["protect2"]] += 1
+
+            if our_banned_heroes and our_protected_heroes:
+                for banned_hero in our_banned_heroes:
+                    for protected_hero in our_protected_heroes:
+                        route_stats = ban_protect_enemy_save_targets[(banned_hero, protected_hero)]
+                        route_stats["source_total"] += 1
+                        if is_win:
+                            route_stats["wins"] += 1
+                        elif is_loss:
+                            route_stats["losses"] += 1
+                        for enemy_protect_hero in enemy_protected_heroes:
+                            route_stats["enemy_protects"][enemy_protect_hero] += 1
 
             ban1_hero = our_ban_slots.get("ban1", "")
             ban2_hero = our_ban_slots.get("ban2", "")
@@ -712,6 +746,51 @@ def build_scrim_analytics(
             }
         )
     ban_to_protect_rows.sort(key=lambda row: (row["total"], row["top_rate"]), reverse=True)
+
+    ban_protect_enemy_save_rows = []
+    for (ban_hero, protect_hero), target_data in ban_protect_enemy_save_targets.items():
+        source_total = target_data["source_total"]
+        if not source_total:
+            continue
+        enemy_protect_rows = sorted(
+            target_data["enemy_protects"].items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        top_enemy_protect, top_count = enemy_protect_rows[0] if enemy_protect_rows else ("", 0)
+        same_protect_count = target_data["enemy_protects"].get(protect_hero, 0)
+        decided = target_data["wins"] + target_data["losses"]
+        ban_protect_enemy_save_rows.append(
+            {
+                "ban_hero": ban_hero,
+                "protect_hero": protect_hero,
+                "total": source_total,
+                "top_enemy_protect": top_enemy_protect,
+                "top_count": top_count,
+                "top_rate": pct(top_count, source_total),
+                "same_protect_count": same_protect_count,
+                "same_protect_rate": pct(same_protect_count, source_total),
+                "wins": target_data["wins"],
+                "losses": target_data["losses"],
+                "win_rate": pct(target_data["wins"], decided) if decided else None,
+                "enemy_protects": [
+                    {
+                        "hero": enemy_protect_hero,
+                        "count": enemy_protect_count,
+                        "rate": pct(enemy_protect_count, source_total),
+                    }
+                    for enemy_protect_hero, enemy_protect_count in enemy_protect_rows[:3]
+                ],
+            }
+        )
+    ban_protect_enemy_save_rows.sort(
+        key=lambda row: (
+            row["total"],
+            row["same_protect_rate"],
+            row["top_rate"],
+        ),
+        reverse=True,
+    )
 
     draft_route_rows = []
     for (from_slot, from_hero, to_slot, to_hero), count in draft_route_counts.items():
@@ -1536,6 +1615,7 @@ def build_scrim_analytics(
         "enemy_ban_correlation": enemy_ban_correlation,
         "ban_next_rows": ban_next_rows[:12],
         "ban_to_protect_rows": ban_to_protect_rows[:12],
+        "ban_protect_enemy_save_rows": ban_protect_enemy_save_rows[:16],
         "draft_route_rows": draft_route_rows[:16],
         "second_order_ban_rows": second_order_ban_rows[:12],
         "protect1_influence_rows": protect1_influence_rows[:12],
