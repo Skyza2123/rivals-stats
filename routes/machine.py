@@ -1028,6 +1028,107 @@ def _machine_agent_opposite_slot(team_slot: str) -> str:
     return "team2" if team_slot == "team1" else "team1"
 
 
+MACHINE_SEQUENTIAL_DRAFT_ORDER = (
+    ("a", "ban1", "ban"),
+    ("b", "ban1", "ban"),
+    ("b", "protect1", "protect"),
+    ("a", "ban2", "ban"),
+    ("a", "protect1", "protect"),
+    ("b", "ban2", "ban"),
+    ("a", "ban3", "ban"),
+    ("b", "ban3", "ban"),
+    ("a", "protect2", "protect"),
+    ("b", "ban4", "ban"),
+    ("b", "protect2", "protect"),
+    ("a", "ban4", "ban"),
+)
+
+
+def _machine_build_sequential_reaction_rows(
+    a_history: list[dict],
+    b_history: list[dict],
+) -> dict:
+    """Build historical draft prefix rows normalized to UI sides a/b.
+
+    These rows intentionally contain historical draft actions only. The browser
+    uses them as a transition memory: current state -> similar prefixes -> next
+    action frequencies.
+    """
+
+    def _source_label(record: dict) -> str:
+        return "tournament" if (record.get("source") or record.get("event") or record.get("tournament_name")) else "scrim"
+
+    def _map_mode(map_entry: dict) -> str:
+        map_name = (map_entry.get("map_name") or map_entry.get("map") or "").strip()
+        return (map_entry.get("mode") or map_entry.get("map_mode") or MAP_MODES.get(map_name, "") or "").strip()
+
+    def _rows_for_side(history: list[dict], own_ui_side: str) -> list[dict]:
+        opponent_ui_side = "b" if own_ui_side == "a" else "a"
+        rows: list[dict] = []
+        for record in history or []:
+            opponent_name = (record.get("enemy_team") or record.get("opponent") or "").strip()
+            source_label = _source_label(record)
+            scrim_date = (record.get("scrim_date") or record.get("date") or "").strip()
+            for map_entry in record.get("maps", []) or []:
+                if not isinstance(map_entry, dict):
+                    continue
+                own_slot = map_entry.get("our_team_slot", "team1")
+                if own_slot not in TEAM_SLOTS:
+                    own_slot = "team1"
+                opponent_slot = _machine_agent_opposite_slot(own_slot)
+                draft = map_entry.get("draft", {})
+                if not isinstance(draft, dict):
+                    continue
+                slot_by_ui_side = {
+                    own_ui_side: own_slot,
+                    opponent_ui_side: opponent_slot,
+                }
+                actions = []
+                for order_index, (ui_side, slot_key, action_type) in enumerate(MACHINE_SEQUENTIAL_DRAFT_ORDER, start=1):
+                    source_slot = slot_by_ui_side.get(ui_side)
+                    side_draft = draft.get(source_slot, {}) if source_slot else {}
+                    if not isinstance(side_draft, dict):
+                        continue
+                    hero = _canonical_draft_hero(str(side_draft.get(slot_key, "") or "").strip())
+                    if not hero:
+                        continue
+                    actions.append(
+                        {
+                            "order": order_index,
+                            "team": ui_side,
+                            "slot": slot_key,
+                            "type": action_type,
+                            "hero": hero,
+                        }
+                    )
+                if not actions:
+                    continue
+                outcome = get_map_outcome_for_slot(map_entry, own_slot)
+                rows.append(
+                    {
+                        "side": own_ui_side,
+                        "date": scrim_date,
+                        "source": source_label,
+                        "opponent": opponent_name,
+                        "map": (map_entry.get("map_name") or map_entry.get("map") or "").strip(),
+                        "mode": _map_mode(map_entry),
+                        "outcome": outcome or "Unknown",
+                        "actions": actions,
+                    }
+                )
+        rows.sort(key=lambda row: (row.get("date") or "", len(row.get("actions") or [])), reverse=True)
+        return rows[:180]
+
+    return {
+        "order": [
+            {"team": team, "slot": slot, "type": action_type}
+            for team, slot, action_type in MACHINE_SEQUENTIAL_DRAFT_ORDER
+        ],
+        "a": _rows_for_side(a_history, "a"),
+        "b": _rows_for_side(b_history, "b"),
+    }
+
+
 def _machine_agent_player_names_for_team(team_id: int | None) -> list[str]:
     if not team_id:
         return []
@@ -1290,6 +1391,7 @@ def _machine_chat_build_context(
         selected_mode_type,
     )
     model = build_matchup_tree_model(team_a["name"], a_history, team_b["name"], b_history)
+    sequential_reaction_model = _machine_build_sequential_reaction_rows(a_history, b_history)
     team_models = model.get("teams", [])
     a_model = (team_models[0].get("model", {}) if len(team_models) > 0 else {})
     b_model = (team_models[1].get("model", {}) if len(team_models) > 1 else {})
@@ -1842,6 +1944,7 @@ def _machine_chat_build_context(
                 }
                 for row in model.get("map_consensus_rows", [])[:4]
             ],
+            "sequential_reaction_model": sequential_reaction_model,
         },
     }
 
@@ -5491,6 +5594,7 @@ def api_draft_reasoner_model():
         team_a_hero_pool_scrims=a_hero_pool_scrims,
         team_b_hero_pool_scrims=b_hero_pool_scrims,
     )
+    matchup["sequential_reaction_model"] = _machine_build_sequential_reaction_rows(a_scrims, b_scrims)
     teams_payload = matchup.get("teams", [])
 
     def _build_player_hero_rows(roster: list[dict], hero_pool_scrims: list[dict]) -> list[dict]:

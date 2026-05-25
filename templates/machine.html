@@ -346,7 +346,7 @@
     box-shadow:0 0 0 2px rgba(74,222,128,0.12);
 }
 .draft-slot.feedback-influenced .slot-hero-sub::after {
-    content:"feedback tuned";
+    content:"sequence/feedback tuned";
     display:block;
     color:#7dd3fc;
     font-size:0.64rem;
@@ -4262,6 +4262,11 @@ function renderReplyHeroStrip(answer, meta) {
         if (pm.top_path_share) bits.push('top_path_share=' + Number(pm.top_path_share || 0).toFixed(1) + '%');
         if (side && side.ml && side.ml.confidence) bits.push('confidence=' + Number(side.ml.confidence || 0).toFixed(1) + '%');
         if (influence.accepted_boost || influence.rejected_count) bits.push('feedback_influenced=true');
+        const seqEvidence = ((drSuggest || {}).sequentialEvidence || {})[drFeedbackInfluenceKey(team, slotKey)] || {};
+        if (seqEvidence.hero) {
+            bits.push('sequence_matches=' + Number(seqEvidence.count || 0));
+            bits.push('sequence_confidence=' + Number(seqEvidence.confidence || 0).toFixed(1) + '%');
+        }
         return bits.filter(Boolean).join('; ');
     }
 
@@ -4333,6 +4338,10 @@ function renderReplyHeroStrip(answer, meta) {
             const hero = filledHero || suggestedHero;
             const influence = ((drSuggest || {}).feedbackInfluence || {})[drFeedbackInfluenceKey(team, slotKey)];
             if (influence && influence.hero) slotEl.classList.add('feedback-influenced');
+            const seqEvidence = ((drSuggest || {}).sequentialEvidence || {})[drFeedbackInfluenceKey(team, slotKey)] || {};
+            if (seqEvidence.hero && (!filledHero || drHeroPoolHeroKey(filledHero) === drHeroPoolHeroKey(seqEvidence.hero))) {
+                slotEl.classList.add('feedback-influenced');
+            }
             if (!hero) return;
             if (getComputedStyle(slotEl).position === 'static') {
                 slotEl.style.position = 'relative';
@@ -7067,6 +7076,178 @@ function renderReplyHeroStrip(answer, meta) {
             };
         }
 
+        function drCurrentSequentialActions() {
+            const order = (((drModel || {}).sequential_reaction_model || {}).order) || DR_TURN_PHASES.flat();
+            const actions = [];
+            order.forEach(function(step, idx) {
+                const hero = ((drDraft[step.team] || {})[step.slot] || '').trim();
+                if (!hero) return;
+                actions.push({
+                    order: Number(step.order || (idx + 1)),
+                    team: step.team,
+                    slot: step.slot,
+                    type: step.type,
+                    hero: hero,
+                });
+            });
+            return actions;
+        }
+
+        function drSequentialCandidateScore(row, targetTeam, targetSlot, targetType, context) {
+            const actions = (row && row.actions) || [];
+            const targetOrder = ((((drModel || {}).sequential_reaction_model || {}).order) || [])
+                .find(function(step) { return step.team === targetTeam && step.slot === targetSlot && step.type === targetType; });
+            const targetOrderNumber = Number((targetOrder || {}).order || 0);
+            const currentActions = drCurrentSequentialActions().filter(function(action) {
+                return !targetOrderNumber || Number(action.order || 0) < targetOrderNumber;
+            });
+            const historicalByKey = new Map(actions.map(function(action) {
+                return [action.team + ':' + action.slot, action];
+            }));
+            const currentByHero = new Set(currentActions.map(function(action) { return drHeroPoolHeroKey(action.hero); }));
+            let score = 0;
+            let matched = 0;
+            let conflicts = 0;
+
+            currentActions.forEach(function(action) {
+                const historical = historicalByKey.get(action.team + ':' + action.slot);
+                if (!historical) return;
+                const sameHero = drHeroPoolHeroKey(historical.hero) === drHeroPoolHeroKey(action.hero);
+                if (sameHero) {
+                    matched += 1;
+                    score += action.type === 'protect' ? 4.2 : 3.4;
+                    if (action.team !== targetTeam) score += 1.2;
+                } else {
+                    conflicts += 1;
+                    score -= action.team === targetTeam ? 1.8 : 0.9;
+                }
+            });
+
+            actions.forEach(function(action) {
+                if (currentByHero.has(drHeroPoolHeroKey(action.hero))) {
+                    score += 0.45;
+                }
+            });
+
+            const mapName = String((context || {}).map || 'all').toLowerCase();
+            if (mapName && mapName !== 'all') {
+                if (String(row.map || '').toLowerCase() === mapName) score += 2.2;
+                else score -= 0.6;
+            }
+            const modeType = String((context || {}).modeType || 'all').toLowerCase();
+            if (modeType && modeType !== 'all') {
+                if (String(row.mode || '').toLowerCase() === modeType) score += 1.0;
+            }
+            const opponent = targetTeam === 'a' ? drTeamNames.b : drTeamNames.a;
+            if (opponent && String(row.opponent || '').toLowerCase() === String(opponent || '').toLowerCase()) {
+                score += 1.4;
+            }
+            if (row.date) {
+                const parsed = Date.parse(row.date);
+                if (!Number.isNaN(parsed)) {
+                    const ageDays = Math.max(0, (Date.now() - parsed) / 86400000);
+                    score += Math.exp(-Math.log(2) * ageDays / 7) * 1.8;
+                }
+            }
+            if (!currentActions.length) score += 0.5;
+            if (matched === 0 && currentActions.length >= 2 && conflicts >= currentActions.length) return -999;
+            return score;
+        }
+
+        function drSequentialRowsForSlot(targetTeam, targetSlot, targetType) {
+            const seq = ((drModel || {}).sequential_reaction_model || {});
+            const rows = targetTeam === 'b' ? (seq.b || []) : (seq.a || []);
+            const context = {
+                map: drContext && drContext.mapFilter ? drContext.mapFilter : (document.getElementById('dr-map')?.value || 'all'),
+                modeType: drContext && drContext.modeType ? drContext.modeType : (document.getElementById('dr-mode-type')?.value || 'all'),
+            };
+            const buckets = new Map();
+            rows.forEach(function(row) {
+                const action = ((row.actions || [])).find(function(item) {
+                    return item.team === targetTeam && item.slot === targetSlot && item.type === targetType;
+                });
+                if (!action || !action.hero) return;
+                const score = drSequentialCandidateScore(row, targetTeam, targetSlot, targetType, context);
+                if (score <= -100) return;
+                const heroKey = drHeroPoolHeroKey(action.hero);
+                const bucket = buckets.get(heroKey) || {
+                    hero: action.hero,
+                    score: 0,
+                    count: 0,
+                    wins: 0,
+                    losses: 0,
+                    examples: [],
+                };
+                const weight = Math.max(0.1, score + 3);
+                bucket.score += weight;
+                bucket.count += 1;
+                if (row.outcome === 'Win') bucket.wins += 1;
+                if (row.outcome === 'Loss') bucket.losses += 1;
+                if (bucket.examples.length < 3) {
+                    bucket.examples.push({
+                        map: row.map || '',
+                        opponent: row.opponent || '',
+                        date: row.date || '',
+                        score: Number(score.toFixed(2)),
+                    });
+                }
+                buckets.set(heroKey, bucket);
+            });
+            return Array.from(buckets.values()).map(function(row) {
+                const decided = row.wins + row.losses;
+                const wr = decided ? ((row.wins / decided) * 100) : 0;
+                const confidence = Math.min(100, (row.count * 12) + Math.max(0, row.score * 3));
+                row.win_rate = wr;
+                row.confidence = confidence;
+                return row;
+            }).sort(function(a, b) {
+                return (b.score - a.score)
+                    || (b.count - a.count)
+                    || (b.win_rate - a.win_rate)
+                    || String(a.hero || '').localeCompare(String(b.hero || ''), undefined, {sensitivity:'base'});
+            });
+        }
+
+        function drApplySequentialReactionModel() {
+            const seq = ((drModel || {}).sequential_reaction_model || {});
+            if (!seq.a && !seq.b) return;
+            drSuggest.sequentialEvidence = {};
+            ['a', 'b'].forEach(function(team) {
+                ['ban', 'protect'].forEach(function(type) {
+                    const slots = type === 'protect' ? ['protect1', 'protect2'] : ['ban1', 'ban2', 'ban3', 'ban4'];
+                    const used = heroKeySet(Object.values(drDraft.a || {}).concat(Object.values(drDraft.b || {})));
+                    const rankedBySlot = {};
+                    slots.forEach(function(slot) {
+                        const rows = drSequentialRowsForSlot(team, slot, type)
+                            .filter(function(row) { return !used.has(drHeroPoolHeroKey(row.hero)) || ((drDraft[team] || {})[slot] === row.hero); });
+                        rankedBySlot[slot] = rows;
+                        if (rows.length) {
+                            drSuggest.sequentialEvidence[team + ':' + slot] = rows[0];
+                        }
+                    });
+                    const picked = [];
+                    slots.forEach(function(slot) {
+                        const locked = ((drDraft[team] || {})[slot] || '').trim();
+                        if (locked) {
+                            picked.push(locked);
+                            used.add(drHeroPoolHeroKey(locked));
+                            return;
+                        }
+                        const next = (rankedBySlot[slot] || []).find(function(row) {
+                            return row.hero && !used.has(drHeroPoolHeroKey(row.hero));
+                        });
+                        if (next) {
+                            picked.push(next.hero);
+                            used.add(drHeroPoolHeroKey(next.hero));
+                        }
+                    });
+                    if (picked.length) {
+                        drSetSuggestionArrayFor(team, type, picked);
+                    }
+                });
+            });
+        }
+
         const ourBanSlotHistory = drBuildSlotHistoryLookup(mA, 'ban');
         const ourProtectSlotHistory = drBuildSlotHistoryLookup(mA, 'protect');
         const enemyBanSlotHistory = drBuildSlotHistoryLookup(mB, 'ban');
@@ -7540,6 +7721,7 @@ function renderReplyHeroStrip(answer, meta) {
             drSuggest.b.protects = drApplySlotHistoricalOrder(['protect1','protect2'], drDraft.b, defaultEnemyProtectPool, enemyProtectSlotHistory);
         }
 
+        drApplySequentialReactionModel();
         drApplyDraftFeedbackMemory();
 
         // Render suggestion banner
