@@ -41,6 +41,8 @@ def build_scrim_analytics(
         lambda: {
             "enemy_protects": defaultdict(int),
             "source_total": 0,
+            "same_protect_maps": 0,
+            "same_slot_protect_maps": 0,
             "wins": 0,
             "losses": 0,
         }
@@ -198,19 +200,9 @@ def build_scrim_analytics(
                 for hero_name in our_ban_slots.values()
                 if hero_name
             }
-            our_protected_heroes = {
-                hero_name
-                for hero_name in our_protect_slots.values()
-                if hero_name
-            }
             enemy_banned_heroes = {
                 hero_name
                 for hero_name in enemy_ban_slots.values()
-                if hero_name
-            }
-            enemy_protected_heroes = {
-                hero_name
-                for hero_name in enemy_protect_slots.values()
                 if hero_name
             }
             # Ban response likelihood: when we ban X in a slot, what the enemy bans
@@ -247,17 +239,41 @@ def build_scrim_analytics(
                     if our_ban_slots.get(slot):
                         ban_to_protect_pairs[our_ban_slots[slot]][our_protect_slots["protect2"]] += 1
 
-            if our_banned_heroes and our_protected_heroes:
-                for banned_hero in our_banned_heroes:
-                    for protected_hero in our_protected_heroes:
-                        route_stats = ban_protect_enemy_save_targets[(banned_hero, protected_hero)]
+            filled_our_ban_slots = [
+                (slot, hero_name)
+                for slot, hero_name in our_ban_slots.items()
+                if hero_name
+            ]
+            filled_our_protect_slots = [
+                (slot, hero_name)
+                for slot, hero_name in our_protect_slots.items()
+                if hero_name
+            ]
+            filled_enemy_protect_slots = [
+                (slot, hero_name)
+                for slot, hero_name in enemy_protect_slots.items()
+                if hero_name
+            ]
+            if filled_our_ban_slots and filled_our_protect_slots:
+                for ban_slot, banned_hero in filled_our_ban_slots:
+                    for protect_slot, protected_hero in filled_our_protect_slots:
+                        route_stats = ban_protect_enemy_save_targets[
+                            (ban_slot, banned_hero, protect_slot, protected_hero)
+                        ]
                         route_stats["source_total"] += 1
                         if is_win:
                             route_stats["wins"] += 1
                         elif is_loss:
                             route_stats["losses"] += 1
-                        for enemy_protect_hero in enemy_protected_heroes:
-                            route_stats["enemy_protects"][enemy_protect_hero] += 1
+                        if any(
+                            enemy_protect_hero == protected_hero
+                            for _enemy_protect_slot, enemy_protect_hero in filled_enemy_protect_slots
+                        ):
+                            route_stats["same_protect_maps"] += 1
+                        if enemy_protect_slots.get(protect_slot) == protected_hero:
+                            route_stats["same_slot_protect_maps"] += 1
+                        for enemy_protect_slot, enemy_protect_hero in filled_enemy_protect_slots:
+                            route_stats["enemy_protects"][(enemy_protect_slot, enemy_protect_hero)] += 1
 
             ban1_hero = our_ban_slots.get("ban1", "")
             ban2_hero = our_ban_slots.get("ban2", "")
@@ -748,7 +764,7 @@ def build_scrim_analytics(
     ban_to_protect_rows.sort(key=lambda row: (row["total"], row["top_rate"]), reverse=True)
 
     ban_protect_enemy_save_rows = []
-    for (ban_hero, protect_hero), target_data in ban_protect_enemy_save_targets.items():
+    for (ban_slot, ban_hero, protect_slot, protect_hero), target_data in ban_protect_enemy_save_targets.items():
         source_total = target_data["source_total"]
         if not source_total:
             continue
@@ -757,29 +773,43 @@ def build_scrim_analytics(
             key=lambda item: item[1],
             reverse=True,
         )
-        top_enemy_protect, top_count = enemy_protect_rows[0] if enemy_protect_rows else ("", 0)
-        same_protect_count = target_data["enemy_protects"].get(protect_hero, 0)
+        (top_enemy_slot, top_enemy_protect), top_count = (
+            enemy_protect_rows[0] if enemy_protect_rows else (("", ""), 0)
+        )
+        same_protect_count = target_data["same_protect_maps"]
+        same_slot_protect_count = target_data["same_slot_protect_maps"]
         decided = target_data["wins"] + target_data["losses"]
         ban_protect_enemy_save_rows.append(
             {
+                "ban_slot": ban_slot,
+                "ban_slot_label": draft_slot_label(ban_slot),
                 "ban_hero": ban_hero,
+                "protect_slot": protect_slot,
+                "protect_slot_label": draft_slot_label(protect_slot),
                 "protect_hero": protect_hero,
+                "top_enemy_protect_slot": top_enemy_slot,
+                "top_enemy_protect_slot_label": draft_slot_label(top_enemy_slot),
                 "total": source_total,
                 "top_enemy_protect": top_enemy_protect,
                 "top_count": top_count,
                 "top_rate": pct(top_count, source_total),
                 "same_protect_count": same_protect_count,
                 "same_protect_rate": pct(same_protect_count, source_total),
+                "same_slot_protect_count": same_slot_protect_count,
+                "same_slot_protect_rate": pct(same_slot_protect_count, source_total),
                 "wins": target_data["wins"],
                 "losses": target_data["losses"],
                 "win_rate": pct(target_data["wins"], decided) if decided else None,
                 "enemy_protects": [
                     {
+                        "slot": enemy_protect_slot,
+                        "slot_label": draft_slot_label(enemy_protect_slot),
                         "hero": enemy_protect_hero,
                         "count": enemy_protect_count,
                         "rate": pct(enemy_protect_count, source_total),
                     }
-                    for enemy_protect_hero, enemy_protect_count in enemy_protect_rows[:3]
+                    for (enemy_protect_slot, enemy_protect_hero), enemy_protect_count
+                    in enemy_protect_rows[:3]
                 ],
             }
         )
