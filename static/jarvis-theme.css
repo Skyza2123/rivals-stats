@@ -556,6 +556,45 @@
   background: rgba(66, 232, 255, 0.08);
 }
 
+.jarvis-app .draft-phase-tag.phase-1,
+.jarvis-prep .draft-phase-tag.phase-1,
+.jarvis-app .draft-phase-dot.phase-1,
+.jarvis-prep .draft-phase-dot.phase-1 {
+  background: #ec4899;
+  border-color: rgba(236, 72, 153, 0.65);
+}
+
+.jarvis-app .draft-phase-tag.phase-2,
+.jarvis-prep .draft-phase-tag.phase-2,
+.jarvis-app .draft-phase-dot.phase-2,
+.jarvis-prep .draft-phase-dot.phase-2 {
+  background: #facc15;
+  border-color: rgba(250, 204, 21, 0.68);
+}
+
+.jarvis-app .draft-phase-tag.phase-3,
+.jarvis-prep .draft-phase-tag.phase-3,
+.jarvis-app .draft-phase-dot.phase-3,
+.jarvis-prep .draft-phase-dot.phase-3 {
+  background: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.68);
+}
+
+.jarvis-app .draft-phase-tag.phase-1,
+.jarvis-prep .draft-phase-tag.phase-1 {
+  color: #fff7fb;
+}
+
+.jarvis-app .draft-phase-tag.phase-2,
+.jarvis-prep .draft-phase-tag.phase-2 {
+  color: #1f1800;
+}
+
+.jarvis-app .draft-phase-tag.phase-3,
+.jarvis-prep .draft-phase-tag.phase-3 {
+  color: #061923;
+}
+
 .jarvis-app .prep-chart-block,
 .jarvis-prep .prep-chart-block {
   margin-left: 20px;

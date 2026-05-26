@@ -318,43 +318,6 @@
 .slot-ghost-label {
     font-size:0.65rem;
 }
-.dr-slot-feedback {
-    position:absolute;
-    right:0.32rem;
-    bottom:0.28rem;
-    display:flex;
-    gap:0.24rem;
-    z-index:3;
-}
-.dr-slot-feedback button {
-    min-width:1.8rem;
-    height:1.45rem;
-    border-radius:0.35rem;
-    border:1px solid rgba(148,163,184,0.24);
-    background:rgba(2,6,23,0.74);
-    color:#cbd5e1;
-    font-size:0.68rem;
-    font-weight:800;
-    cursor:pointer;
-    padding:0 0.32rem;
-}
-.dr-slot-feedback button:hover { border-color:rgba(96,165,250,0.58); color:#e2e8f0; }
-.dr-slot-feedback button[data-feedback-action="accept"] { color:#bbf7d0; }
-.dr-slot-feedback button[data-feedback-action="reject"] { color:#fecaca; }
-.draft-slot.feedback-locked {
-    border-color:rgba(74,222,128,0.48);
-    box-shadow:0 0 0 2px rgba(74,222,128,0.12);
-}
-.draft-slot.feedback-influenced .slot-hero-sub::after {
-    content:"sequence/feedback tuned";
-    display:block;
-    color:#7dd3fc;
-    font-size:0.64rem;
-    font-weight:800;
-    letter-spacing:0.04em;
-    text-transform:uppercase;
-}
-
 .dr-reason-stream { display:flex; flex-direction:column; gap:0.6rem; }
 .dr-guide {
     display:grid;
@@ -1883,6 +1846,22 @@ function renderReplyHeroStrip(answer, meta) {
         ],
     ];
 
+    function chatConceptualPhaseForStep(step) {
+        const slot = String((step && step.slot) || '');
+        if (slot === 'ban1' || slot === 'protect1') return 1;
+        if (slot === 'ban2' || slot === 'ban3') return 2;
+        if (slot === 'protect2' || slot === 'ban4') return 3;
+        return 0;
+    }
+
+    function chatConceptualPhaseLabel(phase) {
+        const phaseNum = Math.max.apply(null, (phase || []).map(chatConceptualPhaseForStep).concat([0]));
+        if (phaseNum === 1) return 'Phase 1 baseline';
+        if (phaseNum === 2) return 'Phase 2 ban window';
+        if (phaseNum === 3) return 'Phase 3 protect/final ban';
+        return 'Draft';
+    }
+
     function syncModeControls() {
         if (input) {
             const draftLive = getLiveDraftSnapshot();
@@ -1938,7 +1917,7 @@ function renderReplyHeroStrip(answer, meta) {
         const nextTeam = (nextPhase && nextPhase.length > 0) ? nextPhase[0].team : null;
         return {
             phase_num: nextPhaseIdx,
-            phase_label: 'Phase ' + (nextPhaseIdx + 1),
+            phase_label: chatConceptualPhaseLabel(nextPhase),
             next_team: nextTeam,
         };
     }
@@ -4026,111 +4005,63 @@ function renderReplyHeroStrip(answer, meta) {
     const drOpenBanMeta = document.getElementById('dr-open-ban-meta');
     const drOpenBanTargetsList = document.getElementById('dr-open-ban-targets-list');
     const DR_TURN_PHASES = [
-        // Phase 1
+        // Phase 1 baseline
         [
             {team: 'a', slot: 'ban1', type: 'ban'},
             {team: 'b', slot: 'ban1', type: 'ban'},
         ],
-        // Phase 2
+        // Phase 1 baseline
         [
             {team: 'b', slot: 'protect1', type: 'protect'},
         ],
-        // Phase 3
+        // Phase 2 ban window plus Team A's delayed baseline protect
         [
             {team: 'a', slot: 'ban2', type: 'ban'},
             {team: 'a', slot: 'protect1', type: 'protect'},
         ],
-        // Phase 4
+        // Phase 2 ban window
         [
             {team: 'b', slot: 'ban2', type: 'ban'},
         ],
-        // Phase 5
+        // Phase 2 ban window
         [
             {team: 'a', slot: 'ban3', type: 'ban'},
             {team: 'b', slot: 'ban3', type: 'ban'},
         ],
-        // Phase 6
+        // Phase 3 protect/final ban
         [
             {team: 'a', slot: 'protect2', type: 'protect'},
         ],
-        // Phase 7
+        // Phase 3 protect/final ban
         [
             {team: 'b', slot: 'ban4', type: 'ban'},
             {team: 'b', slot: 'protect2', type: 'protect'},
         ],
-        // Phase 8
+        // Phase 3 protect/final ban
         [
             {team: 'a', slot: 'ban4', type: 'ban'},
         ],
     ];
-    const DR_DRAFT_FEEDBACK_MEMORY_KEY = 'rivals.machine.draftSlotFeedback.v1';
-    let drFeedbackMemoryRevision = 0;
-
-    function drReadDraftFeedbackMemory() {
-        try {
-            const parsed = JSON.parse(localStorage.getItem(DR_DRAFT_FEEDBACK_MEMORY_KEY) || '[]');
-            return Array.isArray(parsed) ? parsed.filter(function(row) { return row && typeof row === 'object'; }) : [];
-        } catch (_err) {
-            return [];
-        }
+    function drConceptualPhaseForStep(step) {
+        const slot = String((step && step.slot) || '');
+        if (slot === 'ban1' || slot === 'protect1') return 1;
+        if (slot === 'ban2' || slot === 'ban3') return 2;
+        if (slot === 'protect2' || slot === 'ban4') return 3;
+        return 0;
     }
 
-    function drWriteDraftFeedbackMemory(rows) {
-        try {
-            localStorage.setItem(DR_DRAFT_FEEDBACK_MEMORY_KEY, JSON.stringify((rows || []).slice(-400)));
-            drFeedbackMemoryRevision += 1;
-        } catch (_err) {
-            // Local storage can be blocked; feedback remains session-only in that case.
-        }
+    function drConceptualPhaseLabel(phase) {
+        const phaseNum = Math.max.apply(null, (phase || []).map(drConceptualPhaseForStep).concat([0]));
+        if (phaseNum === 1) return 'Phase 1 baseline';
+        if (phaseNum === 2) return 'Phase 2 ban window';
+        if (phaseNum === 3) return 'Phase 3 protect/final ban';
+        return 'Draft';
     }
 
-    function drGetSelectText(selectId) {
-        const el = document.getElementById(selectId);
-        if (!el || !el.selectedOptions || !el.selectedOptions.length) return '';
-        return String(el.selectedOptions[0].textContent || '').trim();
-    }
-
-    function drDraftFeedbackContext() {
-        const teamA = document.getElementById('dr-team-a');
-        const teamB = document.getElementById('dr-team-b');
-        const season = document.getElementById('dr-season');
-        const map = document.getElementById('dr-map');
-        const modeType = document.getElementById('dr-mode-type');
-        const scrimLens = document.getElementById('dr-scrim-lens');
-        const scrims = document.getElementById('dr-include-scrims');
-        const tournaments = document.getElementById('dr-include-tournaments');
-        const includeScrims = scrims ? !!scrims.checked : true;
-        const includeTournaments = tournaments ? !!tournaments.checked : true;
-        const sourceParts = [];
-        if (includeScrims) sourceParts.push('scrims');
-        if (includeTournaments) sourceParts.push('tournaments');
-        return {
-            team_a_id: teamA ? String(teamA.value || '') : '',
-            team_b_id: teamB ? String(teamB.value || '') : '',
-            team_a_name: drGetSelectText('dr-team-a') || drTeamNames.a || '',
-            team_b_name: drGetSelectText('dr-team-b') || drTeamNames.b || '',
-            source_filter: sourceParts.join('+') || 'none',
-            data_filter: {
-                season: season ? String(season.value || 'all') : 'all',
-                map_type: (drContext && drContext.mapType) ? drContext.mapType : 'all',
-                mode_type: modeType ? String(modeType.value || 'all') : 'all',
-                scrim_lens: scrimLens ? String(scrimLens.value || 'map_types') : 'map_types',
-                include_scrims: includeScrims,
-                include_tournaments: includeTournaments,
-            },
-            recency_window: season ? String(season.value || 'all') : 'all',
-            map: map ? String(map.value || 'all') : 'all',
-        };
-    }
-
-    function drSlotNumber(slotKey) {
-        const match = String(slotKey || '').match(/(\d+)/);
-        return match ? Number(match[1]) : 0;
-    }
-
-    function drSuggestionArrayFor(team, type) {
-        const side = team === 'b' ? drSuggest.b : drSuggest.a;
-        return type === 'protect' ? (side.protects || []) : (side.bans || []);
+    function drIsBaselinePhase(phase) {
+        return !!(phase && phase.length) && phase.every(function(step) {
+            return drConceptualPhaseForStep(step) === 1;
+        });
     }
 
     function drSetSuggestionArrayFor(team, type, values) {
@@ -4142,234 +4073,6 @@ function renderReplyHeroStrip(answer, meta) {
         } else {
             drSuggest.a.bans = values;
         }
-    }
-
-    function drGetSuggestedHeroForSlot(team, type, slotKey) {
-        const index = Math.max(0, drSlotNumber(slotKey) - 1);
-        return (drSuggestionArrayFor(team, type) || [])[index] || '';
-    }
-
-    function drFeedbackInfluenceKey(team, slotKey) {
-        return String(team || '') + ':' + String(slotKey || '');
-    }
-
-    function drFeedbackContextScore(entry, context, team, type, slotKey) {
-        if (!entry || !context) return 0;
-        if (entry.slot_type !== type) return 0;
-        if (Number(entry.slot_number || 0) !== drSlotNumber(slotKey)) return 0;
-        if ((entry.team_side || team) !== team) return 0;
-        const sameTeams = (
-            String(entry.team_a_id || '') === String(context.team_a_id || '')
-            && String(entry.team_b_id || '') === String(context.team_b_id || '')
-        ) || (
-            String(entry.team_a_name || '').toLowerCase() === String(context.team_a_name || '').toLowerCase()
-            && String(entry.team_b_name || '').toLowerCase() === String(context.team_b_name || '').toLowerCase()
-        );
-        if (!sameTeams) return 0;
-        let score = 1.0;
-        if (String(entry.source_filter || '') === String(context.source_filter || '')) score += 0.45;
-        const entryMap = String(entry.map || 'all').toLowerCase();
-        const currentMap = String(context.map || 'all').toLowerCase();
-        if (entryMap !== 'all' && currentMap !== 'all') {
-            if (entryMap !== currentMap) return entry.accepted ? 0.2 : 0;
-            score += 0.8;
-        } else if (entryMap === currentMap) {
-            score += 0.25;
-        }
-        const entryFilter = entry.data_filter || {};
-        const currentFilter = context.data_filter || {};
-        if (String(entryFilter.mode_type || 'all') === String(currentFilter.mode_type || 'all')) score += 0.2;
-        if (String(entryFilter.scrim_lens || '') === String(currentFilter.scrim_lens || '')) score += 0.15;
-        return score;
-    }
-
-    function drHeroAvailableForFeedback(team, slotKey, hero) {
-        const heroKey = drHeroPoolHeroKey(hero);
-        if (!heroKey) return false;
-        const used = [];
-        ['a', 'b'].forEach(function(side) {
-            Object.keys(drDraft[side] || {}).forEach(function(existingSlot) {
-                if (side === team && existingSlot === slotKey) return;
-                const value = (drDraft[side] || {})[existingSlot];
-                if (value) used.push(value);
-            });
-        });
-        return !heroKeySet(used).has(heroKey);
-    }
-
-    function drApplyDraftFeedbackMemory() {
-        const rows = drReadDraftFeedbackMemory();
-        if (!rows.length || !drSuggest || !drSuggest.a || !drSuggest.b) return;
-        const context = drDraftFeedbackContext();
-        drSuggest.feedbackInfluence = {};
-        ['a', 'b'].forEach(function(team) {
-            ['ban', 'protect'].forEach(function(type) {
-                const slotKeys = type === 'protect' ? ['protect1', 'protect2'] : ['ban1', 'ban2', 'ban3', 'ban4'];
-                slotKeys.forEach(function(slotKey) {
-                    const matching = rows.map(function(entry) {
-                        return {entry: entry, score: drFeedbackContextScore(entry, context, team, type, slotKey)};
-                    }).filter(function(row) {
-                        return row.score > 0 && row.entry && row.entry.hero;
-                    });
-                    if (!matching.length) return;
-                    let suggestions = uniqueHeroes(drSuggestionArrayFor(team, type) || []);
-                    const accepted = matching
-                        .filter(function(row) { return row.entry.accepted; })
-                        .sort(function(a, b) { return b.score - a.score || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || '')); });
-                    const rejected = matching
-                        .filter(function(row) { return row.entry.rejected; })
-                        .sort(function(a, b) { return b.score - a.score || String(b.entry.timestamp || '').localeCompare(String(a.entry.timestamp || '')); });
-                    const slotIndex = Math.max(0, drSlotNumber(slotKey) - 1);
-                    const rejectedKeys = new Set(rejected.filter(function(row) { return row.score >= 1; }).map(function(row) {
-                        return drHeroPoolHeroKey(row.entry.hero);
-                    }));
-                    if (rejectedKeys.size) {
-                        suggestions = suggestions.filter(function(hero) {
-                            return !rejectedKeys.has(drHeroPoolHeroKey(hero));
-                        });
-                    }
-                    const acceptedHero = accepted.length ? String(accepted[0].entry.hero || '').trim() : '';
-                    if (acceptedHero && drHeroAvailableForFeedback(team, slotKey, acceptedHero)) {
-                        suggestions = suggestions.filter(function(hero) {
-                            return drHeroPoolHeroKey(hero) !== drHeroPoolHeroKey(acceptedHero);
-                        });
-                        suggestions.splice(Math.min(slotIndex, suggestions.length), 0, acceptedHero);
-                    }
-                    drSetSuggestionArrayFor(team, type, suggestions);
-                    const influencedHero = drGetSuggestedHeroForSlot(team, type, slotKey);
-                    if (acceptedHero || rejectedKeys.size) {
-                        drSuggest.feedbackInfluence[drFeedbackInfluenceKey(team, slotKey)] = {
-                            hero: influencedHero || acceptedHero,
-                            accepted_boost: acceptedHero || '',
-                            rejected_count: rejectedKeys.size,
-                            reason: (accepted[0] || rejected[0] || {}).entry?.reason || '',
-                        };
-                    }
-                });
-            });
-        });
-    }
-
-    function drBuildSlotEvidence(team, slotKey, type, hero) {
-        const side = team === 'b' ? drSuggest.b : drSuggest.a;
-        const pm = (drSuggest.a || {}).path_metrics || {};
-        const influence = ((drSuggest || {}).feedbackInfluence || {})[drFeedbackInfluenceKey(team, slotKey)] || {};
-        const bits = [
-            (team === 'b' ? 'Enemy' : 'Our') + ' ' + type + ' ' + drSlotNumber(slotKey),
-            hero ? ('hero=' + hero) : '',
-        ];
-        if (pm.path_rate) bits.push('path_rate=' + Number(pm.path_rate || 0).toFixed(1) + '%');
-        if (pm.top_path_share) bits.push('top_path_share=' + Number(pm.top_path_share || 0).toFixed(1) + '%');
-        if (side && side.ml && side.ml.confidence) bits.push('confidence=' + Number(side.ml.confidence || 0).toFixed(1) + '%');
-        if (influence.accepted_boost || influence.rejected_count) bits.push('feedback_influenced=true');
-        const seqEvidence = ((drSuggest || {}).sequentialEvidence || {})[drFeedbackInfluenceKey(team, slotKey)] || {};
-        if (seqEvidence.hero) {
-            bits.push('sequence_matches=' + Number(seqEvidence.count || 0));
-            bits.push('sequence_confidence=' + Number(seqEvidence.confidence || 0).toFixed(1) + '%');
-        }
-        return bits.filter(Boolean).join('; ');
-    }
-
-    function drSaveSlotFeedback(team, slotKey, type, hero, accepted, reason) {
-        const context = drDraftFeedbackContext();
-        const rows = drReadDraftFeedbackMemory();
-        rows.push({
-            matchup: (context.team_a_name || 'Team A') + ' vs ' + (context.team_b_name || 'Team B'),
-            team_a_id: context.team_a_id,
-            team_b_id: context.team_b_id,
-            team_a_name: context.team_a_name,
-            team_b_name: context.team_b_name,
-            team_side: team,
-            source_filter: context.source_filter,
-            data_filter: context.data_filter,
-            recency_window: context.recency_window,
-            map: context.map,
-            slot_type: type,
-            slot_number: drSlotNumber(slotKey),
-            slot_key: slotKey,
-            hero: hero,
-            accepted: !!accepted,
-            rejected: !accepted,
-            reason: reason || '',
-            evidence: drBuildSlotEvidence(team, slotKey, type, hero),
-            timestamp: new Date().toISOString(),
-        });
-        drWriteDraftFeedbackMemory(rows);
-        drSuggestCache.clear();
-    }
-
-    function drHandleSlotFeedback(team, slotKey, type, action) {
-        const filledHero = ((drDraft[team] || {})[slotKey] || '').trim();
-        const suggestedHero = drGetSuggestedHeroForSlot(team, type, slotKey);
-        const hero = filledHero || suggestedHero;
-        if (!hero) return;
-        if (action === 'reject') {
-            const reason = window.prompt('Why reject this ' + type + '?', '') || '';
-            drSaveSlotFeedback(team, slotKey, type, hero, false, reason);
-            if (filledHero) {
-                const slotEl = drGetSlotElement(team, slotKey);
-                if (slotEl) drClearSlot(slotEl);
-            }
-            let suggestions = uniqueHeroes(drSuggestionArrayFor(team, type) || []).filter(function(candidate) {
-                return drHeroPoolHeroKey(candidate) !== drHeroPoolHeroKey(hero);
-            });
-            drSetSuggestionArrayFor(team, type, suggestions);
-            statusEl.textContent = 'Rejected ' + hero + ' for ' + slotKey + '; rerolled from next historical ' + type + ' candidates.';
-        } else {
-            const reason = window.prompt('Why accept this ' + type + '?', '') || '';
-            drSaveSlotFeedback(team, slotKey, type, hero, true, reason);
-            drSetSlot(team, slotKey, hero);
-            statusEl.textContent = 'Accepted and locked ' + hero + ' for ' + slotKey + '.';
-        }
-        drRenderUsed();
-        drRender();
-    }
-
-    function drRenderDraftFeedbackControls() {
-        document.querySelectorAll('.draft-slot[data-team][data-slot][data-type]').forEach(function(slotEl) {
-            const existing = slotEl.querySelector('.dr-slot-feedback');
-            if (existing) existing.remove();
-            slotEl.classList.remove('feedback-locked', 'feedback-influenced');
-            const team = slotEl.dataset.team;
-            const slotKey = slotEl.dataset.slot;
-            const type = slotEl.dataset.type;
-            const filledHero = ((drDraft[team] || {})[slotKey] || '').trim();
-            const suggestedHero = drGetSuggestedHeroForSlot(team, type, slotKey);
-            const hero = filledHero || suggestedHero;
-            const influence = ((drSuggest || {}).feedbackInfluence || {})[drFeedbackInfluenceKey(team, slotKey)];
-            if (influence && influence.hero) slotEl.classList.add('feedback-influenced');
-            const seqEvidence = ((drSuggest || {}).sequentialEvidence || {})[drFeedbackInfluenceKey(team, slotKey)] || {};
-            if (seqEvidence.hero && (!filledHero || drHeroPoolHeroKey(filledHero) === drHeroPoolHeroKey(seqEvidence.hero))) {
-                slotEl.classList.add('feedback-influenced');
-            }
-            if (!hero) return;
-            if (getComputedStyle(slotEl).position === 'static') {
-                slotEl.style.position = 'relative';
-            }
-            const wrap = document.createElement('div');
-            wrap.className = 'dr-slot-feedback';
-            const acceptBtn = document.createElement('button');
-            acceptBtn.type = 'button';
-            acceptBtn.dataset.feedbackAction = 'accept';
-            acceptBtn.title = 'Accept and lock this slot';
-            acceptBtn.textContent = 'OK';
-            const rejectBtn = document.createElement('button');
-            rejectBtn.type = 'button';
-            rejectBtn.dataset.feedbackAction = 'reject';
-            rejectBtn.title = 'Reject and reroll this slot';
-            rejectBtn.textContent = 'No';
-            [acceptBtn, rejectBtn].forEach(function(btn) {
-                btn.addEventListener('click', function(event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    drHandleSlotFeedback(team, slotKey, type, btn.dataset.feedbackAction);
-                });
-            });
-            wrap.appendChild(acceptBtn);
-            wrap.appendChild(rejectBtn);
-            slotEl.appendChild(wrap);
-            if (filledHero) slotEl.classList.add('feedback-locked');
-        });
     }
 
     function drSetSideView(viewName) {
@@ -4407,12 +4110,13 @@ function renderReplyHeroStrip(answer, meta) {
         const draftComplete = !activePhase.length;
         const hasBanAction = activePhase.some(function(step) { return step.type === 'ban'; });
         const hasProtectAction = activePhase.some(function(step) { return step.type === 'protect'; });
+        const baselineOnly = drIsBaselinePhase(activePhase);
 
         const visibleViews = new Set(['assistant', 'ai-live', 'hero-pools']);
-        if (hasBanAction || draftComplete) {
+        if ((hasBanAction && !baselineOnly) || draftComplete) {
             visibleViews.add('open-ban-targets');
         }
-        if (hasProtectAction || hasBanAction || draftComplete) {
+        if (((hasProtectAction || hasBanAction) && !baselineOnly) || draftComplete) {
             visibleViews.add('reasoning');
         }
 
@@ -5913,10 +5617,11 @@ function renderReplyHeroStrip(answer, meta) {
                 const nextStep = openSteps[0] || {};
                 return {
                     phase_num: i,
-                    phase_label: 'Phase ' + (i + 1),
+                    phase_label: drConceptualPhaseLabel(phase),
                     next_team: nextStep.team,
                     next_slot: nextStep.slot || '',
                     next_action_type: nextStep.type || (String(nextStep.slot || '').startsWith('protect') ? 'protect' : 'ban'),
+                    baseline_only: drIsBaselinePhase(phase),
                 };
             }
         }
@@ -7722,7 +7427,6 @@ function renderReplyHeroStrip(answer, meta) {
         }
 
         drApplySequentialReactionModel();
-        drApplyDraftFeedbackMemory();
 
         // Render suggestion banner
         const mapLabel = mapFilter ? 'on ' + mapFilter : '';
@@ -8126,7 +7830,6 @@ function renderReplyHeroStrip(answer, meta) {
             map: mapFilter || '',
             modeType: (drContext && drContext.modeType) ? drContext.modeType : (document.getElementById('dr-mode-type')?.value || 'all'),
             scrimLens: (drContext && drContext.scrimLens) ? drContext.scrimLens : (document.getElementById('dr-scrim-lens')?.value || 'map_types'),
-            feedbackRevision: drFeedbackMemoryRevision,
             nameA: nameA || '',
             nameB: nameB || '',
         });
@@ -8339,7 +8042,6 @@ function renderReplyHeroStrip(answer, meta) {
             if (drOpenBanTargetsList) drOpenBanTargetsList.innerHTML = '<p class="matchup-empty">No matchup loaded yet.</p>';
             drRenderHeroPools('Our Team', 'Enemy Team');
             if (drPlayBtn) drPlayBtn.style.display = '';
-            drRenderDraftFeedbackControls();
             drScheduleLiveAiAnalysis(false);
             return;
         }
@@ -9025,19 +8727,32 @@ function renderReplyHeroStrip(answer, meta) {
         const activePhase = drGetActiveTurnPhase();
         const activeTeams = new Set(activePhase.map(function(step) { return step.team; }));
         const activeTypes = new Set(activePhase.map(function(step) { return step.type; }));
+        const baselineOnly = drIsBaselinePhase(activePhase);
         const showYourAction = activeTeams.has('a');
         const showEnemyAction = activeTeams.has('b');
-        const showPathAnalysis = activeTypes.has('ban') || !activePhase.length;
-        const showWatchList = activeTypes.has('protect') || !activePhase.length;
+        const showPathAnalysis = (activeTypes.has('ban') && !baselineOnly) || !activePhase.length;
+        const showWatchList = (activeTypes.has('protect') && !baselineOnly) || !activePhase.length;
+        const visibleYourActionCards = baselineOnly
+            ? yourActionCards.filter(function(c) {
+                const t = (c.title || '').toLowerCase();
+                return t !== 'opening ban path'
+                    && !t.startsWith('recommended comp')
+                    && !t.includes('pressure path')
+                    && !t.includes('on track');
+            })
+            : yourActionCards;
+        const phaseMetaHtml = baselineOnly
+            ? '<div class="dr-guide-meta">Phase 1 is baseline scouting only: use these slots for expected opener tendencies, not ban-phase pressure.</div>'
+            : '';
 
         stream.innerHTML = '<div class="dr-guide">'
             + headerHtml
-            + (showYourAction ? renderNotesSection('Your Draft Choices', yourActionCards) : '')
+            + phaseMetaHtml
+            + (showYourAction ? renderNotesSection('Your Draft Choices', visibleYourActionCards) : '')
             + (showEnemyAction ? renderNotesSection('Enemy Draft Choices', enemyActionCards) : '')
             + (showPathAnalysis ? renderNotesSection('Comp Path Analysis', pathAnalysisCards) : '')
             + (showWatchList ? renderNotesSection('Watch List', watchCards) : '')
             + '</div>';
-        drRenderDraftFeedbackControls();
         drScheduleLiveAiAnalysis(false);
     }
 

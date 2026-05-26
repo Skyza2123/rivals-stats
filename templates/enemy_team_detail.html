@@ -251,7 +251,7 @@
             </div>
 
             <details class="dense-collapsible top-gap">
-                <summary>Advanced Draft Flow And Slot Patterns</summary>
+                <summary>Other Draft Patterns</summary>
                 <div class="dense-collapsible-body">
             <div class="top-gap">
                 <div class="panel panel-soft-gold">
@@ -667,6 +667,37 @@
                             + '</tbody></table></div>';
                     }
 
+                    function renderExactHistoricalRows(data) {
+                        if (!Array.isArray(data.exact_match_rows) || !data.exact_match_rows.length) {
+                            return '';
+                        }
+
+                        const rows = data.exact_match_rows.map(function(match) {
+                            const renderTeam = function(teamRows, teamLabel) {
+                                if (!Array.isArray(teamRows) || !teamRows.length) {
+                                    return '--';
+                                }
+                                const heroLine = teamRows.map(function(row) {
+                                    const img = heroImageMap[row.hero] || ('https://via.placeholder.com/40/111827/e6edf3?text=' + encodeURIComponent(row.hero));
+                                    return '<span class="hero-inline-cell"><img src="' + img + '" alt="' + row.hero + '" class="hero-inline-thumb"><span>' + row.hero + '</span><small>' + row.slot_label + '</small></span>';
+                                }).join(' ');
+                                return '<div><strong>' + mapTeamLabel(teamLabel) + '</strong></div><div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">' + heroLine + '</div>';
+                            };
+
+                            return '<tr>'
+                                + '<td><strong>' + (match.map_name || 'Unknown Map') + '</strong><br><small>' + (match.mode || 'Unknown') + '</small></td>'
+                                + '<td>' + renderTeam(match.team1_rows, 'Team 1') + '</td>'
+                                + '<td>' + renderTeam(match.team2_rows, 'Team 2') + '</td>'
+                                + '<td>' + (match.result || 'Unknown') + '</td>'
+                                + '</tr>';
+                        }).join('');
+
+                        return '<h4 class="top-gap">Matching Historical Draft Rows</h4>'
+                            + '<div class="table-wrap top-gap"><table class="stats-table stats-table-compare"><thead><tr><th>Map</th><th>' + mapTeamLabel('Team 1') + '</th><th>' + mapTeamLabel('Team 2') + '</th><th>Result</th></tr></thead><tbody>'
+                            + rows
+                            + '</tbody></table></div>';
+                    }
+
                     function renderSimulationResults(data) {
                         if (!resultsContainer) return;
                         if (data.status === 'complete') {
@@ -679,6 +710,7 @@
                         }
 
                         let html = '';
+                        html += renderExactHistoricalRows(data);
                         if (data.exact_matching_maps) {
                             html += '<p class="panel-intro">Exact draft matches: <strong>' + data.exact_matching_maps + '</strong>.</p>';
                         } else {

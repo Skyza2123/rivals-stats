@@ -59,6 +59,11 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
         "team1": defaultdict(int),
         "team2": defaultdict(int),
     }
+    exact_match_rows = []
+    show_exact_match_rows = any(
+        field_key in {"t2_ban3", "t2_ban4", "t2_protect2"}
+        for _, _, field_key in next_targets
+    )
     comp_prior_counts = {
         "team1": defaultdict(int),
         "team2": defaultdict(int),
@@ -104,6 +109,36 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
                 hero = map_values.get(field_key, "")
                 if hero:
                     exact_target_counts[field_key][hero] += 1
+
+            our_team_slot = map_entry.get("our_team_slot", "team1")
+            if our_team_slot not in TEAM_SLOTS:
+                our_team_slot = "team1"
+            if show_exact_match_rows:
+                exact_match_rows.append(
+                    {
+                        "map_name": str(map_entry.get("map_name") or map_entry.get("map") or "").strip() or "Unknown Map",
+                        "mode": str(map_entry.get("mode") or map_entry.get("map_mode") or "").strip() or "Unknown",
+                        "result": get_map_outcome_for_slot(map_entry, our_team_slot) or "Unknown",
+                        "team1_rows": [
+                            {
+                                "field_key": field_key,
+                                "slot_label": _draft_slot_label(field_key.replace("t1_", "", 1)),
+                                "hero": map_values.get(field_key, ""),
+                            }
+                            for field_key in PREDICTOR_INPUT_ORDER
+                            if field_key.startswith("t1_") and map_values.get(field_key, "")
+                        ],
+                        "team2_rows": [
+                            {
+                                "field_key": field_key,
+                                "slot_label": _draft_slot_label(field_key.replace("t2_", "", 1)),
+                                "hero": map_values.get(field_key, ""),
+                            }
+                            for field_key in PREDICTOR_INPUT_ORDER
+                            if field_key.startswith("t2_") and map_values.get(field_key, "")
+                        ],
+                    }
+                )
 
             for team_slot in TEAM_SLOTS:
                 richest_comp = _predictor_richest_comp(map_entry, team_slot)
@@ -199,6 +234,7 @@ def build_draft_predictor(scrims: list[dict], raw_inputs: dict[str, str]) -> dic
         "inputs": cleaned_inputs,
         "matching_maps": exact_matching_maps,
         "exact_matching_maps": exact_matching_maps,
+        "exact_match_rows": exact_match_rows[:8] if show_exact_match_rows else [],
         "training_maps": training_maps,
         "targets": target_rows,
         "likely_comps": likely_comps,

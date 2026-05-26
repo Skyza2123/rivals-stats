@@ -40,11 +40,20 @@ def build_scrim_analytics(
     ban_protect_enemy_save_targets = defaultdict(
         lambda: {
             "enemy_protects": defaultdict(int),
+            "enemy_phase3_bans": defaultdict(int),
             "source_total": 0,
             "same_protect_maps": 0,
             "same_slot_protect_maps": 0,
             "wins": 0,
             "losses": 0,
+        }
+    )
+    phase_slot_stats = defaultdict(
+        lambda: {
+            "total": 0,
+            "wins": 0,
+            "losses": 0,
+            "heroes": defaultdict(lambda: {"count": 0, "wins": 0, "losses": 0}),
         }
     )
     draft_route_counts = defaultdict(int)
@@ -147,6 +156,70 @@ def build_scrim_analytics(
             return f"Protect {slot_key[-1]}"
         return slot_key
 
+    def draft_slot_order(slot_key: str, team_slot: str = "team1") -> int:
+        team_slot = team_slot if team_slot in TEAM_SLOTS else "team1"
+        slot_orders = {
+            "team1": {
+                "ban1": 1,
+                "protect1": 5,
+                "ban2": 4,
+                "ban3": 7,
+                "protect2": 9,
+                "ban4": 12,
+            },
+            "team2": {
+                "ban1": 2,
+                "protect1": 3,
+                "ban2": 6,
+                "ban3": 8,
+                "protect2": 11,
+                "ban4": 10,
+            },
+        }
+        return slot_orders[team_slot].get(slot_key, 99)
+
+    def draft_global_slot_label(slot_key: str, team_slot: str) -> str:
+        team_label = "Team 1" if team_slot == "team1" else "Team 2"
+        return f"{team_label} {draft_slot_label(slot_key)}"
+
+    def draft_perspective_slot_label(slot_key: str) -> str:
+        team_label = (perspective_label or "Team").strip() or "Team"
+        return f"{team_label} {draft_slot_label(slot_key)}"
+
+    def draft_side_label(team_slot: str) -> str:
+        return "first draft side" if team_slot == "team1" else "second draft side"
+
+    def draft_phase_label(slot_key: str) -> str:
+        if slot_key in ("ban1", "protect1"):
+            return "Phase 1"
+        if slot_key in ("ban2", "ban3"):
+            return "Phase 2"
+        if slot_key in ("protect2", "ban4"):
+            return "Phase 3"
+        return "Draft"
+
+    def draft_phase_class(slot_key: str) -> str:
+        if slot_key in ("ban1", "protect1"):
+            return "phase-1"
+        if slot_key in ("ban2", "ban3"):
+            return "phase-2"
+        if slot_key in ("protect2", "ban4"):
+            return "phase-3"
+        return "phase-draft"
+
+    def draft_route_phase_read(route_kind: str, protect_slot: str) -> tuple[int, str, str]:
+        if route_kind == "phase2_pair":
+            return (
+                3,
+                "Enemy P3 response",
+                "Enemy Phase 3 protect response to our Phase 2 ban pair.",
+            )
+        return (
+            1,
+            "Baseline opener",
+            "Expected Phase 1 ban into first protect.",
+        )
+
     hero_pool = {
         canonical_hero(hero_name)
         for hero_name in HEROES
@@ -214,8 +287,8 @@ def build_scrim_analytics(
                     ban_next_pairs[source_ban][response_ban] += 1
 
             # Ban -> Protect flow based on draft phases:
-            # Phase 1: ban1 leads into protect1.
-            # Phase 3: protect2 happens after ban1-3, while ban4 is final.
+            # Phase 1 is a baseline opener, so only ban1 -> protect1 is treated
+            # as an opening tendency. Protect2 is driven by the Phase 2 ban window.
             if our_ban_slots.get("ban1") and our_protect_slots.get("protect1"):
                 ban_to_protect_pairs[our_ban_slots["ban1"]][our_protect_slots["protect1"]] += 1
 
@@ -254,26 +327,67 @@ def build_scrim_analytics(
                 for slot, hero_name in enemy_protect_slots.items()
                 if hero_name
             ]
-            if filled_our_ban_slots and filled_our_protect_slots:
-                for ban_slot, banned_hero in filled_our_ban_slots:
-                    for protect_slot, protected_hero in filled_our_protect_slots:
-                        route_stats = ban_protect_enemy_save_targets[
-                            (ban_slot, banned_hero, protect_slot, protected_hero)
-                        ]
-                        route_stats["source_total"] += 1
-                        if is_win:
-                            route_stats["wins"] += 1
-                        elif is_loss:
-                            route_stats["losses"] += 1
-                        if any(
-                            enemy_protect_hero == protected_hero
-                            for _enemy_protect_slot, enemy_protect_hero in filled_enemy_protect_slots
-                        ):
-                            route_stats["same_protect_maps"] += 1
-                        if enemy_protect_slots.get(protect_slot) == protected_hero:
-                            route_stats["same_slot_protect_maps"] += 1
-                        for enemy_protect_slot, enemy_protect_hero in filled_enemy_protect_slots:
-                            route_stats["enemy_protects"][(enemy_protect_slot, enemy_protect_hero)] += 1
+            def record_enemy_save_route(route_key, protected_hero: str, protect_slot: str) -> None:
+                route_stats = ban_protect_enemy_save_targets[route_key]
+                route_stats["source_total"] += 1
+                if is_win:
+                    route_stats["wins"] += 1
+                elif is_loss:
+                    route_stats["losses"] += 1
+                if any(
+                    enemy_protect_hero == protected_hero
+                    for _enemy_protect_slot, enemy_protect_hero in filled_enemy_protect_slots
+                ):
+                    route_stats["same_protect_maps"] += 1
+                if enemy_protect_slots.get(protect_slot) == protected_hero:
+                    route_stats["same_slot_protect_maps"] += 1
+                for enemy_protect_slot, enemy_protect_hero in filled_enemy_protect_slots:
+                    route_stats["enemy_protects"][(enemy_protect_slot, enemy_protect_hero)] += 1
+                enemy_phase3_ban = enemy_ban_slots.get("ban4", "")
+                if enemy_phase3_ban:
+                    route_stats["enemy_phase3_bans"][enemy_phase3_ban] += 1
+
+            if our_ban_slots.get("ban1") and our_protect_slots.get("protect1"):
+                record_enemy_save_route(
+                    (
+                        our_team_slot,
+                        "phase1_baseline",
+                        our_ban_slots["ban1"],
+                        "",
+                        "protect1",
+                        our_protect_slots["protect1"],
+                        "",
+                    ),
+                    our_protect_slots["protect1"],
+                    "protect1",
+                )
+
+            if our_ban_slots.get("ban2") and our_ban_slots.get("ban3") and our_protect_slots.get("protect2"):
+                record_enemy_save_route(
+                    (
+                        our_team_slot,
+                        "phase2_pair",
+                        our_ban_slots["ban2"],
+                        our_ban_slots["ban3"],
+                        "protect2",
+                        our_protect_slots["protect2"],
+                        our_ban_slots.get("ban4", ""),
+                    ),
+                    our_protect_slots["protect2"],
+                    "protect2",
+                )
+
+            for slot_key, hero_name in [*filled_our_ban_slots, *filled_our_protect_slots]:
+                slot_stats = phase_slot_stats[(our_team_slot, slot_key)]
+                slot_stats["total"] += 1
+                hero_stats_for_slot = slot_stats["heroes"][hero_name]
+                hero_stats_for_slot["count"] += 1
+                if is_win:
+                    slot_stats["wins"] += 1
+                    hero_stats_for_slot["wins"] += 1
+                elif is_loss:
+                    slot_stats["losses"] += 1
+                    hero_stats_for_slot["losses"] += 1
 
             ban1_hero = our_ban_slots.get("ban1", "")
             ban2_hero = our_ban_slots.get("ban2", "")
@@ -527,6 +641,76 @@ def build_scrim_analytics(
     def pct(part: int, whole: int) -> float:
         return round((part / whole) * 100, 1) if whole else 0.0
 
+    draft_phase_slot_rows = []
+    for (team_slot, slot_key), slot_stats in phase_slot_stats.items():
+        slot_total = slot_stats["total"]
+        decided = slot_stats["wins"] + slot_stats["losses"]
+        hero_rows = []
+        for hero_name, hero_stats_for_slot in slot_stats["heroes"].items():
+            hero_decided = hero_stats_for_slot["wins"] + hero_stats_for_slot["losses"]
+            hero_rows.append(
+                {
+                    "hero": hero_name,
+                    "count": hero_stats_for_slot["count"],
+                    "rate": pct(hero_stats_for_slot["count"], slot_total),
+                    "wins": hero_stats_for_slot["wins"],
+                    "losses": hero_stats_for_slot["losses"],
+                    "win_rate": pct(hero_stats_for_slot["wins"], hero_decided) if hero_decided else None,
+                }
+            )
+        hero_rows.sort(key=lambda row: (row["count"], row["rate"], row["hero"]), reverse=True)
+        top_hero = hero_rows[0] if hero_rows else None
+        draft_phase_slot_rows.append(
+            {
+                "team_slot": team_slot,
+                "team_slot_label": draft_side_label(team_slot),
+                "slot": slot_key,
+                "slot_label": draft_slot_label(slot_key),
+                "global_slot_label": draft_perspective_slot_label(slot_key),
+                "side_slot_label": draft_global_slot_label(slot_key, team_slot),
+                "slot_order": draft_slot_order(slot_key, team_slot),
+                "phase_label": draft_phase_label(slot_key),
+                "phase_class": draft_phase_class(slot_key),
+                "total": slot_total,
+                "wins": slot_stats["wins"],
+                "losses": slot_stats["losses"],
+                "win_rate": pct(slot_stats["wins"], decided) if decided else None,
+                "top_hero": top_hero["hero"] if top_hero else "",
+                "top_count": top_hero["count"] if top_hero else 0,
+                "top_rate": top_hero["rate"] if top_hero else 0,
+                "hero_rows": hero_rows[:3],
+            }
+        )
+    draft_phase_slot_rows.sort(key=lambda row: row["slot_order"])
+    draft_phase_slot_groups = [
+        {
+            "phase_label": phase_label,
+            "phase_class": phase_class,
+            "rows": [
+                row
+                for row in draft_phase_slot_rows
+                if row["phase_label"] == phase_label
+            ],
+            "side_groups": [
+                {
+                    "team_slot": team_slot,
+                    "team_slot_label": draft_side_label(team_slot),
+                    "rows": [
+                        row
+                        for row in draft_phase_slot_rows
+                        if row["phase_label"] == phase_label and row["team_slot"] == team_slot
+                    ],
+                }
+                for team_slot in TEAM_SLOTS
+            ],
+        }
+        for phase_label, phase_class in (
+            ("Phase 1", "phase-1"),
+            ("Phase 2", "phase-2"),
+            ("Phase 3", "phase-3"),
+        )
+    ]
+
     def build_ban_map_mode_anova_rows(observations: list[dict], candidate_heroes: list[str]) -> list[dict]:
         try:
             import numpy as np
@@ -764,35 +948,105 @@ def build_scrim_analytics(
     ban_to_protect_rows.sort(key=lambda row: (row["total"], row["top_rate"]), reverse=True)
 
     ban_protect_enemy_save_rows = []
-    for (ban_slot, ban_hero, protect_slot, protect_hero), target_data in ban_protect_enemy_save_targets.items():
+    for (
+        team_slot,
+        route_kind,
+        first_ban_hero,
+        second_ban_hero,
+        protect_slot,
+        protect_hero,
+        phase3_ban_hero,
+    ), target_data in ban_protect_enemy_save_targets.items():
         source_total = target_data["source_total"]
         if not source_total:
             continue
+        first_ban_slot = "ban2" if route_kind == "phase2_pair" else "ban1"
+        second_ban_slot = "ban3" if route_kind == "phase2_pair" else ""
+        phase3_ban_slot = "ban4" if phase3_ban_hero else ""
         enemy_protect_rows = sorted(
             target_data["enemy_protects"].items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        enemy_phase3_ban_rows = sorted(
+            target_data["enemy_phase3_bans"].items(),
             key=lambda item: item[1],
             reverse=True,
         )
         (top_enemy_slot, top_enemy_protect), top_count = (
             enemy_protect_rows[0] if enemy_protect_rows else (("", ""), 0)
         )
+        top_enemy_phase3_ban, top_enemy_phase3_ban_count = (
+            enemy_phase3_ban_rows[0] if enemy_phase3_ban_rows else ("", 0)
+        )
         same_protect_count = target_data["same_protect_maps"]
         same_slot_protect_count = target_data["same_slot_protect_maps"]
+        phase_priority, phase_read, phase_note = draft_route_phase_read(route_kind, protect_slot)
         decided = target_data["wins"] + target_data["losses"]
+        trigger_bans = [
+            {
+                "slot": first_ban_slot,
+                "slot_label": draft_slot_label(first_ban_slot),
+                "global_slot_label": draft_perspective_slot_label(first_ban_slot),
+                "side_slot_label": draft_global_slot_label(first_ban_slot, team_slot),
+                "phase_label": draft_phase_label(first_ban_slot),
+                "phase_class": draft_phase_class(first_ban_slot),
+                "hero": first_ban_hero,
+            }
+        ]
+        if second_ban_slot and second_ban_hero:
+            trigger_bans.append(
+                {
+                    "slot": second_ban_slot,
+                    "slot_label": draft_slot_label(second_ban_slot),
+                    "global_slot_label": draft_perspective_slot_label(second_ban_slot),
+                    "side_slot_label": draft_global_slot_label(second_ban_slot, team_slot),
+                    "phase_label": draft_phase_label(second_ban_slot),
+                    "phase_class": draft_phase_class(second_ban_slot),
+                    "hero": second_ban_hero,
+                }
+            )
         ban_protect_enemy_save_rows.append(
             {
-                "ban_slot": ban_slot,
-                "ban_slot_label": draft_slot_label(ban_slot),
-                "ban_hero": ban_hero,
+                "team_slot": team_slot,
+                "team_slot_label": draft_side_label(team_slot),
+                "route_kind": route_kind,
+                "ban_slot": first_ban_slot,
+                "ban_slot_label": draft_slot_label(first_ban_slot),
+                "ban_global_slot_label": draft_perspective_slot_label(first_ban_slot),
+                "ban_side_slot_label": draft_global_slot_label(first_ban_slot, team_slot),
+                "ban_phase_label": draft_phase_label(first_ban_slot),
+                "ban_phase_class": draft_phase_class(first_ban_slot),
+                "ban_hero": first_ban_hero,
+                "trigger_bans": trigger_bans,
                 "protect_slot": protect_slot,
                 "protect_slot_label": draft_slot_label(protect_slot),
+                "protect_global_slot_label": draft_perspective_slot_label(protect_slot),
+                "protect_side_slot_label": draft_global_slot_label(protect_slot, team_slot),
+                "protect_phase_label": draft_phase_label(protect_slot),
+                "protect_phase_class": draft_phase_class(protect_slot),
                 "protect_hero": protect_hero,
+                "phase3_ban_slot": phase3_ban_slot,
+                "phase3_ban_global_slot_label": draft_perspective_slot_label(phase3_ban_slot) if phase3_ban_slot else "",
+                "phase3_ban_side_slot_label": draft_global_slot_label(phase3_ban_slot, team_slot) if phase3_ban_slot else "",
+                "phase3_ban_phase_label": draft_phase_label(phase3_ban_slot) if phase3_ban_slot else "",
+                "phase3_ban_phase_class": draft_phase_class(phase3_ban_slot) if phase3_ban_slot else "",
+                "phase3_ban_hero": phase3_ban_hero,
                 "top_enemy_protect_slot": top_enemy_slot,
                 "top_enemy_protect_slot_label": draft_slot_label(top_enemy_slot),
+                "top_enemy_protect_phase_label": draft_phase_label(top_enemy_slot),
+                "top_enemy_protect_phase_class": draft_phase_class(top_enemy_slot),
+                "phase_priority": phase_priority,
+                "phase_read_class": "phase-2" if phase_priority == 3 else ("phase-3" if phase_priority == 2 else "phase-1"),
+                "phase_read": phase_read,
+                "phase_note": phase_note,
                 "total": source_total,
                 "top_enemy_protect": top_enemy_protect,
                 "top_count": top_count,
                 "top_rate": pct(top_count, source_total),
+                "top_enemy_phase3_ban": top_enemy_phase3_ban,
+                "top_enemy_phase3_ban_count": top_enemy_phase3_ban_count,
+                "top_enemy_phase3_ban_rate": pct(top_enemy_phase3_ban_count, source_total),
                 "same_protect_count": same_protect_count,
                 "same_protect_rate": pct(same_protect_count, source_total),
                 "same_slot_protect_count": same_slot_protect_count,
@@ -804,6 +1058,7 @@ def build_scrim_analytics(
                     {
                         "slot": enemy_protect_slot,
                         "slot_label": draft_slot_label(enemy_protect_slot),
+                        "phase_class": draft_phase_class(enemy_protect_slot),
                         "hero": enemy_protect_hero,
                         "count": enemy_protect_count,
                         "rate": pct(enemy_protect_count, source_total),
@@ -811,14 +1066,76 @@ def build_scrim_analytics(
                     for (enemy_protect_slot, enemy_protect_hero), enemy_protect_count
                     in enemy_protect_rows[:3]
                 ],
+                "enemy_phase3_bans": [
+                    {
+                        "slot": "ban4",
+                        "slot_label": draft_slot_label("ban4"),
+                        "phase_class": draft_phase_class("ban4"),
+                        "hero": enemy_ban_hero,
+                        "count": enemy_ban_count,
+                        "rate": pct(enemy_ban_count, source_total),
+                    }
+                    for enemy_ban_hero, enemy_ban_count in enemy_phase3_ban_rows[:3]
+                ],
             }
         )
     ban_protect_enemy_save_rows.sort(
         key=lambda row: (
-            row["total"],
-            row["same_protect_rate"],
-            row["top_rate"],
+            -row["phase_priority"],
+            draft_slot_order(row["ban_slot"], row["team_slot"]),
+            draft_slot_order(row.get("phase3_ban_slot") or row["protect_slot"], row["team_slot"]),
+            draft_slot_order(row["protect_slot"], row["team_slot"]),
+            -row["total"],
+            -row["same_protect_rate"],
+            -row["top_rate"],
         ),
+    )
+
+    enemy_phase3_after_phase2_total = 0
+    enemy_phase3_after_phase2_counts = defaultdict(int)
+    enemy_phase3_ban_after_phase2_counts = defaultdict(int)
+    for (
+        _team_slot,
+        route_kind,
+        _first_ban_hero,
+        _second_ban_hero,
+        _protect_slot,
+        _protect_hero,
+        _phase3_ban_hero,
+    ), target_data in ban_protect_enemy_save_targets.items():
+        if route_kind != "phase2_pair":
+            continue
+        source_total = target_data.get("source_total", 0)
+        if not source_total:
+            continue
+        enemy_phase3_after_phase2_total += source_total
+        for (_enemy_protect_slot, enemy_hero), enemy_count in target_data["enemy_protects"].items():
+            enemy_phase3_after_phase2_counts[enemy_hero] += enemy_count
+        for enemy_ban_hero, enemy_ban_count in target_data["enemy_phase3_bans"].items():
+            enemy_phase3_ban_after_phase2_counts[enemy_ban_hero] += enemy_ban_count
+
+    enemy_phase3_after_phase2_rows = [
+        {
+            "hero": hero_name,
+            "count": hero_count,
+            "rate": pct(hero_count, enemy_phase3_after_phase2_total),
+        }
+        for hero_name, hero_count in enemy_phase3_after_phase2_counts.items()
+    ]
+    enemy_phase3_after_phase2_rows.sort(
+        key=lambda row: (row["count"], row["rate"]),
+        reverse=True,
+    )
+    enemy_phase3_ban_after_phase2_rows = [
+        {
+            "hero": hero_name,
+            "count": hero_count,
+            "rate": pct(hero_count, enemy_phase3_after_phase2_total),
+        }
+        for hero_name, hero_count in enemy_phase3_ban_after_phase2_counts.items()
+    ]
+    enemy_phase3_ban_after_phase2_rows.sort(
+        key=lambda row: (row["count"], row["rate"]),
         reverse=True,
     )
 
@@ -1643,9 +1960,13 @@ def build_scrim_analytics(
         "comp_archetype_rows": comp_archetype_rows,
         "ban_diff_rows": ban_diff_rows[:12],
         "enemy_ban_correlation": enemy_ban_correlation,
+        "draft_phase_slot_groups": draft_phase_slot_groups,
         "ban_next_rows": ban_next_rows[:12],
         "ban_to_protect_rows": ban_to_protect_rows[:12],
         "ban_protect_enemy_save_rows": ban_protect_enemy_save_rows[:16],
+        "enemy_phase3_after_phase2_rows": enemy_phase3_after_phase2_rows[:12],
+        "enemy_phase3_ban_after_phase2_rows": enemy_phase3_ban_after_phase2_rows[:12],
+        "enemy_phase3_after_phase2_total": enemy_phase3_after_phase2_total,
         "draft_route_rows": draft_route_rows[:16],
         "second_order_ban_rows": second_order_ban_rows[:12],
         "protect1_influence_rows": protect1_influence_rows[:12],
