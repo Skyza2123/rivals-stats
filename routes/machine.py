@@ -3199,6 +3199,79 @@ def _machine_agent_context_from_payload(payload: dict, message: str) -> dict:
             }
         }
 
+    raw_draft_assistant = raw_context.get("draft_assistant")
+    if isinstance(raw_draft_assistant, dict):
+        def _assistant_list(side_key: str, field_key: str, limit: int) -> list[str]:
+            side_payload = raw_draft_assistant.get(side_key)
+            if not isinstance(side_payload, dict):
+                return []
+            values = side_payload.get(field_key)
+            if not isinstance(values, list):
+                return []
+            cleaned: list[str] = []
+            seen: set[str] = set()
+            for value in values:
+                hero = _canonical_draft_hero(str(value or "").strip())
+                hero_key = hero.lower()
+                if not hero or hero_key in seen:
+                    continue
+                cleaned.append(hero)
+                seen.add(hero_key)
+                if len(cleaned) >= limit:
+                    break
+            return cleaned
+
+        def _assistant_number_map(side_key: str, field_key: str) -> dict:
+            side_payload = raw_draft_assistant.get(side_key)
+            if not isinstance(side_payload, dict) or not isinstance(side_payload.get(field_key), dict):
+                return {}
+            return {
+                str(key): value
+                for key, value in side_payload.get(field_key, {}).items()
+                if isinstance(value, (int, float, str))
+            }
+
+        def _assistant_evidence() -> dict[str, dict]:
+            evidence = raw_draft_assistant.get("sequential_evidence")
+            if not isinstance(evidence, dict):
+                return {}
+            rows: dict[str, dict] = {}
+            for key, row in evidence.items():
+                if not isinstance(row, dict):
+                    continue
+                hero = _canonical_draft_hero(str(row.get("hero") or "").strip())
+                if not hero:
+                    continue
+                rows[str(key)] = {
+                    "hero": hero,
+                    "count": int(float(row.get("count", 0) or 0)),
+                    "score": float(row.get("score", 0) or 0),
+                    "confidence": float(row.get("confidence", 0) or 0),
+                    "win_rate": float(row.get("win_rate", 0) or 0),
+                    "source": "draft_assistant",
+                }
+            return rows
+
+        context["draft_assistant"] = {
+            "a": {
+                "bans": _assistant_list("a", "bans", 4),
+                "protects": _assistant_list("a", "protects", 2),
+                "comp": _assistant_list("a", "comp", 6),
+                "ban_path": _assistant_list("a", "ban_path", 4),
+                "path_metrics": _assistant_number_map("a", "path_metrics"),
+                "ml": _assistant_number_map("a", "ml"),
+            },
+            "b": {
+                "bans": _assistant_list("b", "bans", 4),
+                "protects": _assistant_list("b", "protects", 2),
+                "comp": _assistant_list("b", "comp", 6),
+                "ban_path": _assistant_list("b", "ban_path", 4),
+                "path_metrics": _assistant_number_map("b", "path_metrics"),
+                "ml": _assistant_number_map("b", "ml"),
+            },
+            "sequential_evidence": _assistant_evidence(),
+        }
+
     context["season"] = _machine_agent_extract_season(message, context["season"])
     context["map"] = _machine_agent_extract_map(message, context["map"])
     text = (message or "").lower()
@@ -3268,6 +3341,22 @@ def _machine_agent_draft_live_context_hint(chat_context: dict) -> str:
         lines.append("- Enemy protects: " + ", ".join(enemy_protects[:4]))
     if open_slots:
         lines.append("- Open draft slots: " + ", ".join(open_slots[:8]))
+    assistant = chat_context.get("draft_assistant")
+    if isinstance(assistant, dict):
+        assistant_a = assistant.get("a") if isinstance(assistant.get("a"), dict) else {}
+        assistant_b = assistant.get("b") if isinstance(assistant.get("b"), dict) else {}
+        assistant_our_bans = [str(v).strip() for v in (assistant_a.get("bans") or []) if str(v).strip()]
+        assistant_our_protects = [str(v).strip() for v in (assistant_a.get("protects") or []) if str(v).strip()]
+        assistant_enemy_bans = [str(v).strip() for v in (assistant_b.get("bans") or []) if str(v).strip()]
+        assistant_enemy_protects = [str(v).strip() for v in (assistant_b.get("protects") or []) if str(v).strip()]
+        if assistant_our_bans:
+            lines.append("- Draft Assistant our ban path: " + ", ".join(assistant_our_bans[:4]))
+        if assistant_our_protects:
+            lines.append("- Draft Assistant our protect path: " + ", ".join(assistant_our_protects[:2]))
+        if assistant_enemy_bans:
+            lines.append("- Draft Assistant enemy ban path: " + ", ".join(assistant_enemy_bans[:4]))
+        if assistant_enemy_protects:
+            lines.append("- Draft Assistant enemy protect path: " + ", ".join(assistant_enemy_protects[:2]))
     if current_phase:
         lines.append("- Do not name projected comps yet; wait until every draft phase is complete.")
     else:
@@ -3366,8 +3455,202 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
                 break
         return ranked
 
+    def _current_sequential_actions() -> list[dict]:
+        draft_by_side = {
+            "a": {
+                "ban1": our_locked_bans[0] if len(our_locked_bans) > 0 else "",
+                "ban2": our_locked_bans[1] if len(our_locked_bans) > 1 else "",
+                "ban3": our_locked_bans[2] if len(our_locked_bans) > 2 else "",
+                "ban4": our_locked_bans[3] if len(our_locked_bans) > 3 else "",
+                "protect1": our_locked_protects[0] if len(our_locked_protects) > 0 else "",
+                "protect2": our_locked_protects[1] if len(our_locked_protects) > 1 else "",
+            },
+            "b": {
+                "ban1": enemy_locked_bans[0] if len(enemy_locked_bans) > 0 else "",
+                "ban2": enemy_locked_bans[1] if len(enemy_locked_bans) > 1 else "",
+                "ban3": enemy_locked_bans[2] if len(enemy_locked_bans) > 2 else "",
+                "ban4": enemy_locked_bans[3] if len(enemy_locked_bans) > 3 else "",
+                "protect1": enemy_locked_protects[0] if len(enemy_locked_protects) > 0 else "",
+                "protect2": enemy_locked_protects[1] if len(enemy_locked_protects) > 1 else "",
+            },
+        }
+        actions: list[dict] = []
+        for order_index, (team, slot_key, action_type) in enumerate(MACHINE_SEQUENTIAL_DRAFT_ORDER, start=1):
+            hero = _canonical_draft_hero(str((draft_by_side.get(team) or {}).get(slot_key, "") or "").strip())
+            if hero:
+                actions.append(
+                    {
+                        "order": order_index,
+                        "team": team,
+                        "slot": slot_key,
+                        "type": action_type,
+                        "hero": hero,
+                    }
+                )
+        return actions
+
+    def _sequential_candidate_score(row: dict, target_team: str, target_slot: str, target_type: str) -> float:
+        actions = row.get("actions") or []
+        order_lookup = {
+            (team, slot_key, action_type): idx
+            for idx, (team, slot_key, action_type) in enumerate(MACHINE_SEQUENTIAL_DRAFT_ORDER, start=1)
+        }
+        target_order = order_lookup.get((target_team, target_slot, target_type), 0)
+        current_actions = [
+            action for action in _current_sequential_actions()
+            if not target_order or int(action.get("order", 0) or 0) < target_order
+        ]
+        historical_by_key = {
+            f"{action.get('team')}:{action.get('slot')}": action
+            for action in actions
+            if isinstance(action, dict)
+        }
+        current_by_hero = {str(action.get("hero") or "").strip().lower() for action in current_actions}
+        score = 0.0
+        matched = 0
+        conflicts = 0
+
+        for action in current_actions:
+            historical = historical_by_key.get(f"{action.get('team')}:{action.get('slot')}")
+            if not historical:
+                continue
+            same_hero = (
+                _canonical_draft_hero(str(historical.get("hero") or "").strip()).lower()
+                == _canonical_draft_hero(str(action.get("hero") or "").strip()).lower()
+            )
+            if same_hero:
+                matched += 1
+                score += 4.2 if action.get("type") == "protect" else 3.4
+                if action.get("team") != target_team:
+                    score += 1.2
+            else:
+                conflicts += 1
+                score -= 1.8 if action.get("team") == target_team else 0.9
+
+        for action in actions:
+            hero_key = _canonical_draft_hero(str(action.get("hero") or "").strip()).lower()
+            if hero_key and hero_key in current_by_hero:
+                score += 0.45
+
+        map_name = str(chat_context.get("map") or "all").strip().lower()
+        if map_name and map_name != "all":
+            if str(row.get("map") or "").strip().lower() == map_name:
+                score += 2.2
+            else:
+                score -= 0.6
+        mode_type = str(chat_context.get("mode_type") or "all").strip().lower()
+        if mode_type and mode_type != "all" and str(row.get("mode") or "").strip().lower() == mode_type:
+            score += 1.0
+        opponent = team_b if target_team == "a" else team_a
+        if opponent and str(row.get("opponent") or "").strip().lower() == str(opponent).strip().lower():
+            score += 1.4
+        if not current_actions:
+            score += 0.5
+        if matched == 0 and len(current_actions) >= 2 and conflicts >= len(current_actions):
+            return -999.0
+        return score
+
+    def _sequential_rows_for_slot(
+        target_team: str,
+        target_slot: str,
+        target_type: str,
+        blocked_values: list[str],
+        limit: int,
+    ) -> list[dict]:
+        seq = visuals.get("sequential_reaction_model") or {}
+        rows = seq.get(target_team) or []
+        blocked_keys = {
+            _canonical_draft_hero(str(hero or "").strip()).lower()
+            for hero in blocked_values or []
+            if str(hero or "").strip()
+        }
+        buckets: dict[str, dict] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            action = next(
+                (
+                    item for item in (row.get("actions") or [])
+                    if isinstance(item, dict)
+                    and item.get("team") == target_team
+                    and item.get("slot") == target_slot
+                    and item.get("type") == target_type
+                    and item.get("hero")
+                ),
+                None,
+            )
+            if not action:
+                continue
+            hero = _canonical_draft_hero(str(action.get("hero") or "").strip())
+            hero_key = hero.lower()
+            if not hero or hero_key in blocked_keys:
+                continue
+            score = _sequential_candidate_score(row, target_team, target_slot, target_type)
+            if score <= -100:
+                continue
+            bucket = buckets.setdefault(
+                hero_key,
+                {"hero": hero, "score": 0.0, "count": 0, "wins": 0, "losses": 0, "examples": []},
+            )
+            bucket["score"] = float(bucket.get("score", 0.0) or 0.0) + max(0.1, score + 3.0)
+            bucket["count"] = int(bucket.get("count", 0) or 0) + 1
+            if row.get("outcome") == "Win":
+                bucket["wins"] = int(bucket.get("wins", 0) or 0) + 1
+            elif row.get("outcome") == "Loss":
+                bucket["losses"] = int(bucket.get("losses", 0) or 0) + 1
+            if len(bucket.get("examples") or []) < 3:
+                bucket["examples"].append(
+                    {
+                        "map": row.get("map") or "",
+                        "opponent": row.get("opponent") or "",
+                        "date": row.get("date") or "",
+                        "score": round(score, 2),
+                    }
+                )
+
+        ranked = []
+        for row in buckets.values():
+            decided = int(row.get("wins", 0) or 0) + int(row.get("losses", 0) or 0)
+            row["win_rate"] = round((int(row.get("wins", 0) or 0) / decided) * 100.0, 1) if decided else 0.0
+            row["confidence"] = round(min(100.0, (int(row.get("count", 0) or 0) * 12.0) + max(0.0, float(row.get("score", 0) or 0) * 3.0)), 1)
+            ranked.append(row)
+        ranked.sort(
+            key=lambda row: (
+                float(row.get("score", 0) or 0),
+                int(row.get("count", 0) or 0),
+                float(row.get("win_rate", 0) or 0),
+                str(row.get("hero") or ""),
+            ),
+            reverse=True,
+        )
+        return ranked[:limit]
+
+    def _merge_sequential_first(base_values: list[str], sequential_rows: list[dict], limit: int) -> list[str]:
+        merged = [row.get("hero", "") for row in sequential_rows if row.get("hero")]
+        merged += base_values or []
+        return _clean_heroes(merged, limit)
+
+    draft_assistant = chat_context.get("draft_assistant") if isinstance(chat_context.get("draft_assistant"), dict) else {}
+    assistant_a = draft_assistant.get("a") if isinstance(draft_assistant.get("a"), dict) else {}
+    assistant_b = draft_assistant.get("b") if isinstance(draft_assistant.get("b"), dict) else {}
+    assistant_evidence = (
+        draft_assistant.get("sequential_evidence")
+        if isinstance(draft_assistant.get("sequential_evidence"), dict)
+        else {}
+    )
+
+    def _assistant_values(side_payload: dict, field_key: str, limit: int) -> list[str]:
+        return _clean_heroes(side_payload.get(field_key) if isinstance(side_payload, dict) else [], limit)
+
+    assistant_our_bans = _assistant_values(assistant_a, "ban_path", 4) or _assistant_values(assistant_a, "bans", 4)
+    assistant_our_protects = _assistant_values(assistant_a, "protects", 2)
+    assistant_enemy_bans = _assistant_values(assistant_b, "ban_path", 4) or _assistant_values(assistant_b, "bans", 4)
+    assistant_enemy_protects = _assistant_values(assistant_b, "protects", 2)
+    assistant_our_comp = _assistant_values(assistant_a, "comp", 6)
+    assistant_enemy_comp = _assistant_values(assistant_b, "comp", 6)
+
     candidate_bans = [
-        hero for hero in _clean_heroes(visuals.get("recommended_bans"), 8)
+        hero for hero in _clean_heroes(assistant_our_bans + _clean_heroes(visuals.get("recommended_bans"), 8), 8)
         if hero.lower() not in locked
     ]
     candidate_detail_lookup = {
@@ -3381,23 +3664,65 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         if str(row.get("hero", "") or "").strip()
     }
     candidate_protects = [
-        hero for hero in _clean_heroes(visuals.get("recommended_protects"), 5)
+        hero for hero in _clean_heroes(assistant_our_protects + _clean_heroes(visuals.get("recommended_protects"), 5), 5)
         if hero.lower() not in locked
     ]
     enemy_next_protects = _rank_historical_enemy_choices(
         next_enemy_protect_slot_key,
         visuals.get("enemy_protect_slot_history") or {},
-        visuals.get("enemy_expected_protects") or [],
+        assistant_enemy_protects + _clean_heroes(visuals.get("enemy_expected_protects") or [], 6),
         our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
         4,
     )
     enemy_next_bans = _rank_historical_enemy_choices(
         next_enemy_ban_slot_key,
         visuals.get("enemy_ban_slot_history") or {},
-        visuals.get("enemy_expected_bans") or [],
+        assistant_enemy_bans + _clean_heroes(visuals.get("enemy_expected_bans") or [], 6),
         our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
         4,
     )
+    sequential_evidence = {
+        "our_ban": _sequential_rows_for_slot(
+            "a",
+            next_our_ban_slot_key,
+            "ban",
+            our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
+            4,
+        ) if next_our_ban_slot_key else [],
+        "enemy_ban": _sequential_rows_for_slot(
+            "b",
+            next_enemy_ban_slot_key,
+            "ban",
+            our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
+            4,
+        ) if next_enemy_ban_slot_key else [],
+        "enemy_protect": _sequential_rows_for_slot(
+            "b",
+            next_enemy_protect_slot_key,
+            "protect",
+            our_locked_bans + enemy_locked_bans + our_locked_protects + enemy_locked_protects,
+            4,
+        ) if next_enemy_protect_slot_key else [],
+    }
+    assistant_seq_map = {
+        "our_ban": f"a:{next_our_ban_slot_key}" if next_our_ban_slot_key else "",
+        "enemy_ban": f"b:{next_enemy_ban_slot_key}" if next_enemy_ban_slot_key else "",
+        "enemy_protect": f"b:{next_enemy_protect_slot_key}" if next_enemy_protect_slot_key else "",
+    }
+    for evidence_key, assistant_key in assistant_seq_map.items():
+        assistant_row = assistant_evidence.get(assistant_key) if assistant_key else None
+        if isinstance(assistant_row, dict) and assistant_row.get("hero"):
+            sequential_evidence[evidence_key] = [assistant_row] + [
+                row for row in sequential_evidence.get(evidence_key, [])
+                if str(row.get("hero") or "").strip().lower()
+                != str(assistant_row.get("hero") or "").strip().lower()
+            ]
+    if sequential_evidence["our_ban"]:
+        candidate_bans = _merge_sequential_first(candidate_bans, sequential_evidence["our_ban"], 8)
+    if sequential_evidence["enemy_ban"]:
+        enemy_next_bans = _merge_sequential_first(enemy_next_bans, sequential_evidence["enemy_ban"], 4)
+    if sequential_evidence["enemy_protect"]:
+        enemy_next_protects = _merge_sequential_first(enemy_next_protects, sequential_evidence["enemy_protect"], 4)
     enemy_comfort_list = _clean_heroes(visuals.get("enemy_comfort"), 10)
     enemy_comfort = set(enemy_comfort_list)
     volatile_rows = {
@@ -3985,6 +4310,27 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         )
     if enemy_next_bans:
         lines.append("- Enemy likely next bans: " + _machine_chat_join(enemy_next_bans, 4))
+    if sequential_evidence.get("our_ban"):
+        row = sequential_evidence["our_ban"][0]
+        lines.append(
+            "- Historical relation for our next ban slot: "
+            f"{row.get('hero')} from {int(row.get('count', 0) or 0)} related draft rows "
+            f"(confidence {float(row.get('confidence', 0) or 0):.1f})."
+        )
+    if sequential_evidence.get("enemy_ban"):
+        row = sequential_evidence["enemy_ban"][0]
+        lines.append(
+            "- Historical relation for enemy next ban slot: "
+            f"{row.get('hero')} from {int(row.get('count', 0) or 0)} related draft rows "
+            f"(confidence {float(row.get('confidence', 0) or 0):.1f})."
+        )
+    if sequential_evidence.get("enemy_protect"):
+        row = sequential_evidence["enemy_protect"][0]
+        lines.append(
+            "- Historical relation for enemy next protect slot: "
+            f"{row.get('hero')} from {int(row.get('count', 0) or 0)} related draft rows "
+            f"(confidence {float(row.get('confidence', 0) or 0):.1f})."
+        )
     if similar_draft_snapshot.get("matches"):
         lines.append("- Similar past drafts (scored):")
         for row in (similar_draft_snapshot.get("matches") or [])[:3]:
@@ -4047,8 +4393,11 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         "enemy_next_ban_slot_key": next_enemy_ban_slot_key,
         "enemy_next_protect_slot_key": next_enemy_protect_slot_key,
         "possible_pivots": possible_pivots if draft_complete else [],
-        "our_projected_path": _clean_heroes(visuals.get("target_comp"), 6) if draft_complete else [],
-        "their_projected_path": _clean_heroes((enemy_comp_rows[0] or {}).get("heroes"), 6) if draft_complete and enemy_comp_rows else [],
+        "our_projected_path": _clean_heroes(assistant_our_comp or visuals.get("target_comp"), 6) if draft_complete else [],
+        "their_projected_path": _clean_heroes(
+            assistant_enemy_comp or ((enemy_comp_rows[0] or {}).get("heroes") if enemy_comp_rows else []),
+            6,
+        ) if draft_complete else [],
         "their_projected_rate": (enemy_comp_rows[0] or {}).get("rate", 0) if draft_complete and enemy_comp_rows else 0,
         "their_projected_wr": (enemy_comp_rows[0] or {}).get("win_rate", 0) if draft_complete and enemy_comp_rows else 0,
         "team_a": team_a,
@@ -4074,6 +4423,7 @@ def _machine_agent_live_decision_packet(chat_context: dict, visuals: dict | None
         "our_protect_plan": our_protect_plan,
         "enemy_ban_plan": enemy_ban_plan,
         "enemy_protect_plan": enemy_protect_plan,
+        "sequential_evidence": sequential_evidence,
     }
 
 
@@ -4104,8 +4454,9 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     similar_draft_responses = decision_data.get("similar_draft_responses") or []
     similar_draft_strongest_response = decision_data.get("similar_draft_strongest_response") or {}
     similar_draft_max_score = int(decision_data.get("similar_draft_max_score") or 0)
+    sequential_evidence = decision_data.get("sequential_evidence") or {}
     draft_complete = bool(decision_data.get("draft_complete"))
-    if not next_bans and not next_protects and not pivots and not enemy_next_bans:
+    if not next_bans and not next_protects and not pivots and not enemy_next_bans and not enemy_next_protects:
         return ""
 
     def _is_t1_protect_turn_by_counts(ban_count: int, protect_count: int) -> bool:
@@ -4139,11 +4490,27 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         else "enemy_ban"
     )
     active_enemy_pool = enemy_next_protects if active_enemy_action == "enemy_protect" else enemy_next_bans
+    active_relation_rows = (
+        sequential_evidence.get("enemy_protect")
+        if active_enemy_action == "enemy_protect"
+        else sequential_evidence.get("enemy_ban")
+    ) or []
+    active_relation = active_relation_rows[0] if active_relation_rows else {}
 
     most_likely_hero = ""
     most_likely_reason = "No clean historical trigger yet."
     most_likely_confidence = "Low"
-    if active_enemy_pool:
+    if active_relation.get("hero"):
+        most_likely_hero = str(active_relation.get("hero") or "").strip()
+        slot_key = enemy_next_protect_slot_key if active_enemy_action == "enemy_protect" else enemy_next_ban_slot_key
+        action_word = "protect" if active_enemy_action == "enemy_protect" else "ban"
+        most_likely_reason = (
+            f"Historical relation rows for enemy {slot_key or 'next slot'} point to this {action_word}: "
+            f"{int(active_relation.get('count', 0) or 0)} related drafts, "
+            f"confidence {float(active_relation.get('confidence', 0) or 0):.1f}."
+        )
+        most_likely_confidence = "High" if float(active_relation.get("confidence", 0) or 0) >= 70 else "Medium"
+    elif active_enemy_pool:
         most_likely_hero = active_enemy_pool[0]
         most_likely_reason = _enemy_response_reason(most_likely_hero, active_enemy_action)
         most_likely_confidence = _enemy_response_confidence(active_enemy_pool, most_likely_hero)
@@ -4156,7 +4523,9 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
     dangerous_confidence = _enemy_response_confidence(active_enemy_pool, dangerous_hero)
 
     best_historical_response = similar_draft_strongest_response or (similar_draft_responses[0] if similar_draft_responses else {})
-    if best_historical_response.get("hero"):
+    if active_relation.get("hero"):
+        recommended_enemy_move = str(active_relation.get("hero") or "").strip()
+    elif best_historical_response.get("hero"):
         recommended_enemy_move = str(best_historical_response.get("hero") or "").strip()
     else:
         recommended_enemy_move = dangerous_hero if dangerous_hero and dangerous_hero != "Unknown" else most_likely_hero
@@ -4238,7 +4607,9 @@ def _machine_agent_live_decision_fallback(decision_data: dict | None) -> str:
         (f"{recommended_enemy_move} {response_action_label}" if recommended_enemy_move else "Closest historical counter found with Low confidence.")
     )
     reasoning_lines: list[str] = []
-    if recommended_enemy_move:
+    if active_relation.get("hero"):
+        reasoning_lines.append(most_likely_reason)
+    elif recommended_enemy_move:
         reasoning_lines.append(
             f"Projected from {sample_size_text} where {recommended_enemy_move} was the strongest historical {response_action_label} response."
         )

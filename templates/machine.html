@@ -5648,6 +5648,48 @@ function renderReplyHeroStrip(answer, meta) {
         };
     }
 
+    function drBuildLiveAssistantSnapshot() {
+        const suggest = drCloneSuggestState ? drCloneSuggestState() : (drSuggest || {});
+        const clean = function(values, limit) {
+            const seen = new Set();
+            return (values || []).filter(function(value) {
+                const hero = String(value || '').trim();
+                const key = drHeroPoolHeroKey(hero);
+                if (!hero || !key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            }).slice(0, limit);
+        };
+        const compactSide = function(side) {
+            side = side || {};
+            return {
+                bans: clean(side.bans, 4),
+                protects: clean(side.protects, 2),
+                comp: clean(side.comp, 6),
+                ban_path: clean(side.banPath, 4),
+                path_metrics: side.path_metrics || {},
+                ml: side.ml || {},
+            };
+        };
+        const compactEvidence = {};
+        Object.keys((suggest || {}).sequentialEvidence || {}).forEach(function(key) {
+            const row = ((suggest || {}).sequentialEvidence || {})[key] || {};
+            if (!row.hero) return;
+            compactEvidence[key] = {
+                hero: row.hero,
+                count: Number(row.count || 0),
+                score: Number(row.score || 0),
+                confidence: Number(row.confidence || 0),
+                win_rate: Number(row.win_rate || 0),
+            };
+        });
+        return {
+            a: compactSide((suggest || {}).a),
+            b: compactSide((suggest || {}).b),
+            sequential_evidence: compactEvidence,
+        };
+    }
+
     function drBuildLiveAiContext(snapshot) {
         const teamA = document.getElementById('dr-team-a');
         const teamB = document.getElementById('dr-team-b');
@@ -5673,6 +5715,7 @@ function renderReplyHeroStrip(answer, meta) {
             include_scrims: scrims ? scrims.checked : true,
             include_tournaments: tournaments ? tournaments.checked : true,
             draft_live: snapshot,
+            draft_assistant: drBuildLiveAssistantSnapshot(),
         };
     }
 
@@ -5688,6 +5731,7 @@ function renderReplyHeroStrip(answer, meta) {
             include_scrims: ctx.include_scrims,
             include_tournaments: ctx.include_tournaments,
             draft_live: snapshot,
+            draft_assistant: ctx.draft_assistant,
         });
     }
 
