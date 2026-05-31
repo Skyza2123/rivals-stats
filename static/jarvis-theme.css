@@ -1029,9 +1029,30 @@
 ========================================================= */
 
 body {
+  font-family: "Manrope", "Segoe UI", sans-serif;
   background:
     radial-gradient(circle at top, rgba(66, 232, 255, 0.05), transparent 24%),
     linear-gradient(180deg, #020711, #06111e 48%, #020711 100%);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+.topnav-brand-main,
+.jarvis-app .section-kicker,
+.jarvis-prep .section-kicker,
+.jarvis-app .eyebrow,
+.jarvis-prep .eyebrow {
+  font-family: "Orbitron", "Sora", "Manrope", sans-serif;
+}
+
+.jarvis-app code,
+.jarvis-prep code,
+.jarvis-app pre,
+.jarvis-prep pre {
+  font-family: "Space Mono", "Consolas", monospace;
 }
 
 .topnav {
@@ -1039,14 +1060,52 @@ body {
   top: 0;
   z-index: 90;
   backdrop-filter: blur(18px);
-  background: linear-gradient(180deg, rgba(3, 10, 20, 0.92), rgba(3, 10, 20, 0.72));
-  border-bottom: 1px solid rgba(66, 232, 255, 0.14);
+  background:
+    radial-gradient(circle at 16% -120%, rgba(66, 232, 255, 0.24), transparent 38%),
+    linear-gradient(180deg, rgba(3, 10, 20, 0.95), rgba(3, 10, 20, 0.76));
+  border-bottom: 1px solid rgba(66, 232, 255, 0.22);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
 }
 
 .topnav-inner {
   max-width: 1560px;
   margin: 0 auto;
+}
+
+.topnav-brand {
+  display: inline-grid;
+  gap: 1px;
+  line-height: 1;
+}
+
+.topnav-brand-main {
+  color: var(--j-cyan);
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(66, 232, 255, 0.36);
+}
+
+.topnav-brand-sub {
+  color: var(--j-muted);
+  font-size: 0.59rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.topnav-workspace {
+  font-family: "Space Mono", "Consolas", monospace;
+  font-size: 0.73rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topnav-link {
+  font-family: "Orbitron", "Sora", "Manrope", sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
 }
 
 .topnav-brand,
@@ -1105,6 +1164,137 @@ body {
 .nav-drawer-overlay {
   background: rgba(1, 5, 12, 0.72);
   backdrop-filter: blur(8px);
+}
+
+.jarvis-boot-open {
+  overflow: hidden;
+}
+
+.jarvis-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(66, 232, 255, 0.16), transparent 36%),
+    rgba(2, 8, 18, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.jarvis-boot-overlay.show {
+  display: flex;
+}
+
+.jarvis-boot-card {
+  width: min(540px, 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(66, 232, 255, 0.28);
+  background:
+    linear-gradient(180deg, rgba(6, 18, 34, 0.95), rgba(3, 12, 24, 0.96));
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 34px rgba(66, 232, 255, 0.14);
+  padding: 26px;
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  position: relative;
+}
+
+.jarvis-boot-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(66, 232, 255, 0.12), transparent);
+  transform: translateX(-120%);
+  animation: jarvisBootSweep 1.8s ease-out infinite;
+}
+
+.jarvis-boot-card strong {
+  color: var(--j-cyan);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+}
+
+.jarvis-boot-progress {
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(66, 232, 255, 0.24);
+  background: rgba(66, 232, 255, 0.08);
+  overflow: hidden;
+}
+
+.jarvis-boot-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f80ff, #42e8ff);
+  box-shadow: 0 0 16px rgba(66, 232, 255, 0.46);
+  animation: jarvisBootProgress 2.15s cubic-bezier(0.2, 0.75, 0.25, 1) forwards;
+}
+
+.jarvis-boot-lines {
+  display: grid;
+  gap: 5px;
+  color: #bfeeff;
+  font-family: "Space Mono", "Consolas", monospace;
+  font-size: 0.77rem;
+  line-height: 1.45;
+}
+
+.jarvis-boot-lines span {
+  opacity: 0;
+  animation: jarvisBootLine 0.4s ease forwards;
+}
+
+.jarvis-boot-lines span:nth-child(1) { animation-delay: 0.12s; }
+.jarvis-boot-lines span:nth-child(2) { animation-delay: 0.3s; }
+.jarvis-boot-lines span:nth-child(3) { animation-delay: 0.48s; }
+.jarvis-boot-lines span:nth-child(4) { animation-delay: 0.66s; }
+
+.jarvis-boot-meta {
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: var(--j-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: "Space Mono", "Consolas", monospace;
+}
+
+@keyframes jarvisBootSweep {
+  0% { transform: translateX(-120%); }
+  70%, 100% { transform: translateX(120%); }
+}
+
+@keyframes jarvisBootProgress {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+@keyframes jarvisBootLine {
+  0% { opacity: 0; transform: translateX(-4px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 720px) {
+  .jarvis-boot-card {
+    padding: 20px;
+    gap: 12px;
+  }
+
+  .topnav-brand-sub {
+    font-size: 0.52rem;
+  }
 }
 
 .jarvis-hero,

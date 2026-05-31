@@ -1,0 +1,506 @@
+/*
+   JARVIS Theme System
+   Based on provided style guide tokens/components, mapped across existing site classes.
+*/
+
+:root {
+  --j-bg: #020e10;
+  --j-bg-panel: #010a0c;
+  --j-cyan: #00e5ff;
+  --j-green: #00ff88;
+  --j-amber: #ffaa00;
+  --j-red: #ff3344;
+  --j-dim: #007a8a;
+  --j-border: #004d5e;
+  --j-border-dim: #003040;
+  --j-font: "Share Tech Mono", monospace;
+  --j-radius: 2px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--j-bg);
+  color: var(--j-cyan);
+  font-family: var(--j-font);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+strong,
+label,
+button,
+.topnav-link,
+.command-rail-link,
+.command-kicker,
+.section-kicker,
+.eyebrow,
+.j-label,
+.j-panel-title {
+  font-family: var(--j-font);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+small,
+.muted-text,
+.empty-text,
+.panel-intro,
+.j-body {
+  color: var(--j-dim);
+}
+
+/* Layout shell */
+.site-layout {
+  background: var(--j-bg);
+}
+
+.command-rail,
+.command-topbar,
+.command-stage-header,
+.nav-drawer,
+.page-busy-card {
+  background: var(--j-bg-panel);
+  border: 1px solid var(--j-border);
+  border-radius: var(--j-radius);
+  box-shadow: none;
+}
+
+.command-rail-head,
+.command-rail-status,
+.panel-header,
+.panel-header-row,
+.nav-drawer-header {
+  border-color: var(--j-border-dim);
+}
+
+.command-rail-link,
+.topnav-link,
+.nav-drawer-link {
+  color: var(--j-dim);
+  border: 1px solid transparent;
+  border-radius: var(--j-radius);
+  font-size: 9px;
+}
+
+.command-rail-link:hover,
+.command-rail-link.active,
+.topnav-link:hover,
+.topnav-link.active,
+.nav-drawer-link:hover,
+.nav-drawer-link.active {
+  color: var(--j-cyan);
+  background: var(--j-border-dim);
+  border-color: var(--j-border);
+  text-decoration: none;
+}
+
+.topnav,
+.command-topbar,
+.topnav-search,
+.theme-picker,
+.topnav-icon-btn,
+.topnav-burger,
+.topnav-workspace {
+  border-color: var(--j-border);
+  background: var(--j-bg-panel);
+  box-shadow: none;
+}
+
+.topnav-brand-main,
+.topnav-brand-sub,
+.command-rail-node,
+.command-rail-status span,
+.command-stage-telemetry span {
+  font-family: var(--j-font);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.topnav-brand-main {
+  color: var(--j-cyan);
+  text-shadow: none;
+}
+
+.topnav-brand-sub,
+.command-rail-section,
+.command-kicker {
+  color: var(--j-dim);
+}
+
+.command-stage-telemetry span,
+.command-rail-node,
+.j-badge,
+.jarvis-chip,
+.chip,
+.compare-tag,
+.pill,
+.hero-card-pill,
+.hero-tier-pill,
+.team-scout-page-chip,
+.tdash-chips span,
+.metric-text,
+.team-map-chip,
+.team-map-mode,
+.team-map-rate {
+  border: 1px solid currentColor;
+  border-radius: var(--j-radius);
+  background: transparent;
+  padding: 2px 8px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.command-stage-telemetry span,
+.jarvis-chip,
+.chip,
+.compare-tag,
+.pill,
+.metric-text,
+.team-map-chip,
+.team-map-mode,
+.team-map-rate {
+  color: var(--j-cyan);
+}
+
+.metric-good,
+.compare-tag-positive {
+  color: var(--j-green) !important;
+}
+
+.metric-bad,
+.compare-tag-negative {
+  color: var(--j-red) !important;
+}
+
+.metric-warn {
+  color: var(--j-amber) !important;
+}
+
+/* Core panel language */
+.panel,
+.jarvis-panel,
+.dense-collapsible,
+.jarvis-card,
+.stat-card,
+.analysis-card,
+.prep-comp-card,
+.prep-combo4-card,
+.dashboard-module,
+.dashboard-metric-card,
+.dashboard-team-card,
+.parser-scrim-card,
+.team-dash-card,
+.team-row-card,
+.tdash-filter-card,
+.tdash-mini-kpis article,
+.tdash-note-card,
+.tdash-mini-card,
+.tdash-action-card,
+.team-hero-card,
+.hero-pool-read-card,
+.hero-browser-panel,
+.mode-card,
+.insight-card,
+.ban-kpi-card,
+.ban-intel-card,
+.scrim-accordion-item,
+.modal-card,
+.scrim-accordion-item,
+.prep-context-stage,
+.prep-context-guide,
+.prep-note-card {
+  position: relative;
+  background: var(--j-bg-panel) !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  box-shadow: none !important;
+}
+
+/* Small panel accent line language */
+.panel::before,
+.jarvis-panel::before,
+.dense-collapsible::before,
+.modal-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 8px;
+  width: 24px;
+  height: 1px;
+  background: var(--j-cyan);
+}
+
+.panel::after,
+.jarvis-panel::after,
+.dense-collapsible::after,
+.modal-card::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  width: 24px;
+  height: 1px;
+  background: var(--j-cyan);
+}
+
+.panel-header,
+.panel-header-row,
+.dense-collapsible summary {
+  background: transparent !important;
+  border-bottom: 1px solid var(--j-border-dim) !important;
+}
+
+.section-kicker,
+.eyebrow,
+.panel-title,
+.prep-chart-title,
+.player-chart-label {
+  color: var(--j-dim) !important;
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.section-kicker::before,
+.eyebrow::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: none;
+}
+
+/* Hero / top modules: strip rounded glow look */
+.tdash-hero,
+.jarvis-hero,
+.draft-sim-hero,
+.prep-command-board,
+.main-header,
+.command-stage-header {
+  background: var(--j-bg-panel) !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  box-shadow: none !important;
+}
+
+/* Forms */
+input,
+select,
+textarea,
+.j-input,
+.team-range-select,
+.theme-select,
+.topnav-search input {
+  background: var(--j-bg-panel) !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  color: var(--j-cyan) !important;
+  font-family: var(--j-font);
+  box-shadow: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--j-dim);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--j-cyan) !important;
+  box-shadow: none !important;
+}
+
+/* Buttons */
+button,
+.j-btn,
+.button-secondary,
+.button-small,
+.button-link,
+.dash-page-link,
+.rt-toggle,
+.tab-btn,
+.hero-pick-btn,
+.topnav-icon-btn,
+.topnav-burger {
+  background: transparent !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  color: var(--j-cyan) !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: var(--j-font);
+  box-shadow: none !important;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+button:hover,
+.j-btn:hover,
+.button-secondary:hover,
+.button-small:hover,
+.button-link:hover,
+.dash-page-link:hover,
+.rt-toggle:hover,
+.tab-btn:hover,
+.hero-pick-btn:hover,
+.topnav-icon-btn:hover,
+.topnav-burger:hover {
+  background: var(--j-border-dim) !important;
+  border-color: var(--j-cyan) !important;
+  transform: none !important;
+}
+
+.tab-btn.tab-active {
+  border-color: var(--j-cyan) !important;
+  color: var(--j-cyan) !important;
+  background: transparent !important;
+}
+
+/* Tables */
+.table-wrap,
+.matrix-table-wrap,
+.jarvis-table-wrap,
+.prep-chart-wrap,
+.role-donut-wrap,
+.hero-pool-bar-wrap,
+.enemy-trend-chart-wrap,
+.prep-chart-block,
+#prepHeroAnovaSummary,
+#heroUsageTimelineWrap {
+  background: var(--j-bg-panel) !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  box-shadow: none !important;
+}
+
+.prep-chart-wrap::before,
+.role-donut-wrap::before,
+.hero-pool-bar-wrap::before,
+.enemy-trend-chart-wrap::before,
+.prep-chart-block::before,
+#prepHeroAnovaSummary::before {
+  background-image: none !important;
+}
+
+table,
+.stats-table,
+.j-table {
+  border-collapse: collapse;
+}
+
+table th,
+.stats-table th,
+.j-table th {
+  color: var(--j-dim) !important;
+  background: transparent !important;
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 400;
+  border-bottom: 1px solid var(--j-border) !important;
+}
+
+table td,
+.stats-table td,
+.j-table td {
+  color: var(--j-cyan);
+  font-size: 10px;
+  border-bottom: 1px solid var(--j-border-dim) !important;
+}
+
+table tr:hover td,
+.stats-table tr:hover td,
+.j-table tbody tr:hover {
+  background: var(--j-border-dim) !important;
+}
+
+/* Logs / terminal visuals */
+.assistant-note,
+.parser-module-note,
+.dr-turn-status,
+.j-terminal,
+.j-log {
+  background: var(--j-bg-panel) !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  color: var(--j-dim);
+}
+
+.assistant-note b,
+.j-log--active,
+.j-terminal .cmd,
+.j-terminal .prompt {
+  color: var(--j-cyan) !important;
+}
+
+.signal-good,
+.j-text-green {
+  color: var(--j-green) !important;
+}
+
+.signal-warn,
+.j-text-amber {
+  color: var(--j-amber) !important;
+}
+
+.signal-bad,
+.j-text-red {
+  color: var(--j-red) !important;
+}
+
+/* Boot overlay in same token language */
+.jarvis-boot-card,
+.page-busy-card {
+  background: var(--j-bg-panel) !important;
+  border: 1px solid var(--j-border) !important;
+  border-radius: var(--j-radius) !important;
+  box-shadow: none !important;
+}
+
+.jarvis-boot-card strong,
+.page-busy-card strong {
+  color: var(--j-cyan);
+  letter-spacing: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.jarvis-boot-progress,
+.page-busy-spinner {
+  border-color: var(--j-border) !important;
+  background: var(--j-border-dim) !important;
+}
+
+.jarvis-boot-progress span,
+.page-busy-spinner {
+  box-shadow: none !important;
+}
+
+/* Utility j-classes from the attached style guide */
+.j-text-cyan { color: var(--j-cyan); }
+.j-text-green { color: var(--j-green); }
+.j-text-amber { color: var(--j-amber); }
+.j-text-red { color: var(--j-red); }
+.j-text-dim { color: var(--j-dim); }
+.j-caps { text-transform: uppercase; letter-spacing: 2px; }
+.j-flex { display: flex; align-items: center; }
+.j-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.j-gap-sm { gap: 6px; }
+.j-gap-md { gap: 12px; }
+.j-gap-lg { gap: 20px; }
+
+@media (max-width: 1180px) {
+  .command-mobile-brand {
+    display: inline-grid;
+  }
+}

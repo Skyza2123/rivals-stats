@@ -1,0 +1,314 @@
+/*
+   Unified Jarvis HUD layer
+   Loaded last to keep a clean, consistent command-surface style across all pages.
+*/
+
+:where(.jarvis-app, .jarvis-prep) {
+  --hud-bg: rgba(4, 14, 26, 0.82);
+  --hud-bg-strong: rgba(6, 18, 34, 0.9);
+  --hud-border: rgba(90, 214, 245, 0.26);
+  --hud-border-strong: rgba(90, 214, 245, 0.42);
+  --hud-text: #ddf6ff;
+  --hud-muted: #91b8c8;
+  --hud-glow: 0 0 0 1px rgba(90, 214, 245, 0.14), 0 12px 34px rgba(0, 0, 0, 0.24);
+  --hud-radius: 16px;
+  --hud-radius-sm: 12px;
+  --hud-radius-lg: 22px;
+}
+
+/* Keep chrome simple and uniform. */
+.topnav {
+  border-bottom-color: rgba(90, 214, 245, 0.24);
+  background:
+    linear-gradient(180deg, rgba(5, 15, 30, 0.96), rgba(4, 12, 24, 0.8));
+}
+
+.topnav-brand-sub,
+.topnav-workspace,
+.topnav-link,
+.nav-drawer-link,
+.nav-drawer-group-label {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topnav-link,
+.nav-drawer-link,
+.topnav-icon-btn,
+.topnav-burger,
+.topnav-search,
+.theme-picker,
+.topnav-workspace {
+  border-color: rgba(90, 214, 245, 0.2);
+  background: rgba(4, 12, 24, 0.58);
+}
+
+.topnav-link:hover,
+.topnav-link.active,
+.nav-drawer-link:hover,
+.nav-drawer-link.active,
+.topnav-icon-btn:hover,
+.topnav-burger:hover,
+.theme-picker:hover,
+.theme-picker:focus-within {
+  border-color: rgba(90, 214, 245, 0.42);
+  background: rgba(90, 214, 245, 0.12);
+  box-shadow: 0 0 0 1px rgba(90, 214, 245, 0.16);
+}
+
+.nav-drawer {
+  background: linear-gradient(180deg, rgba(4, 12, 24, 0.98), rgba(3, 9, 18, 0.98));
+  border-right-color: rgba(90, 214, 245, 0.24);
+}
+
+.nav-drawer-overlay {
+  background: rgba(2, 7, 14, 0.72);
+}
+
+/* Unified surfaces for all modules/cards/panels. */
+:where(.jarvis-app, .jarvis-prep) :is(
+  .panel,
+  .jarvis-panel,
+  .dense-collapsible,
+  .jarvis-card,
+  .stat-card,
+  .analysis-card,
+  .prep-comp-card,
+  .prep-combo4-card,
+  .dashboard-module,
+  .dashboard-metric-card,
+  .dashboard-team-card,
+  .parser-scrim-card,
+  .team-dash-card,
+  .team-row-card,
+  .tdash-filter-card,
+  .tdash-mini-kpis article,
+  .tdash-note-card,
+  .tdash-mini-card,
+  .tdash-action-card,
+  .team-hero-card,
+  .hero-pool-read-card,
+  .hero-browser-panel,
+  .mode-card,
+  .insight-card,
+  .ban-kpi-card,
+  .ban-intel-card,
+  .scrim-accordion-item,
+  .modal-card
+) {
+  border: 1px solid var(--hud-border);
+  border-radius: var(--hud-radius-lg);
+  background: linear-gradient(180deg, var(--hud-bg-strong), var(--hud-bg));
+  box-shadow: var(--hud-glow);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(.panel-header, .panel-header-row) {
+  border-bottom: 1px solid var(--hud-border);
+  background: linear-gradient(90deg, rgba(90, 214, 245, 0.1), rgba(90, 214, 245, 0));
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(.stat-card, .jarvis-card)::before {
+  display: none;
+}
+
+/* Hero sections get the same simple shell treatment. */
+:where(.jarvis-app, .jarvis-prep) :is(
+  .tdash-hero,
+  .jarvis-hero,
+  .draft-sim-hero,
+  .prep-command-board,
+  .main-header
+) {
+  border: 1px solid var(--hud-border-strong);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(90, 214, 245, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(7, 20, 38, 0.95), rgba(4, 12, 24, 0.9));
+  box-shadow: 0 0 0 1px rgba(90, 214, 245, 0.1), 0 18px 46px rgba(0, 0, 0, 0.3);
+}
+
+/* Tables */
+:where(.jarvis-app, .jarvis-prep) :is(.table-wrap, .matrix-table-wrap, .jarvis-table-wrap) {
+  border: 1px solid var(--hud-border);
+  border-radius: var(--hud-radius);
+  background: rgba(4, 13, 24, 0.72);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(table, .stats-table) th {
+  background: rgba(90, 214, 245, 0.1);
+  color: #8ee7ff;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(table, .stats-table) th,
+:where(.jarvis-app, .jarvis-prep) :is(table, .stats-table) td {
+  border-bottom-color: rgba(90, 214, 245, 0.15);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(table, .stats-table) tr:hover td {
+  background: rgba(90, 214, 245, 0.06);
+}
+
+/* Inputs and filters */
+:where(.jarvis-app, .jarvis-prep) :is(input, select, textarea) {
+  border-radius: var(--hud-radius-sm);
+  border: 1px solid rgba(90, 214, 245, 0.28);
+  background: rgba(4, 12, 24, 0.78);
+  color: var(--hud-text);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(input, select, textarea)::placeholder {
+  color: var(--hud-muted);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(input, select, textarea):focus {
+  border-color: rgba(90, 214, 245, 0.6);
+  box-shadow: 0 0 0 3px rgba(90, 214, 245, 0.12);
+}
+
+/* Buttons and action controls */
+:where(.jarvis-app, .jarvis-prep) :is(
+  .button-secondary,
+  .button-small,
+  .button-link,
+  button,
+  .dash-page-link,
+  .hero-pick-btn,
+  .tab-btn,
+  .rt-toggle
+) {
+  border: 1px solid rgba(90, 214, 245, 0.28);
+  border-radius: var(--hud-radius-sm);
+  background: rgba(90, 214, 245, 0.1);
+  color: var(--hud-text);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(
+  .button-secondary:hover,
+  .button-small:hover,
+  .button-link:hover,
+  button:hover,
+  .dash-page-link:hover,
+  .hero-pick-btn:hover,
+  .tab-btn:hover,
+  .rt-toggle:hover
+) {
+  border-color: rgba(90, 214, 245, 0.5);
+  background: rgba(90, 214, 245, 0.16);
+  box-shadow: 0 0 0 1px rgba(90, 214, 245, 0.2);
+  transform: none;
+}
+
+:where(.jarvis-app, .jarvis-prep) .tab-btn.tab-active {
+  border-color: rgba(90, 214, 245, 0.62);
+  background: linear-gradient(180deg, rgba(90, 214, 245, 0.34), rgba(90, 214, 245, 0.18));
+  color: #ecfbff;
+}
+
+/* Chips, tags, badges */
+:where(.jarvis-app, .jarvis-prep) :is(
+  .chip,
+  .jarvis-chip,
+  .compare-tag,
+  .pill,
+  .hero-card-pill,
+  .hero-tier-pill,
+  .team-scout-page-chip,
+  .tdash-chips span,
+  .metric-text,
+  .team-map-chip,
+  .team-map-mode,
+  .team-map-rate
+) {
+  border: 1px solid rgba(90, 214, 245, 0.3);
+  border-radius: 999px;
+  background: rgba(90, 214, 245, 0.1);
+  color: #a7edff;
+  box-shadow: none;
+}
+
+/* Keep chart shells simple and less noisy. */
+:where(.jarvis-app, .jarvis-prep) :is(
+  .prep-chart-wrap,
+  .role-donut-wrap,
+  .hero-pool-bar-wrap,
+  .enemy-trend-chart-wrap,
+  .prep-chart-block,
+  #prepHeroAnovaSummary,
+  #heroUsageTimelineWrap
+) {
+  border: 1px solid var(--hud-border);
+  border-radius: 18px;
+  background: rgba(5, 15, 28, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(90, 214, 245, 0.08);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(
+  .prep-chart-wrap::before,
+  .role-donut-wrap::before,
+  .hero-pool-bar-wrap::before,
+  .enemy-trend-chart-wrap::before,
+  .prep-chart-block::before,
+  #prepHeroAnovaSummary::before
+) {
+  opacity: 0.14;
+}
+
+/* Readability defaults */
+:where(.jarvis-app, .jarvis-prep) :is(p, small, .panel-intro, .muted-text, .empty-text) {
+  color: var(--hud-muted);
+}
+
+:where(.jarvis-app, .jarvis-prep) :is(h1, h2, h3, h4, h5, strong) {
+  color: var(--hud-text);
+}
+
+/* Mobile consistency */
+@media (max-width: 900px) {
+  :where(.jarvis-app, .jarvis-prep) :is(
+    .tdash-hero,
+    .jarvis-hero,
+    .draft-sim-hero,
+    .prep-command-board,
+    .main-header
+  ) {
+    border-radius: 20px;
+  }
+
+  :where(.jarvis-app, .jarvis-prep) :is(
+    .panel,
+    .jarvis-panel,
+    .dense-collapsible,
+    .jarvis-card,
+    .stat-card,
+    .analysis-card,
+    .prep-comp-card,
+    .prep-combo4-card,
+    .dashboard-module,
+    .dashboard-metric-card,
+    .dashboard-team-card,
+    .parser-scrim-card,
+    .team-dash-card,
+    .team-row-card,
+    .tdash-filter-card,
+    .tdash-mini-kpis article,
+    .tdash-note-card,
+    .tdash-mini-card,
+    .tdash-action-card,
+    .team-hero-card,
+    .hero-pool-read-card,
+    .hero-browser-panel,
+    .mode-card,
+    .insight-card,
+    .ban-kpi-card,
+    .ban-intel-card,
+    .scrim-accordion-item,
+    .modal-card
+  ) {
+    border-radius: 16px;
+  }
+}

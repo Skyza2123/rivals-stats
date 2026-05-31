@@ -1,0 +1,335 @@
+/*
+   Jarvis Layout V2
+   Structural app-shell redesign: persistent rail + command topbar + stage container.
+*/
+
+:root {
+  --layout-gap: 18px;
+  --rail-width: 248px;
+  --rail-border: rgba(90, 214, 245, 0.24);
+  --surface-border: rgba(90, 214, 245, 0.2);
+  --surface-bg: rgba(4, 13, 24, 0.84);
+  --surface-bg-strong: rgba(5, 16, 31, 0.94);
+  --surface-glow: 0 0 0 1px rgba(90, 214, 245, 0.12), 0 16px 36px rgba(0, 0, 0, 0.24);
+  --surface-radius: 18px;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 6% 8%, rgba(90, 214, 245, 0.18), transparent 25%),
+    radial-gradient(circle at 92% 16%, rgba(47, 128, 255, 0.14), transparent 26%),
+    linear-gradient(180deg, #020711, #04101d 48%, #020711 100%);
+}
+
+.site-layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  gap: var(--layout-gap);
+  padding: 16px;
+}
+
+.command-rail {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--rail-border);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(6, 18, 32, 0.96), rgba(3, 10, 20, 0.98));
+  box-shadow: var(--surface-glow);
+}
+
+.command-rail::-webkit-scrollbar {
+  width: 8px;
+}
+
+.command-rail::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(90, 214, 245, 0.26);
+}
+
+.command-rail-head {
+  display: grid;
+  gap: 10px;
+  padding: 4px 2px 14px;
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: 12px;
+}
+
+.command-rail-brand {
+  display: grid;
+  gap: 2px;
+  text-decoration: none;
+}
+
+.command-rail-node {
+  border: 1px solid rgba(90, 214, 245, 0.2);
+  border-radius: 999px;
+  background: rgba(90, 214, 245, 0.1);
+  color: #b7eeff;
+  padding: 7px 10px;
+  font-family: "Space Mono", "Consolas", monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.command-rail-section {
+  margin: 14px 2px 8px;
+  color: #8bc6da;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.command-rail-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.command-rail-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0 12px;
+  color: #b8dae8;
+  text-decoration: none;
+  font-family: "Orbitron", "Sora", sans-serif;
+  font-size: 0.71rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  background: transparent;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.command-rail-link:hover,
+.command-rail-link.active {
+  color: #e9f9ff;
+  border-color: rgba(90, 214, 245, 0.4);
+  background: rgba(90, 214, 245, 0.16);
+}
+
+.command-rail-status {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--surface-border);
+  display: grid;
+  gap: 6px;
+}
+
+.command-rail-status span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #8fcfe0;
+  font-family: "Space Mono", "Consolas", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.command-rail-status span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #42ff9e;
+  box-shadow: 0 0 10px rgba(66, 255, 158, 0.65);
+}
+
+.command-main {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.command-topbar {
+  position: sticky;
+  top: 16px;
+  z-index: 180;
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(7, 20, 36, 0.96), rgba(4, 12, 24, 0.86));
+  box-shadow: var(--surface-glow);
+}
+
+.command-topbar .command-topbar-inner {
+  max-width: none;
+  height: 62px;
+  padding: 0 14px;
+}
+
+.command-topbar-title {
+  display: grid;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.command-kicker {
+  color: #8ec3d5;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.command-topbar-title strong {
+  color: #e8f9ff;
+  font-family: "Orbitron", "Sora", sans-serif;
+  font-size: 0.84rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.command-mobile-brand {
+  display: none;
+}
+
+.command-stage {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.command-stage-header {
+  border: 1px solid var(--surface-border);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(90, 214, 245, 0.16), transparent 30%),
+    linear-gradient(180deg, var(--surface-bg-strong), var(--surface-bg));
+  box-shadow: var(--surface-glow);
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.command-stage-headline {
+  display: grid;
+  gap: 6px;
+}
+
+.command-stage-headline h1 {
+  margin: 0;
+  font-family: "Orbitron", "Sora", sans-serif;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.command-stage-telemetry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.command-stage-telemetry span {
+  border: 1px solid rgba(90, 214, 245, 0.26);
+  border-radius: 999px;
+  background: rgba(90, 214, 245, 0.1);
+  color: #a5e9fb;
+  padding: 7px 10px;
+  font-family: "Space Mono", "Consolas", monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.command-content {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.command-content.jarvis-app {
+  padding: 0;
+}
+
+.command-content .page {
+  max-width: none;
+}
+
+/* Keep legacy classes from fighting the new shell. */
+.dashboard-layout {
+  min-height: 0;
+}
+
+.main-content {
+  width: 100%;
+  max-width: none;
+}
+
+.topnav-links,
+.topnav-workspace {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .site-layout {
+    grid-template-columns: 1fr;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .command-rail {
+    display: none;
+  }
+
+  .command-mobile-brand {
+    display: inline-grid;
+    margin-left: 4px;
+  }
+
+  .command-topbar-title {
+    margin-left: 4px;
+  }
+
+  .command-topbar .topnav-search {
+    display: none;
+  }
+
+  .command-stage-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .command-stage-telemetry {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .command-topbar .command-topbar-inner {
+    padding: 0 10px;
+    height: 58px;
+  }
+
+  .command-topbar-title strong {
+    font-size: 0.74rem;
+  }
+
+  .command-topbar .topnav-right {
+    gap: 6px;
+  }
+
+  .command-topbar .theme-picker {
+    min-width: 88px;
+  }
+}

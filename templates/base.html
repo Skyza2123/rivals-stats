@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" href="{{ static_asset_url('favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Orbitron:wght@500;700;800&family=Share+Tech+Mono&family=Sora:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script>
     (function () {
         var stored = localStorage.getItem('rivals-theme');
@@ -25,6 +25,9 @@
     <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme.css') }}&rev=20260521c">
     <link rel="stylesheet" href="{{ static_asset_url('jarvis-pages.css') }}&rev=20260522a">
     <link rel="stylesheet" href="{{ static_asset_url('team-dashboard.css') }}&rev=20260522a">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-unified.css') }}&rev=20260531a">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-layout-v2.css') }}&rev=20260531a">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme-system.css') }}&rev=20260531a">
     {% block chart_scripts %}{% endblock %}
     <script>
     function getThemeCssVar(name, fallback) {
@@ -105,44 +108,118 @@
     {% set machine_matchup_active = request.path == '/machine' and not request.args.get('tab') %}
     {% set machine_active = request.path == '/machine' %}
     {% set tools_active = request.path.startswith('/draft-simulator') or request.path.startswith('/players/rankings') or request.path.startswith('/teams/compare') or request.path.startswith('/players/compare') %}
-    <header class="topnav">
-        <div class="topnav-inner">
-            <button class="topnav-burger" id="navDrawerToggle" aria-label="Open navigation" aria-expanded="false">
-                <span></span><span></span><span></span>
-            </button>
-            <a href="{{ url_for('dashboard') }}" class="topnav-brand">Scrim Dashboard</a>
-            <div class="topnav-workspace" aria-label="Current workspace">Swamp Gaming</div>
-            <nav class="topnav-links" aria-label="Main navigation">
-                <a href="{{ url_for('dashboard') }}" class="topnav-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="{{ url_for('teams') }}" class="topnav-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
-                <a href="{{ url_for('tournaments') }}" class="topnav-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
-                <a href="{{ url_for('team_scouting') }}" class="topnav-link {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
-                <a href="{{ url_for('machine', tab='chat') }}" class="topnav-link {% if machine_chat_active %}active{% endif %}">Analyst</a>
-                <a href="{{ url_for('machine', tab='reasoner') }}" class="topnav-link {% if machine_reasoner_active %}active{% endif %}">Coaching</a>
-                <a href="{{ url_for('draft_simulator') }}" class="topnav-link {% if tools_active %}active{% endif %}">Data Tools</a>
-            </nav>
-            <div class="topnav-right">
-                <label class="topnav-search" aria-label="Search">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <input type="search" placeholder="Search..." aria-label="Search">
-                </label>
-                <label class="theme-picker" for="themeSelect" title="Theme">
-                    <span class="theme-picker-dot" aria-hidden="true"></span>
-                    <select id="themeSelect" class="theme-select" aria-label="Theme color">
-                        <option value="blue">Blue</option>
-                        <option value="green">Green</option>
-                        <option value="red">Red</option>
-                        <option value="black">Black</option>
-                    </select>
-                </label>
-                <a href="{{ url_for('logout') }}" class="topnav-icon-btn" title="Logout">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                </a>
+    {% set stage_title = 'Dashboard' %}
+    {% if request.path.startswith('/teams/compare') %}
+        {% set stage_title = 'Team Compare' %}
+    {% elif request.path.startswith('/teams') %}
+        {% set stage_title = 'Teams' %}
+    {% elif request.path.startswith('/tournaments') %}
+        {% set stage_title = 'Tournaments' %}
+    {% elif request.path.startswith('/team-scouting') %}
+        {% set stage_title = 'Scouting' %}
+    {% elif request.path.startswith('/machine') %}
+        {% set stage_title = 'Machine Assistant' %}
+    {% elif request.path.startswith('/draft-simulator') %}
+        {% set stage_title = 'Draft Simulator' %}
+    {% elif request.path.startswith('/players/rankings') %}
+        {% set stage_title = 'Player Rankings' %}
+    {% elif request.path.startswith('/players/compare') %}
+        {% set stage_title = 'Player Compare' %}
+    {% endif %}
+
+    <div id="jarvisBootOverlay" class="jarvis-boot-overlay" aria-hidden="true">
+        <div class="jarvis-boot-card" role="status" aria-live="polite">
+            <strong>INITIALIZING SYSTEM...</strong>
+            <div class="jarvis-boot-progress" aria-hidden="true">
+                <span></span>
+            </div>
+            <div class="jarvis-boot-lines" aria-hidden="true">
+                <span>&gt; Loading core modules...</span>
+                <span>&gt; Syncing tactical feeds...</span>
+                <span>&gt; Validating command uplink...</span>
+                <span>&gt; Calibrating analysis matrix...</span>
+            </div>
+            <div class="jarvis-boot-meta">
+                <span>STARK INDUSTRIES</span>
+                <span>MARK LXXXV // OS v10.4</span>
             </div>
         </div>
-    </header>
+    </div>
 
-    <div class="app-shell">
+    <div class="site-layout">
+        <aside class="command-rail" aria-label="Primary navigation">
+            <div class="command-rail-head">
+                <a href="{{ url_for('dashboard') }}" class="command-rail-brand">
+                    <span class="topnav-brand-main">JARVIS</span>
+                    <span class="topnav-brand-sub">TACTICAL COMMAND</span>
+                </a>
+                <div class="command-rail-node">SWAMP GAMING // ACTIVE LINK</div>
+            </div>
+
+            <nav class="command-rail-nav" aria-label="Core">
+                <a href="{{ url_for('dashboard') }}" class="command-rail-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('teams') }}" class="command-rail-link {% if request.path.startswith('/teams') and not request.path.startswith('/teams/compare') %}active{% endif %}">Teams</a>
+                <a href="{{ url_for('tournaments') }}" class="command-rail-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
+                <a href="{{ url_for('team_scouting') }}" class="command-rail-link {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
+            </nav>
+
+            <div class="command-rail-section">Machine</div>
+            <nav class="command-rail-nav" aria-label="Machine">
+                <a href="{{ url_for('machine', tab='chat') }}" class="command-rail-link {% if machine_chat_active %}active{% endif %}">Analyst</a>
+                <a href="{{ url_for('machine') }}" class="command-rail-link {% if machine_matchup_active %}active{% endif %}">Draft Matchup</a>
+                <a href="{{ url_for('machine', tab='reasoner') }}" class="command-rail-link {% if machine_reasoner_active %}active{% endif %}">Draft Reasoner</a>
+            </nav>
+
+            <div class="command-rail-section">Tools</div>
+            <nav class="command-rail-nav" aria-label="Tools">
+                <a href="{{ url_for('draft_simulator') }}" class="command-rail-link {% if request.path.startswith('/draft-simulator') %}active{% endif %}">Draft Prep</a>
+                <a href="{{ url_for('player_rankings') }}" class="command-rail-link {% if request.path.startswith('/players/rankings') %}active{% endif %}">Player Rankings</a>
+                <a href="{{ url_for('teams_compare') }}" class="command-rail-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
+                <a href="{{ url_for('player_compare') }}" class="command-rail-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
+            </nav>
+
+            <div class="command-rail-status">
+                <span>CORE ONLINE</span>
+                <span>ENCRYPTION STABLE</span>
+            </div>
+        </aside>
+
+        <div class="command-main">
+            <header class="topnav command-topbar">
+                <div class="topnav-inner command-topbar-inner">
+                    <button class="topnav-burger" id="navDrawerToggle" aria-label="Open navigation" aria-expanded="false">
+                        <span></span><span></span><span></span>
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="topnav-brand command-mobile-brand">
+                        <span class="topnav-brand-main">JARVIS</span>
+                        <span class="topnav-brand-sub">Tactical Command</span>
+                    </a>
+                    <div class="command-topbar-title">
+                        <span class="command-kicker">Command Surface</span>
+                        <strong>{{ stage_title }}</strong>
+                    </div>
+                    <div class="topnav-right">
+                        <label class="topnav-search" aria-label="Search">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="search" placeholder="Search..." aria-label="Search">
+                        </label>
+                        <label class="theme-picker" for="themeSelect" title="Theme">
+                            <span class="theme-picker-dot" aria-hidden="true"></span>
+                            <select id="themeSelect" class="theme-select" aria-label="Theme color">
+                                <option value="blue">Blue</option>
+                                <option value="green">Green</option>
+                                <option value="red">Red</option>
+                                <option value="black">Black</option>
+                            </select>
+                        </label>
+                        <a href="{{ url_for('logout') }}" class="topnav-icon-btn" title="Logout">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <div class="app-shell">
         <!-- Nav Drawer -->
         <div class="nav-drawer-overlay" id="navDrawerOverlay"></div>
         <nav class="nav-drawer" id="navDrawer" aria-label="Main navigation">
@@ -169,19 +246,31 @@
             </div>
         </nav>
 
-        <div class="dashboard-layout">
-            <main class="main-content jarvis-app">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        <div class="flash-stack">
-                            {% for category, message in messages %}
-                                <div class="flash-message flash-{{ category }}">{{ message }}</div>
-                            {% endfor %}
+                <div class="dashboard-layout command-stage">
+                    <section class="command-stage-header">
+                        <div class="command-stage-headline">
+                            <span class="command-kicker">Mission Board</span>
+                            <h1>{{ stage_title }}</h1>
                         </div>
-                    {% endif %}
-                {% endwith %}
-                {% block content %}{% endblock %}
-            </main>
+                        <div class="command-stage-telemetry">
+                            <span>CORE ONLINE</span>
+                            <span>SAT LINK SECURE</span>
+                        </div>
+                    </section>
+                    <main class="main-content jarvis-app command-content">
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                <div class="flash-stack">
+                                    {% for category, message in messages %}
+                                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                        {% block content %}{% endblock %}
+                    </main>
+                </div>
+            </div>
         </div>
     </div>
     <div id="pageBusyOverlay" class="page-busy-overlay" role="status" aria-live="polite" aria-hidden="true">
@@ -191,6 +280,39 @@
             <small id="pageBusyText">Getting everything ready...</small>
         </div>
     </div>
+<script>
+/* First-load Jarvis intro */
+(function () {
+    var overlay = document.getElementById('jarvisBootOverlay');
+    if (!overlay) return;
+
+    var shouldSkip = false;
+    try {
+        shouldSkip = sessionStorage.getItem('jarvis-boot-seen') === '1';
+    } catch (error) {
+        shouldSkip = false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        shouldSkip = true;
+    }
+    if (shouldSkip) return;
+
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('jarvis-boot-open');
+
+    window.setTimeout(function () {
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('jarvis-boot-open');
+        try {
+            sessionStorage.setItem('jarvis-boot-seen', '1');
+        } catch (error) {
+            /* Ignore storage failures. */
+        }
+    }, 2600);
+})();
+</script>
 <script>
 /* Theme selector */
 (function () {
