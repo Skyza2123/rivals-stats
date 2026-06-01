@@ -570,6 +570,7 @@ _MODULE_PATHS = (
     "routes/scrims_tournaments.py",
     "routes/timelines.py",
     "routes/map_edits.py",
+    "routes/jarvis_commands.py",
     "routes/machine.py",
 )
 

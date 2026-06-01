@@ -4227,6 +4227,100 @@ table tr:hover td,
   border-color: var(--line-mid) !important;
 }
 
+.jarvis-app .ai-core-input-row #assistantMicBtn.is-listening {
+  color: var(--text-main) !important;
+  border-color: rgba(0, 216, 255, 0.72) !important;
+  background: rgba(0, 216, 255, 0.12) !important;
+  box-shadow: inset 0 0 12px rgba(0, 216, 255, 0.14), 0 0 16px rgba(0, 216, 255, 0.22);
+  animation: assistant-mic-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes assistant-mic-pulse {
+  50% {
+    border-color: rgba(174, 244, 255, 0.96);
+    box-shadow: inset 0 0 16px rgba(0, 216, 255, 0.22), 0 0 24px rgba(0, 216, 255, 0.34);
+  }
+}
+
+.jarvis-intel-drawer {
+  position: fixed;
+  z-index: 90;
+  top: 68px;
+  right: 18px;
+  width: min(390px, calc(100vw - 36px));
+  max-height: calc(100vh - 88px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(0, 216, 255, 0.36);
+  background: rgba(3, 14, 21, 0.96);
+  box-shadow: 0 0 24px rgba(0, 216, 255, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(18px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.jarvis-intel-drawer.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.jarvis-intel-drawer-head,
+.jarvis-intel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jarvis-intel-drawer h2 {
+  margin: 3px 0 0;
+  color: var(--text-main);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.jarvis-intel-drawer-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 24px;
+}
+
+.jarvis-intel-drawer-filters,
+.jarvis-intel-empty {
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+  letter-spacing: 0.06em;
+}
+
+.jarvis-intel-drawer-body {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.jarvis-intel-row {
+  padding: 9px;
+  border: 1px solid var(--line-soft);
+  color: var(--text-main);
+  font-size: var(--text-meta);
+  text-decoration: none;
+}
+
+.jarvis-intel-row:hover {
+  border-color: var(--line-mid);
+  background: rgba(0, 216, 255, 0.08);
+}
+
+.jarvis-intel-row span {
+  flex: none;
+  color: var(--text-dim);
+}
+
 .jarvis-app .command-link-grid {
   gap: var(--space-sm);
 }

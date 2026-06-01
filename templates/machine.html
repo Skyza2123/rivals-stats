@@ -3846,6 +3846,22 @@ function renderReplyHeroStrip(answer, meta) {
     }));
     swapBtn.addEventListener('click', () => { const v = teamSelA.value; teamSelA.value = teamSelB.value; teamSelB.value = v; results.innerHTML = ''; });
     [teamSelA, teamSelB, seasonSel, mapSel].forEach(el => el.addEventListener('change', () => results.innerHTML = ''));
+
+    const initialTreeTeamA = MACHINE_QUERY_PARAMS.get('team_a');
+    const initialTreeTeamB = MACHINE_QUERY_PARAMS.get('team_b');
+    if (initialTreeTeamA && teamSelA.querySelector('option[value="' + initialTreeTeamA + '"]')) {
+        teamSelA.value = initialTreeTeamA;
+    }
+    if (initialTreeTeamB && teamSelB.querySelector('option[value="' + initialTreeTeamB + '"]')) {
+        teamSelB.value = initialTreeTeamB;
+    }
+    if (teamSelA.value && teamSelB.value && teamSelA.value !== teamSelB.value) {
+        loadTree().catch(e => {
+            const reason = (e && e.message) ? e.message : 'Unknown error';
+            results.innerHTML = '<p class="empty-text">Could not load this matchup. ' + escapeHtml(reason) + '</p>';
+            console.error(e);
+        });
+    }
 })();
 
 // ═══════════════════════════════════════════════════════════════

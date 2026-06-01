@@ -144,7 +144,7 @@
 
                     <div class="ai-core-input-row">
                         <span class="ai-core-prompt-tag" aria-hidden="true">CMD//</span>
-                        <button type="button" class="jarvis-button jarvis-button-secondary hud-button" id="assistantMicBtn" aria-label="Activate microphone">
+                        <button type="button" class="jarvis-button jarvis-button-secondary hud-button" id="assistantMicBtn" aria-label="Activate microphone" aria-pressed="false">
                             Mic
                         </button>
                         <input
@@ -216,6 +216,18 @@
     </div>
 </section>
 
+<aside class="jarvis-intel-drawer" id="jarvisIntelDrawer" aria-hidden="true" aria-labelledby="jarvisIntelDrawerTitle">
+    <div class="jarvis-intel-drawer-head">
+        <div>
+            <p class="hud-eyebrow">Temporary Intel Window</p>
+            <h2 id="jarvisIntelDrawerTitle">JARVIS Intel</h2>
+        </div>
+        <button type="button" class="jarvis-intel-drawer-close" id="jarvisIntelDrawerClose" aria-label="Close temporary intel window">&times;</button>
+    </div>
+    <p class="jarvis-intel-drawer-filters" id="jarvisIntelDrawerFilters"></p>
+    <div class="jarvis-intel-drawer-body" id="jarvisIntelDrawerBody"></div>
+</aside>
+
 <script id="dashboardRecentScrimsData" type="application/json">{{ recent_scrims[:8]|tojson }}</script>
 <script>
 (function () {
@@ -228,13 +240,24 @@
     var signalEl = document.getElementById('assistantSignalText');
     var latencyEl = document.getElementById('assistantLatencyText');
     var confidenceEl = document.getElementById('assistantConfidenceText');
+    var intelDrawer = document.getElementById('jarvisIntelDrawer');
+    var intelDrawerTitle = document.getElementById('jarvisIntelDrawerTitle');
+    var intelDrawerFilters = document.getElementById('jarvisIntelDrawerFilters');
+    var intelDrawerBody = document.getElementById('jarvisIntelDrawerBody');
+    var intelDrawerClose = document.getElementById('jarvisIntelDrawerClose');
     var chips = Array.prototype.slice.call(document.querySelectorAll('.ai-chip'));
     var scrimDataNode = document.getElementById('dashboardRecentScrimsData');
 
-    var stateCycle = ['Awaiting command', 'Listening', 'Processing', 'Executing', 'Speaking', 'Result ready'];
-    var stateIndex = 0;
     var recentScrims = [];
     var coreShell = document.querySelector('.ai-core-shell');
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+    var isListening = false;
+    var isStartingVoice = false;
+    var isVoiceArmed = false;
+    var voiceTranscript = '';
+    var voiceDispatchTimer = null;
+    var voiceRestartTimer = null;
 
     if (scrimDataNode) {
         try {
@@ -324,8 +347,305 @@
         responseEl.textContent = message;
     }
 
+    function setMicListening(active) {
+        isListening = active;
+        if (!micBtn) return;
+        micBtn.classList.toggle('is-listening', active || isVoiceArmed);
+        micBtn.setAttribute('aria-pressed', isVoiceArmed ? 'true' : 'false');
+        micBtn.textContent = isVoiceArmed ? 'Armed' : 'Mic';
+    }
+
+    function setMicStarting(active) {
+        isStartingVoice = active;
+        if (!micBtn || isListening) return;
+        micBtn.classList.toggle('is-listening', active);
+        micBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        micBtn.textContent = active ? 'Connecting' : 'Mic';
+    }
+
+    function speakAssistant(message) {
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+        window.speechSynthesis.cancel();
+        var utterance = new SpeechSynthesisUtterance(message);
+        utterance.rate = 0.94;
+        utterance.pitch = 0.84;
+        utterance.volume = 0.72;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function reportVoiceStartError(error) {
+        var errorName = error && error.name ? error.name : 'UnknownError';
+        var errorMessage = error && error.message ? error.message : 'No browser detail provided';
+
+        isVoiceArmed = false;
+        window.clearTimeout(voiceDispatchTimer);
+        window.clearTimeout(voiceRestartTimer);
+        setMicStarting(false);
+        setMicListening(false);
+        setState('Error');
+
+        if (!window.isSecureContext) {
+            setResponse('Microphone access requires localhost or HTTPS.');
+        } else if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
+            setResponse('Microphone permission is blocked. Allow microphone access for this site, then reactivate the mic.');
+        } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+            setResponse('No microphone was detected. Connect or enable an input device, then reactivate the mic.');
+        } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+            setResponse('The microphone is busy or unavailable. Close other apps using it, then reactivate the mic.');
+        } else if (errorName === 'InvalidStateError') {
+            setResponse('Voice channel is already initializing. Wait a moment, then reactivate the microphone.');
+        } else {
+            setResponse('Voice channel could not start (' + errorName + '). Check browser microphone permissions and reactivate the mic.');
+        }
+
+        logActivity('Voice channel start failed: ' + errorName + ' - ' + errorMessage + '.');
+    }
+
+    function beginVoiceRecognition() {
+        if (!isVoiceArmed) return;
+        try {
+            recognition.start();
+        } catch (error) {
+            reportVoiceStartError(error);
+        }
+    }
+
+    function startVoiceRecognition(skipPermissionCheck) {
+        if (isStartingVoice || isListening) return;
+
+        if (!window.isSecureContext) {
+            reportVoiceStartError(new Error('Insecure browser context'));
+            return;
+        }
+
+        isVoiceArmed = true;
+        setMicStarting(true);
+        setState('Listening');
+        setResponse('Establishing secure microphone channel...');
+
+        if (!skipPermissionCheck && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+                stream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+                if (!isVoiceArmed) return;
+                beginVoiceRecognition();
+            }).catch(reportVoiceStartError);
+            return;
+        }
+
+        beginVoiceRecognition();
+    }
+
+    function stopVoiceRecognition() {
+        var wasListening = isListening;
+        isVoiceArmed = false;
+        window.clearTimeout(voiceDispatchTimer);
+        window.clearTimeout(voiceRestartTimer);
+        voiceTranscript = '';
+
+        if (recognition && wasListening) {
+            try {
+                recognition.stop();
+            } catch (error) {
+                logActivity('Voice channel stop request was rejected.');
+            }
+        }
+
+        setMicStarting(false);
+        setMicListening(false);
+        setState('Awaiting command');
+        setResponse('Wake channel in standby. Activate the mic to arm JARVIS.');
+        logActivity('JARVIS wake channel placed in standby.');
+    }
+
+    function executeVoiceCommand(transcript) {
+        var command = String(transcript || '').trim();
+        if (!command) return;
+        if (inputEl) inputEl.value = command;
+        logActivity('Voice command captured: ' + command);
+        setResponse('Voice command received. Executing: ' + command);
+        handleCommand(command);
+    }
+
+    function handleVoicePhrase(transcript) {
+        var phrase = String(transcript || '').trim();
+        var wakePattern = /\b(?:hey\s+)?jarvis\b/i;
+
+        if (!phrase || !wakePattern.test(phrase)) {
+            if (inputEl) inputEl.value = '';
+            setState('Listening');
+            setResponse('Wake channel armed. Say "Jarvis" followed by a command.');
+            return;
+        }
+
+        var command = phrase.replace(wakePattern, '').replace(/^[\s,.:;-]+/, '').trim();
+        if (!command) {
+            if (inputEl) inputEl.value = 'Jarvis';
+            setState('Listening');
+            setResponse('Online. Awaiting your command.');
+            logActivity('JARVIS wake word detected. Awaiting command.');
+            speakAssistant('Online. Awaiting your command.');
+            return;
+        }
+
+        executeVoiceCommand(command);
+    }
+
+    function queueVoicePhrase() {
+        window.clearTimeout(voiceDispatchTimer);
+        voiceDispatchTimer = window.setTimeout(function () {
+            var phrase = voiceTranscript.trim();
+            voiceTranscript = '';
+            if (phrase) handleVoicePhrase(phrase);
+        }, 360);
+    }
+
+    function createRecognition() {
+        if (!SpeechRecognition) return null;
+
+        var engine = new SpeechRecognition();
+        engine.lang = 'en-US';
+        engine.interimResults = true;
+        engine.continuous = true;
+        engine.maxAlternatives = 1;
+
+        engine.onstart = function () {
+            setMicStarting(false);
+            setMicListening(true);
+            setState('Listening');
+            setResponse('Wake channel armed. Say "Jarvis" followed by a command.');
+            logActivity('JARVIS wake channel armed.');
+        };
+
+        engine.onresult = function (event) {
+            var interimTranscript = '';
+
+            for (var i = event.resultIndex; i < event.results.length; i += 1) {
+                var transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    voiceTranscript += ' ' + transcript;
+                    queueVoicePhrase();
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            if (inputEl) {
+                inputEl.value = (voiceTranscript + interimTranscript).trim();
+            }
+        };
+
+        engine.onerror = function (event) {
+            var error = event.error || 'unknown';
+            setMicStarting(false);
+            setMicListening(false);
+
+            if (error === 'no-speech') {
+                setState('Listening');
+                setResponse('Wake channel armed. Say "Jarvis" followed by a command.');
+            } else if (error === 'aborted' && !isVoiceArmed) {
+                return;
+            } else if (error === 'not-allowed' || error === 'service-not-allowed') {
+                isVoiceArmed = false;
+                setState('Error');
+                setResponse('Microphone access is blocked. Allow microphone permission, or use the command field.');
+            } else {
+                isVoiceArmed = false;
+                setState('Error');
+                setResponse('Voice channel interrupted. Use the command field or reactivate the microphone.');
+            }
+
+            logActivity('Voice channel error: ' + error + '.');
+        };
+
+        engine.onend = function () {
+            setMicStarting(false);
+            setMicListening(false);
+
+            if (voiceTranscript.trim()) queueVoicePhrase();
+
+            if (isVoiceArmed) {
+                setState('Listening');
+                setResponse('Wake channel armed. Say "Jarvis" followed by a command.');
+                window.clearTimeout(voiceRestartTimer);
+                voiceRestartTimer = window.setTimeout(function () {
+                    startVoiceRecognition(true);
+                }, 420);
+            }
+        };
+
+        return engine;
+    }
+
     function routeTo(url) {
         window.location.href = url;
+    }
+
+    function closeIntelDrawer() {
+        if (!intelDrawer) return;
+        intelDrawer.classList.remove('is-open');
+        intelDrawer.setAttribute('aria-hidden', 'true');
+    }
+
+    function openIntelDrawer(result) {
+        if (!intelDrawer || !intelDrawerBody) return;
+        var items = Array.isArray(result.items) ? result.items : [];
+        intelDrawerTitle.textContent = result.title || 'JARVIS Intel';
+        intelDrawerFilters.textContent = Array.isArray(result.filters) && result.filters.length
+            ? 'Filters: ' + result.filters.join(' | ')
+            : '';
+        intelDrawerBody.innerHTML = '';
+
+        if (!items.length) {
+            var empty = document.createElement('p');
+            empty.className = 'jarvis-intel-empty';
+            empty.textContent = result.empty || 'No matching data found.';
+            intelDrawerBody.appendChild(empty);
+        } else {
+            items.forEach(function (item) {
+                var row = item.url ? document.createElement('a') : document.createElement('div');
+                row.className = 'jarvis-intel-row';
+                if (item.url) row.href = item.url;
+
+                var label = document.createElement('strong');
+                label.textContent = item.label || 'Result';
+                row.appendChild(label);
+
+                if (item.meta) {
+                    var meta = document.createElement('span');
+                    meta.textContent = item.meta;
+                    row.appendChild(meta);
+                }
+
+                intelDrawerBody.appendChild(row);
+            });
+        }
+
+        intelDrawer.classList.add('is-open');
+        intelDrawer.setAttribute('aria-hidden', 'false');
+    }
+
+    function applyJarvisResult(result) {
+        var message = result && result.message ? result.message : 'Command complete.';
+        setResponse(message);
+        logActivity(message);
+
+        if (result && result.action === 'navigate' && result.url) {
+            setState('Executing');
+            routeTo(result.url);
+            return;
+        }
+
+        if (result && result.action === 'panel') {
+            setState('Result ready');
+            openIntelDrawer(result);
+            speakAssistant(message);
+            return;
+        }
+
+        setState('Result ready');
+        speakAssistant(message);
     }
 
     function summarizeRecentScrims() {
@@ -363,64 +683,18 @@
 
         setState('Processing');
         logActivity('Command received: ' + normalized);
-
-        if (normalized.indexOf('open scrim') !== -1 || normalized.indexOf('database') !== -1) {
-            setState('Executing');
-            logActivity('Routing to Scrims database.');
-            routeTo('{{ url_for('scrims') }}');
-            return;
-        }
-
-        if (normalized.indexOf('analyze') !== -1 || normalized.indexOf('recent scrim') !== -1) {
-            var summary = summarizeRecentScrims();
-            setState('Result ready');
-            setResponse(summary);
-            logActivity('Recent scrim summary generated.');
-            return;
-        }
-
-        if (normalized.indexOf('prep') !== -1 || normalized.indexOf('matchup') !== -1) {
-            setState('Listening');
-            setResponse('Who is the opponent? Type the name and execute again, or jump to Draft Prep now.');
-            if (inputEl) {
-                inputEl.placeholder = 'Type opponent name or run Draft Prep...';
-                inputEl.focus();
-            }
-            logActivity('Requested matchup prep context.');
-            return;
-        }
-
-        if (normalized.indexOf('compare') !== -1) {
-            setState('Executing');
-            logActivity('Routing to Team Compare.');
-            routeTo('{{ url_for('teams_compare') }}');
-            return;
-        }
-
-        if (normalized.indexOf('draft') !== -1) {
-            setState('Executing');
-            logActivity('Routing to Draft Prep module.');
-            routeTo('{{ url_for('draft_simulator') }}');
-            return;
-        }
-
-        if (normalized.indexOf('ban') !== -1) {
-            setState('Executing');
-            logActivity('Routing to draft reasoner for ban trends.');
-            routeTo('{{ url_for('machine', tab='reasoner') }}');
-            return;
-        }
-
-        if (normalized.indexOf('player') !== -1 || normalized.indexOf('history') !== -1) {
-            setState('Executing');
-            logActivity('Routing to player rankings for history lookup.');
-            routeTo('{{ url_for('player_rankings') }}');
-            return;
-        }
-
-        setState('Result ready');
-        setResponse('Command acknowledged. Route manually from quick actions if needed.');
-        logActivity('No direct route matched for command.');
+        fetch('{{ url_for('jarvis_command') }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({command: command})
+        }).then(function (response) {
+            if (!response.ok) throw new Error('Command resolver returned ' + response.status);
+            return response.json();
+        }).then(applyJarvisResult).catch(function () {
+            setState('Error');
+            setResponse('Command link interrupted. Reactivate the request or use the quick actions.');
+            logActivity('JARVIS command resolver unavailable.');
+        });
     }
 
     if (executeBtn) {
@@ -440,11 +714,27 @@
 
     if (micBtn) {
         micBtn.addEventListener('click', function () {
-            stateIndex = (stateIndex + 1) % stateCycle.length;
-            setState(stateCycle[stateIndex]);
-            setResponse('Voice channel toggled: ' + stateCycle[stateIndex] + '.');
-            logActivity('Assistant state changed to ' + stateCycle[stateIndex].toLowerCase() + '.');
+            if (!SpeechRecognition) {
+                setState('Error');
+                setResponse('Voice recognition is unavailable in this browser. Use Chrome or Edge with microphone access, or enter a typed command.');
+                logActivity('Voice channel unavailable in current browser.');
+                return;
+            }
+
+            if (!recognition) recognition = createRecognition();
+
+            if (isVoiceArmed || isStartingVoice || isListening) {
+                stopVoiceRecognition();
+                return;
+            }
+
+            voiceTranscript = '';
+            startVoiceRecognition();
         });
+    }
+
+    if (intelDrawerClose) {
+        intelDrawerClose.addEventListener('click', closeIntelDrawer);
     }
 
     chips.forEach(function (chip) {
