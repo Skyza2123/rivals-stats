@@ -259,6 +259,9 @@
     var voiceDispatchTimer = null;
     var voiceRestartTimer = null;
     var coreWakeTimer = null;
+    var wakeCommandTimer = null;
+    var wakeCommandUntil = 0;
+    var isAssistantSpeaking = false;
 
     if (scrimDataNode) {
         try {
@@ -371,7 +374,39 @@
         utterance.rate = 0.94;
         utterance.pitch = 0.84;
         utterance.volume = 0.72;
+        utterance.onstart = function () {
+            isAssistantSpeaking = true;
+            if (recognition && isListening) recognition.stop();
+        };
+        utterance.onend = function () {
+            isAssistantSpeaking = false;
+            scheduleVoiceRestart(220);
+        };
+        utterance.onerror = function () {
+            isAssistantSpeaking = false;
+            scheduleVoiceRestart(220);
+        };
         window.speechSynthesis.speak(utterance);
+    }
+
+    function armWakeCommandWindow() {
+        window.clearTimeout(wakeCommandTimer);
+        wakeCommandUntil = Date.now() + 6500;
+        wakeCommandTimer = window.setTimeout(function () {
+            wakeCommandUntil = 0;
+        }, 6500);
+    }
+
+    function scheduleVoiceRestart(delay) {
+        if (!isVoiceArmed) return;
+        window.clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = window.setTimeout(function () {
+            if (isAssistantSpeaking) {
+                scheduleVoiceRestart(220);
+                return;
+            }
+            startVoiceRecognition(true);
+        }, delay || 420);
     }
 
     function triggerCoreWakeResponse() {
@@ -392,6 +427,8 @@
         isVoiceArmed = false;
         window.clearTimeout(voiceDispatchTimer);
         window.clearTimeout(voiceRestartTimer);
+        window.clearTimeout(wakeCommandTimer);
+        wakeCommandUntil = 0;
         setMicStarting(false);
         setMicListening(false);
         setState('Error');
@@ -454,6 +491,8 @@
         isVoiceArmed = false;
         window.clearTimeout(voiceDispatchTimer);
         window.clearTimeout(voiceRestartTimer);
+        window.clearTimeout(wakeCommandTimer);
+        wakeCommandUntil = 0;
         voiceTranscript = '';
 
         if (recognition && wasListening) {
@@ -485,6 +524,12 @@
         var wakePattern = /\b(?:hey\s+)?jarvis\b/i;
 
         if (!phrase || !wakePattern.test(phrase)) {
+            if (phrase && wakeCommandUntil > Date.now()) {
+                wakeCommandUntil = 0;
+                window.clearTimeout(wakeCommandTimer);
+                executeVoiceCommand(phrase);
+                return;
+            }
             if (inputEl) inputEl.value = '';
             setState('Listening');
             setResponse('Wake channel armed. Say "Jarvis" followed by a command.');
@@ -495,6 +540,7 @@
         var command = phrase.replace(wakePattern, '').replace(/^[\s,.:;-]+/, '').trim();
         if (!command) {
             if (inputEl) inputEl.value = 'Jarvis';
+            armWakeCommandWindow();
             setState('Listening');
             setResponse('Online. Awaiting your command.');
             logActivity('JARVIS wake word detected. Awaiting command.');
@@ -520,7 +566,7 @@
         var engine = new SpeechRecognition();
         engine.lang = 'en-US';
         engine.interimResults = true;
-        engine.continuous = true;
+        engine.continuous = false;
         engine.maxAlternatives = 1;
 
         engine.onstart = function () {
@@ -578,13 +624,10 @@
 
             if (voiceTranscript.trim()) queueVoicePhrase();
 
-            if (isVoiceArmed) {
+            if (isVoiceArmed && !isAssistantSpeaking) {
                 setState('Listening');
                 setResponse('Wake channel armed. Say "Jarvis" followed by a command.');
-                window.clearTimeout(voiceRestartTimer);
-                voiceRestartTimer = window.setTimeout(function () {
-                    startVoiceRecognition(true);
-                }, 420);
+                scheduleVoiceRestart(420);
             }
         };
 
