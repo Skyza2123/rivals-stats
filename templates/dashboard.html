@@ -258,6 +258,7 @@
     var voiceTranscript = '';
     var voiceDispatchTimer = null;
     var voiceRestartTimer = null;
+    var coreWakeTimer = null;
 
     if (scrimDataNode) {
         try {
@@ -373,6 +374,17 @@
         window.speechSynthesis.speak(utterance);
     }
 
+    function triggerCoreWakeResponse() {
+        if (!coreShell) return;
+        window.clearTimeout(coreWakeTimer);
+        coreShell.classList.remove('ai-wake-ack');
+        void coreShell.offsetWidth;
+        coreShell.classList.add('ai-wake-ack');
+        coreWakeTimer = window.setTimeout(function () {
+            coreShell.classList.remove('ai-wake-ack');
+        }, 1450);
+    }
+
     function reportVoiceStartError(error) {
         var errorName = error && error.name ? error.name : 'UnknownError';
         var errorMessage = error && error.message ? error.message : 'No browser detail provided';
@@ -479,6 +491,7 @@
             return;
         }
 
+        triggerCoreWakeResponse();
         var command = phrase.replace(wakePattern, '').replace(/^[\s,.:;-]+/, '').trim();
         if (!command) {
             if (inputEl) inputEl.value = 'Jarvis';
@@ -683,7 +696,7 @@
 
         setState('Processing');
         logActivity('Command received: ' + normalized);
-        fetch('{{ url_for('jarvis_command') }}', {
+        fetch('{{ url_for("jarvis_command") }}', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({command: command})

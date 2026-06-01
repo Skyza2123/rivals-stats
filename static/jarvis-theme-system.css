@@ -4082,6 +4082,38 @@ table tr:hover td,
   fill: rgba(64, 219, 244, 0.26);
 }
 
+.jarvis-app .ai-core-shell.ai-wake-ack .ai-core-radar::before {
+  animation: commandWakeHalo 1.45s ease-out;
+}
+
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .core-dot,
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .core-dot-glow {
+  animation: commandWakeCore 1.45s ease-out;
+}
+
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .rotor-outer {
+  animation-duration: 4.8s;
+}
+
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .rotor-mid {
+  animation-duration: 3.4s;
+}
+
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .rotor-micro {
+  animation-duration: 2.4s;
+}
+
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .segmented-ring,
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .accent-arc,
+.jarvis-app .ai-core-shell.ai-wake-ack .jarvis-core-svg .inner-ring {
+  animation: commandWakeRing 1.45s ease-out;
+}
+
+.jarvis-app .ai-core-shell.ai-wake-ack .ai-wave-bar {
+  animation-duration: 0.42s;
+  opacity: 1;
+}
+
 .jarvis-app .ai-core-status-wrap {
   text-align: center;
   display: grid;
@@ -4420,6 +4452,24 @@ table tr:hover td,
 @keyframes commandErrorPulse {
   0%, 100% { transform: scale(1); opacity: 0.86; }
   50% { transform: scale(1.16); opacity: 0.48; }
+}
+
+@keyframes commandWakeHalo {
+  0% { opacity: 0.46; transform: scale(0.88); }
+  34% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0.52; transform: scale(1); }
+}
+
+@keyframes commandWakeCore {
+  0% { opacity: 0.82; transform: scale(0.92); }
+  32% { opacity: 1; transform: scale(1.24); filter: url(#jarvisCyanGlow) brightness(1.75); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes commandWakeRing {
+  0% { opacity: 0.62; filter: url(#jarvisCyanGlow) brightness(1); }
+  38% { opacity: 1; filter: url(#jarvisCyanGlow) brightness(1.8); }
+  100% { opacity: 1; filter: url(#jarvisCyanGlow) brightness(1); }
 }
 
 @media (max-width: 1520px) {
