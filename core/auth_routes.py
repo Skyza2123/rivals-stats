@@ -77,6 +77,7 @@ def login():
 
         if password_is_valid:
             _mark_session_authenticated(requested_role)
+            session["play_boot_sequence"] = True
             next_url = _normalize_next_path()
             return redirect(next_url)
         flash("Incorrect password.", "error")
@@ -120,6 +121,7 @@ def setup_password():
             get_db().commit()
             if edit_result.rowcount == 1 and view_result.rowcount == 1:
                 _mark_session_authenticated("edit")
+                session["play_boot_sequence"] = True
                 return redirect(_normalize_next_path())
             flash("Password has already been set. Please sign in.", "error")
             return redirect(url_for("login", next=_normalize_next_path()))

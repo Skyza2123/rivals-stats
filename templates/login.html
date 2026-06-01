@@ -4,88 +4,309 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if setup_mode %}Set Password{% else %}Login{% endif %} — Scrim Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
     <style>
+        :root {
+            --bg-0: #02070c;
+            --bg-1: #07131b;
+            --panel: rgba(4, 14, 21, 0.94);
+            --panel-border: rgba(0, 216, 255, 0.34);
+            --text-strong: #d9f2ff;
+            --text-muted: rgba(151, 204, 217, 0.68);
+            --text-dim: rgba(103, 168, 182, 0.52);
+            --input-bg: rgba(4, 17, 24, 0.94);
+            --input-border: rgba(0, 216, 255, 0.24);
+            --focus: #00d8ff;
+            --btn: #063d4d;
+            --btn-hover: #07576b;
+            --danger-bg: rgba(255, 82, 82, 0.12);
+            --danger-border: rgba(255, 124, 124, 0.38);
+            --danger-text: #ff8f8f;
+        }
+
         body {
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            background: #0d1117;
+            font-family: "Share Tech Mono", "Segoe UI", Tahoma, sans-serif;
+            letter-spacing: 0.02em;
+            color: var(--text-strong);
+            background:
+                radial-gradient(720px 500px at 50% 50%, rgba(0, 216, 255, 0.14), transparent 66%),
+                linear-gradient(90deg, rgba(0, 216, 255, 0.025), transparent 18%, transparent 82%, rgba(0, 216, 255, 0.025)),
+                linear-gradient(145deg, var(--bg-1), var(--bg-0));
+            position: relative;
+            overflow: hidden;
+            padding: 1.25rem;
         }
+
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(0, 216, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 216, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, transparent 0 49.9%, rgba(0, 216, 255, 0.11) 50%, transparent 50.1%);
+            background-size: 30px 30px, 30px 30px, 100% 100%;
+            opacity: 0.52;
+            mask-image: radial-gradient(ellipse at center, black 32%, transparent 90%);
+        }
+
+        body::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(90deg, rgba(0, 0, 0, 0.58), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.58)),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 25%, transparent 72%, rgba(0, 0, 0, 0.42));
+        }
+
         .login-card {
-            background: #161b22;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            padding: 2.5rem 2rem;
+            position: relative;
+            z-index: 1;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 0;
+            padding: 3rem 3.15rem 2rem;
             width: 100%;
-            max-width: 360px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            max-width: 560px;
+            box-shadow:
+                inset 0 0 0 1px rgba(0, 216, 255, 0.04),
+                0 22px 70px rgba(0, 0, 0, 0.52),
+                0 0 46px rgba(0, 216, 255, 0.1);
+            backdrop-filter: blur(10px);
+            animation: card-in 460ms cubic-bezier(0.22, 1, 0.36, 1);
         }
+
+        .login-card::before,
+        .login-card::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            pointer-events: none;
+        }
+
+        .login-card::before {
+            left: -1px;
+            top: -1px;
+            border-left: 2px solid var(--focus);
+            border-top: 2px solid var(--focus);
+        }
+
+        .login-card::after {
+            right: -1px;
+            bottom: -1px;
+            border-right: 2px solid var(--focus);
+            border-bottom: 2px solid var(--focus);
+        }
+
+        .login-kicker {
+            margin: 0 0 0.75rem;
+            font-size: 0.7rem;
+            color: var(--focus);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
         .login-card h1 {
-            margin: 0 0 0.25rem;
-            font-size: 1.3rem;
-            color: #e6edf3;
-            font-weight: 600;
+            margin: 0 0 0.7rem;
+            font-size: clamp(1.7rem, 4vw, 2.25rem);
+            color: var(--text-strong);
+            font-weight: 400;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
+
         .login-card .subtitle {
-            font-size: 0.85rem;
-            color: #6e7681;
-            margin-bottom: 1.75rem;
+            max-width: 46ch;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            color: var(--text-muted);
+            margin: 0 0 1.35rem;
         }
+
+        .login-status-strip,
+        .login-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.55rem 0.85rem;
+            border-top: 1px solid rgba(0, 216, 255, 0.18);
+            border-bottom: 1px solid rgba(0, 216, 255, 0.18);
+            padding: 0.72rem 0;
+        }
+
+        .login-status-item,
+        .login-footer span {
+            color: var(--text-dim);
+            font-size: 0.64rem;
+            letter-spacing: 0.11em;
+            text-transform: uppercase;
+        }
+
+        .login-status-item + .login-status-item,
+        .login-footer span + span {
+            border-left: 1px solid rgba(0, 216, 255, 0.18);
+            padding-left: 0.85rem;
+        }
+
+        .login-status-item b {
+            color: #93efff;
+            font-weight: 400;
+        }
+
+        .login-status-item:first-child b::before {
+            content: "";
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            margin-right: 0.38rem;
+            border-radius: 50%;
+            background: #00e89d;
+            box-shadow: 0 0 8px rgba(0, 232, 157, 0.68);
+            vertical-align: 1px;
+        }
+
+        .login-form {
+            margin-top: 1.65rem;
+        }
+
         .login-card label {
             display: block;
-            font-size: 0.8rem;
-            color: #8b949e;
-            margin-bottom: 0.4rem;
+            font-size: 0.73rem;
+            color: var(--text-muted);
+            margin-bottom: 0.36rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.14em;
         }
-        .login-card input[type="password"] {
+
+        .login-card input[type="password"],
+        .login-card select {
             width: 100%;
             box-sizing: border-box;
-            background: #0d1117;
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 6px;
-            color: #e6edf3;
-            font-size: 1rem;
-            padding: 0.6rem 0.8rem;
-            outline: none;
-            transition: border-color 0.15s;
-        }
-        .login-card input[type="password"]:focus {
-            border-color: #58a6ff;
-        }
-        .login-card button {
-            margin-top: 1.25rem;
-            width: 100%;
-            background: #1f6feb;
-            border: none;
-            border-radius: 6px;
-            color: #fff;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 0;
+            color: var(--text-strong);
+            font-family: inherit;
             font-size: 0.95rem;
-            font-weight: 600;
-            padding: 0.65rem;
+            min-height: 44px;
+            padding: 0.72rem 0.82rem;
+            outline: none;
+            transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+            margin-bottom: 1.05rem;
+        }
+
+        .login-card select {
+            appearance: none;
+            background-image:
+                linear-gradient(45deg, transparent 50%, rgba(198, 238, 255, 0.85) 50%),
+                linear-gradient(135deg, rgba(198, 238, 255, 0.85) 50%, transparent 50%);
+            background-position:
+                calc(100% - 16px) calc(50% - 3px),
+                calc(100% - 10px) calc(50% - 3px);
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+            padding-right: 2rem;
+        }
+
+        .login-card input[type="password"]:focus,
+        .login-card select:focus {
+            border-color: var(--focus);
+            box-shadow: inset 3px 0 0 var(--focus), 0 0 14px rgba(0, 216, 255, 0.1);
+        }
+
+        .login-card button {
+            margin-top: 0.6rem;
+            width: 100%;
+            background: linear-gradient(180deg, var(--btn-hover), var(--btn));
+            border: 1px solid rgba(146, 226, 255, 0.35);
+            border-radius: 0;
+            color: #e6f8ff;
+            font-family: inherit;
+            font-size: 0.84rem;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            min-height: 46px;
+            padding: 0.82rem;
             cursor: pointer;
-            transition: background 0.15s;
+            transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
         }
+
         .login-card button:hover {
-            background: #388bfd;
+            box-shadow: inset 0 0 18px rgba(0, 216, 255, 0.12), 0 0 18px rgba(0, 216, 255, 0.12);
+            filter: brightness(1.12);
         }
+
+        .login-card button:active {
+            transform: translateY(0);
+            filter: brightness(0.98);
+        }
+
         .flash-error {
-            background: rgba(248,81,73,0.12);
-            border: 1px solid rgba(248,81,73,0.3);
-            border-radius: 6px;
-            color: #f85149;
-            font-size: 0.85rem;
-            padding: 0.5rem 0.75rem;
-            margin-bottom: 1rem;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-radius: 0;
+            color: var(--danger-text);
+            font-size: 0.78rem;
+            line-height: 1.45;
+            padding: 0.56rem 0.7rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .login-footer {
+            margin-top: 1.65rem;
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        @keyframes card-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.985);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (max-width: 520px) {
+            .login-card {
+                padding: 2rem 1.35rem 1.4rem;
+            }
+
+            .login-card h1 {
+                font-size: 1.55rem;
+            }
+
+            .login-status-strip,
+            .login-footer {
+                display: grid;
+                gap: 0.42rem;
+            }
+
+            .login-status-item + .login-status-item,
+            .login-footer span + span {
+                border-left: 0;
+                padding-left: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="login-card">
+        <p class="login-kicker">Secure Access Console</p>
         <h1>Scrim Dashboard</h1>
         <p class="subtitle">
             {% if setup_mode %}
@@ -94,6 +315,11 @@
                 Sign in as View (read-only) or Edit (can change data).
             {% endif %}
         </p>
+        <div class="login-status-strip" aria-label="Authentication system status">
+            <span class="login-status-item">Node Status: <b>Online</b></span>
+            <span class="login-status-item">Auth Mode: <b>Role-Based</b></span>
+            <span class="login-status-item">Clearance: <b>Required</b></span>
+        </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, msg in messages %}
@@ -101,11 +327,11 @@
             {% endfor %}
         {% endwith %}
 
-        <form method="POST" action="{{ form_action }}">
+        <form class="login-form" method="POST" action="{{ form_action }}">
             <input type="hidden" name="next" value="{{ next }}">
             {% if not setup_mode %}
             <label for="role">Access Level</label>
-            <select id="role" name="role" style="width:100%; box-sizing:border-box; background:#0d1117; border:1px solid rgba(255,255,255,0.12); border-radius:6px; color:#e6edf3; font-size:1rem; padding:0.6rem 0.8rem; margin-bottom:0.85rem;">
+            <select id="role" name="role">
                 <option value="view" {% if selected_role == 'view' %}selected{% endif %}>View</option>
                 <option value="edit" {% if selected_role == 'edit' %}selected{% endif %}>Edit</option>
             </select>
@@ -125,8 +351,13 @@
             <label for="password">Password</label>
             <input type="password" id="password" name="password" autofocus autocomplete="{% if setup_mode %}new-password{% else %}current-password{% endif %}">
             {% endif %}
-            <button type="submit">{% if setup_mode %}Set password{% else %}Sign in{% endif %}</button>
+            <button type="submit">{% if setup_mode %}Initialize Credentials{% else %}Authorize Access{% endif %}</button>
         </form>
+        <footer class="login-footer">
+            <span>Rivals Operations Interface</span>
+            <span>Encryption Active</span>
+            <span>Access Logging Enabled</span>
+        </footer>
     </div>
 </body>
 </html>

@@ -3,6 +3,7 @@
 {% block title %}{{ map_entry.map_name }}{% endblock %}
 
 {% block content %}
+<div class="map-detail-shell command-surface-shell command-surface-shell-map">
 {% set team1_draft_slots = [('ban1','Ban 1'),('ban2','Ban 2'),('protect1','Protect 1'),('ban3','Ban 3'),('protect2','Protect 2'),('ban4','Ban 4')] %}
 {% set team2_draft_slots = [('ban1','Ban 1'),('protect1','Protect 1'),('ban2','Ban 2'),('ban3','Ban 3'),('ban4','Ban 4'),('protect2','Protect 2')] %}
 {% set display_team1_slot = display_team1_slot|default('team1') %}
@@ -46,17 +47,17 @@
         {% set winner_label = 'Tie' %}
     {% endif %}
 {% endif %}
+<div class="page-shell map-report-shell">
 <!-- Header with map image banner -->
 <div class="map-banner" {% if map_image_url(map_entry.map_name) %}style="background-image: url('{{ map_image_url(map_entry.map_name) }}');"{% endif %}>
     <div class="map-banner-overlay">
         <div class="main-header">
             <div>
                 <h2>{{ map_entry.map_name }}</h2>
-                <p>{{ team1_label }} vs {{ team2_label }}{% if picked_by_label %} &bull; Picked by {{ picked_by_label }}{% endif %}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
+                <p>{{ team1_label }} vs {{ team2_label }}{% if summary_score %} &bull; {{ summary_score }}{% endif %}{% if enemy_team and enemy_team.notes %} &bull; {{ enemy_team.notes }}{% endif %}</p>
             </div>
             <div class="header-actions">
                 <a href="{{ url_for(back_to_detail_endpoint, tournament_id=detail_parent_id, match_id=detail_match_id, scrim_id=detail_match_id) }}" class="button-secondary">Back to {{ 'Tournament Match' if is_tournament else 'Scrim' }}</a>
-                <div class="pill pill-neutral">Winner: {{ winner_label }}</div>
                 {% if session.get('access_level') == 'edit' %}
                 <button type="button" class="button-small" onclick="openModal('editInfoModal')">Edit Info</button>
                 <button type="button" class="btn-danger-sm" onclick="confirmDeleteMap()">Delete Map</button>
@@ -66,23 +67,34 @@
     </div>
 </div>
 
-<div class="summary-grid">
-    <section class="stat-card"><strong>Winner</strong><span>{{ winner_label }}</span></section>
-    <section class="stat-card"><strong>Map Type</strong><span>{{ map_mode }}</span></section>
+<div class="map-report-meta" aria-label="Map summary metadata">
+    <span class="map-report-meta-item"><strong>Winner:</strong> {{ winner_label }}</span>
+    <span class="map-report-meta-item"><strong>Map Type:</strong> {{ map_mode }}</span>
+    {% if summary_score %}
+    <span class="map-report-meta-item"><strong>Score:</strong> {{ summary_score }}</span>
+    {% endif %}
+    {% if map_entry.get('map_type') %}
+    <span class="map-report-meta-item"><strong>Format:</strong> {{ map_entry.get('map_type') }}</span>
+    {% endif %}
+    {% if scrim.season %}
+    <span class="map-report-meta-item"><strong>Patch:</strong> Season {{ scrim.season }}</span>
+    {% endif %}
+    {% if picked_by_label %}
+    <span class="map-report-meta-item"><strong>Picked By:</strong> {{ picked_by_label }}</span>
+    {% endif %}
 </div>
 
 <!-- Tabs -->
 <div class="tab-bar">
     <button class="tab-btn tab-active" data-tab="comp" onclick="switchTab('comp')">Comp</button>
+    <button class="tab-btn" data-tab="draft" onclick="switchTab('draft')">Draft</button>
     <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Timeline</button>
     <button class="tab-btn" data-tab="vods" onclick="switchTab('vods')">VODs</button>
     <button class="tab-btn" data-tab="notes" onclick="switchTab('notes')">Notes</button>
 </div>
 
-<!-- COMP TAB -->
-<div class="tab-content" id="tab-comp">
-
 <!-- Draft Section -->
+<div class="tab-content tab-hidden" id="tab-draft">
 <section class="panel">
     <div class="panel-header-row">
         <h3>Draft</h3>
@@ -121,6 +133,10 @@
         </div>
     </div>
 </section>
+</div>
+
+<!-- COMP TAB -->
+<div class="tab-content" id="tab-comp">
 
 <!-- Team Comp Sections -->
 <section class="panel">
@@ -137,6 +153,18 @@
     {% set comp_section_label = sec.submap or (('Round ' ~ (s + 1)) if is_attack_defense_round else ('Team Comp' if map_mode in ['Escort', 'Hybrid'] else ('Round ' ~ (s + 1)))) %}
     {% set left_round_side = ('Defense' if s is even else 'Attack') if is_attack_defense_round else '' %}
     {% set right_round_side = ('Attack' if left_round_side == 'Defense' else 'Defense') if is_attack_defense_round else '' %}
+    {% set section_winner_label = sec.get('result') or 'Not Set' %}
+    {% if sec_score_parts[0] | trim and sec_score_parts[1] | trim and sec_score_parts[0] | trim | int(default=-1) != -1 and sec_score_parts[1] | trim | int(default=-1) != -1 %}
+        {% set section_team1_score = (sec_score_parts[1] | trim | int) if display_team1_slot == 'team2' else (sec_score_parts[0] | trim | int) %}
+        {% set section_team2_score = (sec_score_parts[0] | trim | int) if display_team1_slot == 'team2' else (sec_score_parts[1] | trim | int) %}
+        {% if section_team1_score > section_team2_score %}
+            {% set section_winner_label = team1_label %}
+        {% elif section_team2_score > section_team1_score %}
+            {% set section_winner_label = team2_label %}
+        {% elif section_team1_score == section_team2_score %}
+            {% set section_winner_label = 'Tie' %}
+        {% endif %}
+    {% endif %}
     {% set comp_status = namespace(has_entries=false) %}
     {% for side_slot in [display_team1_slot, display_team2_slot] %}
         {% for entry in sec[side_slot] %}
@@ -147,8 +175,12 @@
     {% endfor %}
     <div class="comp-section {% if not loop.first %}comp-section-border{% endif %}">
         <div class="comp-section-header">
-            <span class="comp-submap-name">{{ comp_section_label }}{% if sec.side and not is_attack_defense_round %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
-            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">{{ 'Edit' if comp_status.has_entries else 'Add' }} {{ comp_section_label }}</button>{% endif %}
+            <div class="comp-section-summary">
+                <span class="comp-submap-name">{{ comp_section_label }}{% if sec.side and not is_attack_defense_round %} &ndash; <span class="comp-side-label">{{ sec.side }}</span>{% endif %}</span>
+                {% if sec.score %}<span class="comp-section-meta">Score: <strong class="js-score-text">{{ sec.score }}</strong></span>{% endif %}
+                <span class="comp-section-meta">Winner: <strong>{{ section_winner_label }}</strong></span>
+            </div>
+            {% if session.get('access_level') == 'edit' %}<button type="button" class="button-small" onclick="openModal('editCompSectionModal{{ s }}')">{{ 'Edit' if comp_status.has_entries else 'Add' }}</button>{% endif %}
         </div>
         <div class="comp-grid">
             <div class="comp-team">
@@ -188,9 +220,6 @@
                 </div>
             </div>
         </div>
-        {% if sec.score %}
-        <div class="summary-box top-gap">Score: <span class="metric-text js-score-text">{{ sec.score }}</span>{% if sec.get('result') %} &bull; Result: <span class="metric-text">{{ sec.result }}</span>{% endif %}</div>
-        {% endif %}
     </div>
     {% endfor %}
 </section>
@@ -352,6 +381,8 @@
         <p class="empty-text">No map notes yet.</p>
     {% endif %}
 </section>
+</div>
+
 </div>
 
 {% if session.get('access_level') == 'edit' %}
@@ -940,14 +971,14 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(c => {
         c.classList.toggle('tab-hidden', c.id !== 'tab-' + tab);
     });
-    if (['comp', 'timeline', 'vods', 'notes'].includes(tab)) {
+    if (['comp', 'draft', 'timeline', 'vods', 'notes'].includes(tab)) {
         window.history.replaceState(null, '', '#' + tab);
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     const hashTab = (window.location.hash || '').replace('#', '').trim().toLowerCase();
-    if (['comp', 'timeline', 'vods', 'notes'].includes(hashTab)) {
+    if (['comp', 'draft', 'timeline', 'vods', 'notes'].includes(hashTab)) {
         switchTab(hashTab);
     }
 });
@@ -2035,5 +2066,6 @@ function openEditEventModal(button) {
 }
 
 </script>
+</div>
 {% endblock %}
 

@@ -42,6 +42,39 @@
 </section>
 
 <section class="panel top-gap">
+    <div class="scrim-db-controls" id="scrimDbControls">
+        <label>
+            <span>Search</span>
+            <input id="scrimDbSearch" type="search" placeholder="Search team, opponent, season, map..." autocomplete="off">
+        </label>
+        <label>
+            <span>Opponent</span>
+            <input id="scrimDbOpponent" type="search" placeholder="Opponent name" autocomplete="off">
+        </label>
+        <label>
+            <span>Map</span>
+            <input id="scrimDbMap" type="search" placeholder="Map name" autocomplete="off">
+        </label>
+        <label>
+            <span>Result</span>
+            <select id="scrimDbResult">
+                <option value="">All</option>
+                <option value="win">Win</option>
+                <option value="loss">Loss</option>
+                <option value="draw">Draw</option>
+                <option value="mixed">Mixed</option>
+            </select>
+        </label>
+        <label>
+            <span>From</span>
+            <input id="scrimDbDateFrom" type="date">
+        </label>
+        <label>
+            <span>To</span>
+            <input id="scrimDbDateTo" type="date">
+        </label>
+    </div>
+
     <div class="page-filterbar">
         <p class="page-filtertext">
             {% if selected_season == 'all' and not selected_team_id %}
@@ -63,9 +96,43 @@
         {% endif %}
     </div>
     {% if scrims %}
-        <div class="scrim-box-grid">
+        <div class="scrim-box-grid" id="scrimDbGrid">
             {% for scrim in scrims %}
-                <a class="scrim-box-card" href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}">
+                {% set opponent = (scrim.enemy_team or scrim.opponent or 'Unknown') %}
+                {% set team_name = (scrim.team_name or scrim.team1_name or '').strip() %}
+                {% set scrim_maps = scrim.maps or [] %}
+                {% set ns = namespace(wins=0, losses=0, draws=0, map_names='') %}
+                {% for map_entry in scrim_maps %}
+                    {% set outcome = (map_entry.get('result', '') or '')|lower %}
+                    {% if 'win' in outcome %}
+                        {% set ns.wins = ns.wins + 1 %}
+                    {% elif 'loss' in outcome %}
+                        {% set ns.losses = ns.losses + 1 %}
+                    {% elif 'draw' in outcome or 'tie' in outcome %}
+                        {% set ns.draws = ns.draws + 1 %}
+                    {% endif %}
+                    {% set map_name = (map_entry.get('map_name') or '') %}
+                    {% if map_name %}
+                        {% set ns.map_names = ns.map_names ~ ('|' if ns.map_names else '') ~ map_name|lower %}
+                    {% endif %}
+                {% endfor %}
+                {% if ns.wins > ns.losses %}
+                    {% set result_key = 'win' %}
+                {% elif ns.losses > ns.wins %}
+                    {% set result_key = 'loss' %}
+                {% elif ns.wins == 0 and ns.losses == 0 and ns.draws > 0 %}
+                    {% set result_key = 'draw' %}
+                {% else %}
+                    {% set result_key = 'mixed' %}
+                {% endif %}
+                {% set search_blob = (team_name ~ ' ' ~ opponent ~ ' ' ~ (scrim.scrim_date or '') ~ ' ' ~ (scrim.season or '') ~ ' ' ~ (scrim.notes or '') ~ ' ' ~ ns.map_names)|lower %}
+                <a class="scrim-box-card"
+                       href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}"
+                       data-search="{{ search_blob }}"
+                       data-opponent="{{ opponent|lower }}"
+                       data-maps="{{ ns.map_names }}"
+                       data-result="{{ result_key }}"
+                       data-date="{{ scrim.scrim_date or '' }}">
                     <div class="scrim-box-head">
                         <div class="list-title">
                             {% if scrim.team1_name and scrim.team2_name %}
@@ -89,6 +156,11 @@
                 </a>
             {% endfor %}
         </div>
+        <nav class="scrim-db-pagination" id="scrimDbPagination" aria-label="Scrim pagination" hidden>
+            <button type="button" id="scrimDbPrev">Previous</button>
+            <span id="scrimDbPageState">Page 1 / 1</span>
+            <button type="button" id="scrimDbNext">Next</button>
+        </nav>
     {% else %}
         {% if selected_season != 'all' or selected_team_id %}
             <p class="empty-text">No scrims match this filter. <a href="{{ url_for('scrims') }}">Clear filters</a></p>
@@ -154,7 +226,6 @@
     </div>
 </div>
 
-</div>
 {% endif %}
 
 {# ── CSV Import Modal ─────────────────────────────────────────────────── #}
@@ -310,6 +381,100 @@
             closeScrimModal();
         }
     });
+})();
+</script>
+
+<script>
+(() => {
+    const grid = document.getElementById('scrimDbGrid');
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('.scrim-box-card'));
+    const searchEl = document.getElementById('scrimDbSearch');
+    const opponentEl = document.getElementById('scrimDbOpponent');
+    const mapEl = document.getElementById('scrimDbMap');
+    const resultEl = document.getElementById('scrimDbResult');
+    const fromEl = document.getElementById('scrimDbDateFrom');
+    const toEl = document.getElementById('scrimDbDateTo');
+    const prevBtn = document.getElementById('scrimDbPrev');
+    const nextBtn = document.getElementById('scrimDbNext');
+    const pageState = document.getElementById('scrimDbPageState');
+    const pagination = document.getElementById('scrimDbPagination');
+
+    const pageSize = 18;
+    let currentPage = 1;
+    let filtered = cards;
+
+    const compact = (value) => String(value || '').toLowerCase().trim();
+
+    function applyFilters() {
+        const q = compact(searchEl?.value);
+        const opponent = compact(opponentEl?.value);
+        const mapQuery = compact(mapEl?.value);
+        const result = compact(resultEl?.value);
+        const fromDate = fromEl?.value || '';
+        const toDate = toEl?.value || '';
+
+        filtered = cards.filter((card) => {
+            const searchBlob = compact(card.dataset.search);
+            const cardOpponent = compact(card.dataset.opponent);
+            const cardMaps = compact(card.dataset.maps).split('|').filter(Boolean);
+            const cardResult = compact(card.dataset.result);
+            const cardDate = card.dataset.date || '';
+
+            if (q && !searchBlob.includes(q)) return false;
+            if (opponent && !cardOpponent.includes(opponent)) return false;
+            if (mapQuery && !cardMaps.some((mapName) => mapName.includes(mapQuery))) return false;
+            if (result && cardResult !== result) return false;
+            if (fromDate && cardDate && cardDate < fromDate) return false;
+            if (toDate && cardDate && cardDate > toDate) return false;
+            return true;
+        });
+
+        currentPage = 1;
+        renderPage();
+    }
+
+    function renderPage() {
+        cards.forEach((card) => {
+            card.hidden = true;
+        });
+
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        currentPage = Math.min(currentPage, totalPages);
+
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        filtered.slice(start, end).forEach((card) => {
+            card.hidden = false;
+        });
+
+        if (pagination && pageState && prevBtn && nextBtn) {
+            pagination.hidden = filtered.length <= pageSize;
+            pageState.textContent = 'Page ' + currentPage + ' / ' + totalPages;
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+    }
+
+    [searchEl, opponentEl, mapEl, resultEl, fromEl, toEl].forEach((el) => {
+        if (!el) return;
+        el.addEventListener('input', applyFilters);
+        el.addEventListener('change', applyFilters);
+    });
+
+    prevBtn?.addEventListener('click', () => {
+        currentPage = Math.max(1, currentPage - 1);
+        renderPage();
+    });
+
+    nextBtn?.addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        currentPage = Math.min(totalPages, currentPage + 1);
+        renderPage();
+    });
+
+    renderPage();
 })();
 </script>
 {% endblock %}

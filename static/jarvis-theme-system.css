@@ -4,17 +4,37 @@
 */
 
 :root {
-  --j-bg: #020e10;
-  --j-bg-panel: #010a0c;
-  --j-cyan: #00e5ff;
-  --j-green: #00ff88;
-  --j-amber: #ffaa00;
-  --j-red: #ff3344;
-  --j-dim: #007a8a;
-  --j-border: #004d5e;
-  --j-border-dim: #003040;
-  --j-font: "Share Tech Mono", monospace;
-  --j-radius: 2px;
+  --background: 210 100% 2%;
+  --foreground: 180 100% 90%;
+  --card: 210 100% 3%;
+  --card-foreground: 180 100% 90%;
+  --popover: 210 100% 3%;
+  --popover-foreground: 180 100% 90%;
+  --primary: 188 100% 50%;
+  --primary-foreground: 210 100% 2%;
+  --secondary: 198 100% 8%;
+  --secondary-foreground: 188 100% 50%;
+  --muted: 188 100% 15%;
+  --muted-foreground: 188 40% 60%;
+  --border: 188 100% 20%;
+  --input: 188 100% 20%;
+  --ring: 188 100% 50%;
+  --font-sans: "Geist", sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --radius: 0px;
+
+  --j-bg: hsl(var(--background));
+  --j-bg-panel: hsl(var(--card));
+  --j-cyan: hsl(var(--primary));
+  --j-green: #42ff9e;
+  --j-amber: #ffd166;
+  --j-red: #ff4d6d;
+  --j-dim: hsl(var(--muted-foreground));
+  --j-border: hsl(var(--border));
+  --j-border-dim: hsl(var(--muted));
+  --j-font: var(--font-mono);
+  --j-radius: var(--radius);
+  --screen-gutter: 1in;
 }
 
 * {
@@ -22,11 +42,72 @@
 }
 
 body {
-  background: var(--j-bg);
-  color: var(--j-cyan);
-  font-family: var(--j-font);
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-mono);
+  background-image:
+    radial-gradient(circle at 50% 50%, hsl(var(--primary) / 0.05) 0%, transparent 70%),
+    linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 30px 30px, 30px 30px;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.jarvis-app,
+.jarvis-prep {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.jarvis-app::before,
+.jarvis-prep::before {
+  content: none !important;
+}
+
+/* Layout wrappers should not render visible cards; they are structural only. */
+.site-layout,
+.app-shell,
+.dashboard-layout,
+.command-main,
+.main-content,
+.command-content,
+.jarvis-app .page,
+.jarvis-prep .page,
+.command-strip-left,
+.command-strip-center,
+.command-strip-right,
+.command-core-title-wrap,
+.command-core-prompt-wrap,
+.command-core-footer,
+.dense-collapsible-body,
+.panel-body,
+.panel-content {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Hard rule: disable rounded utility classes for HUD surfaces/containers. */
+.jarvis-app .rounded,
+.jarvis-app .rounded-sm,
+.jarvis-app .rounded-md,
+.jarvis-app .rounded-lg,
+.jarvis-app .rounded-xl,
+.jarvis-app .rounded-2xl,
+.jarvis-app .rounded-full,
+.jarvis-prep .rounded,
+.jarvis-prep .rounded-sm,
+.jarvis-prep .rounded-md,
+.jarvis-prep .rounded-lg,
+.jarvis-prep .rounded-xl,
+.jarvis-prep .rounded-2xl,
+.jarvis-prep .rounded-full {
+  border-radius: 0 !important;
 }
 
 h1,
@@ -62,15 +143,260 @@ small,
   background: var(--j-bg);
 }
 
-.command-rail,
 .command-topbar,
 .command-stage-header,
-.nav-drawer,
 .page-busy-card {
   background: var(--j-bg-panel);
   border: 1px solid var(--j-border);
   border-radius: var(--j-radius);
   box-shadow: none;
+}
+
+.command-rail {
+  display: none !important;
+}
+
+.topnav-burger {
+  display: none !important;
+}
+
+/* Pullout HUD drawer */
+.nav-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  background: rgba(1, 6, 11, 0.58);
+  backdrop-filter: blur(1.5px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.nav-drawer-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nav-drawer {
+  --drawer-width: 292px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100dvh;
+  width: var(--drawer-width);
+  z-index: 330;
+  transform: translateX(-100%) !important;
+  transition: transform 0.22s cubic-bezier(0.22, 0.78, 0.14, 1) !important;
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.95), hsl(var(--background) / 0.98));
+  border-right: 1px solid hsl(var(--border));
+  border-top: 0;
+  border-left: 0;
+  border-bottom: 0;
+  border-radius: 0 !important;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.nav-drawer.open,
+.nav-drawer.is-pinned {
+  transform: translateX(0) !important;
+}
+
+.hud-pull-tab {
+  position: fixed;
+  left: 0;
+  top: calc(50svh - 81px);
+  transform: none;
+  width: 14px;
+  height: 162px;
+  z-index: 340;
+  border: 0;
+  border-right: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--primary));
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+  align-items: center;
+  cursor: ew-resize;
+  padding: 0;
+}
+
+.hud-pull-tab-line {
+  width: 1px;
+  height: 48px;
+  background: hsl(var(--primary));
+  opacity: 0.82;
+}
+
+.hud-pull-tab-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+.hud-pull-tab-chevron {
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid hsl(var(--primary));
+  border-right: 1px solid hsl(var(--primary));
+  transform: rotate(45deg);
+  margin-bottom: 4px;
+}
+
+body.drawer-open .hud-pull-tab {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.nav-drawer-branding {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-drawer-title {
+  color: hsl(var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nav-drawer-subtitle,
+.nav-drawer-meta {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.nav-drawer-subtitle {
+  font-size: 0.58rem;
+}
+
+.nav-drawer-meta {
+  font-size: 0.52rem;
+}
+
+.nav-drawer-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.nav-drawer-pin,
+.nav-drawer-close {
+  min-height: 24px;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 0.53rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  padding: 0 4px;
+}
+
+.nav-drawer-pin:hover,
+.nav-drawer-close:hover,
+.nav-drawer-pin[aria-pressed="true"] {
+  color: hsl(var(--primary));
+}
+
+.nav-drawer-links {
+  overflow-y: auto;
+  padding: 4px 0 10px;
+  display: grid;
+  gap: 0;
+}
+
+.nav-drawer-group-label {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 12px 14px 6px;
+  border-top: 1px solid hsl(var(--muted));
+}
+
+.nav-drawer-links .nav-drawer-group-label:first-child {
+  border-top: 0;
+}
+
+.nav-drawer-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px 0 18px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.nav-drawer-link::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: transparent;
+}
+
+.nav-drawer-link:hover {
+  color: hsl(var(--foreground));
+}
+
+.nav-drawer-link:hover::before {
+  background: hsl(var(--primary));
+}
+
+.nav-drawer-link.active {
+  color: hsl(var(--primary));
+  text-shadow: 0 0 10px hsl(var(--primary) / 0.22);
+}
+
+.nav-drawer-link.active::before {
+  background: hsl(var(--primary));
+}
+
+.nav-drawer-status {
+  border-top: 1px solid hsl(var(--border));
+  padding: 10px 14px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.nav-drawer-status span {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 .command-rail-head,
@@ -443,6 +769,1752 @@ table tr:hover td,
   color: var(--j-cyan) !important;
 }
 
+/* Dashboard structure pass: scrim-first dense operations view. */
+.jarvis-app .parser-dash-root {
+  display: grid;
+  gap: 8px;
+}
+
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer {
+  background: linear-gradient(180deg, rgba(2, 14, 18, 0.96), rgba(1, 10, 13, 0.98)) !important;
+  border-color: rgba(0, 110, 130, 0.55) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  padding: 9px 10px !important;
+}
+
+.jarvis-app .dash-status-strip {
+  border-color: rgba(0, 208, 232, 0.62) !important;
+  background: linear-gradient(180deg, rgba(0, 32, 40, 0.42), rgba(1, 10, 13, 0.98)) !important;
+}
+
+.jarvis-app .parser-dash-command-bar {
+  border-color: rgba(0, 255, 136, 0.42) !important;
+  background: linear-gradient(180deg, rgba(7, 30, 20, 0.36), rgba(1, 10, 13, 0.98)) !important;
+}
+
+.jarvis-app .parser-dash-log-panel {
+  border-color: rgba(0, 160, 188, 0.58) !important;
+  background: linear-gradient(180deg, rgba(0, 24, 34, 0.4), rgba(1, 10, 13, 0.98)) !important;
+}
+
+.jarvis-app .dash-assistant-drawer {
+  border-color: rgba(255, 170, 0, 0.5) !important;
+  background: linear-gradient(180deg, rgba(32, 22, 3, 0.3), rgba(1, 10, 13, 0.98)) !important;
+}
+
+.jarvis-app .dash-status-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  border-style: solid;
+  border-width: 1px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.jarvis-app .dash-status-main {
+  display: grid;
+  gap: 2px;
+}
+
+.jarvis-app .dash-status-main h1 {
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8ef5ff;
+}
+
+.jarvis-app .dash-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip {
+  border-radius: 0;
+  border-style: solid;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(odd) {
+  border-style: dashed;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(even) {
+  border-style: double;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(1) {
+  border-color: rgba(0, 229, 255, 0.7);
+  color: #8ef5ff;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(2) {
+  border-color: rgba(0, 255, 136, 0.64);
+  color: var(--j-green);
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(3) {
+  border-color: rgba(255, 170, 0, 0.64);
+  color: var(--j-amber);
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(4) {
+  border-color: rgba(255, 51, 68, 0.58);
+  color: var(--j-red);
+}
+
+.jarvis-app .dash-assistant-toggle {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+}
+
+.jarvis-app .parser-dash-command-head {
+  margin-bottom: 7px;
+  gap: 8px;
+}
+
+.jarvis-app .parser-dash-command-head h2,
+.jarvis-app .dash-log-head h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8ef5ff;
+}
+
+.jarvis-app .parser-dash-controls {
+  gap: 8px;
+}
+
+.jarvis-app .parser-dash-control {
+  min-height: 32px;
+  border-radius: 2px;
+  border-color: rgba(0, 110, 130, 0.52);
+  background: rgba(1, 12, 16, 0.95);
+  border-style: solid;
+}
+
+.jarvis-app .parser-dash-select-wrap {
+  border-left: 2px solid rgba(0, 255, 136, 0.65);
+}
+
+.jarvis-app .parser-dash-search-wrap {
+  border-left: 2px solid rgba(0, 229, 255, 0.7);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.jarvis-app .parser-dash-controls-right .jarvis-button {
+  min-height: 31px;
+  padding: 0 10px;
+  font-size: 0.58rem;
+}
+
+.jarvis-app .parser-dash-log-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.jarvis-app .dash-log-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 2px 8px;
+  border-bottom: 1px solid rgba(0, 110, 130, 0.4);
+  padding-bottom: 6px;
+}
+
+.jarvis-app .dash-log-head .dashboard-module-kicker {
+  grid-column: 1 / -1;
+  color: #17c3d8 !important;
+  font-size: 0.56rem;
+  letter-spacing: 0.11em;
+}
+
+.jarvis-app .dash-log-head .dashboard-module-meta {
+  color: #37a9b9 !important;
+  font-size: 0.6rem;
+}
+
+.jarvis-app .dash-data-filters {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.jarvis-app .dash-filter-field {
+  display: grid;
+  gap: 3px;
+  --dash-field-accent: rgba(0, 110, 130, 0.62);
+}
+
+.jarvis-app .dash-filter-field:nth-child(1) { --dash-field-accent: rgba(0, 229, 255, 0.72); }
+.jarvis-app .dash-filter-field:nth-child(2) { --dash-field-accent: rgba(0, 255, 136, 0.72); }
+.jarvis-app .dash-filter-field:nth-child(3) { --dash-field-accent: rgba(255, 170, 0, 0.72); }
+.jarvis-app .dash-filter-field:nth-child(4) { --dash-field-accent: rgba(86, 179, 192, 0.76); }
+.jarvis-app .dash-filter-field:nth-child(5) { --dash-field-accent: rgba(255, 51, 68, 0.68); }
+.jarvis-app .dash-filter-field:nth-child(6) { --dash-field-accent: rgba(0, 208, 232, 0.66); }
+.jarvis-app .dash-filter-field:nth-child(7) { --dash-field-accent: rgba(0, 255, 136, 0.62); }
+.jarvis-app .dash-filter-field:nth-child(8) { --dash-field-accent: rgba(255, 170, 0, 0.62); }
+
+.jarvis-app .dash-filter-field > span {
+  color: color-mix(in srgb, var(--dash-field-accent) 84%, #8ef5ff 16%);
+}
+
+.jarvis-app .dash-filter-field span {
+  color: #17c3d8;
+  font-size: 0.53rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input {
+  min-height: 30px;
+  font-size: 0.62rem;
+  border-radius: 2px !important;
+  border-color: var(--dash-field-accent) !important;
+  background: color-mix(in srgb, var(--dash-field-accent) 11%, rgba(1, 12, 16, 0.95) 89%) !important;
+  border-style: solid;
+}
+
+.jarvis-app .dash-filter-field:nth-child(odd) select,
+.jarvis-app .dash-filter-field:nth-child(odd) input {
+  border-style: dashed;
+}
+
+.jarvis-app .dash-filter-field:nth-child(even) select,
+.jarvis-app .dash-filter-field:nth-child(even) input {
+  border-style: double;
+}
+
+.jarvis-app .dash-filter-search {
+  grid-column: span 2;
+}
+
+.jarvis-app .scrim-action,
+.jarvis-app .dash-intel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 110, 130, 0.6);
+  border-radius: 2px;
+  background: rgba(2, 20, 27, 0.9);
+  color: #8ef5ff;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.56rem;
+  padding: 4px 8px;
+}
+
+.jarvis-app .scrim-action:hover,
+.jarvis-app .dash-intel-action:hover {
+  border-color: #16c9de;
+  background: rgba(3, 30, 40, 0.95);
+}
+
+.jarvis-app .dash-ops-main {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 205px;
+  gap: 6px;
+}
+
+.jarvis-app .dash-ops-metrics {
+  min-height: 0;
+  display: grid;
+  gap: 5px;
+  align-content: start;
+}
+
+.jarvis-app .dash-metric-box {
+  position: relative;
+  border: 1px solid rgba(0, 110, 130, 0.45);
+  background: rgba(1, 12, 16, 0.92);
+  padding: 7px 8px;
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+.jarvis-app .dash-metric-box::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #17c3d8;
+}
+
+.jarvis-app .dash-metric-box:nth-child(2)::before {
+  background: var(--j-green);
+}
+
+.jarvis-app .dash-metric-box:nth-child(3)::before {
+  background: var(--j-amber);
+}
+
+.jarvis-app .dash-metric-box:nth-child(4)::before {
+  background: #56b3c0;
+}
+
+.jarvis-app .dash-metric-box:nth-child(5)::before {
+  background: rgba(255, 51, 68, 0.75);
+}
+
+.jarvis-app .dash-metric-box:nth-child(odd) {
+  border-style: solid;
+}
+
+.jarvis-app .dash-metric-box:nth-child(even) {
+  border-style: double;
+}
+
+.jarvis-app .dash-metric-box span {
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #17c3d8;
+}
+
+.jarvis-app .dash-metric-box strong {
+  font-size: 1rem;
+  line-height: 1;
+  color: #8ef5ff;
+}
+
+.jarvis-app .dash-metric-box small {
+  font-size: 0.54rem;
+  color: #56b3c0;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.jarvis-app .dash-ops-center {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 5px;
+}
+
+.jarvis-app .dash-team-access-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 2px;
+}
+
+.jarvis-app .dash-team-access-head span {
+  color: #17c3d8;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.jarvis-app .dash-team-access-head a {
+  color: #8ef5ff;
+  text-decoration: none;
+  border: 1px solid rgba(0, 110, 130, 0.52);
+  background: rgba(2, 20, 27, 0.92);
+  font-size: 0.53rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+}
+
+.jarvis-app .dash-team-access-head a:hover {
+  border-color: #16c9de;
+  background: rgba(3, 30, 40, 0.95);
+}
+
+.jarvis-app .dash-team-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.jarvis-app .dash-team-mini {
+  border: 1px solid rgba(0, 110, 130, 0.45);
+  background: linear-gradient(180deg, rgba(1, 20, 26, 0.96) 0%, rgba(1, 11, 15, 0.95) 100%);
+  text-decoration: none;
+  padding: 7px 8px 6px;
+  display: grid;
+  gap: 3px;
+  border-top-width: 2px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n + 1) {
+  background: linear-gradient(180deg, rgba(0, 42, 52, 0.3) 0%, rgba(1, 11, 15, 0.95) 100%);
+}
+
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n + 2) {
+  background: linear-gradient(180deg, rgba(22, 46, 14, 0.26) 0%, rgba(1, 11, 15, 0.95) 100%);
+}
+
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n) {
+  background: linear-gradient(180deg, rgba(50, 31, 3, 0.3) 0%, rgba(1, 11, 15, 0.95) 100%);
+}
+
+.jarvis-app .dash-team-mini strong {
+  color: #8ef5ff;
+  font-size: 0.64rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jarvis-app .dash-team-mini small {
+  color: #56b3c0;
+  font-size: 0.53rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.jarvis-app .dash-team-mini em {
+  color: #17c3d8;
+  font-style: normal;
+  font-size: 0.52rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.jarvis-app .dash-team-mini.is-personal {
+  border-color: rgba(0, 229, 255, 0.7);
+  border-top-color: rgba(0, 229, 255, 0.95);
+}
+
+.jarvis-app .dash-team-mini.is-scout {
+  border-top-color: rgba(255, 170, 0, 0.85);
+}
+
+.jarvis-app .dash-team-mini:nth-child(odd) {
+  border-right-style: dashed;
+}
+
+.jarvis-app .dash-team-mini:nth-child(even) {
+  border-left-style: double;
+}
+
+.jarvis-app .dash-table-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 30px minmax(0, 1fr);
+  border: 1px solid rgba(0, 160, 188, 0.5);
+  background: rgba(1, 12, 16, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(0, 76, 92, 0.35);
+  border-style: solid;
+}
+
+.jarvis-app .dash-table-head {
+  border-bottom: 1px solid rgba(0, 110, 130, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  color: #17c3d8;
+  font-size: 0.53rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.jarvis-app .dash-table-wrap {
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+}
+
+.jarvis-app .parser-scrim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+  gap: 8px;
+}
+
+.jarvis-app .parser-scrim-card {
+  border: 1px solid rgba(0, 110, 130, 0.45) !important;
+  background: rgba(1, 12, 16, 0.95) !important;
+  border-radius: 2px !important;
+  padding: 8px !important;
+  text-decoration: none;
+  display: grid;
+  gap: 7px;
+  box-shadow: inset 2px 0 0 rgba(0, 110, 130, 0.6);
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+}
+
+.jarvis-app .parser-scrim-card[data-result="win"] {
+  box-shadow: inset 2px 0 0 rgba(0, 255, 136, 0.72);
+  border-color: rgba(0, 255, 136, 0.36) !important;
+}
+
+.jarvis-app .parser-scrim-card[data-result="loss"] {
+  box-shadow: inset 2px 0 0 rgba(255, 51, 68, 0.72);
+  border-color: rgba(255, 51, 68, 0.34) !important;
+}
+
+.jarvis-app .parser-scrim-card[data-result="draw"],
+.jarvis-app .parser-scrim-card[data-result="mixed"] {
+  box-shadow: inset 2px 0 0 rgba(255, 170, 0, 0.72);
+  border-color: rgba(255, 170, 0, 0.34) !important;
+}
+
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(even) {
+  transform: translateY(1px);
+}
+
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(3n + 1) {
+  border-style: solid !important;
+}
+
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(3n + 2) {
+  border-style: dashed !important;
+}
+
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(3n) {
+  border-style: double !important;
+}
+
+.jarvis-app .parser-scrim-card:hover {
+  border-color: #16c9de !important;
+  background: rgba(3, 24, 32, 0.95) !important;
+}
+
+.jarvis-app .parser-scrim-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.jarvis-app .parser-scrim-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: #17c3d8 !important;
+  font-size: 0.54rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .parser-scrim-title-row h3 {
+  margin: 0;
+  color: #8ef5ff;
+  font-size: 0.81rem;
+  line-height: 1.17;
+}
+
+.jarvis-app .parser-scrim-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row {
+  border: 1px solid rgba(0, 110, 130, 0.28);
+  background: rgba(2, 18, 25, 0.72);
+  color: #56b3c0;
+  min-height: 24px;
+  font-size: 0.6rem;
+  line-height: 1.2;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+}
+
+.jarvis-app .parser-scrim-meta > div:nth-child(odd) {
+  border-style: dashed;
+}
+
+.jarvis-app .parser-scrim-meta > div:nth-child(even) {
+  border-style: solid;
+}
+
+.jarvis-app .parser-scrim-meta > div:nth-child(1) {
+  border-color: rgba(0, 229, 255, 0.38);
+}
+
+.jarvis-app .parser-scrim-meta > div:nth-child(2) {
+  border-color: rgba(0, 255, 136, 0.34);
+}
+
+.jarvis-app .parser-scrim-meta > div:nth-child(3) {
+  border-color: rgba(255, 170, 0, 0.36);
+}
+
+.jarvis-app .parser-scrim-team-row {
+  border-color: rgba(86, 179, 192, 0.45);
+}
+
+.jarvis-app .parser-scrim-team-row {
+  gap: 6px;
+}
+
+.jarvis-app .dash-ops-aside {
+  min-height: 0;
+  display: grid;
+  gap: 5px;
+  align-content: start;
+}
+
+.jarvis-app .dash-aside-panel {
+  border: 1px solid rgba(0, 110, 130, 0.45);
+  background: rgba(1, 12, 16, 0.92);
+  padding: 7px 8px;
+  display: grid;
+  gap: 6px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+.jarvis-app .dash-aside-panel-assistant {
+  border-color: rgba(255, 170, 0, 0.45);
+  background: linear-gradient(180deg, rgba(32, 22, 3, 0.34) 0%, rgba(1, 12, 16, 0.92) 100%);
+}
+
+.jarvis-app .dash-aside-panel-actions {
+  border-color: rgba(0, 110, 130, 0.55);
+  border-style: dashed;
+}
+
+.jarvis-app .dash-aside-panel-teams {
+  border-color: rgba(0, 229, 255, 0.42);
+  background: linear-gradient(180deg, rgba(0, 42, 52, 0.25) 0%, rgba(1, 12, 16, 0.92) 100%);
+  border-style: double;
+}
+
+.jarvis-app .dash-aside-panel h3 {
+  margin: 0;
+  color: #17c3d8;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.jarvis-app .dash-aside-panel p {
+  margin: 0;
+  color: #56b3c0;
+  font-size: 0.61rem;
+  line-height: 1.4;
+}
+
+.jarvis-app .dash-aside-actions {
+  display: grid;
+  gap: 4px;
+}
+
+.jarvis-app .dash-team-jump-list {
+  display: grid;
+  gap: 4px;
+}
+
+.jarvis-app .dash-team-jump {
+  text-decoration: none;
+  border: 1px solid rgba(0, 110, 130, 0.52);
+  background: rgba(2, 20, 27, 0.88);
+  color: #8ef5ff;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 6px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+
+.jarvis-app .dash-team-jump-list .dash-team-jump:nth-child(odd):not(.is-all) {
+  border-left: 2px solid rgba(0, 229, 255, 0.62);
+}
+
+.jarvis-app .dash-team-jump-list .dash-team-jump:nth-child(even):not(.is-all) {
+  border-left: 2px solid rgba(255, 170, 0, 0.62);
+}
+
+.jarvis-app .dash-team-jump.is-personal {
+  border-color: rgba(0, 229, 255, 0.72);
+}
+
+.jarvis-app .dash-team-jump.is-all {
+  border-color: rgba(255, 170, 0, 0.68);
+  color: var(--j-amber);
+}
+
+.jarvis-app .dash-team-jump:hover {
+  border-color: #16c9de;
+  background: rgba(3, 30, 40, 0.95);
+}
+
+.jarvis-app .scrim-result-chip {
+  border: 1px solid rgba(0, 110, 130, 0.55);
+  background: rgba(2, 20, 27, 0.9);
+  color: #8ef5ff;
+  border-radius: 2px;
+  font-size: 0.53rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+.jarvis-app .scrim-result-chip.is-win { color: var(--j-green); border-color: rgba(0, 255, 136, 0.45); }
+.jarvis-app .scrim-result-chip.is-loss { color: var(--j-red); border-color: rgba(255, 51, 68, 0.45); }
+.jarvis-app .scrim-result-chip.is-draw { color: var(--j-amber); border-color: rgba(255, 170, 0, 0.45); }
+
+
+
+.jarvis-app .dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.jarvis-app .dash-kpi-card {
+  border: 1px solid rgba(0, 110, 130, 0.45);
+  background: rgba(1, 12, 16, 0.95);
+  padding: 7px 8px;
+  display: grid;
+  gap: 2px;
+  border-top-width: 2px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(1) {
+  border-top-color: rgba(0, 229, 255, 0.85);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(2) {
+  border-top-color: rgba(0, 255, 136, 0.8);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(3) {
+  border-top-color: rgba(255, 170, 0, 0.85);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(4) {
+  border-top-color: rgba(86, 179, 192, 0.9);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(5) {
+  border-top-color: rgba(255, 51, 68, 0.78);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(odd) {
+  border-right-style: dashed;
+}
+
+.jarvis-app .dash-kpi-card:nth-child(even) {
+  border-left-style: double;
+}
+
+/* Distinct module system v2: coherent family identities (shape + marker + accent). */
+.jarvis-app .dash-module {
+  position: relative;
+  --dash-accent: #00e5ff;
+  --dash-accent-soft: rgba(0, 229, 255, 0.22);
+}
+
+.jarvis-app .dash-module::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 8px;
+  width: 22px;
+  height: 1px;
+  background: var(--dash-accent);
+  z-index: 2;
+}
+
+.jarvis-app .dash-module::after {
+  content: "";
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--dash-accent);
+  border-right: 1px solid var(--dash-accent);
+  opacity: 0.82;
+  z-index: 2;
+}
+
+.jarvis-app .accent-cyan {
+  --dash-accent: #00e5ff;
+  --dash-accent-soft: rgba(0, 229, 255, 0.22);
+}
+
+.jarvis-app .accent-green {
+  --dash-accent: #00ff88;
+  --dash-accent-soft: rgba(0, 255, 136, 0.2);
+}
+
+.jarvis-app .accent-amber {
+  --dash-accent: #ffaa00;
+  --dash-accent-soft: rgba(255, 170, 0, 0.2);
+}
+
+.jarvis-app .accent-purple {
+  --dash-accent: #bf5fff;
+  --dash-accent-soft: rgba(191, 95, 255, 0.2);
+}
+
+.jarvis-app .accent-blue {
+  --dash-accent: #4d8dff;
+  --dash-accent-soft: rgba(77, 141, 255, 0.2);
+}
+
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer {
+  clip-path: none;
+  border-style: solid !important;
+  background-image: linear-gradient(135deg, var(--dash-accent-soft), rgba(1, 10, 13, 0.98) 42%) !important;
+}
+
+.jarvis-app .dash-status-strip {
+  border-width: 1px !important;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip {
+  border-style: solid;
+  border-radius: 2px;
+}
+
+.jarvis-app .parser-dash-control {
+  border-style: solid;
+}
+
+.jarvis-app .parser-dash-search-wrap {
+  clip-path: none;
+}
+
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input {
+  border-style: solid;
+}
+
+.jarvis-app .dash-filter-field:nth-child(odd) select,
+.jarvis-app .dash-filter-field:nth-child(odd) input,
+.jarvis-app .dash-filter-field:nth-child(even) select,
+.jarvis-app .dash-filter-field:nth-child(even) input {
+  border-style: solid;
+}
+
+.jarvis-app .dash-filter-field {
+  position: relative;
+  padding-top: 2px;
+}
+
+.jarvis-app .dash-filter-field::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 1px;
+  background: var(--dash-field-accent);
+}
+
+.jarvis-app .dash-metric-box {
+  clip-path: none;
+  border-style: solid;
+  border-left-width: 2px;
+}
+
+.jarvis-app .dash-metric-box::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  opacity: 0.4;
+}
+
+.jarvis-app .dash-metric-box:nth-child(odd),
+.jarvis-app .dash-metric-box:nth-child(even) {
+  border-style: solid;
+}
+
+.jarvis-app .dash-metric-box.metric-scrims {
+  border-left-color: #00e5ff;
+}
+
+.jarvis-app .dash-metric-box.metric-maps {
+  border-left-color: #4d8dff;
+}
+
+.jarvis-app .dash-metric-box.metric-teams {
+  border-left-color: #00ff88;
+}
+
+.jarvis-app .dash-metric-box.metric-players {
+  border-left-color: #bf5fff;
+}
+
+.jarvis-app .dash-metric-box.metric-events {
+  border-left-color: #ffaa00;
+}
+
+.jarvis-app .dash-team-mini {
+  clip-path: none;
+  border-right-style: solid;
+  border-left-style: solid;
+  position: relative;
+}
+
+.jarvis-app .dash-team-mini::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(0, 229, 255, 0.7);
+}
+
+.jarvis-app .dash-team-mini::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid rgba(0, 229, 255, 0.85);
+  border-right: 1px solid rgba(0, 229, 255, 0.85);
+  opacity: 0.8;
+}
+
+.jarvis-app .dash-team-mini.team-slot-1::before,
+.jarvis-app .dash-team-mini.team-slot-5::before { background: #00ff88; }
+.jarvis-app .dash-team-mini.team-slot-2::before,
+.jarvis-app .dash-team-mini.team-slot-6::before { background: #00e5ff; }
+.jarvis-app .dash-team-mini.team-slot-3::before,
+.jarvis-app .dash-team-mini.team-slot-7::before { background: #ffaa00; }
+.jarvis-app .dash-team-mini.team-slot-4::before,
+.jarvis-app .dash-team-mini.team-slot-8::before { background: #ff3344; }
+
+.jarvis-app .dash-team-mini:nth-child(odd),
+.jarvis-app .dash-team-mini:nth-child(even) {
+  border-right-style: solid;
+  border-left-style: solid;
+}
+
+.jarvis-app .dash-table-panel {
+  border-style: solid;
+  background-image: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(1, 12, 16, 0.95) 38%);
+}
+
+.jarvis-app .parser-scrim-card {
+  clip-path: none;
+}
+
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(3n + 1),
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(3n + 2),
+.jarvis-app .parser-scrim-grid .parser-scrim-card:nth-child(3n) {
+  border-style: solid !important;
+}
+
+.jarvis-app .parser-scrim-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0, 229, 255, 0.6);
+}
+
+.jarvis-app .parser-scrim-card[data-result="win"]::before {
+  background: rgba(0, 255, 136, 0.72);
+}
+
+.jarvis-app .parser-scrim-card[data-result="loss"]::before {
+  background: rgba(255, 51, 68, 0.72);
+}
+
+.jarvis-app .parser-scrim-card[data-result="draw"]::before,
+.jarvis-app .parser-scrim-card[data-result="mixed"]::before {
+  background: rgba(255, 170, 0, 0.72);
+}
+
+.jarvis-app .parser-scrim-meta > div:nth-child(odd),
+.jarvis-app .parser-scrim-meta > div:nth-child(even) {
+  border-style: solid;
+}
+
+.jarvis-app .dash-aside-panel {
+  clip-path: none;
+  border-style: solid;
+  background-image: linear-gradient(135deg, var(--dash-accent-soft), rgba(1, 12, 16, 0.93) 42%);
+}
+
+.jarvis-app .dash-aside-panel-actions,
+.jarvis-app .dash-aside-panel-teams {
+  border-style: solid;
+}
+
+.jarvis-app .dash-team-jump {
+  clip-path: none;
+  border-style: solid;
+  position: relative;
+}
+
+.jarvis-app .dash-team-jump::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 4px;
+  height: 4px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  opacity: 0.65;
+}
+
+.jarvis-app .dash-kpi-card {
+  clip-path: none;
+  border-right-style: solid;
+  border-left-style: solid;
+  position: relative;
+}
+
+.jarvis-app .dash-kpi-card::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  bottom: 6px;
+  width: 18px;
+  height: 1px;
+  background: rgba(0, 229, 255, 0.5);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(odd),
+.jarvis-app .dash-kpi-card:nth-child(even) {
+  border-right-style: solid;
+  border-left-style: solid;
+}
+
+.jarvis-app .dash-kpi-card span {
+  color: #17c3d8;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.jarvis-app .dash-kpi-card strong {
+  color: #8ef5ff;
+  font-size: 0.98rem;
+  line-height: 1;
+}
+
+.jarvis-app .dash-assistant-drawer summary {
+  cursor: pointer;
+  list-style: none;
+  color: #8ef5ff;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.62rem;
+}
+
+.jarvis-app .dash-assistant-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.jarvis-app .dash-assistant-content {
+  margin-top: 8px;
+  display: grid;
+  gap: 7px;
+}
+
+.jarvis-app .dash-assistant-content p {
+  margin: 0;
+  color: #56b3c0;
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.jarvis-app .dash-assistant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* User-requested lock: single-color dashboard (cyan), except result states. */
+.jarvis-app .accent-cyan,
+.jarvis-app .accent-green,
+.jarvis-app .accent-amber,
+.jarvis-app .accent-purple,
+.jarvis-app .accent-blue {
+  --dash-accent: #00e5ff;
+  --dash-accent-soft: rgba(0, 229, 255, 0.22);
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(1),
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(2),
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(3),
+.jarvis-app .dash-status-chips .jarvis-chip:nth-child(4) {
+  border-color: rgba(0, 229, 255, 0.7) !important;
+  color: #8ef5ff !important;
+}
+
+.jarvis-app .dash-filter-field,
+.jarvis-app .dash-filter-field:nth-child(1),
+.jarvis-app .dash-filter-field:nth-child(2),
+.jarvis-app .dash-filter-field:nth-child(3),
+.jarvis-app .dash-filter-field:nth-child(4),
+.jarvis-app .dash-filter-field:nth-child(5),
+.jarvis-app .dash-filter-field:nth-child(6),
+.jarvis-app .dash-filter-field:nth-child(7),
+.jarvis-app .dash-filter-field:nth-child(8) {
+  --dash-field-accent: rgba(0, 229, 255, 0.68);
+}
+
+.jarvis-app .dash-filter-field span,
+.jarvis-app .dash-filter-field > span {
+  color: #17c3d8 !important;
+}
+
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input {
+  border-color: rgba(0, 229, 255, 0.58) !important;
+  background: rgba(1, 12, 16, 0.95) !important;
+}
+
+.jarvis-app .dash-metric-box::before,
+.jarvis-app .dash-metric-box:nth-child(2)::before,
+.jarvis-app .dash-metric-box:nth-child(3)::before,
+.jarvis-app .dash-metric-box:nth-child(4)::before,
+.jarvis-app .dash-metric-box:nth-child(5)::before {
+  background: #00e5ff;
+}
+
+.jarvis-app .dash-metric-box.metric-scrims,
+.jarvis-app .dash-metric-box.metric-maps,
+.jarvis-app .dash-metric-box.metric-teams,
+.jarvis-app .dash-metric-box.metric-players,
+.jarvis-app .dash-metric-box.metric-events {
+  border-left-color: #00e5ff;
+}
+
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n + 1),
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n + 2),
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n) {
+  background: linear-gradient(180deg, rgba(0, 32, 40, 0.3) 0%, rgba(1, 11, 15, 0.95) 100%);
+}
+
+.jarvis-app .dash-team-mini.team-slot-1::before,
+.jarvis-app .dash-team-mini.team-slot-2::before,
+.jarvis-app .dash-team-mini.team-slot-3::before,
+.jarvis-app .dash-team-mini.team-slot-4::before,
+.jarvis-app .dash-team-mini.team-slot-5::before,
+.jarvis-app .dash-team-mini.team-slot-6::before,
+.jarvis-app .dash-team-mini.team-slot-7::before,
+.jarvis-app .dash-team-mini.team-slot-8::before {
+  background: #00e5ff;
+}
+
+.jarvis-app .dash-aside-panel-assistant,
+.jarvis-app .dash-aside-panel-actions,
+.jarvis-app .dash-aside-panel-teams {
+  border-color: rgba(0, 229, 255, 0.5);
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(1, 12, 16, 0.93) 42%);
+}
+
+.jarvis-app .dash-team-jump,
+.jarvis-app .dash-team-jump.is-personal,
+.jarvis-app .dash-team-jump.is-all {
+  border-color: rgba(0, 229, 255, 0.62);
+  color: #8ef5ff;
+}
+
+.jarvis-app .dash-team-jump-list .dash-team-jump:nth-child(odd):not(.is-all),
+.jarvis-app .dash-team-jump-list .dash-team-jump:nth-child(even):not(.is-all) {
+  border-left-color: rgba(0, 229, 255, 0.62);
+}
+
+.jarvis-app .dash-kpi-card:nth-child(1),
+.jarvis-app .dash-kpi-card:nth-child(2),
+.jarvis-app .dash-kpi-card:nth-child(3),
+.jarvis-app .dash-kpi-card:nth-child(4),
+.jarvis-app .dash-kpi-card:nth-child(5) {
+  border-top-color: rgba(0, 229, 255, 0.85);
+}
+
+.jarvis-app .parser-scrim-card {
+  border-color: rgba(0, 229, 255, 0.45) !important;
+  box-shadow: inset 2px 0 0 rgba(0, 229, 255, 0.62);
+}
+
+.jarvis-app .parser-scrim-card::before,
+.jarvis-app .parser-scrim-card[data-result="win"]::before,
+.jarvis-app .parser-scrim-card[data-result="loss"]::before,
+.jarvis-app .parser-scrim-card[data-result="draw"]::before,
+.jarvis-app .parser-scrim-card[data-result="mixed"]::before {
+  background: rgba(0, 229, 255, 0.62);
+}
+
+.jarvis-app .parser-scrim-card[data-result="win"],
+.jarvis-app .parser-scrim-card[data-result="loss"],
+.jarvis-app .parser-scrim-card[data-result="draw"],
+.jarvis-app .parser-scrim-card[data-result="mixed"] {
+  border-color: rgba(0, 229, 255, 0.45) !important;
+  box-shadow: inset 2px 0 0 rgba(0, 229, 255, 0.62);
+}
+
+/* User-requested lock: no gradients on dashboard surfaces. */
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer,
+.jarvis-app .dash-table-panel,
+.jarvis-app .dash-aside-panel,
+.jarvis-app .dash-metric-box,
+.jarvis-app .dash-kpi-card,
+.jarvis-app .dash-team-mini,
+.jarvis-app .parser-scrim-card,
+.jarvis-app .dash-team-jump,
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input,
+.jarvis-app .parser-dash-control {
+  background-image: none !important;
+  background: #010a0c !important;
+}
+
+.jarvis-app .dash-table-head,
+.jarvis-app .panel-head,
+.jarvis-app .dash-log-head,
+.jarvis-app .parser-dash-command-head {
+  background-image: none !important;
+  background: #031216 !important;
+}
+
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row {
+  background-image: none !important;
+  background: #021219 !important;
+}
+
+/* High-visibility pass: improve legibility and separation without changing layout. */
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer,
+.jarvis-app .dash-table-panel,
+.jarvis-app .dash-aside-panel,
+.jarvis-app .dash-metric-box,
+.jarvis-app .dash-kpi-card,
+.jarvis-app .dash-team-mini,
+.jarvis-app .parser-scrim-card,
+.jarvis-app .dash-team-jump,
+.jarvis-app .parser-dash-control,
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input {
+  border-color: rgba(0, 229, 255, 0.62) !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.12) !important;
+}
+
+.jarvis-app .dash-status-main h1,
+.jarvis-app .parser-dash-command-head h2,
+.jarvis-app .dash-log-head h2,
+.jarvis-app .parser-scrim-title-row h3,
+.jarvis-app .dash-kpi-card strong,
+.jarvis-app .dash-metric-box strong,
+.jarvis-app .dash-team-mini strong,
+.jarvis-app .dash-aside-panel h3,
+.jarvis-app .dash-assistant-drawer summary {
+  color: #dffaff !important;
+}
+
+.jarvis-app .section-kicker,
+.jarvis-app .dash-team-access-head span,
+.jarvis-app .dash-filter-field span,
+.jarvis-app .dash-filter-field > span,
+.jarvis-app .dash-log-head .dashboard-module-kicker,
+.jarvis-app .parser-scrim-kicker,
+.jarvis-app .dash-table-head,
+.jarvis-app .dash-kpi-card span,
+.jarvis-app .dash-metric-box span,
+.jarvis-app .parser-dash-count,
+.jarvis-app .dashboard-module-meta,
+.jarvis-app .dash-team-mini em {
+  color: #8feeff !important;
+}
+
+.jarvis-app .dash-aside-panel p,
+.jarvis-app .dash-assistant-content p,
+.jarvis-app .dash-metric-box small,
+.jarvis-app .dash-team-mini small,
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row,
+.jarvis-app .dash-team-jump,
+.jarvis-app .dash-page-state,
+.jarvis-app .dash-team-jump.is-all,
+.jarvis-app .dash-team-jump.is-personal {
+  color: #9ed9e4 !important;
+}
+
+.jarvis-app .parser-dash-controls-right .jarvis-button,
+.jarvis-app .dash-intel-action,
+.jarvis-app .scrim-action,
+.jarvis-app .dash-team-access-head a,
+.jarvis-app .dash-page-link,
+.jarvis-app .scrim-inline-action {
+  color: #dffaff !important;
+  border-color: rgba(0, 229, 255, 0.72) !important;
+  background: #041a20 !important;
+}
+
+.jarvis-app .parser-dash-controls-right .jarvis-button:hover,
+.jarvis-app .dash-intel-action:hover,
+.jarvis-app .scrim-action:hover,
+.jarvis-app .dash-team-access-head a:hover,
+.jarvis-app .dash-page-link:hover,
+.jarvis-app .scrim-inline-action:hover {
+  background: #06303a !important;
+  border-color: #3cf4ff !important;
+}
+
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input,
+.jarvis-app .parser-dash-control,
+.jarvis-app .parser-dash-control input,
+.jarvis-app .parser-dash-control select {
+  color: #dffaff !important;
+  background: #03171d !important;
+}
+
+.jarvis-app .dash-filter-field input::placeholder,
+.jarvis-app .parser-dash-control input::placeholder {
+  color: #78c9d6 !important;
+}
+
+.jarvis-app .dash-table-head,
+.jarvis-app .dash-log-head,
+.jarvis-app .parser-dash-command-head {
+  border-bottom-color: rgba(0, 229, 255, 0.48) !important;
+}
+
+.jarvis-app .parser-scrim-card {
+  min-height: 98px;
+}
+
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row {
+  min-height: 26px;
+  font-size: 0.64rem;
+}
+
+.jarvis-app .dash-status-chips .jarvis-chip {
+  border-width: 1px !important;
+  font-size: 0.58rem !important;
+  color: #dffaff !important;
+  background: #031920 !important;
+}
+
+.jarvis-app .parser-dash-command-head h2,
+.jarvis-app .dash-log-head h2 {
+  font-size: 0.98rem;
+}
+
+.jarvis-app .dash-metric-box strong,
+.jarvis-app .dash-kpi-card strong {
+  font-size: 1.08rem;
+}
+
+.jarvis-app .dash-metric-box span,
+.jarvis-app .dash-kpi-card span,
+.jarvis-app .dash-filter-field span,
+.jarvis-app .dash-filter-field > span {
+  font-size: 0.58rem;
+}
+
+/* Final site-match override: mirror Blink-style simple HUD interface. */
+.jarvis-app .parser-dash-root {
+  --hud-cyan: #00e5ff;
+  --hud-dim: #6abfcb;
+  --hud-bg: #071318;
+  --hud-bg-soft: #0b1d24;
+  display: grid;
+  gap: 10px;
+  color: var(--hud-cyan);
+  font-family: "Share Tech Mono", Consolas, "Segoe UI Mono", monospace;
+}
+
+.jarvis-app .dash-module::before,
+.jarvis-app .dash-module::after,
+.jarvis-app .dash-team-mini::before,
+.jarvis-app .dash-team-mini::after,
+.jarvis-app .dash-metric-box::before,
+.jarvis-app .dash-metric-box::after,
+.jarvis-app .dash-kpi-card::after,
+.jarvis-app .dash-team-jump::after,
+.jarvis-app .parser-scrim-card::before {
+  content: none !important;
+}
+
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer,
+.jarvis-app .dash-table-panel,
+.jarvis-app .dash-aside-panel,
+.jarvis-app .dash-metric-box,
+.jarvis-app .dash-kpi-card,
+.jarvis-app .dash-team-mini,
+.jarvis-app .parser-scrim-card,
+.jarvis-app .dash-team-jump,
+.jarvis-app .dash-status-chips .jarvis-chip,
+.jarvis-app .parser-dash-control,
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input,
+.jarvis-app .dash-intel-action,
+.jarvis-app .scrim-action,
+.jarvis-app .dash-page-link,
+.jarvis-app .dash-team-access-head a,
+.jarvis-app .scrim-inline-action {
+  border-radius: 2px !important;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color: rgba(0, 229, 255, 0.34) !important;
+  background: var(--hud-bg) !important;
+  background-image: none !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.05), 0 0 0 1px rgba(0, 229, 255, 0.02) !important;
+}
+
+.jarvis-app .dash-table-head,
+.jarvis-app .dash-log-head,
+.jarvis-app .parser-dash-command-head {
+  background: var(--hud-bg-soft) !important;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.25) !important;
+}
+
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer {
+  padding: 10px 12px !important;
+}
+
+.jarvis-app .dash-status-main h1,
+.jarvis-app .parser-dash-command-head h2,
+.jarvis-app .dash-log-head h2,
+.jarvis-app .parser-scrim-title-row h3,
+.jarvis-app .dash-kpi-card strong,
+.jarvis-app .dash-metric-box strong,
+.jarvis-app .dash-team-mini strong,
+.jarvis-app .dash-aside-panel h3,
+.jarvis-app .dash-assistant-drawer summary {
+  color: #dffaff !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.jarvis-app .section-kicker,
+.jarvis-app .dash-team-access-head span,
+.jarvis-app .dash-filter-field span,
+.jarvis-app .dash-log-head .dashboard-module-kicker,
+.jarvis-app .dash-table-head,
+.jarvis-app .dash-kpi-card span,
+.jarvis-app .dash-metric-box span,
+.jarvis-app .dash-team-mini em,
+.jarvis-app .parser-scrim-kicker {
+  color: var(--hud-dim) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.jarvis-app .dash-aside-panel p,
+.jarvis-app .dash-assistant-content p,
+.jarvis-app .dash-metric-box small,
+.jarvis-app .dash-team-mini small,
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row,
+.jarvis-app .dash-team-jump,
+.jarvis-app .dashboard-module-meta,
+.jarvis-app .dash-page-state,
+.jarvis-app .parser-dash-count,
+.jarvis-app .dash-count-meta {
+  color: #8ec8d2 !important;
+}
+
+.jarvis-app .parser-dash-control,
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input {
+  min-height: 30px;
+  font-size: 0.62rem;
+  color: #dffaff !important;
+  background: #0a1d23 !important;
+  border-color: rgba(0, 229, 255, 0.3) !important;
+}
+
+.jarvis-app .dash-filter-field,
+.jarvis-app .dash-filter-field:nth-child(1),
+.jarvis-app .dash-filter-field:nth-child(2),
+.jarvis-app .dash-filter-field:nth-child(3),
+.jarvis-app .dash-filter-field:nth-child(4),
+.jarvis-app .dash-filter-field:nth-child(5),
+.jarvis-app .dash-filter-field:nth-child(6),
+.jarvis-app .dash-filter-field:nth-child(7),
+.jarvis-app .dash-filter-field:nth-child(8) {
+  --dash-field-accent: rgba(0, 229, 255, 0.5);
+}
+
+.jarvis-app .dash-filter-field::before,
+.jarvis-app .parser-dash-search-wrap,
+.jarvis-app .parser-dash-select-wrap {
+  border-left: 0 !important;
+  clip-path: none !important;
+}
+
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n + 1),
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n + 2),
+.jarvis-app .dash-team-strip .dash-team-mini:nth-child(3n) {
+  background: var(--hud-bg) !important;
+}
+
+.jarvis-app .dash-team-mini {
+  padding: 8px 9px;
+}
+
+.jarvis-app .dash-metric-box,
+.jarvis-app .dash-kpi-card {
+  clip-path: none;
+  border-left-width: 1px;
+  border-right-width: 1px;
+}
+
+.jarvis-app .dash-metric-box.metric-scrims,
+.jarvis-app .dash-metric-box.metric-maps,
+.jarvis-app .dash-metric-box.metric-teams,
+.jarvis-app .dash-metric-box.metric-players,
+.jarvis-app .dash-metric-box.metric-events,
+.jarvis-app .dash-kpi-card.kpi-scrims,
+.jarvis-app .dash-kpi-card.kpi-maps,
+.jarvis-app .dash-kpi-card.kpi-teams,
+.jarvis-app .dash-kpi-card.kpi-players,
+.jarvis-app .dash-kpi-card.kpi-events {
+  border-top-color: rgba(0, 229, 255, 0.48) !important;
+}
+
+.jarvis-app .parser-scrim-card {
+  min-height: 96px;
+  position: relative;
+  border-color: rgba(0, 229, 255, 0.28) !important;
+}
+
+.jarvis-app .parser-scrim-meta > div,
+.jarvis-app .parser-scrim-team-row {
+  background: #0a1c23 !important;
+  border-color: rgba(0, 229, 255, 0.22) !important;
+  min-height: 24px;
+}
+
+.jarvis-app .scrim-result-chip {
+  background: transparent !important;
+  border-width: 1px !important;
+}
+
+.jarvis-app .scrim-result-chip.is-win { color: var(--j-green) !important; border-color: rgba(0, 255, 136, 0.58) !important; }
+.jarvis-app .scrim-result-chip.is-loss { color: var(--j-red) !important; border-color: rgba(255, 51, 68, 0.58) !important; }
+.jarvis-app .scrim-result-chip.is-draw { color: var(--j-amber) !important; border-color: rgba(255, 170, 0, 0.58) !important; }
+
+.jarvis-app .dash-intel-action,
+.jarvis-app .scrim-action,
+.jarvis-app .dash-page-link,
+.jarvis-app .dash-team-access-head a,
+.jarvis-app .scrim-inline-action {
+  color: #dffaff !important;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.jarvis-app .dash-intel-action:hover,
+.jarvis-app .scrim-action:hover,
+.jarvis-app .dash-page-link:hover,
+.jarvis-app .dash-team-access-head a:hover,
+.jarvis-app .scrim-inline-action:hover {
+  background: #10303a !important;
+  border-color: rgba(0, 229, 255, 0.52) !important;
+}
+
+/* Simple mode alignment: clean, flat, low-noise dashboard like provided reference. */
+.jarvis-app .dash-module::before,
+.jarvis-app .dash-module::after,
+.jarvis-app .dash-metric-box::after,
+.jarvis-app .dash-kpi-card::after,
+.jarvis-app .dash-team-jump::after,
+.jarvis-app .dash-team-mini::after {
+  content: none !important;
+}
+
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer,
+.jarvis-app .dash-table-panel,
+.jarvis-app .dash-aside-panel,
+.jarvis-app .dash-metric-box,
+.jarvis-app .dash-kpi-card,
+.jarvis-app .dash-team-mini,
+.jarvis-app .parser-scrim-card,
+.jarvis-app .dash-team-jump,
+.jarvis-app .parser-dash-control,
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input,
+.jarvis-app .dash-status-chips .jarvis-chip {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+.jarvis-app .dash-status-strip,
+.jarvis-app .parser-dash-command-bar,
+.jarvis-app .parser-dash-log-panel,
+.jarvis-app .dash-assistant-drawer,
+.jarvis-app .dash-table-panel,
+.jarvis-app .dash-aside-panel,
+.jarvis-app .dash-metric-box,
+.jarvis-app .dash-kpi-card,
+.jarvis-app .dash-team-mini,
+.jarvis-app .parser-scrim-card,
+.jarvis-app .dash-team-jump {
+  background: #07161b !important;
+  border-color: rgba(0, 229, 255, 0.46) !important;
+}
+
+.jarvis-app .dash-table-head,
+.jarvis-app .dash-log-head,
+.jarvis-app .parser-dash-command-head {
+  background: #0b2027 !important;
+}
+
+.jarvis-app .dash-filter-field select,
+.jarvis-app .dash-filter-field input,
+.jarvis-app .parser-dash-control {
+  background: #0a1d23 !important;
+  border-color: rgba(0, 229, 255, 0.4) !important;
+}
+
+.jarvis-app .dash-status-main h1 {
+  font-size: 1.06rem;
+}
+
+.jarvis-app .parser-dash-command-head h2,
+.jarvis-app .dash-log-head h2 {
+  font-size: 0.95rem;
+}
+
+.jarvis-app .dash-team-mini strong,
+.jarvis-app .parser-scrim-title-row h3,
+.jarvis-app .dash-kpi-card strong,
+.jarvis-app .dash-metric-box strong {
+  font-size: 0.82rem;
+}
+
+.jarvis-app .dash-metric-box strong,
+.jarvis-app .dash-kpi-card strong {
+  font-size: 1rem;
+}
+
+.jarvis-app .dash-team-mini::before,
+.jarvis-app .dash-team-mini.team-slot-1::before,
+.jarvis-app .dash-team-mini.team-slot-2::before,
+.jarvis-app .dash-team-mini.team-slot-3::before,
+.jarvis-app .dash-team-mini.team-slot-4::before,
+.jarvis-app .dash-team-mini.team-slot-5::before,
+.jarvis-app .dash-team-mini.team-slot-6::before,
+.jarvis-app .dash-team-mini.team-slot-7::before,
+.jarvis-app .dash-team-mini.team-slot-8::before {
+  background: rgba(0, 229, 255, 0.55) !important;
+}
+
+.jarvis-app .parser-scrim-card,
+.jarvis-app .parser-scrim-card[data-result="win"],
+.jarvis-app .parser-scrim-card[data-result="loss"],
+.jarvis-app .parser-scrim-card[data-result="draw"],
+.jarvis-app .parser-scrim-card[data-result="mixed"] {
+  box-shadow: none !important;
+}
+
+.jarvis-app .parser-scrim-card::before {
+  background: rgba(0, 229, 255, 0.6) !important;
+}
+
+@media (max-width: 1280px) {
+  .jarvis-app .dash-data-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .jarvis-app .dash-filter-search {
+    grid-column: span 2;
+  }
+
+  .jarvis-app .dash-ops-main {
+    grid-template-columns: 96px minmax(0, 1fr) 176px;
+  }
+}
+
+@media (max-width: 900px) {
+  .jarvis-app .dash-status-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .dash-data-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .dash-filter-search {
+    grid-column: span 2;
+  }
+
+  .jarvis-app .dash-ops-main {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .dash-team-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .parser-scrim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .dash-ops-aside {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .jarvis-app .dash-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .jarvis-app .dash-data-filters,
+  .jarvis-app .dash-kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .dash-team-strip,
+  .jarvis-app .dash-ops-aside,
+  .jarvis-app .parser-scrim-grid,
+  .jarvis-app .parser-scrim-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .dash-filter-search {
+    grid-column: auto;
+  }
+}
+
 .signal-good,
 .j-text-green {
   color: var(--j-green) !important;
@@ -486,6 +2558,152 @@ table tr:hover td,
   box-shadow: none !important;
 }
 
+.jarvis-boot-overlay {
+  background:
+    radial-gradient(circle at center, rgba(0, 216, 255, 0.16), transparent 32%),
+    linear-gradient(90deg, rgba(0, 216, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(rgba(0, 216, 255, 0.025) 1px, transparent 1px),
+    rgba(1, 7, 11, 0.96) !important;
+  background-size: auto, 36px 36px, 36px 36px, auto !important;
+}
+
+.jarvis-boot-card {
+  width: min(620px, 100%) !important;
+  padding: 26px 28px 22px !important;
+  gap: 11px !important;
+  border-color: rgba(0, 216, 255, 0.32) !important;
+  background: rgba(3, 14, 20, 0.94) !important;
+  box-shadow: 0 0 52px rgba(0, 216, 255, 0.1) !important;
+}
+
+.jarvis-boot-card::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(0, 216, 255, 0.06);
+  pointer-events: none;
+}
+
+.jarvis-boot-core {
+  width: 118px;
+  height: 118px;
+  margin: 0 auto 8px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.jarvis-boot-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 216, 255, 0.5);
+  box-shadow: 0 0 18px rgba(0, 216, 255, 0.12);
+}
+
+.jarvis-boot-orbit::before,
+.jarvis-boot-orbit::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: #37ddff;
+  box-shadow: 0 0 8px rgba(55, 221, 255, 0.72);
+}
+
+.jarvis-boot-orbit-outer {
+  inset: 0;
+  border-style: dashed;
+  animation: jarvisBootOrbit 4s linear infinite;
+}
+
+.jarvis-boot-orbit-outer::before {
+  width: 5px;
+  height: 5px;
+  left: 16px;
+  top: 12px;
+}
+
+.jarvis-boot-orbit-inner {
+  inset: 18px;
+  border-color: rgba(0, 216, 255, 0.72);
+  animation: jarvisBootOrbitReverse 2.5s linear infinite;
+}
+
+.jarvis-boot-orbit-inner::after {
+  width: 4px;
+  height: 4px;
+  right: 8px;
+  bottom: 16px;
+}
+
+.jarvis-boot-core-mark {
+  color: #c9f8ff;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  text-shadow: 0 0 12px rgba(0, 216, 255, 0.72);
+}
+
+.jarvis-boot-heading {
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.jarvis-boot-heading span,
+.jarvis-boot-progress-meta {
+  color: rgba(111, 184, 200, 0.74);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.jarvis-boot-progress {
+  height: 5px !important;
+  border-radius: 0 !important;
+  background: rgba(0, 216, 255, 0.06) !important;
+}
+
+.jarvis-boot-progress span {
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, #07586c, #00d8ff, #b8f3ff) !important;
+  box-shadow: 0 0 14px rgba(0, 216, 255, 0.44) !important;
+  animation-duration: 3.15s !important;
+}
+
+.jarvis-boot-progress-meta {
+  display: flex;
+  justify-content: space-between;
+}
+
+.jarvis-boot-progress-meta b {
+  color: #b8f3ff;
+  font-weight: 400;
+}
+
+.jarvis-boot-lines {
+  padding: 10px 0;
+  border-top: 1px solid rgba(0, 216, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 216, 255, 0.1);
+}
+
+.jarvis-boot-overlay.is-complete .jarvis-boot-card {
+  border-color: rgba(0, 232, 157, 0.64) !important;
+  box-shadow: 0 0 54px rgba(0, 232, 157, 0.16) !important;
+}
+
+.jarvis-boot-overlay.is-complete .jarvis-boot-heading strong,
+.jarvis-boot-overlay.is-complete .jarvis-boot-progress-meta b {
+  color: #70ffc5 !important;
+}
+
+@keyframes jarvisBootOrbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jarvisBootOrbitReverse {
+  to { transform: rotate(-360deg); }
+}
+
 /* Utility j-classes from the attached style guide */
 .j-text-cyan { color: var(--j-cyan); }
 .j-text-green { color: var(--j-green); }
@@ -499,8 +2717,1808 @@ table tr:hover td,
 .j-gap-md { gap: 12px; }
 .j-gap-lg { gap: 20px; }
 
+/* Scrim Command redesign: clean center-focused tactical workspace */
+.jarvis-app .scrim-command-root {
+  --sc-cyan: #00e5ff;
+  --sc-text: #dffaff;
+  --sc-dim: #7fbec9;
+  --sc-border: rgba(0, 229, 255, 0.28);
+  --sc-border-strong: rgba(0, 229, 255, 0.55);
+  --sc-bg: #07161b;
+  --sc-bg-soft: #0b1d24;
+  display: grid;
+  gap: 12px;
+}
+
+.jarvis-app .scrim-command-topbar {
+  border: 1px solid var(--sc-border);
+  background: var(--sc-bg);
+  border-radius: 3px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.jarvis-app .scrim-command-title-group {
+  display: grid;
+  gap: 2px;
+}
+
+.jarvis-app .scrim-command-kicker {
+  color: var(--sc-dim);
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .scrim-command-title-group h1 {
+  margin: 0;
+  color: var(--sc-text);
+  font-size: 1rem;
+  letter-spacing: 0.11em;
+}
+
+.jarvis-app .scrim-command-search {
+  border: 1px solid var(--sc-border);
+  background: var(--sc-bg-soft);
+  border-radius: 2px;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 0 10px;
+  position: relative;
+}
+
+.jarvis-app .scrim-command-scope {
+  border: 1px solid var(--sc-border) !important;
+  background: #0d2027 !important;
+  color: var(--sc-text) !important;
+  font-size: 0.58rem;
+  min-height: 24px;
+  padding: 0 7px;
+}
+
+.jarvis-app .scrim-command-search svg {
+  color: var(--sc-dim);
+}
+
+.jarvis-app .scrim-command-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--sc-text);
+  font-size: 0.64rem;
+}
+
+.jarvis-app .scrim-command-search input::placeholder {
+  color: #78b6c2;
+}
+
+.jarvis-app .scrim-command-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jarvis-app .scrim-command-stats span {
+  border: 1px solid var(--sc-border);
+  background: var(--sc-bg-soft);
+  border-radius: 2px;
+  color: var(--sc-dim);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
+.jarvis-app .scrim-command-stats b {
+  color: var(--sc-text);
+  margin-right: 3px;
+}
+
+.jarvis-app .scrim-command-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.jarvis-app .scrim-command-actions .jarvis-button {
+  min-height: 32px;
+  padding: 0 11px;
+}
+
+.jarvis-app .scrim-command-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 14px;
+  align-items: start;
+}
+
+.jarvis-app .scrim-command-main {
+  display: grid;
+  gap: 12px;
+}
+
+.jarvis-app .scrim-filter-row {
+  border: 1px solid var(--sc-border);
+  background: var(--sc-bg);
+  border-radius: 3px;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
+  gap: 8px;
+}
+
+.jarvis-app .scrim-filter-field {
+  display: grid;
+  gap: 4px;
+}
+
+.jarvis-app .scrim-filter-field span {
+  color: var(--sc-dim);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+}
+
+.jarvis-app .scrim-filter-field select,
+.jarvis-app .scrim-filter-field input {
+  min-height: 31px;
+  border: 1px solid var(--sc-border) !important;
+  background: var(--sc-bg-soft) !important;
+  color: var(--sc-text) !important;
+  border-radius: 2px !important;
+  font-size: 0.62rem;
+}
+
+.jarvis-app .scrim-filter-advanced {
+  border: 1px solid var(--sc-border);
+  border-radius: 2px;
+  background: var(--sc-bg-soft);
+  padding: 6px 8px;
+  align-self: end;
+}
+
+.jarvis-app .scrim-filter-advanced summary {
+  color: var(--sc-text);
+  font-size: 0.6rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.jarvis-app .scrim-filter-advanced-body {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.jarvis-app .scrim-feature-card {
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 3px;
+  background: var(--sc-bg-soft);
+  padding: 12px;
+  text-decoration: none;
+  display: grid;
+  gap: 8px;
+}
+
+.jarvis-app .scrim-feature-eyebrow {
+  color: var(--sc-dim);
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.jarvis-app .scrim-feature-card h2 {
+  margin: 0;
+  color: var(--sc-text);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.jarvis-app .scrim-feature-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--sc-dim);
+  font-size: 0.6rem;
+}
+
+.jarvis-app .scrim-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.jarvis-app .scrim-command-main .parser-scrim-card {
+  border: 1px solid var(--sc-border) !important;
+  background: var(--sc-bg) !important;
+  border-radius: 3px !important;
+  padding: 11px;
+  text-decoration: none;
+  display: grid;
+  gap: 9px;
+  min-height: 120px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.jarvis-app .scrim-command-main .parser-scrim-card:hover {
+  border-color: rgba(0, 229, 255, 0.5) !important;
+}
+
+.jarvis-app .scrim-command-main .parser-scrim-card.is-selected {
+  border-color: rgba(0, 229, 255, 0.8) !important;
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.28);
+}
+
+.jarvis-app .scrim-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.jarvis-app .scrim-card-top h3 {
+  margin: 0;
+  color: var(--sc-text);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.jarvis-app .scrim-card-primary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  color: var(--sc-dim);
+  font-size: 0.61rem;
+}
+
+.jarvis-app .scrim-score {
+  color: var(--sc-text);
+  font-size: 0.8rem;
+}
+
+.jarvis-app .scrim-card-hover-row {
+  color: #8fc9d3;
+  font-size: 0.58rem;
+  border-top: 1px solid rgba(0, 229, 255, 0.15);
+  padding-top: 6px;
+  opacity: 0.68;
+}
+
+.jarvis-app .scrim-command-main .parser-scrim-card:hover .scrim-card-hover-row {
+  opacity: 1;
+}
+
+.jarvis-app .scrim-command-intel {
+  display: grid;
+  gap: 10px;
+}
+
+.jarvis-app .intel-block {
+  border: 1px solid var(--sc-border);
+  background: var(--sc-bg);
+  border-radius: 3px;
+  padding: 11px;
+  display: grid;
+  gap: 9px;
+}
+
+.jarvis-app .intel-block h2 {
+  margin: 0;
+  color: var(--sc-text);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .intel-awaiting {
+  margin: 0;
+  color: var(--sc-dim);
+  font-size: 0.64rem;
+}
+
+.jarvis-app .intel-detail h3 {
+  margin: 0 0 6px;
+  color: var(--sc-text);
+  font-size: 0.79rem;
+}
+
+.jarvis-app .intel-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+
+.jarvis-app .intel-meta-row span,
+.jarvis-app .intel-detail p {
+  color: var(--sc-dim);
+  font-size: 0.6rem;
+  margin: 0 0 5px;
+}
+
+.jarvis-app .intel-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.jarvis-app .intel-actions .dash-intel-action,
+.jarvis-app .dash-team-jump {
+  border: 1px solid var(--sc-border) !important;
+  background: var(--sc-bg-soft) !important;
+  color: var(--sc-text) !important;
+  border-radius: 2px;
+  text-decoration: none;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 7px 8px;
+}
+
+.jarvis-app .intel-actions .dash-intel-action:hover,
+.jarvis-app .dash-team-jump:hover {
+  border-color: var(--sc-border-strong) !important;
+}
+
+.jarvis-app .dash-team-jump-list {
+  display: grid;
+  gap: 6px;
+}
+
+.jarvis-app .scrim-command-root .dash-pagination {
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.jarvis-app .scrim-command-root .dash-page-link {
+  border: 1px solid var(--sc-border) !important;
+  background: var(--sc-bg-soft) !important;
+}
+
+@media (max-width: 1300px) {
+  .jarvis-app .scrim-command-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .scrim-command-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .scrim-command-intel {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .jarvis-app .scrim-filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .scrim-feed-grid,
+  .jarvis-app .scrim-command-intel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Compact fit mode: keep dashboard within viewport and tighten scrim cards. */
+.jarvis-app .scrim-command-root {
+  gap: 9px;
+}
+
+.jarvis-app .scrim-command-topbar {
+  padding: 8px 10px;
+  gap: 9px;
+}
+
+.jarvis-app .scrim-command-title-group h1 {
+  font-size: 0.92rem;
+}
+
+.jarvis-app .scrim-command-search {
+  min-height: 31px;
+}
+
+.jarvis-app .scrim-command-stats span {
+  padding: 3px 6px;
+  font-size: 0.54rem;
+}
+
+.jarvis-app .scrim-command-actions .jarvis-button {
+  min-height: 29px;
+  padding: 0 9px;
+  font-size: 0.56rem;
+}
+
+.jarvis-app .scrim-command-layout {
+  min-height: 0;
+  height: calc(100vh - 190px);
+  gap: 11px;
+}
+
+.jarvis-app .scrim-command-main,
+.jarvis-app .scrim-command-intel {
+  min-height: 0;
+}
+
+.jarvis-app .scrim-command-main {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.jarvis-app .scrim-filter-row {
+  padding: 7px;
+  gap: 7px;
+}
+
+.jarvis-app .scrim-filter-field {
+  gap: 3px;
+}
+
+.jarvis-app .scrim-filter-field span {
+  font-size: 0.5rem;
+}
+
+.jarvis-app .scrim-filter-field select,
+.jarvis-app .scrim-filter-field input {
+  min-height: 28px;
+  font-size: 0.58rem;
+}
+
+.jarvis-app .scrim-filter-advanced {
+  padding: 5px 7px;
+}
+
+.jarvis-app .scrim-filter-advanced summary {
+  font-size: 0.56rem;
+}
+
+.jarvis-app .scrim-feature-card {
+  padding: 9px;
+  gap: 6px;
+}
+
+.jarvis-app .scrim-feature-card h2 {
+  font-size: 0.82rem;
+}
+
+.jarvis-app .scrim-feature-meta {
+  gap: 6px;
+  font-size: 0.56rem;
+}
+
+.jarvis-app .scrim-feed-grid {
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+  gap: 9px;
+}
+
+.jarvis-app .scrim-command-main .parser-scrim-card {
+  min-height: 94px;
+  padding: 8px;
+  gap: 7px;
+}
+
+.jarvis-app .scrim-card-top {
+  gap: 7px;
+}
+
+.jarvis-app .scrim-card-top h3 {
+  font-size: 0.69rem;
+  line-height: 1.25;
+}
+
+.jarvis-app .scrim-card-primary {
+  gap: 4px;
+  font-size: 0.56rem;
+}
+
+.jarvis-app .scrim-score {
+  font-size: 0.72rem;
+}
+
+.jarvis-app .scrim-card-hover-row {
+  font-size: 0.53rem;
+  padding-top: 4px;
+}
+
+.jarvis-app .scrim-command-intel {
+  gap: 8px;
+}
+
+.jarvis-app .intel-block {
+  padding: 9px;
+  gap: 7px;
+}
+
+.jarvis-app .intel-block h2 {
+  font-size: 0.66rem;
+}
+
+.jarvis-app .intel-detail h3 {
+  font-size: 0.72rem;
+}
+
+.jarvis-app .intel-meta-row span,
+.jarvis-app .intel-detail p,
+.jarvis-app .intel-awaiting {
+  font-size: 0.56rem;
+}
+
+.jarvis-app .intel-actions .dash-intel-action,
+.jarvis-app .dash-team-jump {
+  padding: 6px 7px;
+  font-size: 0.55rem;
+}
+
+.jarvis-app .scrim-command-root .dash-pagination {
+  padding-top: 2px;
+}
+
+.jarvis-app .scrim-command-root .dash-page-link,
+.jarvis-app .scrim-command-root .dash-page-state {
+  font-size: 0.56rem;
+}
+
+@media (max-width: 1300px) {
+  .jarvis-app .scrim-command-layout {
+    height: auto;
+  }
+
+  .jarvis-app .scrim-command-main {
+    grid-template-rows: auto auto auto auto;
+  }
+
+  .jarvis-app .scrim-feed-grid {
+    overflow: visible;
+  }
+}
+
 @media (max-width: 1180px) {
   .command-mobile-brand {
     display: inline-grid;
+  }
+}
+
+/* Dashboard command core: assistant-first tactical cockpit */
+.jarvis-app .command-core-root {
+  --bg-main: #03090d;
+  --bg-deep: #02060a;
+  --bg-panel: #07131a;
+  --bg-panel-2: #0a1820;
+  --line-soft: rgba(0, 210, 255, 0.14);
+  --line-mid: rgba(0, 210, 255, 0.28);
+  --line-strong: rgba(0, 220, 255, 0.58);
+  --accent: #00d8ff;
+  --accent-soft: #19bfe6;
+  --accent-dim: #0b6178;
+  --text-main: #b8f3ff;
+  --text-dim: #6fb8c8;
+  --text-muted: #477787;
+  --glow-soft: 0 0 10px rgba(0, 216, 255, 0.10);
+  --glow-mid: 0 0 18px rgba(0, 216, 255, 0.16);
+  --glow-strong: 0 0 26px rgba(0, 216, 255, 0.24);
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-panel: 0px;
+  --text-eyebrow: 10px;
+  --text-title: 14px;
+  --text-body: 12px;
+  --text-meta: 11px;
+  --text-major: 22px;
+  --control-height: 34px;
+  display: grid;
+  gap: 8px;
+  height: calc(100dvh - 90px);
+  min-height: 0;
+  overflow: hidden;
+  color: var(--text-main);
+}
+
+/* Flatten all parent wrappers around the AI command core to avoid hidden rounded shells. */
+.main-content.jarvis-app.command-content {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  width: calc(100% - (var(--screen-gutter) * 2)) !important;
+  max-width: var(--content-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.dashboard-layout.command-stage {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --screen-gutter: 24px;
+  }
+}
+
+.main-content.jarvis-app.command-content::before {
+  content: none !important;
+}
+
+.app-shell,
+.dashboard-layout.command-stage,
+.command-main,
+.command-content,
+.command-core-root,
+.command-core-layout {
+  border-radius: 0 !important;
+}
+
+/* Shared HUD design system */
+.jarvis-app .angular-hud-panel {
+  position: relative;
+  border-radius: 0;
+}
+
+.jarvis-app .angular-hud-panel::before,
+.jarvis-app .angular-hud-panel::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.jarvis-app .angular-hud-panel::before {
+  left: -1px;
+  top: -1px;
+  border-left: 1px solid var(--line-mid, rgba(0, 210, 255, 0.28));
+  border-top: 1px solid var(--line-mid, rgba(0, 210, 255, 0.28));
+}
+
+.jarvis-app .angular-hud-panel::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 1px solid var(--line-mid, rgba(0, 210, 255, 0.28));
+  border-bottom: 1px solid var(--line-mid, rgba(0, 210, 255, 0.28));
+}
+
+.jarvis-app .hud-panel,
+.jarvis-app .hud-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  padding: var(--space-lg);
+}
+
+.jarvis-app .hud-panel-active {
+  border-color: var(--line-mid);
+  box-shadow: var(--glow-soft);
+}
+
+.jarvis-app .hud-panel-selected {
+  border-color: var(--line-strong);
+  box-shadow: var(--glow-mid);
+}
+
+.jarvis-app .hud-button {
+  min-height: var(--control-height);
+  border: 1px solid var(--line-soft) !important;
+  border-radius: 0 !important;
+  padding: 0 var(--space-md) !important;
+  background: rgba(10, 24, 32, 0.72) !important;
+  color: var(--text-dim) !important;
+  font-size: var(--text-meta) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+
+.jarvis-app .hud-button:hover,
+.jarvis-app .hud-button:focus-visible {
+  border-color: var(--line-mid) !important;
+  color: var(--text-main) !important;
+  box-shadow: var(--glow-soft);
+}
+
+.jarvis-app .hud-button-primary {
+  border-color: var(--line-strong) !important;
+  color: var(--text-main) !important;
+  box-shadow: var(--glow-soft);
+}
+
+.jarvis-app .hud-input {
+  min-height: var(--control-height);
+  border-radius: 0;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel-2);
+  color: var(--text-main);
+  font-size: var(--text-body);
+  padding: 0 var(--space-md);
+}
+
+.jarvis-app .hud-input::placeholder {
+  color: var(--text-muted);
+}
+
+.jarvis-app .hud-input:focus {
+  border-color: var(--line-mid);
+  box-shadow: var(--glow-soft);
+  outline: none;
+}
+
+.jarvis-app .hud-badge {
+  min-height: 26px;
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  padding: 0 var(--space-sm);
+  background: rgba(10, 24, 32, 0.7);
+  color: var(--text-dim);
+  font-size: var(--text-meta);
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jarvis-app .hud-section-header {
+  display: grid;
+  gap: var(--space-xs);
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.jarvis-app .hud-eyebrow {
+  font-size: var(--text-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.jarvis-app .hud-section-title {
+  margin: 0;
+  font-size: var(--text-title);
+  color: var(--text-main);
+  letter-spacing: 0.03em;
+  font-weight: 620;
+}
+
+.jarvis-app .command-side-card .hud-section-title {
+  display: block;
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.jarvis-app .hud-divider {
+  height: 1px;
+  width: 100%;
+  background: var(--line-soft);
+}
+
+.jarvis-app .hud-sidebar-item {
+  min-height: var(--control-height);
+  border-radius: 0;
+  padding: 0 var(--space-md);
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-dim);
+  transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.command-rail-link.hud-sidebar-item,
+.nav-drawer-link.hud-sidebar-item {
+  min-height: var(--control-height);
+  border-radius: 0;
+  padding: 0 var(--space-md);
+}
+
+.hud-sidebar-item:hover {
+  border-color: var(--line-soft);
+  color: var(--text-main);
+  background: rgba(10, 24, 32, 0.65);
+}
+
+.hud-sidebar-item.active {
+  border-color: var(--line-mid);
+  color: var(--text-main);
+  background: rgba(10, 24, 32, 0.82);
+  box-shadow: var(--glow-soft);
+}
+
+.jarvis-app .command-core-topbar {
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(10, 24, 32, 0.72) 0%, rgba(7, 19, 26, 0.82) 100%);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 12px;
+  box-shadow: inset 0 0 0 1px rgba(0, 210, 255, 0.02);
+}
+
+.jarvis-app .command-core-kicker {
+  margin: 0;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  font-size: 0.52rem;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-core-title-wrap {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.jarvis-app .command-core-title-wrap h1 {
+  margin: 0;
+  font-size: 0.84rem;
+  letter-spacing: 0.06em;
+  color: var(--text-main);
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-core-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jarvis-app .command-core-pill-row span {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: transparent;
+  min-height: auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.jarvis-app .command-core-pill-row span + span::before {
+  content: "";
+  width: 1px;
+  height: 10px;
+  margin: 0 8px 0 2px;
+  background: var(--line-soft);
+  display: inline-block;
+}
+
+.jarvis-app .command-core-pill-row span:first-child {
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+.jarvis-app .command-core-top-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.jarvis-app .command-core-top-link {
+  color: var(--text-dim);
+  font-size: 0.56rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.jarvis-app .command-core-top-link + .command-core-top-link::before {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 10px;
+  margin: 0 8px 0 2px;
+  background: var(--line-soft);
+}
+
+.jarvis-app .command-core-top-link:hover,
+.jarvis-app .command-core-top-link:focus-visible {
+  color: var(--text-main);
+}
+
+.jarvis-app .command-core-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  gap: 10px;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
+}
+
+.jarvis-app .command-core-side {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  background: linear-gradient(180deg, rgba(8, 20, 29, 0.76), rgba(6, 16, 24, 0.9));
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(0, 210, 255, 0.03);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.jarvis-app .command-side-row {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.jarvis-app .command-side-row + .command-side-row {
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.jarvis-app .command-side-row-title {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(126, 195, 210, 0.72);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 620;
+}
+
+.jarvis-app .command-side-row p {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(111, 184, 200, 0.72);
+  line-height: 1.22;
+}
+
+.jarvis-app .command-side-highlight {
+  color: rgba(184, 243, 255, 0.88) !important;
+  font-size: 14px !important;
+  letter-spacing: 0.03em;
+  font-weight: 620;
+}
+
+.jarvis-app .command-log,
+.jarvis-app .command-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.jarvis-app .command-log li,
+.jarvis-app .command-list li {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: var(--space-xs) 0;
+  font-size: var(--text-meta);
+  color: var(--text-dim);
+  display: grid;
+  gap: 1px;
+}
+
+.jarvis-app .command-log li {
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+.jarvis-app .command-log-time {
+  color: var(--text-muted);
+  font-size: var(--text-meta);
+  letter-spacing: 0.06em;
+}
+
+.jarvis-app .command-log-msg {
+  color: var(--text-dim);
+  font-size: var(--text-body);
+}
+
+.jarvis-app #assistantActivityLog {
+  max-height: none;
+  overflow: hidden;
+  padding-right: 4px;
+}
+
+.jarvis-app .command-list li span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jarvis-app #assistantActivityLog .command-log-msg {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jarvis-app .command-list li strong {
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: var(--text-body);
+}
+
+.jarvis-app .command-list li {
+  padding-left: var(--space-md);
+  position: relative;
+}
+
+.jarvis-app .command-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 2px;
+  height: calc(100% - 12px);
+  min-height: 14px;
+  background: var(--line-mid);
+}
+
+.jarvis-app .command-link-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.jarvis-app .command-link-grid a,
+.jarvis-app .command-next-link {
+  border: 1px solid var(--line-soft);
+  background: rgba(10, 24, 32, 0.46);
+  border-radius: 0;
+  color: rgba(111, 184, 200, 0.78);
+  text-decoration: none;
+  font-size: var(--text-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: var(--control-height);
+  padding: 0 var(--space-md);
+  display: inline-flex;
+  align-items: center;
+}
+
+.jarvis-app .command-link-grid a:hover,
+.jarvis-app .command-next-link:hover {
+  border-color: var(--line-mid);
+  color: var(--text-main);
+  box-shadow: var(--glow-soft);
+}
+
+.jarvis-app .command-core-center {
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 43%, rgba(0, 216, 255, 0.12), transparent 54%),
+    linear-gradient(180deg, rgba(10, 24, 32, 0.86) 0%, rgba(7, 19, 26, 0.96) 100%);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: stretch;
+  gap: 0;
+  padding: 16px 14px 38px;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 210, 255, 0.03),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.jarvis-app .command-core-center::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(0, 216, 255, 0.14), rgba(0, 216, 255, 0.02) 38%, transparent 62%),
+    repeating-radial-gradient(circle at 50% 48%, rgba(0, 216, 255, 0.03) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(0deg, rgba(0, 216, 255, 0.022) 0 1px, transparent 1px 11px);
+  opacity: 0.42;
+  animation: commandBackgroundDrift 32s ease-in-out infinite alternate;
+}
+
+.jarvis-app .command-core-center::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 52%, transparent 46%, rgba(2, 8, 14, 0.48) 88%);
+}
+
+.jarvis-app .ai-core-shell {
+  min-height: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 10px 0 0;
+}
+
+.jarvis-app .ai-core-radar {
+  width: min(56vh, 560px);
+  aspect-ratio: 1 / 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.jarvis-app .ai-core-radar::before {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 216, 255, 0.26) 0%, rgba(0, 216, 255, 0.08) 38%, transparent 74%);
+  filter: blur(18px);
+  opacity: 0.52;
+  pointer-events: none;
+  animation: commandPulse 5s ease-in-out infinite;
+}
+
+.jarvis-app .jarvis-core-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.jarvis-app .jarvis-core-svg .ring {
+  fill: none;
+  stroke-linecap: round;
+  transform-origin: 250px 250px;
+}
+
+.jarvis-app .jarvis-core-svg .ring-faint {
+  stroke: rgba(118, 224, 244, 0.34);
+  stroke-width: 1.4;
+}
+
+.jarvis-app .jarvis-core-svg .rotor {
+  transform-origin: 250px 250px;
+}
+
+.jarvis-app .jarvis-core-svg .rotor-outer {
+  animation: commandRotor 42s linear infinite;
+}
+
+.jarvis-app .jarvis-core-svg .rotor-mid {
+  animation: commandRotor 28s linear infinite reverse;
+}
+
+.jarvis-app .jarvis-core-svg .rotor-ticks {
+  animation: commandRotor 50s linear infinite, commandShimmer 6.8s ease-in-out infinite;
+}
+
+.jarvis-app .jarvis-core-svg .rotor-micro {
+  animation: commandRotor 18s linear infinite reverse;
+}
+
+.jarvis-app .jarvis-core-svg .outer-arcs {
+  stroke: rgba(101, 232, 251, 0.95);
+  stroke-width: 2.2;
+  stroke-dasharray: 74 36 44 28 52 34;
+  filter: url(#jarvisCyanGlow);
+}
+
+.jarvis-app .jarvis-core-svg .outer-dashes {
+  stroke: rgba(85, 209, 235, 0.52);
+  stroke-width: 1.4;
+  stroke-dasharray: 16 8 30 14 12 16;
+  stroke-dashoffset: 24;
+}
+
+.jarvis-app .jarvis-core-svg .tick {
+  stroke: rgba(132, 238, 252, 0.46);
+  stroke-width: 1;
+}
+
+.jarvis-app .jarvis-core-svg .tick-major {
+  stroke: rgba(157, 245, 255, 0.82);
+  stroke-width: 1.4;
+}
+
+.jarvis-app .jarvis-core-svg .segmented-ring {
+  stroke: rgba(107, 229, 249, 0.72);
+  stroke-width: 1.8;
+  stroke-dasharray: 28 12 14 16 34 12;
+  stroke-dashoffset: 9;
+}
+
+.jarvis-app .jarvis-core-svg .dotted-ring {
+  stroke: rgba(137, 240, 255, 0.74);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 8;
+  animation: commandDashShift 16s linear infinite;
+}
+
+.jarvis-app .jarvis-core-svg .micro-segments {
+  stroke: rgba(87, 209, 236, 0.44);
+  stroke-width: 1.2;
+  stroke-dasharray: 8 6 12 18 6 10;
+  stroke-dashoffset: 40;
+}
+
+.jarvis-app .jarvis-core-svg .accent-arc {
+  stroke-width: 3;
+  filter: url(#jarvisCyanGlow);
+}
+
+.jarvis-app .jarvis-core-svg .accent-arc-1 {
+  stroke: rgba(90, 227, 249, 0.92);
+  stroke-dasharray: 44 282 32 144 18 150;
+  stroke-dashoffset: 36;
+}
+
+.jarvis-app .jarvis-core-svg .accent-arc-2 {
+  stroke: rgba(76, 216, 244, 0.72);
+  stroke-dasharray: 24 188 30 220 16 190;
+  stroke-dashoffset: 104;
+}
+
+.jarvis-app .jarvis-core-svg .inner-ring {
+  stroke: rgba(99, 232, 251, 0.82);
+  stroke-width: 2.4;
+  filter: url(#jarvisCyanGlow);
+}
+
+.jarvis-app .jarvis-core-svg .core-dot-glow {
+  fill: rgba(31, 200, 228, 0.18);
+  filter: url(#jarvisCyanGlow);
+}
+
+.jarvis-app .jarvis-core-svg .core-dot {
+  fill: url(#jarvisCoreOrb);
+  filter: url(#jarvisCyanGlow);
+  animation: commandPulse 3.4s ease-in-out infinite;
+}
+
+.jarvis-app .jarvis-core-svg .core-text {
+  fill: rgba(188, 244, 255, 0.92);
+  font-size: 18px;
+  letter-spacing: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  filter: url(#jarvisCyanGlow);
+}
+
+.jarvis-app .ai-core-waveform {
+  width: min(90%, 610px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  margin-top: 2px;
+}
+
+.jarvis-app .ai-wave-bar {
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(0, 216, 255, 0.84), rgba(0, 216, 255, 0.24));
+  animation: commandWave 2.1s ease-in-out infinite;
+}
+
+.jarvis-app .ai-wave-bar:nth-child(3n) { animation-duration: 2.5s; }
+.jarvis-app .ai-wave-bar:nth-child(4n) { animation-duration: 1.8s; }
+.jarvis-app .ai-wave-bar:nth-child(5n) { animation-duration: 2.9s; }
+
+.jarvis-app .ai-core-shell.ai-state-awaiting .jarvis-core-svg .rotor-outer { animation-duration: 54s; opacity: 0.82; }
+.jarvis-app .ai-core-shell.ai-state-awaiting .jarvis-core-svg .rotor-mid { animation-duration: 36s; opacity: 0.8; }
+.jarvis-app .ai-core-shell.ai-state-awaiting .jarvis-core-svg .rotor-micro { animation-duration: 24s; opacity: 0.74; }
+.jarvis-app .ai-core-shell.ai-state-awaiting .jarvis-core-svg .rotor-ticks { animation-duration: 62s; opacity: 0.76; }
+
+.jarvis-app .ai-core-shell.ai-state-awaiting .ai-wave-bar {
+  animation-duration: 2.8s;
+  opacity: 0.42;
+}
+
+.jarvis-app .ai-core-shell.ai-state-listening .jarvis-core-svg .core-dot { animation-duration: 2.2s; }
+.jarvis-app .ai-core-shell.ai-state-listening .jarvis-core-svg .core-dot-glow { fill: rgba(76, 227, 248, 0.30); }
+
+.jarvis-app .ai-core-shell.ai-state-listening .ai-wave-bar,
+.jarvis-app .ai-core-shell.ai-state-speaking .ai-wave-bar {
+  animation-duration: 1.25s;
+  opacity: 0.95;
+}
+
+.jarvis-app .ai-core-shell.ai-state-processing .jarvis-core-svg .rotor-outer { animation-duration: 22s; }
+.jarvis-app .ai-core-shell.ai-state-processing .jarvis-core-svg .rotor-mid { animation-duration: 14s; }
+.jarvis-app .ai-core-shell.ai-state-processing .jarvis-core-svg .rotor-micro { animation-duration: 9.5s; }
+.jarvis-app .ai-core-shell.ai-state-processing .jarvis-core-svg .rotor-ticks { animation-duration: 24s; }
+
+.jarvis-app .ai-core-shell.ai-state-executing .jarvis-core-svg .segmented-ring,
+.jarvis-app .ai-core-shell.ai-state-executing .jarvis-core-svg .outer-arcs,
+.jarvis-app .ai-core-shell.ai-state-executing .accent-arc-1,
+.jarvis-app .ai-core-shell.ai-state-executing .accent-arc-2 {
+  animation: commandExecFlash 0.72s ease-out;
+}
+
+.jarvis-app .ai-core-shell.ai-state-executing .jarvis-core-svg .rotor-mid { animation-duration: 9.5s; }
+
+.jarvis-app .ai-core-shell.ai-state-error .jarvis-core-svg .core-dot {
+  fill: rgba(255, 176, 92, 0.92);
+  animation: commandErrorPulse 1.4s ease-in-out infinite;
+}
+
+.jarvis-app .ai-core-shell.ai-state-error .jarvis-core-svg .core-dot-glow { fill: rgba(255, 116, 76, 0.24); }
+
+.jarvis-app .ai-core-shell.ai-state-listening .jarvis-core-svg .core-dot-glow,
+.jarvis-app .ai-core-shell.ai-state-speaking .jarvis-core-svg .core-dot-glow {
+  fill: rgba(64, 219, 244, 0.26);
+}
+
+.jarvis-app .ai-core-status-wrap {
+  text-align: center;
+  display: grid;
+  gap: 5px;
+  width: min(82%, 640px);
+  border: 0;
+  background: transparent;
+  padding: 18px 0 0;
+  position: relative;
+  overflow: visible;
+}
+
+.jarvis-app .ai-core-label {
+  margin: 0;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  font-size: 0.62rem;
+}
+
+.jarvis-app .ai-core-status-wrap h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.04rem;
+  letter-spacing: 0.06em;
+  font-weight: 680;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(0, 216, 255, 0.2);
+}
+
+.jarvis-app .ai-core-status-wrap p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.jarvis-app .ai-command-dock {
+  width: min(86%, 740px);
+  display: grid;
+  justify-items: center;
+  gap: 0;
+  margin-top: 20px;
+  padding: 8px 0 34px;
+}
+
+.jarvis-app .ai-core-telemetry {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 0;
+  width: min(100%, 620px);
+}
+
+.jarvis-app .ai-core-telemetry span {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.57rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 24px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.jarvis-app .ai-core-telemetry strong {
+  color: var(--text-main);
+  font-size: 0.62rem;
+  font-weight: 620;
+}
+
+.jarvis-app .ai-core-input-row {
+  width: min(100%, 700px);
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: rgba(5, 14, 20, 0.35);
+  box-shadow: none;
+  margin-top: 22px;
+}
+
+.jarvis-app .ai-core-input-row:focus-within {
+  border-color: var(--line-mid);
+  box-shadow: 0 0 0 1px rgba(0, 216, 255, 0.16), 0 0 18px rgba(0, 216, 255, 0.12);
+}
+
+.jarvis-app .ai-core-prompt-tag {
+  min-height: var(--control-height);
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: var(--text-meta);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .ai-core-input-row input {
+  min-height: var(--control-height);
+  border-radius: 0;
+  border: 1px solid var(--line-soft);
+  background: rgba(7, 19, 26, 0.74);
+  color: var(--text-main);
+  font-size: var(--text-body);
+  padding: 0 12px;
+}
+
+.jarvis-app .ai-core-input-row input:focus {
+  outline: none;
+}
+
+.jarvis-app .ai-core-input-row input::placeholder {
+  color: var(--text-muted);
+}
+
+.jarvis-app .ai-core-input-row .jarvis-button {
+  min-height: var(--control-height);
+  border-radius: 0;
+  border: 1px solid rgba(0, 210, 255, 0.18) !important;
+  background: rgba(7, 19, 26, 0.56) !important;
+  color: var(--text-dim) !important;
+  padding: 0 12px;
+  font-size: var(--text-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .ai-core-input-row .jarvis-button:hover,
+.jarvis-app .ai-core-input-row .jarvis-button:focus-visible {
+  color: var(--text-main) !important;
+  border-color: var(--line-mid) !important;
+  box-shadow: var(--glow-soft);
+}
+
+.jarvis-app .ai-core-input-row .jarvis-button.jarvis-button-primary {
+  border-color: var(--line-mid) !important;
+}
+
+.jarvis-app .command-link-grid {
+  gap: var(--space-sm);
+}
+
+.jarvis-app .ai-chip-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: min(100%, 700px);
+  margin: 18px auto 0;
+  padding: 0 0 18px;
+  position: relative;
+  z-index: 1;
+  align-content: flex-start;
+}
+
+.jarvis-app .ai-chip {
+  border: 1px solid var(--line-soft);
+  background: rgba(5, 14, 20, 0.85);
+  color: var(--text-dim);
+  border-radius: 0;
+  font-size: var(--text-meta);
+  letter-spacing: 0.08em;
+  min-height: 28px;
+  padding: 0 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jarvis-app .ai-chip + .ai-chip::before {
+  content: none;
+}
+
+.jarvis-app .ai-chip:hover,
+.jarvis-app .ai-chip:focus-visible {
+  color: var(--text-main);
+  border-color: var(--line-mid);
+  box-shadow: var(--glow-soft);
+}
+
+@keyframes commandRadarSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes commandPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.18); opacity: 0.6; }
+}
+
+@keyframes commandWave {
+  0%, 100% { height: 6px; opacity: 0.42; }
+  50% { height: 26px; opacity: 0.95; }
+}
+
+@keyframes commandBlip {
+  0%, 100% { opacity: 0.08; transform: scale(0.92); }
+  40% { opacity: 0.92; transform: scale(1); }
+  55% { opacity: 0.22; transform: scale(1.25); }
+}
+
+@keyframes commandRotor {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes commandCrosshairDrift {
+  0%, 100% { opacity: 0.18; }
+  50% { opacity: 0.32; }
+}
+
+@keyframes commandShimmer {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.58; }
+}
+
+@keyframes commandBackgroundDrift {
+  0% { transform: translateY(0px); opacity: 0.38; }
+  50% { transform: translateY(-6px); opacity: 0.46; }
+  100% { transform: translateY(5px); opacity: 0.4; }
+}
+
+@keyframes commandDashShift {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -120; }
+}
+
+@keyframes commandExecFlash {
+  0% { opacity: 0.55; filter: brightness(1.25); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+@keyframes commandErrorPulse {
+  0%, 100% { transform: scale(1); opacity: 0.86; }
+  50% { transform: scale(1.16); opacity: 0.48; }
+}
+
+@media (max-width: 1520px) {
+  .jarvis-app .command-core-layout {
+    grid-template-columns: 250px minmax(0, 1fr) 250px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .jarvis-app .command-core-root {
+    height: auto;
+    overflow: visible;
+  }
+
+  .jarvis-app .command-core-topbar {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .jarvis-app .command-core-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .command-core-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .command-core-center {
+    min-height: 520px;
+    height: auto;
+    overflow: visible;
+    padding: 18px 16px 14px;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-content: stretch;
+  }
+
+  .jarvis-app .command-core-side {
+    height: auto;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 840px) {
+  .jarvis-app .command-core-root {
+    gap: 11px;
+  }
+
+  .jarvis-app .command-core-top-actions {
+    flex-wrap: wrap;
+  }
+
+  .jarvis-app .command-core-side {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .command-core-center {
+    padding: 14px 10px;
+    min-height: 460px;
+  }
+
+  .jarvis-app .ai-core-radar {
+    width: min(84vw, 360px);
+  }
+
+  .jarvis-app .ai-core-status-wrap h2 {
+    font-size: 1.08rem;
+  }
+
+  .jarvis-app .ai-core-input-row {
+    grid-template-columns: 1fr;
+    width: min(100%, 560px);
+  }
+
+  .jarvis-app .ai-command-dock {
+    width: min(100%, 560px);
+    padding-bottom: 22px;
+  }
+
+  .jarvis-app .ai-core-status-wrap,
+  .jarvis-app .ai-chip-strip {
+    width: min(100%, 560px);
+  }
+}
+
+/* Scrims database workspace controls */
+.jarvis-app .scrim-db-controls {
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 0;
+  background: #07131a;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.jarvis-app .scrim-db-controls label {
+  display: grid;
+  gap: 4px;
+}
+
+.jarvis-app .scrim-db-controls label span {
+  color: #83b5bf;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.55rem;
+}
+
+.jarvis-app .scrim-db-controls input,
+.jarvis-app .scrim-db-controls select {
+  min-height: 32px;
+  border-radius: 0;
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  background: #0b1d24;
+  color: #dff9ff;
+  font-size: 0.62rem;
+  padding: 0 8px;
+}
+
+.jarvis-app .scrim-db-pagination {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.jarvis-app .scrim-db-pagination button {
+  min-height: 30px;
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  background: #0b1d24;
+  color: #dff9ff;
+  border-radius: 0;
+  padding: 0 10px;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Final hard override: all HUD containers/panels stay sharp and wrappers stay layout-only. */
+.command-rail,
+.command-topbar,
+.command-stage-header,
+.command-core-topbar,
+.command-core-side,
+.command-core-center,
+.scrim-db-controls,
+.scrim-db-pagination button,
+.jarvis-app [class*="panel"],
+.jarvis-app [class*="card"],
+.jarvis-app [class*="module"],
+.jarvis-app [class*="container"],
+.jarvis-app [class*="wrap"],
+.jarvis-app [class*="rail"],
+.jarvis-app [class*="topbar"],
+.jarvis-prep [class*="panel"],
+.jarvis-prep [class*="card"],
+.jarvis-prep [class*="module"],
+.jarvis-prep [class*="container"],
+.jarvis-prep [class*="wrap"],
+.jarvis-prep [class*="rail"],
+.jarvis-prep [class*="topbar"] {
+  border-radius: 0 !important;
+}
+
+.jarvis-app .command-core-root [class*="wrap"],
+.jarvis-app .command-core-root [class*="body"],
+.jarvis-app .command-core-root [class*="content"],
+.jarvis-app .command-core-root [class*="shell"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.jarvis-app .scrim-db-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.jarvis-app .scrim-db-pagination span {
+  color: #8ebec8;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1200px) {
+  .jarvis-app .scrim-db-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .jarvis-app .scrim-db-controls {
+    grid-template-columns: 1fr;
   }
 }

@@ -7,7 +7,7 @@
 @app.route("/")
 def dashboard():
     db = get_db()
-    page_size = 10
+    page_size = 18
     scrim_filter = (request.args.get("filter") or "all").strip().lower()
     scrim_query = (request.args.get("q") or "").strip()
     try:

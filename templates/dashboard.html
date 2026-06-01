@@ -3,549 +3,484 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<section class="parser-dash-root">
-    <section class="jarvis-hero parser-dash-hero">
-        <div class="parser-dash-hero-main">
-            <div class="section-kicker">J.A.R.V.I.S. Tactical Interface</div>
-            <h1>Command Center <b>Dashboard</b></h1>
-            <p class="parser-dash-hero-copy">Live scrim operations, tournament tracking, roster access, and quick-entry controls in one command surface. This page should read like an active tactical board, not a loose list of modules.</p>
-            <div class="parser-dash-hero-chips">
-                <span class="jarvis-chip">{{ total_scrims }} scrims tracked</span>
-                <span class="jarvis-chip">{{ total_teams }} teams indexed</span>
-                <span class="jarvis-chip">{{ total_players }} player records</span>
-                {% if scrim_total_count > 0 %}<span class="jarvis-chip">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>{% endif %}
-            </div>
+<section class="command-core-root" aria-label="JARVIS AI command core">
+    <header class="command-core-topbar angular-hud-panel" role="region" aria-label="Command overview bar">
+        <div class="command-core-title-wrap">
+            <p class="command-core-kicker hud-eyebrow">JARVIS Tactical Interface</p>
+            <h1 class="hud-section-title">AI Command Core</h1>
         </div>
-        <aside class="assistant-note green parser-dash-assistant">
-            <b>Assistant Readout</b>
-            {% if recent_scrims %}
-                Tracking {{ scrim_total_count or recent_scrims|length }} scrims with {{ total_maps }} maps and {{ total_events }} timeline events. Use the command bar to isolate teams, unassigned logs, or direct search results, then jump into recent opponent records below.
-            {% else %}
-                No scrim activity is currently loaded. The command surface is ready for first-entry setup through bulk upload or manual scrim creation.
-            {% endif %}
+        <div class="command-core-pill-row" aria-label="Live system status">
+            <span>Core Online</span>
+            <span>Data Link Stable</span>
+            <span>Voice Ready</span>
+        </div>
+        <div class="command-core-top-actions">
+            <a class="command-core-top-link" href="{{ url_for('scrims') }}">Open Scrim Database</a>
+            <a class="command-core-top-link" href="{{ url_for('draft_simulator') }}">Draft Prep</a>
+            <a class="command-core-top-link" href="{{ url_for('teams_compare') }}">Team Compare</a>
+        </div>
+    </header>
+
+    <div class="command-core-layout">
+        <aside class="command-core-side command-core-left angular-hud-panel" aria-label="System support panels">
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Active Team</h2>
+                {% if personal_quick_teams %}
+                <p class="command-side-highlight">{{ personal_quick_teams[0].name }}</p>
+                <p>{{ personal_quick_teams[0].scrims }} scrims tracked</p>
+                <p>{{ personal_quick_teams[0].maps }} maps indexed</p>
+                {% else %}
+                <p class="command-side-highlight">No team selected</p>
+                <p>Add or mark a personal team to sync this panel.</p>
+                {% endif %}
+            </section>
+
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Current Dataset</h2>
+                <p class="command-side-highlight">{{ total_scrims }} total scrims</p>
+                <p>{{ total_maps }} map records</p>
+                <p>{{ total_teams }} teams · {{ total_players }} players</p>
+            </section>
+
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Recent Upload Status</h2>
+                {% if recent_scrims %}
+                <p class="command-side-highlight">Last ingestion: {{ recent_scrims[0].scrim_date or 'Date not set' }}</p>
+                <p>Latest opponent: {{ recent_scrims[0].enemy_team or recent_scrims[0].opponent or 'Unknown' }}</p>
+                <p>Feed ready for analysis.</p>
+                {% else %}
+                <p class="command-side-highlight">Awaiting data</p>
+                <p>No recent scrim upload detected.</p>
+                {% endif %}
+            </section>
+
+
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Patch / Season Status</h2>
+                <p class="command-side-highlight">Season {{ dashboard_default_season or 'Unspecified' }}</p>
+                <p>{{ dashboard_season_options|length }} seasons indexed</p>
+                <p>{{ 'Includes unseasoned entries' if dashboard_has_unseasoned_scrims else 'All entries season-tagged' }}</p>
+            </section>
+
         </aside>
-    </section>
 
-    <section class="jarvis-panel parser-dash-command-bar" role="region" aria-label="Dashboard controls">
-        <div class="parser-dash-command-head">
-            <div>
-                <div class="section-kicker">Command Center</div>
-                <h2>Operational Controls</h2>
-            </div>
-            <p class="parser-dash-count">
-                <span id="dashVisibleCount">{{ recent_scrims|length }}</span> visible scrims
-                {% if scrim_total_count > 0 %}
-                    <span class="dash-count-meta">{{ scrim_total_count }} total entries</span>
-                {% endif %}
-            </p>
-        </div>
-        <div class="parser-dash-controls">
-            <div class="parser-dash-controls-left">
-                <label class="parser-dash-control parser-dash-select-wrap">
-                    <select id="dashFilter" aria-label="Filter scrims">
-                        <option value="all" {% if scrim_filter == 'all' %}selected{% endif %}>Filter: All</option>
-                        <option value="without-team" {% if scrim_filter == 'without-team' %}selected{% endif %}>Unassigned</option>
-                        {% for team_option in dashboard_scrim_team_filters %}
-                        <option value="{{ team_option.value }}" {% if scrim_filter == team_option.value %}selected{% endif %}>{{ team_option.label }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <div class="parser-dash-control parser-dash-search-wrap">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <input id="dashSearch" type="search" name="q" value="{{ scrim_query }}" placeholder="Search opponent, team" aria-label="Search scrims" autocomplete="off">
-                    <div id="dashSearchSuggestions" class="dash-search-suggestions" role="listbox" aria-label="Search suggestions" hidden></div>
-                </div>
-            </div>
-            <div class="parser-dash-controls-right">
-                <a class="button-secondary parser-dash-upload jarvis-button jarvis-button-secondary" href="{{ url_for('scrims') }}">Bulk Upload</a>
-                {% if session.get('access_level') == 'edit' %}
-                <button class="button-link parser-dash-create jarvis-button jarvis-button-primary" id="openDashCreateScrim" type="button">Create Scrim</button>
-                {% endif %}
-            </div>
-        </div>
-    </section>
+        <main class="command-core-center angular-hud-panel" aria-label="Primary AI command surface">
+            <section class="ai-core-shell">
+                <div class="ai-core-radar" aria-hidden="true">
+                    <svg viewBox="0 0 500 500" class="jarvis-core-svg" role="img" aria-label="JARVIS command core">
+                        <defs>
+                            <radialGradient id="jarvisCoreOrb" cx="50%" cy="50%" r="60%">
+                                <stop offset="0%" stop-color="#aef4ff" stop-opacity="0.95"></stop>
+                                <stop offset="55%" stop-color="#28dfff" stop-opacity="0.66"></stop>
+                                <stop offset="100%" stop-color="#0c2f4b" stop-opacity="0.18"></stop>
+                            </radialGradient>
+                            <filter id="jarvisCyanGlow" x="-40%" y="-40%" width="180%" height="180%">
+                                <feGaussianBlur stdDeviation="2.2" result="b"></feGaussianBlur>
+                                <feMerge>
+                                    <feMergeNode in="b"></feMergeNode>
+                                    <feMergeNode in="SourceGraphic"></feMergeNode>
+                                </feMerge>
+                            </filter>
+                        </defs>
 
-    <section class="dashboard-top-modules" aria-label="Dashboard overview modules">
-        <article class="dashboard-module dashboard-module-metrics jarvis-panel">
-            <div class="dashboard-module-head">
-                <span class="dashboard-module-kicker">Live Metrics</span>
-                <h2>Live Metrics</h2>
-                <span class="dashboard-module-meta">Current totals</span>
-            </div>
-            <div class="dashboard-metric-grid">
-                <div class="dashboard-metric-card jarvis-stat-card metric-scrims">
-                    <span class="dashboard-metric-label">Total Scrims</span>
-                    <strong>{{ total_scrims }}</strong>
-                    <small>Matches logged</small>
-                </div>
-                <div class="dashboard-metric-card jarvis-stat-card metric-tournaments">
-                    <span class="dashboard-metric-label">Tournaments</span>
-                    <strong>{{ total_tournaments }}</strong>
-                    <small>Brackets tracked</small>
-                </div>
-                <div class="dashboard-metric-card jarvis-stat-card metric-maps">
-                    <span class="dashboard-metric-label">Total Maps</span>
-                    <strong>{{ total_maps }}</strong>
-                    <small>Map entries</small>
-                </div>
-                <div class="dashboard-metric-card jarvis-stat-card metric-events">
-                    <span class="dashboard-metric-label">Events</span>
-                    <strong>{{ total_events }}</strong>
-                    <small>Timeline events</small>
-                </div>
-                <div class="dashboard-metric-card jarvis-stat-card metric-teams">
-                    <span class="dashboard-metric-label">Teams</span>
-                    <strong>{{ total_teams }}</strong>
-                    <small>Team records</small>
-                </div>
-                <div class="dashboard-metric-card jarvis-stat-card metric-players">
-                    <span class="dashboard-metric-label">Players</span>
-                    <strong>{{ total_players }}</strong>
-                    <small>Player records</small>
-                </div>
-            </div>
-        </article>
+                        <circle cx="250" cy="250" r="206" class="ring ring-faint"></circle>
 
-        <article class="dashboard-module dashboard-module-teams jarvis-panel">
-            <div class="dashboard-module-head">
-                <span class="dashboard-module-kicker">Draft Intelligence</span>
-                <h2>Top 8 By Preference</h2>
-                <a class="dashboard-module-link" href="{{ url_for('teams') }}">Manage teams</a>
-            </div>
-            <div class="assistant-note parser-module-note">
-                <b>Assistant Recommendation</b>
-                Keep quick-access teams balanced between your main roster, regular opponents, and current scouting targets so draft prep starts from one click instead of a full search.
-            </div>
-            <div class="dashboard-team-grid">
-                {% for team in all_teams_for_quick_access %}
-                <a class="dashboard-team-card {% if team.is_personal %}is-personal{% endif %}" href="{{ url_for('team_detail', team_id=team.id) }}">
-                    <span class="dashboard-team-logo-wrap">
-                        <img
-                            class="dashboard-team-logo"
-                            src="{{ team_logo_url(team.logo_path) if team.logo_path else 'https://avatar.vercel.sh/' ~ (team.name | urlencode) ~ '.png?size=96' }}"
-                            alt="{{ team.name }}"
-                            loading="lazy"
-                        >
-                    </span>
-                    <strong>{{ team.name }}</strong>
-                    {% if team.quality_tag %}<small>{{ team.quality_tag }}</small>{% endif %}
-                </a>
-                {% endfor %}
-            </div>
-        </article>
-    </section>
+                        <g class="rotor rotor-outer">
+                            <circle cx="250" cy="250" r="188" class="ring outer-arcs"></circle>
+                            <circle cx="250" cy="250" r="172" class="ring outer-dashes"></circle>
+                        </g>
 
-    <section class="jarvis-panel parser-dash-log-panel" id="dashScrimLogPanel">
-        <div class="dashboard-module-head">
-            <span class="dashboard-module-kicker">Tactical Readout</span>
-            <h2>Recent Scrim Log</h2>
-            <span class="dashboard-module-meta">Showing {{ recent_scrims|length }} of {{ scrim_total_count }}</span>
-        </div>
-        {% if recent_scrims %}
-        <div class="parser-scrim-grid" id="dashScrimGrid">
-            {% for scrim in recent_scrims %}
-            {% set opponent = (scrim.enemy_team or scrim.opponent or 'Unknown') %}
-            {% set team_name = (scrim.team_name or '').strip() %}
-            <a class="parser-scrim-card"
-               href="{{ url_for('scrim_detail', scrim_id=scrim.id) }}"
-               data-opponent="{{ opponent|lower }}"
-               data-team="{{ team_name|lower }}"
-               data-has-team="{{ '1' if team_name else '0' }}">
-                <div class="parser-scrim-title-row">
-                    <div>
-                        <span class="parser-scrim-kicker">Tactical Log Entry</span>
-                        <h3>{{ opponent }}</h3>
+                        <g class="rotor rotor-ticks">
+                            {% for i in range(72) %}
+                            <line
+                                x1="250"
+                                y1="52"
+                                x2="250"
+                                y2="{{ 68 if i % 6 == 0 else 62 }}"
+                                class="tick {% if i % 6 == 0 %}tick-major{% endif %}"
+                                transform="rotate({{ i * 5 }} 250 250)"
+                            ></line>
+                            {% endfor %}
+                        </g>
+
+                        <g class="rotor rotor-mid">
+                            <circle cx="250" cy="250" r="140" class="ring segmented-ring"></circle>
+                            <circle cx="250" cy="250" r="116" class="ring dotted-ring"></circle>
+                        </g>
+
+                        <g class="rotor rotor-micro">
+                            <circle cx="250" cy="250" r="98" class="ring micro-segments"></circle>
+                        </g>
+
+                        <circle cx="250" cy="250" r="154" class="ring accent-arc accent-arc-1"></circle>
+                        <circle cx="250" cy="250" r="126" class="ring accent-arc accent-arc-2"></circle>
+
+                        <circle cx="250" cy="250" r="80" class="ring inner-ring"></circle>
+                        <circle cx="250" cy="250" r="25" class="core-dot-glow"></circle>
+                        <circle cx="250" cy="250" r="9" class="core-dot"></circle>
+
+                        <text x="250" y="257" text-anchor="middle" class="core-text">J.A.R.V.I.S</text>
+                    </svg>
+                </div>
+
+                <div class="ai-core-waveform" aria-hidden="true">
+                    {% for bar in range(24) %}
+                    <span class="ai-wave-bar"></span>
+                    {% endfor %}
+                </div>
+
+                <div class="ai-core-status-wrap">
+                    <p class="ai-core-label">Assistant State</p>
+                    <h2 id="assistantStateText">Awaiting command</h2>
+                    <p id="assistantResponseText">Command core online. Provide a prompt or choose a suggested action.</p>
+                </div>
+
+                <div class="ai-command-dock" aria-label="Assistant command dock">
+                    <div class="ai-core-telemetry" aria-label="Assistant telemetry">
+                        <span>Signal <strong id="assistantSignalText">99%</strong></span>
+                        <span>Latency <strong id="assistantLatencyText">18ms</strong></span>
+                        <span>Confidence <strong id="assistantConfidenceText">0.94</strong></span>
                     </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
-                </div>
-                <div class="parser-scrim-meta">
-                    <div>{{ scrim.scrim_date or 'No date' }}</div>
-                    <div>{{ 'Season ' ~ scrim.season if scrim.season else 'No season' }}</div>
-                    <div>{{ (scrim.maps|length) if scrim.maps is defined else 0 }} maps</div>
-                </div>
-                <div class="parser-scrim-team-row">
-                    <span class="parser-team-dot" aria-hidden="true"></span>
-                    <span>{{ team_name or 'No team assigned' }}</span>
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-        {% if scrim_total_pages > 1 %}
-        <nav class="dash-pagination" aria-label="Scrim pages">
-            <a class="dash-page-link {% if scrim_page <= 1 %}is-disabled{% endif %}"
-                href="{% if scrim_page > 1 %}{{ url_for('dashboard', page=scrim_page-1, filter=scrim_filter, q=scrim_query) }}{% else %}#{% endif %}"
-                data-dashboard-page="true"
-                data-no-loading="true"
-                {% if scrim_page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
 
-            <span class="dash-page-state">Page {{ scrim_page }} / {{ scrim_total_pages }}</span>
+                    <div class="ai-core-input-row">
+                        <span class="ai-core-prompt-tag" aria-hidden="true">CMD//</span>
+                        <button type="button" class="jarvis-button jarvis-button-secondary hud-button" id="assistantMicBtn" aria-label="Activate microphone">
+                            Mic
+                        </button>
+                        <input
+                            class="hud-input"
+                            id="assistantCommandInput"
+                            type="text"
+                            placeholder="Enter command: analyze recent scrims, prep next matchup, compare teams..."
+                            aria-label="Assistant command input"
+                        >
+                        <button type="button" class="jarvis-button jarvis-button-primary hud-button hud-button-primary" id="assistantExecuteBtn">Execute</button>
+                    </div>
 
-            <a class="dash-page-link {% if scrim_page >= scrim_total_pages %}is-disabled{% endif %}"
-                href="{% if scrim_page < scrim_total_pages %}{{ url_for('dashboard', page=scrim_page+1, filter=scrim_filter, q=scrim_query) }}{% else %}#{% endif %}"
-                data-dashboard-page="true"
-                data-no-loading="true"
-                {% if scrim_page >= scrim_total_pages %}aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
-        </nav>
-        {% endif %}
-        <p class="empty-text parser-empty" id="dashEmptyState" hidden>No scrims match this filter.</p>
-        {% else %}
-        {% if scrim_query or scrim_filter != 'all' %}
-        <p class="empty-text parser-empty">No scrims match this search.</p>
-        {% else %}
-        <div class="assistant-note parser-empty-note">
-            <b>Assistant Recommendation</b>
-            Start by creating a scrim or importing a batch. Once data lands, this log becomes the operational feed for recent opponent activity.
-        </div>
-        <p class="empty-text parser-empty">No scrims yet. Create your first scrim.</p>
-        {% endif %}
-        {% endif %}
-    </section>
+                    <section class="ai-chip-strip" aria-label="Suggested command chips">
+                        <button type="button" class="ai-chip" data-command="prep-matchup">Prep next matchup</button>
+                        <button type="button" class="ai-chip" data-command="analyze-recent">Analyze recent scrims</button>
+                        <button type="button" class="ai-chip" data-command="open-scrims">Open scrim database</button>
+                        <button type="button" class="ai-chip" data-command="start-draft">Start draft prep</button>
+                        <button type="button" class="ai-chip" data-command="compare-teams">Compare teams</button>
+                        <button type="button" class="ai-chip" data-command="show-bans">Show ban trends</button>
+                        <button type="button" class="ai-chip" data-command="player-history">Search player history</button>
+                    </section>
+                </div>
+            </section>
+        </main>
+
+        <aside class="command-core-side command-core-right angular-hud-panel" aria-label="Assistant intel panels">
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Assistant Activity Log</h2>
+                <ul class="command-log" id="assistantActivityLog">
+                    <li><span class="command-log-time">00:01</span><span class="command-log-msg">System boot complete.</span></li>
+                    <li><span class="command-log-time">00:02</span><span class="command-log-msg">Voice channel synchronized.</span></li>
+                    <li><span class="command-log-time">00:03</span><span class="command-log-msg">Waiting for command input.</span></li>
+                </ul>
+            </section>
+
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Recent Alerts</h2>
+                <ul class="command-list">
+                    {% if recent_scrims %}
+                        {% for scrim in recent_scrims[:3] %}
+                        <li>
+                            <strong>{{ scrim.scrim_date or 'No date' }}</strong>
+                            <span>{{ scrim.team_name or 'Unassigned Team' }} vs {{ scrim.enemy_team or scrim.opponent or 'Unknown' }}</span>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                    <li><strong>No alerts</strong><span>No scrims available for alert generation.</span></li>
+                    {% endif %}
+                </ul>
+            </section>
+
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Quick Actions</h2>
+                <div class="command-link-grid">
+                    <a class="hud-button" href="{{ url_for('scrims') }}">Open Scrims</a>
+                    <a class="hud-button" href="{{ url_for('machine', tab='chat') }}">Open Analyst</a>
+                    <a class="hud-button" href="{{ url_for('draft_simulator') }}">Draft Prep</a>
+                    <a class="hud-button" href="{{ url_for('teams_compare') }}">Team Compare</a>
+                </div>
+            </section>
+
+            <section class="command-side-row">
+                <h2 class="command-side-row-title">Recommended Next Action</h2>
+                <p class="command-side-highlight">Prep next matchup</p>
+                <p>Run a draft prep pass for your next opponent.</p>
+                <a class="command-next-link hud-button hud-button-primary" href="{{ url_for('draft_simulator') }}">Open Draft Prep</a>
+            </section>
+        </aside>
+    </div>
 </section>
 
-{% if session.get('access_level') == 'edit' %}
-<div id="dashCreateScrimModal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-card jarvis-panel" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <div>
-                <h3>Create Scrim</h3>
-                <p>Create the scrim first, then add maps inside it.</p>
-            </div>
-            <button id="closeDashCreateScrim" class="modal-close" type="button" aria-label="Close">&times;</button>
-        </div>
-
-        <form id="dashCreateScrimForm" action="{{ url_for('create_scrim') }}" method="post">
-            <div class="form-grid">
-                <div class="field">
-                    <label for="dash_create_scrim_team1_id">Team</label>
-                    <select id="dash_create_scrim_team1_id" name="team1_id" required>
-                        <option value="">Select team</option>
-                        {% for team in teams %}
-                            <option value="{{ team.id }}">{{ team.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="field">
-                    <label for="dash_create_scrim_team2_id">Team</label>
-                    <select id="dash_create_scrim_team2_id" name="team2_id" required>
-                        <option value="">Select team</option>
-                        {% for team in teams %}
-                            <option value="{{ team.id }}">{{ team.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="field">
-                    <label for="dash_create_scrim_date">Date</label>
-                    <input type="date" id="dash_create_scrim_date" name="scrim_date" value="{{ today }}" required>
-                </div>
-
-                <div class="field">
-                    <label for="dash_create_scrim_season">Season</label>
-                    <input type="text" id="dash_create_scrim_season" name="season" placeholder="e.g. 7 or 7.5" required>
-                </div>
-            </div>
-
-            <div class="field">
-                <label for="dash_create_scrim_notes">General Scrim Notes</label>
-                <textarea id="dash_create_scrim_notes" name="notes" rows="6" placeholder="Overall scrim notes, macro notes, opponent tendencies..."></textarea>
-            </div>
-
-            <div class="button-row">
-                <button type="submit" class="jarvis-button jarvis-button-primary">Create Scrim</button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endif %}
-
-<script id="dashboardSearchSuggestionsData" type="application/json">{{ dashboard_search_suggestions|tojson }}</script>
+<script id="dashboardRecentScrimsData" type="application/json">{{ recent_scrims[:8]|tojson }}</script>
 <script>
 (function () {
-    var searchDebounce = null;
-    var activeSearchController = null;
-    var activeSearchRequestId = 0;
-    var suggestionsData = document.getElementById('dashboardSearchSuggestionsData');
-    var suggestions = [];
-    if (suggestionsData) {
+    var statusEl = document.getElementById('assistantStateText');
+    var responseEl = document.getElementById('assistantResponseText');
+    var inputEl = document.getElementById('assistantCommandInput');
+    var executeBtn = document.getElementById('assistantExecuteBtn');
+    var micBtn = document.getElementById('assistantMicBtn');
+    var logEl = document.getElementById('assistantActivityLog');
+    var signalEl = document.getElementById('assistantSignalText');
+    var latencyEl = document.getElementById('assistantLatencyText');
+    var confidenceEl = document.getElementById('assistantConfidenceText');
+    var chips = Array.prototype.slice.call(document.querySelectorAll('.ai-chip'));
+    var scrimDataNode = document.getElementById('dashboardRecentScrimsData');
+
+    var stateCycle = ['Awaiting command', 'Listening', 'Processing', 'Executing', 'Speaking', 'Result ready'];
+    var stateIndex = 0;
+    var recentScrims = [];
+    var coreShell = document.querySelector('.ai-core-shell');
+
+    if (scrimDataNode) {
         try {
-            suggestions = JSON.parse(suggestionsData.textContent || '[]') || [];
+            recentScrims = JSON.parse(scrimDataNode.textContent || '[]') || [];
         } catch (error) {
-            suggestions = [];
+            recentScrims = [];
         }
     }
 
-    function compactText(value) {
-        return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    function setState(nextState) {
+        if (!statusEl) return;
+        statusEl.textContent = nextState;
+        refreshTelemetry(nextState);
+        updateCoreVisualState(nextState);
     }
 
-    function updateVisibleScrimCount() {
-        var gridEl = document.getElementById('dashScrimGrid');
-        var countEl = document.getElementById('dashVisibleCount');
-        if (!countEl) return;
-        countEl.textContent = String(gridEl ? gridEl.querySelectorAll('.parser-scrim-card').length : 0);
+    function updateCoreVisualState(stateLabel) {
+        if (!coreShell) return;
+        var normalized = String(stateLabel || '').toLowerCase();
+        var visual = 'awaiting';
+        if (normalized.indexOf('listen') !== -1) visual = 'listening';
+        else if (normalized.indexOf('process') !== -1) visual = 'processing';
+        else if (normalized.indexOf('execut') !== -1) visual = 'executing';
+        else if (normalized.indexOf('speak') !== -1) visual = 'speaking';
+        else if (normalized.indexOf('error') !== -1) visual = 'error';
+
+        coreShell.classList.remove(
+            'ai-state-awaiting',
+            'ai-state-listening',
+            'ai-state-processing',
+            'ai-state-executing',
+            'ai-state-speaking',
+            'ai-state-error'
+        );
+        coreShell.classList.add('ai-state-' + visual);
     }
 
-    function syncControlsFromUrl() {
-        var filterEl = document.getElementById('dashFilter');
-        var searchEl = document.getElementById('dashSearch');
-        var params = new URL(window.location.href).searchParams;
-        if (filterEl) filterEl.value = params.get('filter') || 'all';
-        if (searchEl) searchEl.value = params.get('q') || '';
-    }
+    function refreshTelemetry(stateLabel) {
+        if (!signalEl || !latencyEl || !confidenceEl) return;
+        var state = String(stateLabel || '').toLowerCase();
+        var signal = 98;
+        var latency = 18;
+        var confidence = 0.94;
 
-    function setupDashboardFilters() {
-        var filterEl = document.getElementById('dashFilter');
-        var searchEl = document.getElementById('dashSearch');
-        var suggestionsEl = document.getElementById('dashSearchSuggestions');
-        if (!filterEl || !searchEl) return;
-
-        function buildSearchUrl() {
-            var url = new URL(window.location.href);
-            var query = (searchEl.value || '').trim();
-            url.searchParams.set('page', '1');
-            url.searchParams.set('filter', filterEl.value || 'all');
-            if (query) {
-                url.searchParams.set('q', query);
-            } else {
-                url.searchParams.delete('q');
-            }
-            return url.toString();
+        if (state.indexOf('listening') !== -1) {
+            signal = 100;
+            latency = 14;
+            confidence = 0.92;
+        } else if (state.indexOf('processing') !== -1) {
+            signal = 99;
+            latency = 22;
+            confidence = 0.96;
+        } else if (state.indexOf('executing') !== -1) {
+            signal = 97;
+            latency = 31;
+            confidence = 0.95;
+        } else if (state.indexOf('result') !== -1) {
+            signal = 99;
+            latency = 17;
+            confidence = 0.98;
         }
 
-        function findExactSuggestionUrl() {
-            var query = compactText(searchEl.value);
-            if (!query) return '';
-            var exactMatch = suggestions.find(function(item) {
-                return item.url && compactText(item.label) === query;
+        signalEl.textContent = String(signal) + '%';
+        latencyEl.textContent = String(latency) + 'ms';
+        confidenceEl.textContent = confidence.toFixed(2);
+    }
+
+    function logActivity(message) {
+        if (!logEl || !message) return;
+        var item = document.createElement('li');
+        var now = new Date();
+        var stamp = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        item.innerHTML = '<span class="command-log-time">' + stamp + '</span><span class="command-log-msg"></span>';
+        var msgNode = item.querySelector('.command-log-msg');
+        if (msgNode) {
+            msgNode.textContent = message;
+            msgNode.title = message;
+        }
+        logEl.insertBefore(item, logEl.firstChild);
+        while (logEl.children.length > 4) {
+            logEl.removeChild(logEl.lastChild);
+        }
+    }
+
+    function setResponse(message) {
+        if (!responseEl) return;
+        responseEl.textContent = message;
+    }
+
+    function routeTo(url) {
+        window.location.href = url;
+    }
+
+    function summarizeRecentScrims() {
+        if (!recentScrims.length) {
+            return 'No recent scrims are available. Open the Scrims page to import or create records first.';
+        }
+
+        var totalMaps = 0;
+        var wins = 0;
+        var losses = 0;
+        var draws = 0;
+
+        recentScrims.forEach(function (scrim) {
+            (scrim.maps || []).forEach(function (mapEntry) {
+                totalMaps += 1;
+                var outcome = String(mapEntry.result || '').toLowerCase();
+                if (outcome.indexOf('win') !== -1) wins += 1;
+                else if (outcome.indexOf('loss') !== -1) losses += 1;
+                else if (outcome.indexOf('draw') !== -1 || outcome.indexOf('tie') !== -1) draws += 1;
             });
-            if (exactMatch) return exactMatch.url;
-            var partialMatches = suggestions.filter(function(item) {
-                return item.url && compactText(item.label).indexOf(query) !== -1;
-            });
-            return partialMatches.length === 1 ? partialMatches[0].url : '';
+        });
+
+        return 'Recent trend: ' + recentScrims.length + ' scrims analyzed, ' + totalMaps
+            + ' maps tracked, map results ' + wins + 'W-' + losses + 'L'
+            + (draws ? '-' + draws + 'D' : '') + '. Open Scrims for detailed breakdowns.';
+    }
+
+    function handleCommand(command) {
+        var normalized = String(command || '').trim().toLowerCase();
+        if (!normalized) {
+            setState('Awaiting command');
+            setResponse('Enter or select a command to continue.');
+            return;
         }
 
-        function runSearch(shouldHideSuggestions, options) {
-            options = options || {};
-            clearTimeout(searchDebounce);
-            if (shouldHideSuggestions) hideSuggestions();
-            if (options.redirectMatch) {
-                var redirectUrl = options.redirectUrl || findExactSuggestionUrl();
-                if (redirectUrl) {
-                    window.location.href = redirectUrl;
-                    return;
-                }
+        setState('Processing');
+        logActivity('Command received: ' + normalized);
+
+        if (normalized.indexOf('open scrim') !== -1 || normalized.indexOf('database') !== -1) {
+            setState('Executing');
+            logActivity('Routing to Scrims database.');
+            routeTo('{{ url_for('scrims') }}');
+            return;
+        }
+
+        if (normalized.indexOf('analyze') !== -1 || normalized.indexOf('recent scrim') !== -1) {
+            var summary = summarizeRecentScrims();
+            setState('Result ready');
+            setResponse(summary);
+            logActivity('Recent scrim summary generated.');
+            return;
+        }
+
+        if (normalized.indexOf('prep') !== -1 || normalized.indexOf('matchup') !== -1) {
+            setState('Listening');
+            setResponse('Who is the opponent? Type the name and execute again, or jump to Draft Prep now.');
+            if (inputEl) {
+                inputEl.placeholder = 'Type opponent name or run Draft Prep...';
+                inputEl.focus();
             }
-            loadScrimPage(buildSearchUrl(), true, { replaceHistory: true });
+            logActivity('Requested matchup prep context.');
+            return;
         }
 
-        function hideSuggestions() {
-            if (!suggestionsEl) return;
-            suggestionsEl.hidden = true;
-            suggestionsEl.innerHTML = '';
+        if (normalized.indexOf('compare') !== -1) {
+            setState('Executing');
+            logActivity('Routing to Team Compare.');
+            routeTo('{{ url_for('teams_compare') }}');
+            return;
         }
 
-        function renderSuggestions() {
-            if (!suggestionsEl) return;
-            var query = compactText(searchEl.value);
-            if (!query) {
-                hideSuggestions();
-                return;
-            }
-
-            var matches = suggestions.filter(function(item) {
-                return compactText(item.label).indexOf(query) !== -1
-                    || compactText(item.meta).indexOf(query) !== -1;
-            }).slice(0, 7);
-
-            if (!matches.length) {
-                hideSuggestions();
-                return;
-            }
-
-            suggestionsEl.innerHTML = matches.map(function(item) {
-                var meta = item.meta ? '<span>' + escapeHtml(item.meta) + '</span>' : '';
-                var openUrl = item.url ? escapeHtml(item.url) : '';
-                var openLink = openUrl
-                    ? '<a class="dash-search-suggestion-open" href="' + openUrl + '">Open</a>'
-                    : '';
-                return '<div class="dash-search-suggestion" role="option">'
-                    + '<button type="button" class="dash-search-suggestion-pick" data-value="' + escapeHtml(item.label) + '" data-url="' + openUrl + '">'
-                    + '<strong>' + escapeHtml(item.label) + '</strong>'
-                    + '<small>' + escapeHtml(item.type) + meta + '</small>'
-                    + '</button>'
-                    + openLink
-                    + '</div>';
-            }).join('');
-            suggestionsEl.hidden = false;
+        if (normalized.indexOf('draft') !== -1) {
+            setState('Executing');
+            logActivity('Routing to Draft Prep module.');
+            routeTo('{{ url_for('draft_simulator') }}');
+            return;
         }
 
-        function escapeHtml(value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
+        if (normalized.indexOf('ban') !== -1) {
+            setState('Executing');
+            logActivity('Routing to draft reasoner for ban trends.');
+            routeTo('{{ url_for('machine', tab='reasoner') }}');
+            return;
         }
 
-        filterEl.onchange = function() {
-            runSearch(true);
-        };
-        searchEl.oninput = function() {
-            renderSuggestions();
-            clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(runSearch, 420);
-        };
-        searchEl.onfocus = renderSuggestions;
-        searchEl.onkeydown = function(event) {
-            if (event.key === 'Escape') hideSuggestions();
+        if (normalized.indexOf('player') !== -1 || normalized.indexOf('history') !== -1) {
+            setState('Executing');
+            logActivity('Routing to player rankings for history lookup.');
+            routeTo('{{ url_for('player_rankings') }}');
+            return;
+        }
+
+        setState('Result ready');
+        setResponse('Command acknowledged. Route manually from quick actions if needed.');
+        logActivity('No direct route matched for command.');
+    }
+
+    if (executeBtn) {
+        executeBtn.addEventListener('click', function () {
+            handleCommand(inputEl ? inputEl.value : '');
+        });
+    }
+
+    if (inputEl) {
+        inputEl.addEventListener('keydown', function (event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                runSearch(true, { redirectMatch: true });
-            }
-        };
-        if (suggestionsEl) {
-            suggestionsEl.addEventListener('mousedown', function(event) {
-                var openLink = event.target.closest && event.target.closest('.dash-search-suggestion-open');
-                if (openLink) return;
-                var button = event.target.closest && event.target.closest('.dash-search-suggestion-pick');
-                if (!button) return;
-                event.preventDefault();
-                searchEl.value = button.dataset.value || '';
-                runSearch(true, { redirectMatch: true, redirectUrl: button.dataset.url || '' });
-            });
-        }
-        document.addEventListener('click', function(event) {
-            if (!event.target.closest || !event.target.closest('.parser-dash-search-wrap')) {
-                hideSuggestions();
+                handleCommand(inputEl.value);
             }
         });
-        updateVisibleScrimCount();
     }
 
-    function replaceScrimLogFromDocument(doc) {
-        var currentPanel = document.getElementById('dashScrimLogPanel');
-        var nextPanel = doc.getElementById('dashScrimLogPanel');
-        if (!currentPanel || !nextPanel) return false;
-        currentPanel.innerHTML = nextPanel.innerHTML;
-        updateVisibleScrimCount();
-        return true;
-    }
-
-    function loadScrimPage(url, pushState, options) {
-        options = options || {};
-        var panel = document.getElementById('dashScrimLogPanel');
-        if (!panel) return Promise.resolve(false);
-        var requestId = ++activeSearchRequestId;
-        if (activeSearchController) {
-            activeSearchController.abort();
-        }
-        activeSearchController = window.AbortController ? new AbortController() : null;
-        panel.classList.add('is-loading');
-        panel.setAttribute('aria-busy', 'true');
-        return fetch(url, {
-            headers: { 'X-Requested-With': 'fetch' },
-            credentials: 'same-origin',
-            signal: activeSearchController ? activeSearchController.signal : undefined
-        })
-            .then(function(response) {
-                if (!response.ok) throw new Error('Failed to load scrim page');
-                return response.text();
-            })
-            .then(function(html) {
-                if (requestId !== activeSearchRequestId) return false;
-                var doc = new DOMParser().parseFromString(html, 'text/html');
-                var didReplace = replaceScrimLogFromDocument(doc);
-                if (didReplace && pushState) {
-                    if (options.replaceHistory) {
-                        window.history.replaceState({ dashScrimPage: true }, '', url);
-                    } else {
-                        window.history.pushState({ dashScrimPage: true }, '', url);
-                    }
-                }
-                return didReplace;
-            })
-            .catch(function(error) {
-                if (error && error.name === 'AbortError') return false;
-                window.location.href = url;
-                return false;
-            })
-            .finally(function() {
-                if (requestId !== activeSearchRequestId) return;
-                activeSearchController = null;
-                var updatedPanel = document.getElementById('dashScrimLogPanel');
-                if (updatedPanel) {
-                    updatedPanel.classList.remove('is-loading');
-                    updatedPanel.setAttribute('aria-busy', 'false');
-                }
-            });
-    }
-
-    function setupDashboardPagination() {
-        var panel = document.getElementById('dashScrimLogPanel');
-        if (!panel || panel.dataset.paginationBound === 'true') return;
-        panel.dataset.paginationBound = 'true';
-        panel.addEventListener('click', function(event) {
-            var link = event.target.closest && event.target.closest('a[data-dashboard-page="true"]');
-            if (!link || link.classList.contains('is-disabled') || link.getAttribute('aria-disabled') === 'true') return;
-            event.preventDefault();
-            loadScrimPage(link.href, true);
+    if (micBtn) {
+        micBtn.addEventListener('click', function () {
+            stateIndex = (stateIndex + 1) % stateCycle.length;
+            setState(stateCycle[stateIndex]);
+            setResponse('Voice channel toggled: ' + stateCycle[stateIndex] + '.');
+            logActivity('Assistant state changed to ' + stateCycle[stateIndex].toLowerCase() + '.');
         });
     }
 
-    setupDashboardFilters();
-    setupDashboardPagination();
-    window.addEventListener('popstate', function() {
-        syncControlsFromUrl();
-        loadScrimPage(window.location.href, false);
-    });
-})();
-
-(function () {
-    var modal = document.getElementById('dashCreateScrimModal');
-    var openBtn = document.getElementById('openDashCreateScrim');
-    var closeBtn = document.getElementById('closeDashCreateScrim');
-    var team1 = document.getElementById('dash_create_scrim_team1_id');
-    var team2 = document.getElementById('dash_create_scrim_team2_id');
-    if (!modal || !openBtn || !closeBtn || !team1 || !team2) return;
-
-    function syncTeamOptions() {
-        var team1Value = team1.value;
-        var team2Value = team2.value;
-        Array.prototype.forEach.call(team1.options, function (option) {
-            option.hidden = option.value !== '' && option.value === team2Value;
+    chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            var command = chip.getAttribute('data-command');
+            if (command === 'open-scrims') {
+                handleCommand('open scrim database');
+                return;
+            }
+            if (command === 'analyze-recent') {
+                handleCommand('analyze recent scrims');
+                return;
+            }
+            if (command === 'prep-matchup') {
+                handleCommand('prep next matchup');
+                return;
+            }
+            if (command === 'compare-teams') {
+                handleCommand('compare teams');
+                return;
+            }
+            if (command === 'start-draft') {
+                handleCommand('start draft prep');
+                return;
+            }
+            if (command === 'show-bans') {
+                handleCommand('show ban trends');
+                return;
+            }
+            if (command === 'player-history') {
+                handleCommand('search player history');
+            }
         });
-        Array.prototype.forEach.call(team2.options, function (option) {
-            option.hidden = option.value !== '' && option.value === team1Value;
-        });
-    }
-
-    function openModal() {
-        if (modal.parentElement !== document.body) {
-            document.body.appendChild(modal);
-        }
-        modal.classList.add('show');
-        modal.setAttribute('aria-hidden', 'false');
-        syncTeamOptions();
-    }
-
-    function closeModal() {
-        modal.classList.remove('show');
-        modal.setAttribute('aria-hidden', 'true');
-    }
-
-    openBtn.addEventListener('click', openModal);
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', function (event) {
-        if (event.target === modal) closeModal();
     });
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && modal.classList.contains('show')) closeModal();
-    });
-    team1.addEventListener('change', syncTeamOptions);
-    team2.addEventListener('change', syncTeamOptions);
+
+    updateCoreVisualState('Awaiting command');
 })();
 </script>
 {% endblock %}

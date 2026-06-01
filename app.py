@@ -118,6 +118,53 @@ def inject_static_asset_url() -> dict:
     return {"static_asset_url": static_asset_url}
 
 
+@app.context_processor
+def inject_hud_context() -> dict:
+    total_maps = sum(len(scrim.get("maps", [])) for scrim in SCRIMS)
+    total_maps += sum(len(match.get("maps", [])) for match in TOURNAMENT_MATCHES)
+    active_team = ""
+
+    try:
+        view_args = request.view_args or {}
+        team_id = view_args.get("team_id") or request.args.get("team_id")
+        if team_id:
+            team_row = get_db().execute(
+                "SELECT name FROM teams WHERE id = ? LIMIT 1",
+                (team_id,),
+            ).fetchone()
+            active_team = (team_row["name"] or "").strip() if team_row else ""
+
+        if not active_team and view_args.get("scrim_id"):
+            scrim_id = view_args["scrim_id"]
+            scrim = next((row for row in SCRIMS if row.get("id") == scrim_id), None)
+            if scrim:
+                active_team = (
+                    scrim.get("team_name")
+                    or scrim.get("team1_name")
+                    or ""
+                ).strip()
+
+        if not active_team:
+            team_row = get_db().execute(
+                """
+                SELECT name
+                FROM teams
+                WHERE is_personal = 1
+                ORDER BY sort_order ASC, name ASC
+                LIMIT 1
+                """
+            ).fetchone()
+            active_team = (team_row["name"] or "").strip() if team_row else ""
+    except Exception:
+        active_team = ""
+
+    return {
+        "hud_active_team": active_team or "UNASSIGNED",
+        "hud_dataset_status": f"{len(SCRIMS)}S / {total_maps}M",
+        "hud_force_boot": bool(session.pop("play_boot_sequence", False)),
+    }
+
+
 @app.route("/favicon.ico")
 def favicon_ico():
     return app.send_static_file("favicon.png")

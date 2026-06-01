@@ -23,11 +23,11 @@
     </script>
     <link rel="stylesheet" href="{{ static_asset_url('style.css') }}&rev=20260521d">
     <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme.css') }}&rev=20260521c">
-    <link rel="stylesheet" href="{{ static_asset_url('jarvis-pages.css') }}&rev=20260522a">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-pages.css') }}&rev=20260531j">
     <link rel="stylesheet" href="{{ static_asset_url('team-dashboard.css') }}&rev=20260522a">
-    <link rel="stylesheet" href="{{ static_asset_url('jarvis-unified.css') }}&rev=20260531a">
-    <link rel="stylesheet" href="{{ static_asset_url('jarvis-layout-v2.css') }}&rev=20260531a">
-    <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme-system.css') }}&rev=20260531a">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-unified.css') }}&rev=20260531b">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-layout-v2.css') }}&rev=20260531d">
+    <link rel="stylesheet" href="{{ static_asset_url('jarvis-theme-system.css') }}&rev=20260531k">
     {% block chart_scripts %}{% endblock %}
     <script>
     function getThemeCssVar(name, fallback) {
@@ -111,6 +111,8 @@
     {% set stage_title = 'Dashboard' %}
     {% if request.path.startswith('/teams/compare') %}
         {% set stage_title = 'Team Compare' %}
+    {% elif request.path.startswith('/scrims') %}
+        {% set stage_title = 'Scrims' %}
     {% elif request.path.startswith('/teams') %}
         {% set stage_title = 'Teams' %}
     {% elif request.path.startswith('/tournaments') %}
@@ -127,11 +129,23 @@
         {% set stage_title = 'Player Compare' %}
     {% endif %}
 
-    <div id="jarvisBootOverlay" class="jarvis-boot-overlay" aria-hidden="true">
+    <div id="jarvisBootOverlay" class="jarvis-boot-overlay" data-force-boot="{{ 'true' if hud_force_boot else 'false' }}" aria-hidden="true">
         <div class="jarvis-boot-card" role="status" aria-live="polite">
-            <strong>INITIALIZING SYSTEM...</strong>
+            <div class="jarvis-boot-core" aria-hidden="true">
+                <span class="jarvis-boot-orbit jarvis-boot-orbit-outer"></span>
+                <span class="jarvis-boot-orbit jarvis-boot-orbit-inner"></span>
+                <span class="jarvis-boot-core-mark">J.A.R.V.I.S</span>
+            </div>
+            <div class="jarvis-boot-heading">
+                <span>Secure Tactical Interface</span>
+                <strong id="jarvisBootTitle">INITIALIZING SYSTEM...</strong>
+            </div>
             <div class="jarvis-boot-progress" aria-hidden="true">
                 <span></span>
+            </div>
+            <div class="jarvis-boot-progress-meta" aria-hidden="true">
+                <span>BOOT SEQUENCE</span>
+                <b id="jarvisBootPercent">00%</b>
             </div>
             <div class="jarvis-boot-lines" aria-hidden="true">
                 <span>&gt; Loading core modules...</span>
@@ -147,116 +161,118 @@
     </div>
 
     <div class="site-layout">
-        <aside class="command-rail" aria-label="Primary navigation">
-            <div class="command-rail-head">
-                <a href="{{ url_for('dashboard') }}" class="command-rail-brand">
-                    <span class="topnav-brand-main">JARVIS</span>
-                    <span class="topnav-brand-sub">TACTICAL COMMAND</span>
-                </a>
-                <div class="command-rail-node">SWAMP GAMING // ACTIVE LINK</div>
-            </div>
-
-            <nav class="command-rail-nav" aria-label="Core">
-                <a href="{{ url_for('dashboard') }}" class="command-rail-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="{{ url_for('teams') }}" class="command-rail-link {% if request.path.startswith('/teams') and not request.path.startswith('/teams/compare') %}active{% endif %}">Teams</a>
-                <a href="{{ url_for('tournaments') }}" class="command-rail-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
-                <a href="{{ url_for('team_scouting') }}" class="command-rail-link {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
-            </nav>
-
-            <div class="command-rail-section">Machine</div>
-            <nav class="command-rail-nav" aria-label="Machine">
-                <a href="{{ url_for('machine', tab='chat') }}" class="command-rail-link {% if machine_chat_active %}active{% endif %}">Analyst</a>
-                <a href="{{ url_for('machine') }}" class="command-rail-link {% if machine_matchup_active %}active{% endif %}">Draft Matchup</a>
-                <a href="{{ url_for('machine', tab='reasoner') }}" class="command-rail-link {% if machine_reasoner_active %}active{% endif %}">Draft Reasoner</a>
-            </nav>
-
-            <div class="command-rail-section">Tools</div>
-            <nav class="command-rail-nav" aria-label="Tools">
-                <a href="{{ url_for('draft_simulator') }}" class="command-rail-link {% if request.path.startswith('/draft-simulator') %}active{% endif %}">Draft Prep</a>
-                <a href="{{ url_for('player_rankings') }}" class="command-rail-link {% if request.path.startswith('/players/rankings') %}active{% endif %}">Player Rankings</a>
-                <a href="{{ url_for('teams_compare') }}" class="command-rail-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
-                <a href="{{ url_for('player_compare') }}" class="command-rail-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
-            </nav>
-
-            <div class="command-rail-status">
-                <span>CORE ONLINE</span>
-                <span>ENCRYPTION STABLE</span>
-            </div>
-        </aside>
-
         <div class="command-main">
             <header class="topnav command-topbar">
                 <div class="topnav-inner command-topbar-inner">
-                    <button class="topnav-burger" id="navDrawerToggle" aria-label="Open navigation" aria-expanded="false">
-                        <span></span><span></span><span></span>
-                    </button>
-                    <a href="{{ url_for('dashboard') }}" class="topnav-brand command-mobile-brand">
+                    <a href="{{ url_for('dashboard') }}" class="topnav-brand command-mobile-brand command-strip-brand-mobile">
                         <span class="topnav-brand-main">JARVIS</span>
-                        <span class="topnav-brand-sub">Tactical Command</span>
+                        <span class="topnav-brand-sub">Intelligent System</span>
                     </a>
-                    <div class="command-topbar-title">
-                        <span class="command-kicker">Command Surface</span>
-                        <strong>{{ stage_title }}</strong>
+
+                    <div class="command-strip-summary">
+                        <div class="command-strip-left" aria-label="Jarvis wordmark">
+                            <strong>JARVIS</strong>
+                            <span>JUST A RATHER VERY INTELLIGENT SYSTEM</span>
+                        </div>
+
+                        <div class="command-strip-center" aria-label="Tactical system readouts">
+                            <div class="command-readout command-readout-module">
+                                <span class="command-readout-label">ACTIVE MODULE</span>
+                                <span class="command-readout-value">{{ stage_title }}</span>
+                            </div>
+                            <div class="command-readout command-readout-team">
+                                <span class="command-readout-label">ACTIVE TEAM</span>
+                                <span class="command-readout-value">{{ hud_active_team }}</span>
+                            </div>
+                            <span class="command-readout-divider" aria-hidden="true"></span>
+                            <div class="command-readout command-readout-dataset">
+                                <span class="command-readout-label">DATASET</span>
+                                <span class="command-readout-value">{{ hud_dataset_status }}</span>
+                            </div>
+                            <div class="command-readout command-readout-link">
+                                <span class="command-readout-label">DATA LINK</span>
+                                <span class="command-readout-value">STABLE</span>
+                            </div>
+                            <div class="command-readout command-readout-ai">
+                                <span class="command-readout-label">AI CORE</span>
+                                <span class="command-readout-value">
+                                    <span class="command-ai-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                                    READY
+                                </span>
+                            </div>
+                            <span class="command-readout-divider" aria-hidden="true"></span>
+                            <div class="command-readout">
+                                <span class="command-readout-label">SYSTEM STATUS</span>
+                                <span class="command-readout-value"><i class="command-status-dot"></i> OPTIMAL</span>
+                            </div>
+                            <div class="command-readout">
+                                <span class="command-readout-label">LOCAL TIME</span>
+                                <span class="command-readout-value" id="commandLocalTime">--:--:--</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="topnav-right">
-                        <label class="topnav-search" aria-label="Search">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <input type="search" placeholder="Search..." aria-label="Search">
-                        </label>
-                        <label class="theme-picker" for="themeSelect" title="Theme">
-                            <span class="theme-picker-dot" aria-hidden="true"></span>
-                            <select id="themeSelect" class="theme-select" aria-label="Theme color">
-                                <option value="blue">Blue</option>
-                                <option value="green">Green</option>
-                                <option value="red">Red</option>
-                                <option value="black">Black</option>
-                            </select>
-                        </label>
-                        <a href="{{ url_for('logout') }}" class="topnav-icon-btn" title="Logout">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                        </a>
+
+                    <div class="topnav-right command-strip-right">
+                        <button class="command-strip-icon" type="button" aria-label="Notifications" title="Notifications">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        </button>
+                        <button class="command-strip-icon" type="button" aria-label="Settings" title="Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </button>
+                        <span class="command-strip-divider" aria-hidden="true"></span>
+                        <a href="{{ url_for('logout') }}" class="command-profile-pill" title="Profile / Logout">OPERATIONS USER</a>
                     </div>
                 </div>
             </header>
 
             <div class="app-shell">
         <!-- Nav Drawer -->
+        <button class="hud-pull-tab" id="navPullTab" aria-controls="navDrawer" aria-expanded="false" aria-label="Open tactical navigation">
+            <span class="hud-pull-tab-line" aria-hidden="true"></span>
+            <span class="hud-pull-tab-text" aria-hidden="true">MENU</span>
+            <span class="hud-pull-tab-chevron" aria-hidden="true"></span>
+        </button>
         <div class="nav-drawer-overlay" id="navDrawerOverlay"></div>
         <nav class="nav-drawer" id="navDrawer" aria-label="Main navigation">
             <div class="nav-drawer-header">
-                <span class="nav-drawer-title">Menu</span>
-                <button class="nav-drawer-close" id="navDrawerClose" aria-label="Close navigation">
+                <div class="nav-drawer-branding">
+                    <span class="nav-drawer-title">JARVIS</span>
+                    <span class="nav-drawer-subtitle">Tactical Command</span>
+                    <span class="nav-drawer-meta">Core online / encryption stable</span>
+                </div>
+                <div class="nav-drawer-actions">
+                    <button class="nav-drawer-pin" id="navDrawerPin" aria-pressed="false" aria-label="Pin drawer">
+                        PIN
+                    </button>
+                    <button class="nav-drawer-close" id="navDrawerClose" aria-label="Close navigation">
                     <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
+                </div>
             </div>
             <div class="nav-drawer-links">
+                <div class="nav-drawer-group-label">Core</div>
                 <a href="{{ url_for('dashboard') }}" class="nav-drawer-link {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="{{ url_for('teams') }}" class="nav-drawer-link {% if request.path.startswith('/teams') %}active{% endif %}">Teams</a>
-                <a href="{{ url_for('team_scouting') }}" class="nav-drawer-link {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
+                <a href="{{ url_for('scrims') }}" class="nav-drawer-link {% if request.path.startswith('/scrims') %}active{% endif %}">Scrims</a>
+                <a href="{{ url_for('teams') }}" class="nav-drawer-link {% if request.path.startswith('/teams') and not request.path.startswith('/teams/compare') %}active{% endif %}">Teams</a>
                 <a href="{{ url_for('tournaments') }}" class="nav-drawer-link {% if request.path.startswith('/tournaments') %}active{% endif %}">Tournaments</a>
-                <a href="{{ url_for('machine', tab='chat') }}" class="nav-drawer-link {% if machine_chat_active %}active{% endif %}">Agent</a>
+                <a href="{{ url_for('team_scouting') }}" class="nav-drawer-link {% if request.path.startswith('/team-scouting') %}active{% endif %}">Scouting</a>
                 <div class="nav-drawer-group-label">Machine</div>
-                <a href="{{ url_for('machine') }}" class="nav-drawer-link nav-drawer-link-sub {% if machine_matchup_active %}active{% endif %}">Draft Matchup</a>
-                <a href="{{ url_for('machine', tab='reasoner') }}" class="nav-drawer-link nav-drawer-link-sub {% if machine_reasoner_active %}active{% endif %}">Draft Reasoner</a>
+                <a href="{{ url_for('machine', tab='chat') }}" class="nav-drawer-link {% if machine_chat_active %}active{% endif %}">Analyst</a>
+                <a href="{{ url_for('machine') }}" class="nav-drawer-link {% if machine_matchup_active %}active{% endif %}">Draft Matchup</a>
+                <a href="{{ url_for('machine', tab='reasoner') }}" class="nav-drawer-link {% if machine_reasoner_active %}active{% endif %}">Draft Reader</a>
                 <div class="nav-drawer-group-label">Tools</div>
-                <a href="{{ url_for('draft_simulator') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/draft-simulator') %}active{% endif %}">Draft Prep</a>
-                <a href="{{ url_for('player_rankings') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/players/rankings') %}active{% endif %}">Player Rankings</a>
-                <a href="{{ url_for('teams_compare') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
-                <a href="{{ url_for('player_compare') }}" class="nav-drawer-link nav-drawer-link-sub {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
+                <a href="{{ url_for('draft_simulator') }}" class="nav-drawer-link {% if request.path.startswith('/draft-simulator') %}active{% endif %}">Draft Prep</a>
+                <a href="{{ url_for('player_rankings') }}" class="nav-drawer-link {% if request.path.startswith('/players/rankings') %}active{% endif %}">Player Rankings</a>
+                <a href="{{ url_for('teams_compare') }}" class="nav-drawer-link {% if request.path.startswith('/teams/compare') %}active{% endif %}">Team Compare</a>
+                <a href="{{ url_for('player_compare') }}" class="nav-drawer-link {% if request.path.startswith('/players/compare') %}active{% endif %}">Player Compare</a>
+            </div>
+            <div class="nav-drawer-status" aria-label="Status readout">
+                <span>Core online</span>
+                <span>Encryption stable</span>
             </div>
         </nav>
 
                 <div class="dashboard-layout command-stage">
-                    <section class="command-stage-header">
-                        <div class="command-stage-headline">
-                            <span class="command-kicker">Mission Board</span>
-                            <h1>{{ stage_title }}</h1>
-                        </div>
-                        <div class="command-stage-telemetry">
-                            <span>CORE ONLINE</span>
-                            <span>SAT LINK SECURE</span>
-                        </div>
-                    </section>
                     <main class="main-content jarvis-app command-content">
                         {% with messages = get_flashed_messages(with_categories=true) %}
                             {% if messages %}
@@ -286,9 +302,10 @@
     var overlay = document.getElementById('jarvisBootOverlay');
     if (!overlay) return;
 
+    var forceBoot = overlay.dataset.forceBoot === 'true';
     var shouldSkip = false;
     try {
-        shouldSkip = sessionStorage.getItem('jarvis-boot-seen') === '1';
+        shouldSkip = !forceBoot && sessionStorage.getItem('jarvis-boot-seen') === '1';
     } catch (error) {
         shouldSkip = false;
     }
@@ -301,8 +318,40 @@
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('jarvis-boot-open');
 
+    var percentEl = document.getElementById('jarvisBootPercent');
+    var titleEl = document.getElementById('jarvisBootTitle');
+    var startedAt = Date.now();
+    var bootDuration = forceBoot ? 3400 : 2600;
+    var stages = [
+        [0, 'INITIALIZING SYSTEM...'],
+        [28, 'SYNCING TACTICAL FEEDS...'],
+        [58, 'VALIDATING COMMAND UPLINK...'],
+        [82, 'AI CORE ONLINE...'],
+        [97, 'ACCESS GRANTED']
+    ];
+    var progressTimer = window.setInterval(function () {
+        var percent = Math.min(100, Math.round(((Date.now() - startedAt) / bootDuration) * 100));
+        if (percentEl) percentEl.textContent = String(percent).padStart(2, '0') + '%';
+        if (titleEl) {
+            for (var idx = stages.length - 1; idx >= 0; idx -= 1) {
+                if (percent >= stages[idx][0]) {
+                    titleEl.textContent = stages[idx][1];
+                    break;
+                }
+            }
+        }
+    }, 80);
+
+    window.setTimeout(function () {
+        window.clearInterval(progressTimer);
+        if (percentEl) percentEl.textContent = '100%';
+        if (titleEl) titleEl.textContent = 'ACCESS GRANTED';
+        overlay.classList.add('is-complete');
+    }, bootDuration - 260);
+
     window.setTimeout(function () {
         overlay.classList.remove('show');
+        overlay.classList.remove('is-complete');
         overlay.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('jarvis-boot-open');
         try {
@@ -310,7 +359,24 @@
         } catch (error) {
             /* Ignore storage failures. */
         }
-    }, 2600);
+    }, bootDuration);
+})();
+</script>
+<script>
+(function () {
+    var timeEl = document.getElementById('commandLocalTime');
+    if (!timeEl) return;
+
+    function tick() {
+        var now = new Date();
+        var hh = String(now.getHours()).padStart(2, '0');
+        var mm = String(now.getMinutes()).padStart(2, '0');
+        var ss = String(now.getSeconds()).padStart(2, '0');
+        timeEl.textContent = hh + ':' + mm + ':' + ss;
+    }
+
+    tick();
+    window.setInterval(tick, 1000);
 })();
 </script>
 <script>
@@ -440,37 +506,82 @@
 })();
 </script>
 <script>
-/* Nav drawer toggle */
+/* Pullout HUD drawer toggle */
 (function () {
-    var toggle  = document.getElementById('navDrawerToggle');
+    var tab = document.getElementById('navPullTab');
     var closeBtn = document.getElementById('navDrawerClose');
+    var pinBtn = document.getElementById('navDrawerPin');
     var overlay = document.getElementById('navDrawerOverlay');
     var drawer  = document.getElementById('navDrawer');
-    if (!toggle || !drawer) return;
+    if (!drawer || !tab) return;
+
+    var isPinned = false;
+    var dragStartX = null;
+    var pointerActive = false;
 
     function openDrawer() {
+        drawer.classList.remove('peek');
         drawer.classList.add('open');
-        overlay.classList.add('open');
-        toggle.setAttribute('aria-expanded', 'true');
-        toggle.classList.add('is-open');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeDrawer() {
-        drawer.classList.remove('open');
-        overlay.classList.remove('open');
-        toggle.setAttribute('aria-expanded', 'false');
-        toggle.classList.remove('is-open');
-        document.body.style.overflow = '';
+        document.body.classList.add('drawer-open');
+        if (overlay) overlay.classList.add('open');
+        tab.setAttribute('aria-expanded', 'true');
     }
 
-    toggle.addEventListener('click', openDrawer);
-    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
-    if (overlay) overlay.addEventListener('click', closeDrawer);
-    drawer.querySelectorAll('a.nav-drawer-link').forEach(function (a) {
-        a.addEventListener('click', closeDrawer);
+    function closeDrawer(forceUnpin) {
+        if (forceUnpin) {
+            isPinned = false;
+            drawer.classList.remove('is-pinned');
+            document.body.classList.remove('drawer-pinned');
+            if (pinBtn) pinBtn.setAttribute('aria-pressed', 'false');
+        }
+        if (isPinned) return;
+        drawer.classList.remove('open');
+        drawer.classList.remove('peek');
+        document.body.classList.remove('drawer-open');
+        if (overlay) overlay.classList.remove('open');
+        tab.setAttribute('aria-expanded', 'false');
+    }
+
+    function togglePin() {
+        isPinned = !isPinned;
+        drawer.classList.toggle('is-pinned', isPinned);
+        document.body.classList.toggle('drawer-pinned', isPinned);
+        if (pinBtn) pinBtn.setAttribute('aria-pressed', isPinned ? 'true' : 'false');
+        if (isPinned) {
+            openDrawer();
+        }
+    }
+
+    tab.addEventListener('mouseenter', openDrawer);
+    tab.addEventListener('click', function () {
+        openDrawer();
     });
+    tab.addEventListener('pointerdown', function (event) {
+        pointerActive = true;
+        dragStartX = event.clientX;
+        tab.setPointerCapture(event.pointerId);
+    });
+    tab.addEventListener('pointermove', function (event) {
+        if (!pointerActive || dragStartX == null) return;
+        if (event.clientX - dragStartX > 8) openDrawer();
+    });
+    tab.addEventListener('pointerup', function () {
+        pointerActive = false;
+        dragStartX = null;
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', function () { closeDrawer(true); });
+    if (pinBtn) pinBtn.addEventListener('click', togglePin);
+    if (overlay) overlay.addEventListener('click', function () { closeDrawer(true); });
+    drawer.querySelectorAll('a.nav-drawer-link').forEach(function (a) {
+        a.addEventListener('click', function () {
+            if (isPinned) return;
+            closeDrawer();
+        });
+    });
+
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeDrawer();
+        if (e.key === 'Escape') closeDrawer(true);
     });
 })();
 </script>

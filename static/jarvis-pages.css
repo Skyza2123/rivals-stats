@@ -516,3 +516,567 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Command-surface refinements for draft + map/scrim detail pages. */
+.jarvis-app .command-surface-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.jarvis-app .command-surface-shell :is(.main-header, .draft-sim-hero) {
+  border-radius: 0 !important;
+  padding: 14px 16px !important;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 29, 0.82), rgba(6, 16, 24, 0.92)) !important;
+  border: 1px solid rgba(0, 210, 255, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 210, 255, 0.03) !important;
+}
+
+.jarvis-app .command-surface-shell :is(.main-header, .draft-sim-hero) h2,
+.jarvis-app .command-surface-shell :is(.main-header, .draft-sim-hero) h3 {
+  margin: 0;
+  color: #b8f3ff;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-surface-shell :is(.main-header, .draft-sim-hero) p {
+  color: rgba(111, 184, 200, 0.82);
+}
+
+.jarvis-app .command-surface-shell .header-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jarvis-app .command-surface-shell :is(.panel, .draft-sim-panel, .stat-card, .list-card, .summary-box) {
+  border-radius: 0 !important;
+  border-color: rgba(0, 210, 255, 0.12) !important;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 29, 0.76), rgba(5, 14, 21, 0.9)) !important;
+  box-shadow: none !important;
+}
+
+.jarvis-app .command-surface-shell :is(.panel, .draft-sim-panel) {
+  padding: 14px !important;
+}
+
+.jarvis-app .command-surface-shell .panel-header-row,
+.jarvis-app .command-surface-shell .panel-header,
+.jarvis-app .command-surface-shell .draft-sim-section-head {
+  padding: 0 0 10px !important;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.1) !important;
+  background: transparent !important;
+}
+
+.jarvis-app .command-surface-shell .summary-grid {
+  gap: 10px;
+}
+
+.jarvis-app .command-surface-shell .stat-card {
+  min-height: 92px;
+  padding: 12px 14px !important;
+}
+
+.jarvis-app .command-surface-shell .stat-card strong {
+  color: rgba(103, 177, 193, 0.78) !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+}
+
+.jarvis-app .command-surface-shell .stat-card span {
+  color: #c7f7ff !important;
+}
+
+.jarvis-app .command-surface-shell .tab-bar {
+  gap: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.jarvis-app .command-surface-shell .tab-btn {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: rgba(111, 184, 200, 0.78) !important;
+}
+
+.jarvis-app .command-surface-shell .tab-btn:hover,
+.jarvis-app .command-surface-shell .tab-btn.tab-active {
+  border-color: rgba(0, 210, 255, 0.2) !important;
+  background: rgba(0, 210, 255, 0.06) !important;
+  color: #b8f3ff !important;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-sim-hero {
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-sim-hero h2 {
+  font-size: clamp(1.85rem, 4vw, 3rem);
+  line-height: 0.95;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-sim-chip-row .jarvis-chip,
+.jarvis-app .command-surface-shell-draft .assistant-note {
+  border-radius: 0 !important;
+  background: rgba(7, 18, 27, 0.72) !important;
+  border: 1px solid rgba(0, 210, 255, 0.12) !important;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-sim-actions .button-secondary,
+.jarvis-app .command-surface-shell-draft .draft-sim-actions .rt-toggle,
+.jarvis-app .command-surface-shell-draft #saveDraftBtn,
+.jarvis-app .command-surface-shell-draft #loadDraftBtn,
+.jarvis-app .command-surface-shell-draft #deleteDraftBtn,
+.jarvis-app .command-surface-shell-draft .rt-start-btn {
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-order-bar {
+  background: rgba(4, 14, 21, 0.68);
+  border: 1px solid rgba(0, 210, 255, 0.12);
+  border-radius: 0;
+  padding: 6px;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-step {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid rgba(0, 210, 255, 0.08);
+}
+
+.jarvis-app .command-surface-shell-draft .draft-slot,
+.jarvis-app .command-surface-shell-draft .multi-slot,
+.jarvis-app .command-surface-shell-map .draft-slot.slot-display {
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(7, 18, 27, 0.84), rgba(4, 12, 20, 0.94)) !important;
+  border: 1px solid rgba(0, 210, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.jarvis-app .command-surface-shell-draft .draft-slot:hover,
+.jarvis-app .command-surface-shell-draft .draft-slot.slot-active,
+.jarvis-app .command-surface-shell-map .draft-slot.slot-display.slot-filled {
+  border-color: rgba(0, 210, 255, 0.26) !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 210, 255, 0.08) !important;
+}
+
+.jarvis-app .command-surface-shell-draft .rt-timer-bar {
+  border-radius: 0;
+  background: rgba(4, 14, 21, 0.68);
+  border: 1px solid rgba(0, 210, 255, 0.12);
+}
+
+.jarvis-app .command-surface-shell-draft .hero-role-section {
+  border-radius: 0;
+  border: 1px solid rgba(0, 210, 255, 0.1);
+  background: linear-gradient(180deg, rgba(7, 18, 27, 0.76), rgba(4, 12, 20, 0.88));
+}
+
+.jarvis-app .command-surface-shell-draft .role-heading {
+  border-radius: 0;
+  color: rgba(184, 243, 255, 0.88);
+  letter-spacing: 0.1em;
+}
+
+.jarvis-app .command-surface-shell-draft .hero-pick-btn {
+  border-radius: 0 !important;
+  background: rgba(6, 18, 27, 0.86) !important;
+  border: 1px solid rgba(0, 210, 255, 0.12) !important;
+}
+
+.jarvis-app .command-surface-shell-draft .hero-pick-btn img {
+  border-radius: 0 !important;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner {
+  margin: 0 0 12px;
+  min-height: 220px;
+  border-radius: 0;
+  border: 1px solid rgba(0, 210, 255, 0.12);
+  box-shadow: none;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay {
+  min-height: 220px;
+  padding: 20px 18px 16px;
+  background:
+    linear-gradient(180deg, rgba(2, 8, 15, 0.24), rgba(2, 8, 15, 0.88)),
+    repeating-linear-gradient(0deg, rgba(0, 210, 255, 0.03) 0 1px, transparent 1px 12px);
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay .main-header {
+  background: rgba(4, 13, 21, 0.72) !important;
+}
+
+.jarvis-app .command-surface-shell-map .page-shell {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.jarvis-app .command-surface-shell-map .map-report-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner {
+  width: 100%;
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay {
+  min-height: 0;
+  padding: 10px 12px;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay .main-header {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay .main-header h2 {
+  font-size: clamp(1.15rem, 2vw, 1.7rem);
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay .main-header p {
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.jarvis-app .command-surface-shell-map .map-banner-overlay .header-actions {
+  justify-content: flex-end;
+}
+
+.jarvis-app .command-surface-shell-map .map-report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 6px;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.jarvis-app .command-surface-shell-map .map-report-meta-item {
+  color: rgba(184, 243, 255, 0.86);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.jarvis-app .command-surface-shell-map .map-report-meta-item strong {
+  color: rgba(111, 184, 200, 0.82);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+}
+
+.jarvis-app .command-surface-shell-map .tab-bar,
+.jarvis-app .command-surface-shell-map .tab-content {
+  width: 100%;
+}
+
+.jarvis-app .command-surface-shell-map .tab-content {
+  display: grid;
+  gap: 10px;
+}
+
+.jarvis-app .command-surface-shell-map .panel {
+  width: 100%;
+}
+
+.jarvis-app .command-surface-shell-map #tab-draft .draft-grid {
+  width: 100%;
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.jarvis-app .command-surface-shell-map #tab-draft .draft-column {
+  min-width: 0;
+}
+
+.jarvis-app .command-surface-shell-map #tab-draft .draft-column h4 {
+  margin: 0 0 10px;
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-surface-shell-map #tab-draft .draft-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(118px, 1fr));
+  gap: 8px;
+}
+
+.jarvis-app .command-surface-shell-map #tab-draft .draft-slot.slot-display {
+  min-height: 82px;
+  padding: 8px 8px;
+}
+
+.jarvis-app .command-surface-shell-map #tab-draft .draft-slot.slot-display .slot-hero-name {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.jarvis-app .command-surface-shell-map .comp-section {
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.jarvis-app .command-surface-shell-map .comp-section + .comp-section {
+  border-top: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.jarvis-app .command-surface-shell-map .comp-section-header {
+  width: 100%;
+  margin: 0 0 10px;
+  gap: 10px;
+  align-items: center;
+}
+
+.jarvis-app .command-surface-shell-map .comp-section-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.jarvis-app .command-surface-shell-map .comp-submap-name {
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+}
+
+.jarvis-app .command-surface-shell-map .comp-section-meta {
+  color: rgba(111, 184, 200, 0.82);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-surface-shell-map .comp-section-meta strong {
+  color: #b8f3ff;
+  font-size: 0.72rem;
+}
+
+.jarvis-app .command-surface-shell-map .comp-grid {
+  width: 100%;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.jarvis-app .command-surface-shell-map .comp-team {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 54px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(0, 210, 255, 0.06);
+}
+
+.jarvis-app .command-surface-shell-map .comp-team-label {
+  margin: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-surface-shell-map .comp-slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+}
+
+.jarvis-app .command-surface-shell-map .comp-slot {
+  min-width: 0;
+  min-height: 54px;
+  padding: 6px 8px;
+  gap: 8px;
+  border: 0 !important;
+  background: transparent !important;
+  border-left: 1px solid rgba(0, 210, 255, 0.08) !important;
+}
+
+.jarvis-app .command-surface-shell-map .comp-slots .comp-slot:first-child {
+  border-left: 1px solid rgba(0, 210, 255, 0.08) !important;
+}
+
+.jarvis-app .command-surface-shell-map .comp-hero-img {
+  width: 30px;
+  height: 30px;
+  border-radius: 0;
+}
+
+.jarvis-app .command-surface-shell-map .comp-info {
+  min-width: 0;
+}
+
+.jarvis-app .command-surface-shell-map .comp-hero-name,
+.jarvis-app .command-surface-shell-map .comp-player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jarvis-app .command-surface-shell-map .comp-hero-name {
+  font-size: 0.68rem;
+}
+
+.jarvis-app .command-surface-shell-map .comp-player-name {
+  font-size: 0.62rem;
+}
+
+@media (max-width: 1180px) {
+  .jarvis-app .command-surface-shell-map .comp-team {
+    grid-template-columns: 132px minmax(0, 1fr);
+  }
+
+  .jarvis-app .command-surface-shell-map .comp-slots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 840px) {
+  .jarvis-app .command-surface-shell-map .map-banner-overlay .main-header,
+  .jarvis-app .command-surface-shell-map #tab-draft .draft-grid,
+  .jarvis-app .command-surface-shell-map .comp-team {
+    grid-template-columns: 1fr;
+  }
+
+  .jarvis-app .command-surface-shell-map #tab-draft .draft-slots,
+  .jarvis-app .command-surface-shell-map .comp-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jarvis-app .command-surface-shell-map .comp-team-label {
+    min-height: 0;
+  }
+}
+
+.jarvis-app .command-surface-shell-scrim .map-card-grid {
+  gap: 12px;
+}
+
+.jarvis-app .command-surface-shell-scrim .map-card {
+  border-radius: 0;
+  border: 1px solid rgba(0, 210, 255, 0.12);
+  box-shadow: none;
+  transform: none;
+}
+
+.jarvis-app .command-surface-shell-scrim .map-card:hover {
+  transform: none;
+  border-color: rgba(0, 210, 255, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(0, 210, 255, 0.08);
+}
+
+.jarvis-app .command-surface-shell-scrim .map-card-overlay {
+  background:
+    linear-gradient(180deg, rgba(2, 8, 14, 0.12), rgba(2, 8, 14, 0.88)),
+    radial-gradient(circle at 70% 20%, rgba(0, 210, 255, 0.12), transparent 36%);
+}
+
+.jarvis-app .command-surface-shell-scrim .map-card-title {
+  color: #e1fbff;
+  text-shadow: 0 0 12px rgba(0, 210, 255, 0.18);
+}
+
+.jarvis-app .command-surface-shell-scrim .map-card-sub {
+  color: rgba(206, 243, 250, 0.74);
+}
+
+.jarvis-app .command-surface-shell-scrim :is(.map-card-edit, .map-card-delete) {
+  border-radius: 0;
+  border: 1px solid rgba(0, 210, 255, 0.16);
+  background: rgba(4, 13, 21, 0.88);
+  color: #b8f3ff;
+}
+
+.jarvis-app .command-surface-shell :is(.modal-overlay, .modal-backdrop) {
+  background: rgba(1, 6, 11, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.jarvis-app .command-surface-shell :is(.modal-card, .modal) {
+  border-radius: 0 !important;
+  border: 1px solid rgba(0, 210, 255, 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(8, 20, 29, 0.96), rgba(5, 14, 21, 0.98)) !important;
+  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.44) !important;
+}
+
+.jarvis-app .command-surface-shell :is(.modal-card, .modal) form {
+  display: grid;
+  gap: 12px;
+}
+
+.jarvis-app .command-surface-shell .modal-header {
+  padding: 0 0 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.1);
+}
+
+.jarvis-app .command-surface-shell .modal-header h2,
+.jarvis-app .command-surface-shell .modal-header h3 {
+  color: #b8f3ff;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.jarvis-app .command-surface-shell .modal-header p,
+.jarvis-app .command-surface-shell small {
+  color: rgba(111, 184, 200, 0.72);
+}
+
+.jarvis-app .command-surface-shell .form-grid {
+  gap: 12px;
+}
+
+.jarvis-app .command-surface-shell .field label {
+  color: rgba(126, 195, 210, 0.78);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+}
+
+.jarvis-app .command-surface-shell :is(input, select, textarea) {
+  min-height: 34px;
+  border-radius: 0 !important;
+  background: rgba(5, 14, 20, 0.78) !important;
+  border: 1px solid rgba(0, 210, 255, 0.14) !important;
+  color: #b8f3ff !important;
+}
+
+.jarvis-app .command-surface-shell :is(input, select, textarea):focus {
+  border-color: rgba(0, 210, 255, 0.28) !important;
+  box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.12) !important;
+}
+
+.jarvis-app .command-surface-shell .modal-actions,
+.jarvis-app .command-surface-shell .button-row {
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .jarvis-app .command-surface-shell-draft .draft-sim-hero {
+    grid-template-columns: 1fr;
+  }
+}
